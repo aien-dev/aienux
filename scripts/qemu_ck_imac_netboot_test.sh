@@ -114,7 +114,8 @@ echo "== stage 1: good job =="
 wait_for '^netldr: AIENOS NETLDR v1 ' "${txt}" 240 || true
 chk "loader started" '^netldr: AIENOS NETLDR v1 commit=[0-9a-f]+ keys=1 fallback=8s$' "${txt}"
 wait_for '^power: restart via ' "${txt}" 400 || true
-chk "NIC found" '^netldr: nic [0-9]+ mac=52:54:00:12:34:56 type=1 ' "${txt}"
+chk "NIC found" '^netldr: nic [0-9]+ of [0-9]+ mac=52:54:00:12:34:56 type=1 ' "${txt}"
+chk "cable link seen" '^netldr: nic [0-9]+ link up$' "${txt}"
 chk "offer received" '^netldr: the Spark offers a kernel: [0-9]+ bytes$' "${txt}"
 chk "signature and digest verified" "^netldr: signature and SHA-512 verified: gen=[0-9]+ commit=${commit:0:12} len=[0-9]+\$" "${txt}"
 chk "network kernel started" '^netldr: starting the network kernel \([0-9]+ bytes\)$' "${txt}"
@@ -159,7 +160,7 @@ for _ in $(seq 1 300); do
     sleep 1
 done
 snap
-chk "fallback after 8 s of silence" '^netldr: no answer from the Spark for 8 s; starting the kernel on this stick$' "${txt}"
+chk "fallback after 8 s of silence" '^netldr: no answer from the Spark \(frames sent, nothing came back\); starting the kernel on this stick in 10 s$' "${txt}"
 chk "local kernel started" '^netldr: starting the local kernel \([0-9]+ bytes\)$' "${txt}"
 chk "local (default) kernel powered off through ACPI S5" '^power: off via ACPI S5 ' "${txt}"
 [[ ${self_exit} == 1 ]] && pass "QEMU powered off by itself" || fail "QEMU powered off by itself"

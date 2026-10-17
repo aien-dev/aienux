@@ -2422,7 +2422,12 @@ NETBOOT_TOOL_SRCS := $(KDIR)/tools/ck_imac_netboot.c $(BOOT)/netboot_proto.c $(N
 $(NETBOOT_TOOL): $(NETBOOT_TOOL_SRCS) $(BOOT)/netboot_proto.h $(NATIVE)/net/aienos_net.h $(NATIVE)/sig/aienos_sig.h
 	@mkdir -p $(dir $@)
 	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror -I$(BOOT) -I$(NATIVE)/net -I$(NATIVE)/sig -o $@ $(NETBOOT_TOOL_SRCS)
-imac-netboot-tool: $(NETBOOT_TOOL)
+# Apple NetBoot answerer (BSDP + one-file TFTP): the iMac starts NETLDR.EFI from the Spark with N held.
+BSDP_TOOL := $(OUT)/host/ck_imac_bsdp
+$(BSDP_TOOL): $(KDIR)/tools/ck_imac_bsdp.c
+	@mkdir -p $(dir $@)
+	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror -o $@ $<
+imac-netboot-tool: $(NETBOOT_TOOL) $(BSDP_TOOL)
 
 # Raspberry Pi 5 board image (see CK_PI5 above): target/native-kernel-pi5/BOOTAA64.EFI
 pi5-store:

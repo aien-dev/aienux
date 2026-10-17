@@ -7,7 +7,9 @@
  *   1. Network: the firmware's Simple Network Protocol (UEFI 2.10 section
  *      24.1), opened EXCLUSIVE so the firmware's own network stack lets go of
  *      the receive queue. No SNP handle: ConnectController on every handle
- *      once, then look again.
+ *      once, then look again. Every handle is tried (the iMac also has a Wi-Fi
+ *      SNP that looks like Ethernet): the first with its cable link up wins;
+ *      with none reporting a link, each gets a 10 s turn before the fallback.
  *   2. HELLO every second. WAIT: the server is there with nothing queued; ask
  *      again after the seconds it names. OFFER: fetch the object (signed slot
  *      manifest + image) in NB_WINDOW-chunk windows, re-asking for gaps.
@@ -185,7 +187,14 @@ static void net_close(void)
     snp = 0;
 }
 
-static int pick_nic(void)
+/* Every SNP handle, in firmware order. The iMac firmware carries a Wi-Fi driver (Internet
+ * Recovery) beside the wired one, and an 802.11 SNP reports IfType 1 like Ethernet, so the
+ * first handle is not necessarily the cable. */
+#define NIC_MAX 8
+static EFI_HANDLE nics[NIC_MAX];
+static unsigned n_nics, nic_tries = 1;
+
+static int find_nics(void)
 {
     EFI_HANDLE *h = 0;
     uint64_t n = 0;
@@ -203,72 +212,110 @@ static int pick_nic(void)
             return -1;
         }
     }
-    int chosen = -1;
-    for (uint64_t i = 0; i < n && chosen < 0; i++) {
-        SNP *p = 0;
-        int ex = 1;
-        if (((open_protocol_fn)bs->OpenProtocol)(h[i], &snp_guid, (void **)&p, self, 0, OPEN_EXCLUSIVE) !=
-            EFI_SUCCESS) {
-            ex = 0;
-            if (bs->HandleProtocol(h[i], &snp_guid, (void **)&p) != EFI_SUCCESS)
-                p = 0;
-        }
-        if (!p || !p->Mode) {
-            say("netldr: nic %llu unusable (no protocol)\n", (unsigned long long)i);
-            continue;
-        }
-        SNP_MODE *m = p->Mode;
-        say("netldr: nic %llu mac=%02x:%02x:%02x:%02x:%02x:%02x type=%u state=%u media=%s open=%s\n",
-            (unsigned long long)i, m->CurrentAddress.addr[0], m->CurrentAddress.addr[1], m->CurrentAddress.addr[2],
-            m->CurrentAddress.addr[3], m->CurrentAddress.addr[4], m->CurrentAddress.addr[5], m->IfType, m->State,
-            !m->MediaPresentSupported ? "unknown" : m->MediaPresent ? "up" : "down", ex ? "exclusive" : "shared");
-        if (m->IfType != 1 || m->HwAddressSize != 6) {
-            if (ex)
-                ((close_protocol_fn)bs->CloseProtocol)(h[i], &snp_guid, self, 0);
-            continue;
-        }
-        snp = p;
-        snp_handle = h[i];
-        snp_exclusive = ex;
-        memcpy(mac, m->CurrentAddress.addr, 6);
-        chosen = (int)i;
-    }
+    n_nics = n < NIC_MAX ? (unsigned)n : NIC_MAX;
+    for (unsigned i = 0; i < n_nics; i++)
+        nics[i] = h[i];
     bs->FreePool(h);
-    return chosen < 0 ? -1 : 0;
+    return 0;
 }
 
-static int net_open(void)
+enum { LINK_UNUSABLE = -1, LINK_DOWN, LINK_UNKNOWN, LINK_UP };
+
+/* Open nics[i] (exclusive if the firmware lets go), bring it to Initialized with unicast +
+ * broadcast receive, wait up to 10 s for the cable link. Leaves it open as snp unless
+ * LINK_UNUSABLE; the caller closes the ones it does not keep. */
+static int use_nic(unsigned i, int quiet)
 {
     EFI_STATUS s;
-    if (pick_nic() != 0)
-        return -1;
-    if (snp->Mode->State == SNP_STOPPED && (s = snp->Start(snp)) != EFI_SUCCESS && s != EFI_ALREADY_STARTED) {
-        say("netldr: network Start status=0x%llx\n", (unsigned long long)s);
-        net_close();
-        return -1;
+    SNP *p = 0;
+    int ex = 1;
+    if (((open_protocol_fn)bs->OpenProtocol)(nics[i], &snp_guid, (void **)&p, self, 0, OPEN_EXCLUSIVE) !=
+        EFI_SUCCESS) {
+        ex = 0;
+        if (bs->HandleProtocol(nics[i], &snp_guid, (void **)&p) != EFI_SUCCESS)
+            p = 0;
     }
-    if (snp->Mode->State == SNP_STARTED && (s = snp->Initialize(snp, 0, 0)) != EFI_SUCCESS) {
-        say("netldr: network Initialize status=0x%llx\n", (unsigned long long)s);
-        net_close();
-        return -1;
+    if (!p || !p->Mode) {
+        say("netldr: nic %u unusable (no protocol)\n", i);
+        return LINK_UNUSABLE;
     }
-    uint32_t want = (SNP_RX_UNICAST | SNP_RX_BROADCAST) & snp->Mode->ReceiveFilterMask;
-    if (!(want & SNP_RX_BROADCAST) || (s = snp->ReceiveFilters(snp, want, 0, 0, 0, 0)) != EFI_SUCCESS) {
-        say("netldr: cannot receive broadcasts (mask=0x%x status=0x%llx)\n", snp->Mode->ReceiveFilterMask,
+    SNP_MODE *m = p->Mode;
+    if (!quiet)
+        say("netldr: nic %u of %u mac=%02x:%02x:%02x:%02x:%02x:%02x type=%u state=%u open=%s\n", i, n_nics,
+            m->CurrentAddress.addr[0], m->CurrentAddress.addr[1], m->CurrentAddress.addr[2], m->CurrentAddress.addr[3],
+            m->CurrentAddress.addr[4], m->CurrentAddress.addr[5], m->IfType, m->State, ex ? "exclusive" : "shared");
+    snp = p;
+    snp_handle = nics[i];
+    snp_exclusive = ex;
+    if (m->IfType != 1 || m->HwAddressSize != 6) {
+        net_close();
+        return LINK_UNUSABLE;
+    }
+    memcpy(mac, m->CurrentAddress.addr, 6);
+    if (m->State == SNP_STOPPED && (s = p->Start(p)) != EFI_SUCCESS && s != EFI_ALREADY_STARTED) {
+        say("netldr: nic %u Start status=0x%llx\n", i, (unsigned long long)s);
+        net_close();
+        return LINK_UNUSABLE;
+    }
+    if (m->State == SNP_STARTED && (s = p->Initialize(p, 0, 0)) != EFI_SUCCESS) {
+        say("netldr: nic %u Initialize status=0x%llx\n", i, (unsigned long long)s);
+        net_close();
+        return LINK_UNUSABLE;
+    }
+    uint32_t want = (SNP_RX_UNICAST | SNP_RX_BROADCAST) & m->ReceiveFilterMask;
+    if (!(want & SNP_RX_BROADCAST) || (s = p->ReceiveFilters(p, want, 0, 0, 0, 0)) != EFI_SUCCESS) {
+        say("netldr: nic %u cannot receive broadcasts (mask=0x%x status=0x%llx)\n", i, m->ReceiveFilterMask,
             (unsigned long long)(want & SNP_RX_BROADCAST ? s : EFI_ERR(3)));
         net_close();
+        return LINK_UNUSABLE;
+    }
+    if (!m->MediaPresentSupported) {
+        if (!quiet)
+            say("netldr: nic %u link: not reported\n", i);
+        return LINK_UNKNOWN;
+    }
+    for (uint64_t t = now_ms() + 10000; !m->MediaPresent && now_ms() < t;) {
+        uint32_t irq;
+        p->GetStatus(p, &irq, 0);
+        bs->Stall(100000);
+    }
+    if (!quiet)
+        say("netldr: nic %u link %s\n", i, m->MediaPresent ? "up" : "down");
+    return m->MediaPresent ? LINK_UP : LINK_DOWN;
+}
+
+/* Keep the first interface with its cable link up. With none up, round number `round` picks
+ * among the rest (link not reported first, then link down), so a caller that moves to the
+ * next round after a silent window tries each in turn; nic_tries says how many there are. */
+static int net_open(unsigned round)
+{
+    unsigned cand[2 * NIC_MAX], nc = 0, down[NIC_MAX], nd = 0;
+    if (find_nics() != 0)
+        return -1;
+    for (unsigned i = 0; i < n_nics; i++) {
+        int r = use_nic(i, round != 0);
+        if (r == LINK_UP) {
+            nic_tries = 1;
+            return 0;
+        }
+        if (r == LINK_UNUSABLE)
+            continue;
+        net_close();
+        if (r == LINK_UNKNOWN)
+            cand[nc++] = i;
+        else
+            down[nd++] = i;
+    }
+    for (unsigned k = 0; k < nd; k++)
+        cand[nc++] = down[k];
+    if (nc == 0) {
+        say("netldr: no usable network interface\n");
         return -1;
     }
-    if (snp->Mode->MediaPresentSupported) {
-        uint64_t t = now_ms() + 10000;
-        while (!snp->Mode->MediaPresent && now_ms() < t) {
-            uint32_t irq;
-            snp->GetStatus(snp, &irq, 0);
-            bs->Stall(100000);
-        }
-        say("netldr: link %s\n", snp->Mode->MediaPresent ? "up" : "down (still trying)");
-    }
-    return 0;
+    nic_tries = nc;
+    unsigned pick = cand[round % nc];
+    say("netldr: no interface reports a cable link; trying nic %u (%u of %u)\n", pick, round % nc + 1, nc);
+    return use_nic(pick, 1) == LINK_UNUSABLE ? -1 : 0;
 }
 
 /* Why the last net_send failed (for the DONE report). */
@@ -297,15 +344,19 @@ static int net_send(const struct nb_msg *m)
     tx_why = "Transmit";
     if ((tx_status = snp->Transmit(snp, 0, ew, tx, 0, 0, 0)) != EFI_SUCCESS)
         return -1;
-    tx_why = "no tx completion";
-    /* The frame buffer is the firmware's until GetStatus hands it back. */
+    /* The frame buffer is the firmware's until GetStatus hands it back. A driver that never
+     * reports the completion still sent the frame: go on and listen (the next frame is built
+     * a second or more later), and say so if nothing ever answers. */
     for (uint64_t t = now_ms() + 100; now_ms() < t;) {
         uint32_t irq;
         void *done = 0;
-        if (snp->GetStatus(snp, &irq, &done) == EFI_SUCCESS && done)
+        if (snp->GetStatus(snp, &irq, &done) == EFI_SUCCESS && done) {
+            tx_why = "frames sent, nothing came back";
             return 0;
+        }
     }
-    return -1;
+    tx_why = "frames handed to the card, completion never reported";
+    return 0;
 }
 
 /* Next netboot message with our nonce before deadline (ms). 0 or -1. */
@@ -547,30 +598,43 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     if (!tsc_per_ms)
         tsc_per_ms = 1;
     watchdog(NETLDR_WATCHDOG_S);
+    unsigned round = 0;
     for (;;) {
-        if (ck_slot_loader_nkeys == 0 || net_open() != 0) {
-            say("netldr: %s; starting the kernel on this stick\n",
+        if (ck_slot_loader_nkeys == 0 || net_open(round) != 0) {
+            say("netldr: %s; starting the kernel on this stick in 10 s\n",
                 ck_slot_loader_nkeys == 0 ? "no trusted keys built in" : "no usable network");
+            bs->Stall(10000000); /* time to read (or photograph) the lines above */
             start_local();
             say("netldr: nothing started; trying again in 10 s\n");
             bs->Stall(10000000);
             continue;
         }
-        say("netldr: asking the Spark for a kernel (ports %u/%u)\n", NB_PORT_SERVER, NB_PORT_LOADER);
+        /* With several candidate interfaces and no cable link reported, each gets a share. */
+        uint64_t window = (uint64_t)(nic_tries > 1 ? 10u : CK_NETLDR_FALLBACK_S) * 1000u;
+        say("netldr: asking the Spark for a kernel from %02x:%02x:%02x:%02x:%02x:%02x (ports %u/%u)\n", mac[0],
+            mac[1], mac[2], mac[3], mac[4], mac[5], NB_PORT_SERVER, NB_PORT_LOADER);
         uint64_t last = now_ms();
         int r = R_SILENT;
-        while (snp && now_ms() - last < (uint64_t)CK_NETLDR_FALLBACK_S * 1000u) {
+        while (snp && now_ms() - last < window) {
             r = exchange();
             if (r == R_BOOT)
                 break;
             if (r == R_ANSWERED)
                 last = now_ms();
         }
-        if (r == R_BOOT) /* the network kernel returned: open the network again */
+        if (r == R_BOOT) { /* the network kernel returned: open the network again */
+            round = 0;
             continue;
+        }
         net_close();
-        say("netldr: no answer from the Spark for %u s; starting the kernel on this stick\n",
-            (unsigned)CK_NETLDR_FALLBACK_S);
+        if (++round < nic_tries) {
+            say("netldr: no answer on this interface; trying the next one\n");
+            continue;
+        }
+        round = 0;
+        say("netldr: no answer from the Spark (%s); starting the kernel on this stick in 10 s\n",
+            tx_why ? tx_why : "frames sent");
+        bs->Stall(10000000); /* time to read (or photograph) the lines above */
         start_local();
         say("netldr: back from the local kernel; asking the network again\n");
     }
