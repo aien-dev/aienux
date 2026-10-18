@@ -200,7 +200,8 @@ static void test_tone(void)
     int lo = 0, hi = 0, ok = 1;
     for (int i = 0; i < 48000; i++) {
         int16_t x = ck_test_tone_next(&t);
-        ok &= x >= -32767 && x <= 32767;
+        /* The tone never emits INT16_MIN: it is the one sample whose negation overflows. */
+        ok &= x != -32768;
         lo |= x < -30000;
         hi |= x > 30000;
     }
