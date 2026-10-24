@@ -151,6 +151,9 @@
 #define MT7925_HDR_FORMAT_CMD 1u
 #define MT7925_UNI_OPT_SET 0x7u      /* ACK | UNI | SET */
 #define MT7925_UNI_OPT_QUERY 0x3u    /* ACK | UNI */
+#define MT7925_UNI_OPT_ACK 0x1u      /* MCU_CMD_ACK, mt76_connac_mcu.h:1210 */
+#define MT7925_UNI_CMD_HIF_CTRL 0x07u    /* MCU_UNI_CMD_HIF_CTRL, mt76_connac_mcu.h:1323 */
+#define MT7925_UNI_CMD_CHIP_CONFIG 0x0eu /* MCU_UNI_CMD_CHIP_CONFIG, mt76_connac_mcu.h:1328 */
 #define MT7925_RXD_BYTES 32u         /* RX descriptor words before an event header */
 #define MT7925_EVT_HDR_BYTES 44u     /* rxd[8], len, pkt_type_id, eid, seq, option, rsv, ext_eid, rsv2, s2d */
 #define MT7925_EVT_LEN_OFF 32u

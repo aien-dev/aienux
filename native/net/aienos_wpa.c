@@ -250,7 +250,7 @@ static wpa_err parse_keydata(const uint8_t *kd, uint32_t n, int need_rsne, const
     return WPA_OK;
 }
 
-static wpa_err take_gtk(wpa_supp *w, const uint8_t *g, uint32_t glen, wpa_action *a) {
+static wpa_err take_gtk(wpa_supp *w, const uint8_t *g, uint32_t glen, const uint8_t rsc[8], wpa_action *a) {
     uint8_t idx = g[0] & 3u, len = (uint8_t)(glen - 2u);
     if (idx == 0) return WPA_E_KEYDATA; /* group keys use ids 1..3 */
     memcpy(w->gtk, g + 2, len);
@@ -263,6 +263,10 @@ static wpa_err take_gtk(wpa_supp *w, const uint8_t *g, uint32_t glen, wpa_action
     memcpy(w->gtk_installed, w->gtk, len);
     w->gtk_installed_len = len;
     w->gtk_installed_idx = idx;
+    /* Key RSC (12.7.6.4): the receive counter for this key starts at the AP's packet number, bytes 0..5 = PN0..PN5,
+     * so frames it sent under this key before we joined are replays. */
+    w->gtk_rsc = 0;
+    for (int b = 5; b >= 0; b--) w->gtk_rsc = (w->gtk_rsc << 8) | rsc[b];
     a->install_gtk = 1;
     return WPA_OK;
 }
@@ -313,7 +317,7 @@ static wpa_err rx_m3(wpa_supp *w, const uint8_t *p, const wpa_key_frame *k, uint
     if (e != WPA_OK) goto out;
     memcpy(w->replay, k->replay, 8);
     w->replay_set = 1;
-    if ((e = take_gtk(w, gtk, glen, a)) != WPA_OK) goto out;
+    if ((e = take_gtk(w, gtk, glen, k->rsc, a)) != WPA_OK) goto out;
     if (!w->ptk_installed) {
         w->ptk_installed = 1;
         a->install_ptk = 1;
@@ -341,7 +345,7 @@ static wpa_err rx_group(wpa_supp *w, const uint8_t *p, const wpa_key_frame *k, u
     e = send_key(w, WPA_KI_MIC | WPA_KI_SECURE, k->replay, 0, 0, 0, k->version, out, cap, &a->reply_len);
     if (e != WPA_OK) goto out;
     memcpy(w->replay, k->replay, 8);
-    e = take_gtk(w, gtk, glen, a);
+    e = take_gtk(w, gtk, glen, k->rsc, a);
 out:
     aienos_wipe(plain, sizeof plain);
     if (e != WPA_OK) a->reply_len = 0;

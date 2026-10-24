@@ -269,7 +269,8 @@ static void mcu_cmd(mt7925_model *m, const uint8_t *b, uint32_t len) {
     uint32_t txd0 = le32(b), txd1 = le32(b + 4);
     const uint8_t *h = b + MT7925_TXD_BYTES;
     if ((txd0 & 0xffffu) != len || ((txd0 >> 23) & 3u) != MT7925_TX_TYPE_CMD || (txd0 >> 25) != MT7925_MCU_Q_IDX ||
-        ((txd1 >> 16) & 3u) != MT7925_HDR_FORMAT_CMD || h[5] != MT7925_MCU_PKT_ID ||
+        /* connac3: HDR_FORMAT at bits 15:14 and nothing in the connac2 position 17:16 */
+        txd1 != (MT7925_HDR_FORMAT_CMD << MT7925_TXD1_HDR_FORMAT_SHIFT) || h[5] != MT7925_MCU_PKT_ID ||
         (uint32_t)(h[0] | (h[1] << 8)) != len - MT7925_TXD_BYTES) {
         m->mcu_bad++;
         return;
@@ -287,6 +288,11 @@ static void mcu_cmd(mt7925_model *m, const uint8_t *b, uint32_t len) {
     if (uni) {
         uint16_t cid = (uint16_t)(h[2] | (h[3] << 8));
         m->last_uni_cid = cid;
+        /* mt7925/mcu.c mt7925_mcu_fill_message: HIF_CTRL and CHIP_CONFIG go without the ACK bit; a set is
+         * EXT_ACK (7) and a query QUERY_ACK (3) otherwise. */
+        uint8_t want = (h[11] & 4u) ? MT7925_UNI_OPT_SET : MT7925_UNI_OPT_QUERY;
+        if (cid == MT7925_UNI_CMD_HIF_CTRL || cid == MT7925_UNI_CMD_CHIP_CONFIG) want &= (uint8_t)~MT7925_UNI_OPT_ACK;
+        if (h[11] != want) { m->mcu_bad++; return; }
         uni_cmd(m, cid, seq, p, pl);
         return;
     }

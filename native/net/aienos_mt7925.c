@@ -811,7 +811,9 @@ mt7925_err mt7925_mcu_send(mt7925_dev *d, uint16_t cmd, int uni, int query, cons
     uint8_t seq = next_seq(d);
     zero(h, sizeof(h));
     put_le32(h, (total & 0xffffu) | (MT7925_TX_TYPE_CMD << 23) | (MT7925_MCU_Q_IDX << 25));
-    put_le32(h + 4, MT7925_HDR_FORMAT_CMD << 16);
+    /* connac3 layout: TXD1 HDR_FORMAT is bits 15:14 (mt76_connac3_mac.h MT_TXD1_HDR_FORMAT, used by
+     * mt7925/mcu.c mt7925_mcu_fill_message); bits 17:16 is the older connac2 layout. */
+    put_le32(h + 4, MT7925_HDR_FORMAT_CMD << MT7925_TXD1_HDR_FORMAT_SHIFT);
     uint8_t *m = h + MT7925_TXD_BYTES;
     put_le16(m, (uint16_t)(total - MT7925_TXD_BYTES));
     if (uni) {
@@ -820,6 +822,8 @@ mt7925_err mt7925_mcu_send(mt7925_dev *d, uint16_t cmd, int uni, int query, cons
         m[7] = seq;
         m[10] = 0; /* s2d: host to N9 */
         m[11] = (uint8_t)(query ? MT7925_UNI_OPT_QUERY : MT7925_UNI_OPT_SET);
+        if (cmd == MT7925_UNI_CMD_HIF_CTRL || cmd == MT7925_UNI_CMD_CHIP_CONFIG)
+            m[11] &= (uint8_t)~MT7925_UNI_OPT_ACK; /* mt7925/mcu.c: these two never carry the ACK bit */
     } else {
         put_le16(m + 2, (uint16_t)MT7925_MCU_PQ_ID);
         m[4] = (uint8_t)cmd;
@@ -837,11 +841,15 @@ mt7925_err mt7925_mcu_send(mt7925_dev *d, uint16_t cmd, int uni, int query, cons
             return (mt7925_err)(-r);
         if (matched)
             return MT7925_OK;
+        /* Every pass counts against the budget (an unrelated event costs 1 us of it), so a chip that keeps
+         * sending other events cannot hold the wait open forever. */
+        if (spent >= MT7925_MCU_REPLY_US)
+            return MT7925_E_TIMEOUT;
         if (r == 0) {
-            if (spent >= MT7925_MCU_REPLY_US)
-                return MT7925_E_TIMEOUT;
             d->ops.udelay(d->ops.ctx, MT7925_POLL_STEP_US);
             spent += MT7925_POLL_STEP_US;
+        } else {
+            spent += 1u;
         }
     }
 }

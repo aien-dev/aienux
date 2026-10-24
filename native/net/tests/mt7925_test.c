@@ -1091,13 +1091,25 @@ static void test_station_wpa(void) {
     CHECK(net_eth_build(&out, eth, sizeof eth, &n) == NET_OK);
     CHECK(wifi_sta_send_eth(&S, eth, (uint32_t)n) == WIFI_OK && M.arp_replies == 1);
     CHECK(!recv_eth(&ef, rx, sizeof rx) && S.rx_replay_dropped == 1);
-    /* an AP that restarts deauthenticates everyone (Address 1 broadcast): honoured */
+    /* protected management frames are on (AKM 6, MFPC): an unprotected broadcast deauth (needs BIP, not
+     * implemented) and an unprotected unicast one are both refused; the link stays up */
     uint8_t bd[26] = {0xc0, 0x00};
     memset(bd + 4, 0xff, 6);
     memcpy(bd + 10, AP_SHA.bssid, 6);
     memcpy(bd + 16, AP_SHA.bssid, 6);
     bd[24] = 7;
     wifi_sta_rx(&S, bd, sizeof bd, 0, -30);
+    CHECK(S.st == WIFI_STA_RUN && S.deauths == 0 && S.ptk_set && S.mgmt_unprotected_dropped == 1);
+    uint8_t ud[26];
+    memcpy(ud, bd, sizeof ud);
+    memcpy(ud + 4, S.mac, 6);
+    wifi_sta_rx(&S, ud, sizeof ud, 0, -30);
+    CHECK(S.st == WIFI_STA_RUN && S.deauths == 0 && S.mgmt_unprotected_dropped == 2);
+    /* decrypted under the PTK but with a packet number not above the last one (a replay): refused;
+     * with a fresh packet number it ends the link */
+    wifi_sta_rx_pn(&S, ud, sizeof ud, 1, 1, 0, -30);
+    CHECK(S.st == WIFI_STA_RUN && S.deauths == 0 && S.mgmt_unprotected_dropped == 3);
+    wifi_sta_rx_pn(&S, ud, sizeof ud, 1, 1, 5, -30);
     CHECK(S.st == WIFI_STA_IDLE && S.deauths == 1 && !S.ptk_set && S.wpa.st == WPA_ST_IDLE);
     /* ... but not from another BSSID */
     CHECK(station_up(&d, 0) == MT7925_OK);

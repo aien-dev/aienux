@@ -24,6 +24,7 @@ typedef struct {
     uint8_t pmk[32], anonce[32], snonce[32], ptk[48];
     uint64_t replay;
     uint8_t version;
+    uint8_t rsc[8]; /* Key RSC sent in message 3 and group message 1 */
 } authn;
 
 static void put_replay(uint8_t r[8], uint64_t v) {
@@ -39,6 +40,7 @@ static uint32_t a_frame(authn *a, uint16_t info, const uint8_t *nonce, const uin
     k.key_info = (uint16_t)(info | (uint16_t)wpa_desc_version(a->sec));
     k.key_len = 16;
     put_replay(k.replay, a->replay);
+    memcpy(k.rsc, a->rsc, 8);
     if (nonce) memcpy(k.nonce, nonce, 32);
     if (plain) {
         k.data_len = (uint16_t)toy_wrap(a->ptk + 16, plain, pl, wrapped);
@@ -230,9 +232,12 @@ static void test_handshake(void) {
     uint8_t kd[64];
     uint32_t kl = kd_build(kd, 0, 0, GTK2, 2);
     a.replay++;
+    static const uint8_t RSC[8] = {0x34, 0x12, 0x00, 0x00, 0x01, 0x00, 0xee, 0xee}; /* PN0..PN5 little-endian = 0x100001234; bytes 6..7 unused */
+    memcpy(a.rsc, RSC, 8);
     n = a_frame(&a, WPA_KI_ACK | WPA_KI_MIC | WPA_KI_SECURE | WPA_KI_ENC, 0, kd, kl, 1, f);
     CHECK(wpa_supp_rx(&w, f, n, r, sizeof r, &act) == WPA_OK && act.install_gtk && w.gtk_idx == 2 &&
           memcmp(w.gtk, GTK2, 16) == 0 && !act.install_ptk);
+    CHECK(w.gtk_rsc == 0x100001234ull); /* the group replay counter starts at the AP's Key RSC (12.7.6.4) */
     wpa_key_frame k;
     CHECK(wpa_key_parse(r, act.reply_len, &k) == WPA_OK && k.key_info == (WPA_KI_MIC | WPA_KI_SECURE | WPA_VER_CMAC_AES));
     CHECK(wpa_supp_rx(&w, f, n, r, sizeof r, &act) == WPA_E_REPLAY);

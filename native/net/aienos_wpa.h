@@ -167,6 +167,7 @@ typedef struct {
     uint8_t ptk_installed;                 /* TK already handed to the chip */
     uint8_t gtk[WPA_GTK_MAX], gtk_len, gtk_idx;
     uint8_t gtk_installed[WPA_GTK_MAX], gtk_installed_len, gtk_installed_idx;
+    uint64_t gtk_rsc;                      /* PN the AP gave for the installed GTK (Key RSC bytes 0..5), 12.7.6.4 */
     uint32_t refused[14];                  /* by wpa_err */
 } wpa_supp;
 

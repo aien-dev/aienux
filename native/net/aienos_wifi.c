@@ -197,10 +197,13 @@ wifi_sec wifi_choose_security(const wifi_bss *b) {
     if (!(b->rsn.pairwise & WIFI_CIPHER_CCMP128)) return WIFI_SEC_UNSUPPORTED;
     if (b->rsn.group != WIFI_CIPHER_CCMP128 && b->rsn.group != WIFI_CIPHER_TKIP) return WIFI_SEC_UNSUPPORTED;
     int mfpc = (b->rsn.caps & WIFI_RSN_CAP_MFPC) != 0, mfpr = (b->rsn.caps & WIFI_RSN_CAP_MFPR) != 0;
+    /* Protected management frames (IGTK, BIP, SA Query) do not exist here yet, and AKM 6 and SAE both need
+     * them, so plain PSK wins whenever it is offered: a WPA2/WPA3 transition network (PSK + SAE, MFPC=1,
+     * MFPR=0) is joined as WPA2-PSK without MFPC instead of being refused. */
+    if (b->rsn.group == WIFI_CIPHER_CCMP128 && (b->rsn.akm & WIFI_AKM_PSK) && !mfpr) return WIFI_SEC_WPA2_PSK;
     if (b->rsn.akm & WIFI_AKM_SAE) return WIFI_SEC_WPA3_SAE;
     if (b->rsn.group != WIFI_CIPHER_CCMP128) return WIFI_SEC_UNSUPPORTED; /* TKIP group with CCMP pairwise: refuse */
     if ((b->rsn.akm & WIFI_AKM_PSK_SHA256) && mfpc) return WIFI_SEC_WPA2_PSK_SHA256;
-    if ((b->rsn.akm & WIFI_AKM_PSK) && !mfpr) return WIFI_SEC_WPA2_PSK;
     return WIFI_SEC_UNSUPPORTED;
 }
 

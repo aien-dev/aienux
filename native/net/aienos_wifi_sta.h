@@ -72,6 +72,8 @@ typedef struct {
      * (index 16 = non-QoS), pairwise and group, reset when that key is
      * installed. The chip decrypts but does not check it. */
     uint64_t pn_ptk[17], pn_gtk[17];
+    uint64_t pn_mgmt;          /* robust management frames under the PTK (deauth, disassoc), own counter */
+    uint32_t mgmt_unprotected_dropped; /* deauth/disassoc refused on a link with protected management frames */
     uint32_t rx_replay_dropped;
     /* Bumped whenever the association ends (leave, deauth from the AP): a
      * callback that ran nested inside a TX can tell its state is gone. */

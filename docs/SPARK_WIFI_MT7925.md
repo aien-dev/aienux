@@ -144,6 +144,19 @@ protected once the pairwise key is in, deauthentication (reason 15) when the
 handshake fails, a PTK rekey answered by leaving (R24), the CCMP replay check (R31),
 message 4 sent before the pairwise key is installed, secrets wiped.
 
+Review fixes 2026-10-24 (L822, independent review before merge):
+- The group replay counter starts at the AP's Key RSC from message 3 / group message 1
+  (802.11-2020 12.7.6.4), not 0, so broadcast frames recorded before the join are replays.
+- Protected management frames: no IGTK, BIP or SA Query exists, so plain WPA2-PSK (no MFPC) is chosen
+  whenever a network offers it; a WPA2/WPA3 transition network is joined that way instead of being
+  refused for SAE. On an AKM 6 link (MFPC sent) deauth/disassoc end the link only when unicast,
+  decrypted under the PTK and with a fresh packet number; broadcast ones (BIP) are refused and counted
+  in `mgmt_unprotected_dropped`. Still missing: our own deauth on such a link goes out unprotected, so
+  the AP may keep a stale association (status 30 on the next join, UNKNOWN on the real AP).
+- MCU command header: TXD1 HDR_FORMAT moved to bits 15:14 (connac3, as mt7925/mcu.c) from 17:16
+  (connac2); HIF_CTRL and CHIP_CONFIG go without the ACK option bit, as the reference. The chip model
+  now refuses both mistakes (the old driver fails 373 model checks).
+
 ## 6. Receipts
 
 Run 2026-10-20 (~21:00Z) on the Spark host, on top of 595ed72 with the advisor-2 fixes

@@ -122,9 +122,10 @@ static void eapol_rx(wifi_sta *s, const uint8_t *p, uint32_t len) {
     if (a.install_ptk) {
         s->ptk_set = 1;
         for (int t = 0; t < 17; t++) s->pn_ptk[t] = 0;
+        s->pn_mgmt = 0;
     }
-    if (a.install_gtk)
-        for (int t = 0; t < 17; t++) s->pn_gtk[t] = 0;
+    if (a.install_gtk) /* the group counter starts at the AP's Key RSC, not 0 (12.7.6.4) */
+        for (int t = 0; t < 17; t++) s->pn_gtk[t] = s->wpa.gtk_rsc;
     if (a.done && !s->keys_done) s->keys_done = 1;
 }
 
@@ -229,6 +230,16 @@ void wifi_sta_rx_pn(wifi_sta *s, const uint8_t *f, uint32_t len, int decrypted, 
             s->aid = aid;
             s->assoc_done = 1;
         } else if ((h.subtype == WIFI_ST_DEAUTH || h.subtype == WIFI_ST_DISASSOC) && h.body_len >= 2) {
+            /* Protected management frames negotiated (AKM 6 sends MFPC; SAE needs MFPR) and the PTK in place:
+             * deauth/disassoc are robust frames (802.11-2020 12.6.19), so only a unicast one the chip
+             * decrypted with our key, with a fresh packet number, ends the link. Broadcast ones need BIP
+             * under the IGTK, which is not implemented, so they are refused on such a link. */
+            int pmf = s->sec == WIFI_SEC_WPA2_PSK_SHA256 || s->sec == WIFI_SEC_WPA3_SAE;
+            if (pmf && s->ptk_set && (bcast || !decrypted || !has_pn || pn <= s->pn_mgmt)) {
+                s->mgmt_unprotected_dropped++;
+                return;
+            }
+            if (pmf && s->ptk_set) s->pn_mgmt = pn;
             s->deauths++;
             s->last_status = (uint16_t)(h.body[0] | (h.body[1] << 8));
             s->st = WIFI_STA_IDLE;

@@ -143,7 +143,7 @@ static void test_beacon_and_security(void) {
         {0, 0, 1, WIFI_SEC_UNSUPPORTED}, /* WEP / WPA1 */
         {RSN_PSK, sizeof RSN_PSK, 1, WIFI_SEC_WPA2_PSK},
         {RSN_PSK_SHA256, sizeof RSN_PSK_SHA256, 1, WIFI_SEC_WPA2_PSK_SHA256},
-        {RSN_MIXED, sizeof RSN_MIXED, 1, WIFI_SEC_WPA3_SAE},
+        {RSN_MIXED, sizeof RSN_MIXED, 1, WIFI_SEC_WPA2_PSK}, /* transition network: PSK, no PMF to promise */
         {RSN_SAE, sizeof RSN_SAE, 1, WIFI_SEC_WPA3_SAE},
         {RSN_TKIP, sizeof RSN_TKIP, 1, WIFI_SEC_UNSUPPORTED},
     };
