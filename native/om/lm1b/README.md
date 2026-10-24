@@ -127,8 +127,10 @@ layers, width 2048, 32 heads, 8 key/value heads, feed-forward 8192, vocabulary 1
 | `evidence/` | raw logs of the runs quoted here |
 
 Run: `sh gen.sh && omc < lm1b.om > lm1b && chmod +x lm1b && ./lm1b 3< MODEL < prompts/main-jobs.txt`.
-Gate: `sh gate.sh` (needs the pinned omc, the pinned model and cargo; about 10 minutes, not measured
-precisely; it copies the model once for the flipped-byte test).
+Gate: `sh gate.sh` (needs the pinned omc, the pinned model and cargo; it copies the model once for the
+flipped-byte test). From a clean checkout it took 501.75 s and printed `RC=0` (`evidence/gate.log`; its
+raw outputs are in `evidence/gate/`). The ELF it built has the same SHA-256 as the recorded run
+(`evidence/gate/lm1b.sha256`, `evidence/shas.txt`), so the build is reproducible.
 
 ## Negative controls (all in `gate.sh`)
 
