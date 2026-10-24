@@ -1,0 +1,66 @@
+note demux: split a boot-fixture serial log (fd 0) into the program's own bytes (fd 1) and the boot and
+note fixture lines (fd 2). Fixture lines arrive as ESC N ... newline and are written as N ... newline;
+note a doubled ESC is one program ESC byte; text before the first fixture line is boot text (fd 2).
+note Any other byte after ESC is a framing error: counted, and the exit status is 3.
+global inb uchar 65536
+global o1 uchar 65536
+global o2 uchar 131072
+fn main to int
+st = uint 0
+seen = uint 0
+bad = ulong 0
+n = read 0 inb 0 len inb
+while gt n 0 bound 999999
+a = ulong 0
+b = ulong 0
+for i ulong ulong n
+c = get inb i
+if eq st 1
+if eq c 78
+st = uint 2
+seen = uint 1
+put o2 b 78
+b = add b 1
+else
+if eq c 27
+put o1 a c
+a = add a 1
+else
+bad = add bad 1
+end
+st = uint 0
+end
+continue
+end
+if eq st 2
+put o2 b c
+b = add b 1
+if eq c 10
+st = uint 0
+end
+continue
+end
+if eq c 27
+st = uint 1
+continue
+end
+if eq seen 0
+put o2 b c
+b = add b 1
+else
+put o1 a c
+a = add a 1
+end
+end
+w = write 1 o1 0 a
+w = write 2 o2 0 b
+n = read 0 inb 0 len inb
+end
+if lt n 0
+exit 2
+end
+if gt bad 0
+exit 3
+end
+ret 0
+end

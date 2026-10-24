@@ -1,0 +1,1859 @@
+; nucleus.s2 -- arch#314 BOOT FIXTURE (a test harness, NOT the AIENOS kernel, not an implementation destination).
+; Retired when L802 step 3 (boot entry + console) exists in .om with privileged words (L408 prerequisite c).
+; Written in the seed assembler asm2 because omc has no privileged words yet. Build (see build.sh):
+;   cat seed/rung2/table.s2 rung3/table3.s2 rung4/table4.s2 atlas/table5.s2 table-el1.s2 nucleus.s2 | asm2.bin
+; What it does, on QEMU virt (aarch64, GICv3), entered at EL1 from stage1 with MMU off, x1 = bundle length:
+;  - maps itself EL1-only, the model and request regions EL1 read-only, the UART and GIC as device memory;
+;  - loads the omc-compiled program ELF that follows it in the bundle into EL0 (text read-only + executable,
+;    data read-write + never-executable; writable-and-executable segments are refused);
+;  - answers the program's four Linux service numbers itself: read 63 (fd 0 = request stream, one line per
+;    call), write 64 (fd 1/2 -> UART, ESC doubled), pread64 67 (fd 3 = model region), exit 93/94;
+;    any other number returns -38; a bad buffer returns -14; a bad descriptor -9;
+;  - arms a per-request deadline on the virtual timer at each fd-0 read; a program that overruns it, faults,
+;    or exits non-zero is ended, accounted, and relaunched on fresh zeroed memory with the next request;
+;  - prints its own lines as ESC 'N' ... '\n' (demux.om splits them from program output).
+; Memory: bundle PA 0x1_0000_0000 (vectors 0x0, entry 0x800, vars +0x10000, tables +0x20000, frame +0x3f000,
+; program ELF +0x100000); model PA 0x1_4000_0000; params PA 0x1_8000_0000; requests PA 0x1_8010_0000;
+; user text backing 0x40400000 (2 MiB max), user data backing 0x40600000 (up to 0x1_0000_0000).
+; Every instruction name is a line of the tables above; each table line names its Arm DDI 0487 M.d section.
+;
+; ---- 0x000 vector table: 16 entries of 0x80 bytes (D1.3.1 / VBAR_EL1 needs 2 KiB alignment) ----
+:VEC0
+  stp.x x0 x1 sp 0
+  movz.x x0 0 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC1
+  stp.x x0 x1 sp 0
+  movz.x x0 1 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC2
+  stp.x x0 x1 sp 0
+  movz.x x0 2 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC3
+  stp.x x0 x1 sp 0
+  movz.x x0 3 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC4
+  stp.x x0 x1 sp 0
+  movz.x x0 4 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC5
+  stp.x x0 x1 sp 0
+  movz.x x0 5 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC6
+  stp.x x0 x1 sp 0
+  movz.x x0 6 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC7
+  stp.x x0 x1 sp 0
+  movz.x x0 7 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC8
+  stp.x x0 x1 sp 0
+  movz.x x0 8 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC9
+  stp.x x0 x1 sp 0
+  movz.x x0 9 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC10
+  stp.x x0 x1 sp 0
+  movz.x x0 10 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC11
+  stp.x x0 x1 sp 0
+  movz.x x0 11 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC12
+  stp.x x0 x1 sp 0
+  movz.x x0 12 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC13
+  stp.x x0 x1 sp 0
+  movz.x x0 13 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC14
+  stp.x x0 x1 sp 0
+  movz.x x0 14 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+:VEC15
+  stp.x x0 x1 sp 0
+  movz.x x0 15 0
+  b COMMON
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+; ---- 0x800 entry from stage1: x0 = Atlas boot descriptor, x1 = bundle length that stage1 hashed ----
+; vars (x28 = V = 0x1_0001_0000, 8-byte slots): 1 req_len 2 req_cur 3 model_len 4 deadline 5 entry 6 data_va
+; 7 data_memsz 8 data_filesz 9 data_foff 10 text_va 11 text_memsz 12 run_no 13 faults 14 deadlines 15 cntfrq
+; 16 boot_tick 17 run_tick 18-22 svc read/write/pread/exit/other 23 bytes_in 24 bytes_out 25 bytes_pread
+; 26 bundle_len 27 last_status 28 efault 29-32 number buffer 33 text_filesz 34 text_foff 35 have_text
+; 36 have_data 37 fault ec 38 fault far 39 fault elr 40 runs_ok
+:ENTRY
+  msr.daifset 15
+  movz.x x9 1 2
+  movk.x x9 3 1
+  movk.x x9 0xf000 0
+  add.x.i sp x9 0
+  movz.x x28 1 2
+  movk.x x28 1 1
+  str.x x1 x28 26
+  movz.x x0 0x0030 1
+  msr.cpacr x0
+  movz.x x0 1 2
+  msr.vbar x0
+  isb
+  bl NLB
+  adr x21 S_HELLO
+  bl PSTR
+  bl NLE
+; params block at 0x1_8000_0000: magic "N314PAR1", model_len, req_len, (unused), deadline microseconds
+  movz.x x9 1 2
+  movk.x x9 0x8000 1
+  ldr.x x0 x9 0
+  movz.x x1 0x334e 0
+  movk.x x1 0x3431 1
+  movk.x x1 0x4150 2
+  movk.x x1 0x3152 3
+  cmp.x x0 x1
+  b.ne BADPARAM
+  ldr.x x0 x9 1
+  movz.x x1 0x4000 1
+  cmp.x x0 x1
+  b.hi BADPARAM
+  str.x x0 x28 3
+  ldr.x x0 x9 2
+  movz.x x1 0x3ff0 1
+  cmp.x x0 x1
+  b.hi BADPARAM
+  str.x x0 x28 1
+; deadline: params +32 is microseconds; ticks = us * cntfrq / 1,000,000 (0 = no deadline)
+  ldr.x x2 x9 4
+  mrs.cntfrq x0
+  str.x x0 x28 15
+  mul.x x2 x2 x0
+  movz.x x1 0x4240 0
+  movk.x x1 0x000f 1
+  udiv.x x2 x2 x1
+  str.x x2 x28 4
+  mrs.cntvct x0
+  str.x x0 x28 16
+; zero the three tables (L1 +0x20000, L2A +0x21000, L2B +0x22000)
+  movz.x x9 1 2
+  movk.x x9 2 1
+  movz.x x10 0x3000 0
+  add.x x10 x9 x10
+:ZT
+  stp.x xzr xzr x9 0
+  add.x.i x9 x9 16
+  cmp.x x9 x10
+  b.ne ZT
+; L1: [0] -> L2A, [1] -> L2B, [4] nucleus GB EL1 RW (UXN), [5] model GB EL1 RO, [6] params/requests GB EL1 RO
+  movz.x x9 1 2
+  movk.x x9 2 1
+  movz.x x0 1 2
+  movk.x x0 2 1
+  movk.x x0 0x1003 0
+  str.x x0 x9 0
+  movk.x x0 0x2003 0
+  str.x x0 x9 1
+  movz.x x0 0x0701 0
+  movk.x x0 1 2
+  movk.x x0 0x0040 3
+  str.x x0 x9 4
+  movz.x x0 0x0781 0
+  movk.x x0 0x4000 1
+  movk.x x0 1 2
+  movk.x x0 0x0060 3
+  str.x x0 x9 5
+  movk.x x0 0x8000 1
+  str.x x0 x9 6
+; L2A: [64] 0x08000000 GIC, [72] 0x09000000 UART: device nGnRnE (attr 1), EL1 only, never executable
+  movz.x x9 1 2
+  movk.x x9 2 1
+  movk.x x9 0x1000 0
+  movz.x x0 0x0405 0
+  movk.x x0 0x0800 1
+  movk.x x0 0x0060 3
+  str.x x0 x9 64
+  movk.x x0 0x0900 1
+  str.x x0 x9 72
+  bl LOADELF
+; MMU on: MAIR attr0 normal WB = 0xff, attr1 device = 0x00; TCR T0SZ 25, WB walks, inner shareable, 4 KiB,
+; EPD1 (no TTBR1 walks), IPS 40 bits; SCTLR M C SA SA0 I + RES1 bits 11 20 22 23 28 29. WXN stays off: the nucleus 1 GiB
+; block is EL1 read-write-execute (fixture simplification, EL0 has no access); EL0 text is read-only and EL0 data
+; is never-executable in its own page entries, and LOADELF refuses writable-and-executable segments.
+  movz.x x0 0x00ff 0
+  msr.mair x0
+  movz.x x0 0x3519 0
+  movk.x x0 0x0080 1
+  movk.x x0 0x0002 2
+  msr.tcr x0
+  movz.x x0 1 2
+  movk.x x0 2 1
+  msr.ttbr0 x0
+  isb
+  tlbi.vmalle1
+  dsb.ish
+  isb
+  movz.x x0 0x181d 0
+  movk.x x0 0x30d0 1
+  msr.sctlr x0
+  isb
+  msr.pan0
+; GICv3: distributor ARE + group 1 enable, wake redistributor 0, PPI 27 (virtual timer) group 1, priority 0x80, enable
+  movz.x x9 0x0800 1
+  movz.w x0 0x12 0
+  str.w x0 x9 0
+:GW1
+  ldr.w x0 x9 0
+  ubfm.x x0 x0 31 31
+  cbnz.x x0 GW1
+  movz.x x9 0x080a 1
+  ldr.w x0 x9 5
+  movz.w x1 2 0
+  bic.w x0 x0 x1
+  str.w x0 x9 5
+:GW2
+  ldr.w x0 x9 5
+  ubfm.x x0 x0 2 2
+  cbnz.x x0 GW2
+  movz.x x9 0x080b 1
+  ldr.w x0 x9 32
+  movz.w x1 0x0800 1
+  orr.w x0 x0 x1
+  str.w x0 x9 32
+  movz.x x0 0x80 0
+  movz.x x1 0x041b 0
+  strb.r x0 x9 x1
+  movz.w x0 0x0800 1
+  str.w x0 x9 64
+  movz.x x0 7 0
+  msr.icc_sre x0
+  isb
+  movz.x x0 0xff 0
+  msr.icc_pmr x0
+  movz.x x0 1 0
+  msr.icc_gen1 x0
+  movz.x x0 0 0
+  msr.cntv_ctl x0
+  isb
+; boot line
+  bl NLB
+  adr x21 S_BOOT
+  bl PSTR
+  ldr.x x0 x28 26
+  bl PDEC
+  adr x21 S_MODEL
+  bl PSTR
+  ldr.x x0 x28 3
+  bl PDEC
+  adr x21 S_REQ
+  bl PSTR
+  ldr.x x0 x28 1
+  bl PDEC
+  adr x21 S_DEADL
+  bl PSTR
+  ldr.x x0 x28 4
+  bl PDEC
+  adr x21 S_FREQ
+  bl PSTR
+  ldr.x x0 x28 15
+  bl PDEC
+  adr x21 S_ENTRY
+  bl PSTR
+  ldr.x x0 x28 5
+  bl PDEC
+  adr x21 S_TEXT
+  bl PSTR
+  ldr.x x0 x28 11
+  bl PDEC
+  adr x21 S_DATA
+  bl PSTR
+  ldr.x x0 x28 7
+  bl PDEC
+  bl NLE
+  b LAUNCH
+:BADPARAM
+  adr x21 S_BADPAR
+  b DIE
+:BADELF
+  adr x21 S_BADELF
+:DIE
+  bl NLB
+  bl PSTR
+  bl NLE
+  b HALTLOOP
+; ---- LOADELF (MMU off): validate the program ELF at 0x1_0010_0000 and map its PT_LOAD segments ----
+:LOADELF
+  str.x.pre x30 sp -16
+  movz.x x19 1 2
+  movk.x x19 0x0010 1
+  ldr.x x20 x28 26
+  movz.x x0 0x0010 1
+  cmp.x x20 x0
+  b.ls BADELF
+  sub.x x20 x20 x0
+  cmp.x.i x20 64
+  b.lo BADELF
+  ldr.w x0 x19 0
+  movz.w x1 0x457f 0
+  movk.w x1 0x464c 1
+  cmp.w x0 x1
+  b.ne BADELF
+  ldr.w x0 x19 1
+  ubfm.x x0 x0 0 15
+  cmp.x.i x0 0x102
+  b.ne BADELF
+  ldr.w x0 x19 4
+  movz.w x1 2 0
+  movk.w x1 0xb7 1
+  cmp.w x0 x1
+  b.ne BADELF
+  ldr.x x0 x19 3
+  str.x x0 x28 5
+  ldr.x x22 x19 4
+  ldr.w x0 x19 13
+  ubfm.x x0 x0 16 31
+  cmp.x.i x0 56
+  b.ne BADELF
+  ldr.w x23 x19 14
+  ubfm.x x23 x23 0 15
+  cbz.x x23 BADELF
+  cmp.x.i x23 4
+  b.hi BADELF
+  and.x.bm x0 x22 1 0 2
+  cbnz.x x0 BADELF
+  cmp.x x22 x20
+  b.hi BADELF
+  movz.x x0 56 0
+  mul.x x1 x23 x0
+  add.x x1 x1 x22
+  cmp.x x1 x20
+  b.hi BADELF
+  add.x x24 x19 x22
+:PH
+  cbz.x x23 PHDONE
+  ldr.w x0 x24 0
+  cmp.x.i x0 1
+  b.ne PHNEXT
+  ldr.w x25 x24 1
+  ldr.x x2 x24 1
+  ldr.x x3 x24 2
+  ldr.x x4 x24 4
+  ldr.x x5 x24 5
+  cmp.x x4 x5
+  b.hi BADELF
+  movz.x x0 0x8000 1
+  cmp.x x5 x0
+  b.hi BADELF
+  cmp.x x3 x0
+  b.hs BADELF
+  cmp.x x2 x20
+  b.hi BADELF
+  add.x x0 x2 x4
+  cmp.x x0 x20
+  b.hi BADELF
+  and.x.bm x0 x3 1 0 20
+  cbnz.x x0 BADELF
+  movz.x x0 0x0020 1
+  cmp.x x3 x0
+  b.lo BADELF
+  add.x x6 x3 x5
+  movz.x x0 0x8000 1
+  cmp.x x6 x0
+  b.hi BADELF
+  movz.x x0 0x0800 1
+  cmp.x x6 x0
+  b.ls PHOK
+  movz.x x0 0x0920 1
+  cmp.x x3 x0
+  b.lo BADELF
+:PHOK
+  ubfm.x x0 x25 0 1
+  cmp.x.i x0 3
+  b.eq BADELF
+  ubfm.x x0 x25 0 0
+  cbnz.x x0 PHTEXT
+  ubfm.x x0 x25 1 1
+  cbnz.x x0 PHDATA
+  b BADELF
+:PHTEXT
+  ldr.x x0 x28 35
+  cbnz.x x0 BADELF
+  movz.x x0 0x0020 1
+  cmp.x x5 x0
+  b.hi BADELF
+  movz.x x0 1 0
+  str.x x0 x28 35
+  str.x x3 x28 10
+  str.x x5 x28 11
+  str.x x4 x28 33
+  str.x x2 x28 34
+  movz.x x7 0x4040 1
+  movz.x x8 0x0020 1
+  add.x x8 x8 x7
+:ZTX
+  stp.x xzr xzr x7 0
+  add.x.i x7 x7 16
+  cmp.x x7 x8
+  b.ne ZTX
+  movz.x x7 0x4040 1
+  add.x x8 x19 x2
+  movz.x x9 0 0
+:CTX
+  cmp.x x9 x4
+  b.hs CTXD
+  ldrb.r x0 x8 x9
+  strb.r x0 x7 x9
+  add.x.i x9 x9 1
+  b CTX
+:CTXD
+  movz.x x0 0x07c1 0
+  movk.x x0 0x4040 1
+  movk.x x0 0x0020 3
+  mov.x x1 x3
+  bl MAPBLK
+  b PHNEXT
+:PHDATA
+  ldr.x x0 x28 36
+  cbnz.x x0 BADELF
+  movz.x x0 0xbfa0 1
+  cmp.x x5 x0
+  b.hi BADELF
+  movz.x x0 1 0
+  str.x x0 x28 36
+  str.x x3 x28 6
+  str.x x5 x28 7
+  str.x x4 x28 8
+  str.x x2 x28 9
+  movz.x x26 0 0
+  movz.x x0 0xffff 0
+  movk.x x0 0x001f 1
+  add.x x27 x5 x0
+  ubfm.x x27 x27 21 63
+:PDM
+  cmp.x x26 x27
+  b.hs PHNEXT
+  ubfm.x x6 x26 43 42
+  add.x x1 x6 x3
+  movz.x x0 0x4060 1
+  add.x x0 x0 x6
+  movz.x x6 0x0741 0
+  movk.x x6 0x0060 3
+  orr.x x0 x0 x6
+  bl MAPBLK
+  add.x.i x26 x26 1
+  b PDM
+:PHNEXT
+  add.x.i x24 x24 56
+  sub.x.i x23 x23 1
+  b PH
+:PHDONE
+  ldr.x x0 x28 35
+  cbz.x x0 BADELF
+  ldr.x x0 x28 36
+  cbz.x x0 BADELF
+  ldr.x x0 x28 5
+  ldr.x x1 x28 10
+  cmp.x x0 x1
+  b.lo BADELF
+  ldr.x x2 x28 11
+  add.x x1 x1 x2
+  cmp.x x0 x1
+  b.hs BADELF
+  ldr.x.post x30 sp 16
+  ret
+; MAPBLK: x0 = block descriptor, x1 = VA (2 MiB aligned, below 2 GiB); refuses a slot already in use
+:MAPBLK
+  ubfm.x x10 x1 30 63
+  cmp.x.i x10 1
+  b.hi BADELF
+  movz.x x11 1 2
+  movk.x x11 2 1
+  movk.x x11 0x1000 0
+  cbz.x x10 MB1
+  movk.x x11 0x2000 0
+:MB1
+  ubfm.x x12 x1 21 29
+  ldr.x.r x13 x11 x12
+  cbnz.x x13 BADELF
+  str.x.r x0 x11 x12
+  ret
+; ---- LAUNCH: fresh run of the program on zeroed memory ----
+:LAUNCH
+  ldr.x x0 x28 12
+  add.x.i x0 x0 1
+  str.x x0 x28 12
+  add.x.i x9 x28 144
+  movz.x x10 0 0
+:RC
+  str.x xzr x9 0
+  add.x.i x9 x9 8
+  add.x.i x10 x10 1
+  cmp.x.i x10 8
+  b.ne RC
+  str.x xzr x28 28
+  ldr.x x9 x28 6
+  ldr.x x10 x28 7
+  add.x.i x10 x10 15
+  ubfm.x x10 x10 4 63
+  ubfm.x x10 x10 60 59
+  add.x x10 x10 x9
+:ZD
+  cmp.x x9 x10
+  b.hs ZDD
+  stp.x xzr xzr x9 0
+  add.x.i x9 x9 16
+  b ZD
+:ZDD
+  ldr.x x9 x28 6
+  ldr.x x10 x28 9
+  ldr.x x11 x28 8
+  movz.x x12 1 2
+  movk.x x12 0x0010 1
+  add.x x10 x10 x12
+  movz.x x12 0 0
+:CD
+  cmp.x x12 x11
+  b.hs CDD
+  ldrb.r x0 x10 x12
+  strb.r x0 x9 x12
+  add.x.i x12 x12 1
+  b CD
+:CDD
+  movz.x x9 1 2
+  movk.x x9 3 1
+  movk.x x9 0xf000 0
+  movz.x x10 0 0
+:ZF
+  str.x xzr x9 0
+  add.x.i x9 x9 8
+  add.x.i x10 x10 1
+  cmp.x.i x10 31
+  b.ne ZF
+  ldr.x x0 x28 5
+  msr.elr x0
+  movz.x x0 0 0
+  msr.spsr x0
+  msr.sp_el0 x0
+  mrs.cntvct x0
+  str.x x0 x28 17
+  bl NLB
+  adr x21 S_RUN
+  bl PSTR
+  ldr.x x0 x28 12
+  bl PDEC
+  adr x21 S_START
+  bl PSTR
+  bl NLE
+  dsb.ish
+  isb
+; ---- RESUME: restore the saved program registers and return to EL0 ----
+:RESUME
+  movz.x x9 1 2
+  movk.x x9 3 1
+  movk.x x9 0xf000 0
+  add.x.i sp x9 0
+  ldp.x x2 x3 sp 2
+  ldp.x x4 x5 sp 4
+  ldp.x x6 x7 sp 6
+  ldp.x x8 x9 sp 8
+  ldp.x x10 x11 sp 10
+  ldp.x x12 x13 sp 12
+  ldp.x x14 x15 sp 14
+  ldp.x x16 x17 sp 16
+  ldp.x x18 x19 sp 18
+  ldp.x x20 x21 sp 20
+  ldp.x x22 x23 sp 22
+  ldp.x x24 x25 sp 24
+  ldp.x x26 x27 sp 26
+  ldp.x x28 x29 sp 28
+  ldr.x x30 sp 30
+  ldp.x x0 x1 sp 0
+  eret
+; ---- COMMON: every vector arrives here with x0 x1 saved and x0 = vector index ----
+:COMMON
+  stp.x x2 x3 sp 2
+  stp.x x4 x5 sp 4
+  stp.x x6 x7 sp 6
+  stp.x x8 x9 sp 8
+  stp.x x10 x11 sp 10
+  stp.x x12 x13 sp 12
+  stp.x x14 x15 sp 14
+  stp.x x16 x17 sp 16
+  stp.x x18 x19 sp 18
+  stp.x x20 x21 sp 20
+  stp.x x22 x23 sp 22
+  stp.x x24 x25 sp 24
+  stp.x x26 x27 sp 26
+  stp.x x28 x29 sp 28
+  str.x x30 sp 30
+  movz.x x28 1 2
+  movk.x x28 1 1
+  cmp.x.i x0 8
+  b.eq EL0SYNC
+  cmp.x.i x0 9
+  b.eq EL0IRQ
+:PANIC
+  mov.x x19 x0
+  bl NLB
+  adr x21 S_PANIC
+  bl PSTR
+  mov.x x0 x19
+  bl PDEC
+  adr x21 S_ESR
+  bl PSTR
+  mrs.esr x0
+  bl PDEC
+  adr x21 S_ELR
+  bl PSTR
+  mrs.elr x0
+  bl PDEC
+  adr x21 S_FAR
+  bl PSTR
+  mrs.far x0
+  bl PDEC
+  bl NLE
+:HALTLOOP
+  msr.daifset 15
+  wfi
+  b HALTLOOP
+; ---- EL0SYNC: service call or fault from the program ----
+:EL0SYNC
+  mrs.esr x1
+  ubfm.x x2 x1 26 31
+  cmp.x.i x2 0x15
+  b.ne EL0FAULT
+  movz.x x9 1 2
+  movk.x x9 3 1
+  movk.x x9 0xf000 0
+  ldr.x x8 x9 8
+  ldp.x x0 x1 x9 0
+  ldp.x x2 x3 x9 2
+  cmp.x.i x8 63
+  b.eq SREAD
+  cmp.x.i x8 64
+  b.eq SWRITE
+  cmp.x.i x8 67
+  b.eq SPREAD
+  cmp.x.i x8 93
+  b.eq SEXIT
+  cmp.x.i x8 94
+  b.eq SEXIT
+  ldr.x x0 x28 22
+  add.x.i x0 x0 1
+  str.x x0 x28 22
+  movz.x x0 38 0
+  b SNEG
+:EBADF
+  movz.x x0 9 0
+  b SNEG
+:EFAULT
+  ldr.x x0 x28 28
+  add.x.i x0 x0 1
+  str.x x0 x28 28
+  movz.x x0 14 0
+  b SNEG
+:EINVAL
+  movz.x x0 22 0
+:SNEG
+  sub.x x0 xzr x0
+:SRET
+  movz.x x9 1 2
+  movk.x x9 3 1
+  movk.x x9 0xf000 0
+  str.x x0 x9 0
+  b RESUME
+; read(fd 0): at most one request line per call; arms the per-request deadline
+:SREAD
+  ldr.x x9 x28 18
+  add.x.i x9 x9 1
+  str.x x9 x28 18
+  cbnz.x x0 EBADF
+  bl CHKW
+  cbnz.x x7 EFAULT
+  ldr.x x3 x28 1
+  ldr.x x4 x28 2
+  sub.x x5 x3 x4
+  cbz.x x5 REOF
+  movz.x x6 1 2
+  movk.x x6 0x8010 1
+  add.x x6 x6 x4
+  movz.x x0 0 0
+:RL
+  cmp.x x0 x2
+  b.hs RLD
+  cmp.x x0 x5
+  b.hs RLD
+  ldrb.r x7 x6 x0
+  strb.r x7 x1 x0
+  add.x.i x0 x0 1
+  cmp.x.i x7 10
+  b.ne RL
+:RLD
+  add.x x4 x4 x0
+  str.x x4 x28 2
+  ldr.x x9 x28 23
+  add.x x9 x9 x0
+  str.x x9 x28 23
+  ldr.x x9 x28 4
+  cbz.x x9 SRET
+  msr.cntv_tval x9
+  movz.x x9 1 0
+  msr.cntv_ctl x9
+  isb
+  b SRET
+:REOF
+  movz.x x9 0 0
+  msr.cntv_ctl x9
+  isb
+  movz.x x0 0 0
+  b SRET
+; write(fd 1 or 2): bytes to the UART, ESC doubled
+:SWRITE
+  ldr.x x9 x28 19
+  add.x.i x9 x9 1
+  str.x x9 x28 19
+  cmp.x.i x0 1
+  b.eq SW1
+  cmp.x.i x0 2
+  b.ne EBADF
+:SW1
+  bl CHKR
+  cbnz.x x7 EFAULT
+  mov.x x4 x1
+  mov.x x5 x2
+  movz.x x6 0 0
+:WL
+  cmp.x x6 x5
+  b.hs WLD
+  ldrb.r x0 x4 x6
+  cmp.x.i x0 27
+  b.ne WLP
+  bl PUTC
+  movz.x x0 27 0
+:WLP
+  bl PUTC
+  add.x.i x6 x6 1
+  b WL
+:WLD
+  ldr.x x9 x28 24
+  add.x x9 x9 x5
+  str.x x9 x28 24
+  mov.x x0 x5
+  b SRET
+; pread64(fd 3): bytes of the model region at an explicit position
+:SPREAD
+  ldr.x x9 x28 20
+  add.x.i x9 x9 1
+  str.x x9 x28 20
+  cmp.x.i x0 3
+  b.ne EBADF
+  cmp.x.i x3 0
+  b.lt EINVAL
+  bl CHKW
+  cbnz.x x7 EFAULT
+  ldr.x x4 x28 3
+  movz.x x0 0 0
+  cmp.x x3 x4
+  b.hs SRET
+  sub.x x5 x4 x3
+  cmp.x x2 x5
+  b.ls SP1
+  mov.x x2 x5
+:SP1
+  movz.x x6 1 2
+  movk.x x6 0x4000 1
+  add.x x6 x6 x3
+  mov.x x0 x2
+  orr.x x7 x6 x1
+  orr.x x7 x7 x2
+  and.x.bm x7 x7 1 0 2
+  movz.x x9 0 0
+  cbnz.x x7 SPBL
+:SPQ
+  cmp.x x9 x2
+  b.hs SPD
+  ldr.x.post x10 x6 8
+  str.x.post x10 x1 8
+  add.x.i x9 x9 8
+  b SPQ
+:SPBL
+  cmp.x x9 x2
+  b.hs SPD
+  ldrb.r x10 x6 x9
+  strb.r x10 x1 x9
+  add.x.i x9 x9 1
+  b SPBL
+:SPD
+  ldr.x x9 x28 25
+  add.x x9 x9 x0
+  str.x x9 x28 25
+  b SRET
+:SEXIT
+  ldr.x x9 x28 21
+  add.x.i x9 x9 1
+  str.x x9 x28 21
+  ubfm.x x24 x0 0 7
+  str.x x24 x28 27
+  str.x xzr x28 37
+  str.x xzr x28 38
+  str.x xzr x28 39
+  movz.x x23 0 0
+  movz.x x25 0 0
+  b ENDRUN
+:EL0FAULT
+  str.x x2 x28 37
+  mrs.far x0
+  str.x x0 x28 38
+  mrs.elr x0
+  str.x x0 x28 39
+  ldr.x x0 x28 13
+  add.x.i x0 x0 1
+  str.x x0 x28 13
+  movz.x x23 1 0
+  movz.x x24 0 0
+  mov.x x25 x2
+  b ENDRUN
+:EL0IRQ
+  mrs.icc_iar1 x1
+  ubfm.x x2 x1 0 23
+  cmp.x.i x2 27
+  b.eq IRQT
+  movz.x x3 1023 0
+  cmp.x x2 x3
+  b.eq RESUME
+  msr.icc_eoi1 x1
+  b RESUME
+:IRQT
+  msr.icc_eoi1 x1
+  movz.x x3 0 0
+  msr.cntv_ctl x3
+  isb
+  ldr.x x0 x28 14
+  add.x.i x0 x0 1
+  str.x x0 x28 14
+  mrs.elr x0
+  str.x x0 x28 39
+  str.x xzr x28 38
+  str.x xzr x28 37
+  movz.x x23 2 0
+  movz.x x24 0 0
+  movz.x x25 0 0
+  b ENDRUN
+; buffer checks: x1 = address, x2 = length; x7 = 0 when the whole range is the program's (CHKW: data only)
+:CHKW
+  movz.x x7 0 0
+  cbz.x x2 CHKOK
+  movz.x x10 0x4000 1
+  cmp.x x2 x10
+  b.hi CHKBAD
+  ldr.x x12 x28 36
+  cbz.x x12 CHKBAD
+  ldr.x x10 x28 6
+  ldr.x x11 x28 7
+  cmp.x x1 x10
+  b.lo CHKBAD
+  add.x x11 x11 x10
+  cmp.x x1 x11
+  b.hs CHKBAD
+  add.x x13 x1 x2
+  cmp.x x13 x11
+  b.hi CHKBAD
+:CHKOK
+  ret
+:CHKBAD
+  movz.x x7 1 0
+  ret
+:CHKR
+  movz.x x7 0 0
+  cbz.x x2 CHKOK
+  movz.x x10 0x4000 1
+  cmp.x x2 x10
+  b.hi CHKBAD
+  ldr.x x10 x28 10
+  ldr.x x11 x28 11
+  add.x x11 x11 x10
+  cmp.x x1 x10
+  b.lo CHKW
+  cmp.x x1 x11
+  b.hs CHKW
+  add.x x13 x1 x2
+  cmp.x x13 x11
+  b.ls CHKOK
+  b CHKW
+; ---- ENDRUN: x23 reason (0 exit, 1 fault, 2 deadline), x24 status, x25 exception class ----
+:ENDRUN
+  movz.x x0 0 0
+  msr.cntv_ctl x0
+  isb
+  mrs.cntvct x0
+  ldr.x x1 x28 17
+  sub.x x26 x0 x1
+  bl NLB
+  adr x21 S_RUN
+  bl PSTR
+  ldr.x x0 x28 12
+  bl PDEC
+  adr x21 S_END
+  bl PSTR
+  adr x21 S_EXIT
+  cbz.x x23 ER1
+  adr x21 S_FAULT
+  cmp.x.i x23 1
+  b.eq ER1
+  adr x21 S_DEADLN
+:ER1
+  bl PSTR
+  adr x21 S_STATUS
+  bl PSTR
+  mov.x x0 x24
+  bl PDEC
+  adr x21 S_EC
+  bl PSTR
+  mov.x x0 x25
+  bl PDEC
+  adr x21 S_FAR
+  bl PSTR
+  ldr.x x0 x28 38
+  bl PDEC
+  adr x21 S_ELR
+  bl PSTR
+  ldr.x x0 x28 39
+  bl PDEC
+  adr x21 S_TICKS
+  bl PSTR
+  mov.x x0 x26
+  bl PDEC
+  adr x21 S_SVC
+  bl PSTR
+  ldr.x x0 x28 18
+  bl PDEC
+  ldr.x x0 x28 19
+  bl PDEC
+  ldr.x x0 x28 20
+  bl PDEC
+  ldr.x x0 x28 21
+  bl PDEC
+  ldr.x x0 x28 22
+  bl PDEC
+  adr x21 S_EFLT
+  bl PSTR
+  ldr.x x0 x28 28
+  bl PDEC
+  adr x21 S_IN
+  bl PSTR
+  ldr.x x0 x28 23
+  bl PDEC
+  adr x21 S_OUT
+  bl PSTR
+  ldr.x x0 x28 24
+  bl PDEC
+  adr x21 S_PRB
+  bl PSTR
+  ldr.x x0 x28 25
+  bl PDEC
+  bl NLE
+  cbnz.x x23 ERAGAIN
+  cbnz.x x24 ERAGAIN
+  ldr.x x0 x28 40
+  add.x.i x0 x0 1
+  str.x x0 x28 40
+  b HALT
+:ERAGAIN
+  ldr.x x0 x28 1
+  ldr.x x1 x28 2
+  cmp.x x1 x0
+  b.hs HALT
+  ldr.x x0 x28 12
+  cmp.x.i x0 64
+  b.hs HALT
+  b LAUNCH
+:HALT
+  mrs.cntvct x0
+  ldr.x x1 x28 16
+  sub.x x26 x0 x1
+  bl NLB
+  adr x21 S_HALT
+  bl PSTR
+  ldr.x x0 x28 12
+  bl PDEC
+  adr x21 S_FAULTS
+  bl PSTR
+  ldr.x x0 x28 13
+  bl PDEC
+  adr x21 S_DEADLS
+  bl PSTR
+  ldr.x x0 x28 14
+  bl PDEC
+  adr x21 S_TICKS
+  bl PSTR
+  mov.x x0 x26
+  bl PDEC
+  bl NLE
+  b HALTLOOP
+; ---- console: PL011 at 0x09000000 (DR +0x00, FR +0x18, TXFF = FR bit 5) ----
+:PUTC
+  movz.x x1 0x0900 1
+:PUTW
+  ldr.w x2 x1 6
+  ubfm.x x2 x2 5 5
+  cbnz.x x2 PUTW
+  str.w x0 x1 0
+  ret
+:NLB
+  str.x.pre x30 sp -16
+  movz.x x0 27 0
+  bl PUTC
+  movz.x x0 78 0
+  bl PUTC
+  ldr.x.post x30 sp 16
+  ret
+:NLE
+  str.x.pre x30 sp -16
+  movz.x x0 10 0
+  bl PUTC
+  ldr.x.post x30 sp 16
+  ret
+:PSTR
+  str.x.pre x30 sp -16
+:PSTRL
+  ldrb.post x0 x21 1
+  cbz.w x0 PSTRE
+  bl PUTC
+  b PSTRL
+:PSTRE
+  ldr.x.post x30 sp 16
+  ret
+; PDEC: ' ' then x0 in decimal (number buffer = vars 29..32, ends at V+264)
+:PDEC
+  str.x.pre x30 sp -16
+  mov.x x3 x0
+  movz.x x0 32 0
+  bl PUTC
+  add.x.i x4 x28 264
+  movz.x x5 10 0
+:PDL
+  udiv.x x2 x3 x5
+  msub.x x0 x2 x5 x3
+  add.x.i x0 x0 48
+  sub.x.i x4 x4 1
+  strb x0 x4 0
+  mov.x x3 x2
+  cbnz.x x3 PDL
+:PDP
+  ldrb x0 x4 0
+  bl PUTC
+  add.x.i x4 x4 1
+  add.x.i x1 x28 264
+  cmp.x x4 x1
+  b.ne PDP
+  ldr.x.post x30 sp 16
+  ret
+; ---- strings (NUL-terminated, after all code) ----
+:S_HELLO
+  .b 0x20
+  .b 0x4e
+  .b 0x55
+  .b 0x43
+  .b 0x4c
+  .b 0x45
+  .b 0x55
+  .b 0x53
+  .b 0x2d
+  .b 0x46
+  .b 0x49
+  .b 0x58
+  .b 0x54
+  .b 0x55
+  .b 0x52
+  .b 0x45
+  .b 0x20
+  .b 0x61
+  .b 0x72
+  .b 0x63
+  .b 0x68
+  .b 0x33
+  .b 0x31
+  .b 0x34
+  .b 0x20
+  .b 0x76
+  .b 0x31
+  .b 0x20
+  .b 0x28
+  .b 0x62
+  .b 0x6f
+  .b 0x6f
+  .b 0x74
+  .b 0x20
+  .b 0x66
+  .b 0x69
+  .b 0x78
+  .b 0x74
+  .b 0x75
+  .b 0x72
+  .b 0x65
+  .b 0x2c
+  .b 0x20
+  .b 0x6e
+  .b 0x6f
+  .b 0x74
+  .b 0x20
+  .b 0x74
+  .b 0x68
+  .b 0x65
+  .b 0x20
+  .b 0x6b
+  .b 0x65
+  .b 0x72
+  .b 0x6e
+  .b 0x65
+  .b 0x6c
+  .b 0x29
+  .b 0
+:S_BOOT
+  .b 0x20
+  .b 0x42
+  .b 0x4f
+  .b 0x4f
+  .b 0x54
+  .b 0x20
+  .b 0x62
+  .b 0x75
+  .b 0x6e
+  .b 0x64
+  .b 0x6c
+  .b 0x65
+  .b 0
+:S_MODEL
+  .b 0x20
+  .b 0x6d
+  .b 0x6f
+  .b 0x64
+  .b 0x65
+  .b 0x6c
+  .b 0
+:S_REQ
+  .b 0x20
+  .b 0x72
+  .b 0x65
+  .b 0x71
+  .b 0x75
+  .b 0x65
+  .b 0x73
+  .b 0x74
+  .b 0x73
+  .b 0
+:S_DEADL
+  .b 0x20
+  .b 0x64
+  .b 0x65
+  .b 0x61
+  .b 0x64
+  .b 0x6c
+  .b 0x69
+  .b 0x6e
+  .b 0x65
+  .b 0
+:S_FREQ
+  .b 0x20
+  .b 0x63
+  .b 0x6e
+  .b 0x74
+  .b 0x66
+  .b 0x72
+  .b 0x71
+  .b 0
+:S_ENTRY
+  .b 0x20
+  .b 0x65
+  .b 0x6e
+  .b 0x74
+  .b 0x72
+  .b 0x79
+  .b 0
+:S_TEXT
+  .b 0x20
+  .b 0x74
+  .b 0x65
+  .b 0x78
+  .b 0x74
+  .b 0
+:S_DATA
+  .b 0x20
+  .b 0x64
+  .b 0x61
+  .b 0x74
+  .b 0x61
+  .b 0
+:S_BADPAR
+  .b 0x20
+  .b 0x52
+  .b 0x45
+  .b 0x46
+  .b 0x55
+  .b 0x53
+  .b 0x45
+  .b 0x20
+  .b 0x70
+  .b 0x61
+  .b 0x72
+  .b 0x61
+  .b 0x6d
+  .b 0x73
+  .b 0
+:S_BADELF
+  .b 0x20
+  .b 0x52
+  .b 0x45
+  .b 0x46
+  .b 0x55
+  .b 0x53
+  .b 0x45
+  .b 0x20
+  .b 0x70
+  .b 0x72
+  .b 0x6f
+  .b 0x67
+  .b 0x72
+  .b 0x61
+  .b 0x6d
+  .b 0
+:S_PANIC
+  .b 0x20
+  .b 0x50
+  .b 0x41
+  .b 0x4e
+  .b 0x49
+  .b 0x43
+  .b 0x20
+  .b 0x76
+  .b 0x65
+  .b 0x63
+  .b 0x74
+  .b 0x6f
+  .b 0x72
+  .b 0
+:S_ESR
+  .b 0x20
+  .b 0x65
+  .b 0x73
+  .b 0x72
+  .b 0
+:S_ELR
+  .b 0x20
+  .b 0x65
+  .b 0x6c
+  .b 0x72
+  .b 0
+:S_FAR
+  .b 0x20
+  .b 0x66
+  .b 0x61
+  .b 0x72
+  .b 0
+:S_RUN
+  .b 0x20
+  .b 0x52
+  .b 0x55
+  .b 0x4e
+  .b 0
+:S_START
+  .b 0x20
+  .b 0x53
+  .b 0x54
+  .b 0x41
+  .b 0x52
+  .b 0x54
+  .b 0
+:S_END
+  .b 0x20
+  .b 0x45
+  .b 0x4e
+  .b 0x44
+  .b 0
+:S_EXIT
+  .b 0x20
+  .b 0x65
+  .b 0x78
+  .b 0x69
+  .b 0x74
+  .b 0
+:S_FAULT
+  .b 0x20
+  .b 0x66
+  .b 0x61
+  .b 0x75
+  .b 0x6c
+  .b 0x74
+  .b 0
+:S_DEADLN
+  .b 0x20
+  .b 0x64
+  .b 0x65
+  .b 0x61
+  .b 0x64
+  .b 0x6c
+  .b 0x69
+  .b 0x6e
+  .b 0x65
+  .b 0
+:S_STATUS
+  .b 0x20
+  .b 0x73
+  .b 0x74
+  .b 0x61
+  .b 0x74
+  .b 0x75
+  .b 0x73
+  .b 0
+:S_EC
+  .b 0x20
+  .b 0x65
+  .b 0x63
+  .b 0
+:S_TICKS
+  .b 0x20
+  .b 0x74
+  .b 0x69
+  .b 0x63
+  .b 0x6b
+  .b 0x73
+  .b 0
+:S_SVC
+  .b 0x20
+  .b 0x73
+  .b 0x76
+  .b 0x63
+  .b 0
+:S_EFLT
+  .b 0x20
+  .b 0x65
+  .b 0x66
+  .b 0x61
+  .b 0x75
+  .b 0x6c
+  .b 0x74
+  .b 0
+:S_IN
+  .b 0x20
+  .b 0x69
+  .b 0x6e
+  .b 0
+:S_OUT
+  .b 0x20
+  .b 0x6f
+  .b 0x75
+  .b 0x74
+  .b 0
+:S_PRB
+  .b 0x20
+  .b 0x70
+  .b 0x72
+  .b 0x65
+  .b 0x61
+  .b 0x64
+  .b 0x5f
+  .b 0x62
+  .b 0x79
+  .b 0x74
+  .b 0x65
+  .b 0x73
+  .b 0
+:S_HALT
+  .b 0x20
+  .b 0x48
+  .b 0x41
+  .b 0x4c
+  .b 0x54
+  .b 0x20
+  .b 0x72
+  .b 0x75
+  .b 0x6e
+  .b 0x73
+  .b 0
+:S_FAULTS
+  .b 0x20
+  .b 0x66
+  .b 0x61
+  .b 0x75
+  .b 0x6c
+  .b 0x74
+  .b 0x73
+  .b 0
+:S_DEADLS
+  .b 0x20
+  .b 0x64
+  .b 0x65
+  .b 0x61
+  .b 0x64
+  .b 0x6c
+  .b 0x69
+  .b 0x6e
+  .b 0x65
+  .b 0x73
+  .b 0

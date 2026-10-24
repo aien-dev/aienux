@@ -1,0 +1,44 @@
+; table-el1.s2 -- privileged (EL1) instruction lines for the arch#314 boot fixture, read after
+; seed/rung2/table.s2, rung3/table3.s2, rung4/table4.s2 and atlas/table5.s2 of omega-mv. Same format.
+; Fixed parts from Arm DDI 0487 M.d: MSR (register) C6.2.289 = 0xD51 | o0 op1 CRn CRm op2 | Rt,
+; MRS C6.2.287 = 0xD53 | same fields (op0 = 2 + o0). Register coordinates (op0,op1,CRn,CRm,op2) from the
+; register's own section, named on each line; GICv3 CPU interface registers from Arm IHI 0069H.b 12.2.
+; Upstream input for L408 compiler prerequisite (c) (privileged words); not part of the seed chain.
+= msr.vbar     0xd518c000 r0  ; C6.2.289; VBAR_EL1 (3,0,12,0,0) D24.2.213
+= mrs.vbar     0xd538c000 r0  ; C6.2.287; VBAR_EL1
+= msr.sctlr    0xd5181000 r0  ; C6.2.289; SCTLR_EL1 (3,0,1,0,0) D24.2.174
+= mrs.sctlr    0xd5381000 r0  ; C6.2.287; SCTLR_EL1
+= msr.tcr      0xd5182040 r0  ; C6.2.289; TCR_EL1 (3,0,2,0,2) D24.2.193
+= msr.ttbr0    0xd5182000 r0  ; C6.2.289; TTBR0_EL1 (3,0,2,0,0) D24.2.208
+= msr.mair     0xd518a200 r0  ; C6.2.289; MAIR_EL1 (3,0,10,2,0) D24.2.126
+= msr.cpacr    0xd5181040 r0  ; C6.2.289; CPACR_EL1 (3,0,1,0,2) D24.2.35
+= msr.elr      0xd5184020 r0  ; C6.2.289; ELR_EL1 (3,0,4,0,1) C5.2.5
+= mrs.elr      0xd5384020 r0  ; C6.2.287; ELR_EL1
+= msr.spsr     0xd5184000 r0  ; C6.2.289; SPSR_EL1 (3,0,4,0,0) C5.2.21
+= mrs.spsr     0xd5384000 r0  ; C6.2.287; SPSR_EL1
+= msr.sp_el0   0xd5184100 r0  ; C6.2.289; SP_EL0 (3,0,4,1,0) C5.2.15
+= mrs.sp_el0   0xd5384100 r0  ; C6.2.287; SP_EL0
+= mrs.esr      0xd5385200 r0  ; C6.2.287; ESR_EL1 (3,0,5,2,0) D24.2.44
+= mrs.far      0xd5386000 r0  ; C6.2.287; FAR_EL1 (3,0,6,0,0) D24.2.47
+= mrs.cntfrq   0xd53be000 r0  ; C6.2.287; CNTFRQ_EL0 (3,3,14,0,0) D24.10.1
+= mrs.cntvct   0xd53be040 r0  ; C6.2.287; CNTVCT_EL0 (3,3,14,0,2) D24.10.26
+= msr.cntv_tval 0xd51be300 r0 ; C6.2.289; CNTV_TVAL_EL0 (3,3,14,3,0) D24.10.30
+= msr.cntv_ctl 0xd51be320 r0  ; C6.2.289; CNTV_CTL_EL0 (3,3,14,3,1) D24.10.28
+= mrs.curel    0xd5384240 r0  ; C6.2.287; CurrentEL (3,0,4,2,2) C5.2.2
+= msr.tpidr1   0xd518d080 r0  ; C6.2.289; TPIDR_EL1 (3,0,13,0,4) D24.2.204
+= mrs.tpidr1   0xd538d080 r0  ; C6.2.287; TPIDR_EL1
+= msr.icc_sre  0xd518cca0 r0  ; C6.2.289; ICC_SRE_EL1 (3,0,12,12,5) IHI0069H 12.2.23
+= msr.icc_pmr  0xd5184600 r0  ; C6.2.289; ICC_PMR_EL1 (3,0,4,6,0) IHI0069H 12.2.19
+= msr.icc_gen1 0xd518cce0 r0  ; C6.2.289; ICC_IGRPEN1_EL1 (3,0,12,12,7) IHI0069H 12.2.16
+= mrs.icc_iar1 0xd538cc00 r0  ; C6.2.287; ICC_IAR1_EL1 (3,0,12,12,0) IHI0069H 12.2.14
+= msr.icc_eoi1 0xd518cc20 r0  ; C6.2.289; ICC_EOIR1_EL1 (3,0,12,12,1) IHI0069H 12.2.10
+= eret         0xd69f03e0     ; C6.2.157 ERET
+= isb          0xd5033fdf     ; C6.2.178 ISB (CRm 1111 = SY)
+= dsb.sy       0xd5033f9f     ; C6.2.152 DSB, CRm 1111 = SY
+= dsb.ish      0xd5033b9f     ; C6.2.152 DSB, CRm 1011 = ISH
+= tlbi.vmalle1 0xd508871f     ; C6.2.480 TLBI VMALLE1 = SYS #0, C8, C7, #0
+= ic.iallu     0xd508751f     ; C6.2.176 IC IALLU = SYS #0, C7, C5, #0
+= wfi          0xd503207f     ; C6.2.504 WFI
+= hvc          0xd4000002 i5.16 ; C6.2.175 HVC #imm16
+= msr.daifclr  0xd50340ff i8.4  ; C6.2.288 MSR (immediate): op1 011, op2 111 = DAIFClr, CRm = the mask
+= msr.pan0     0xd500409f     ; C6.2.288 MSR (immediate): op1 000, op2 100 = PAN, CRm 0000 = #0 (FEAT_PAN)

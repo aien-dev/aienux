@@ -1,0 +1,34 @@
+gate 2026-10-24T23:28:23Z aienux 5550b70f501d45ad9e80bf842362b27fff946fc0 omega 0d72560ad82c657b9b51b62119781b36484e2bdc
+host Linux 7.0.0-1019-nvidia aarch64 qemu QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+PASS omc sha256 734f0a39319fbfa930bcc62cb30dbf06d47d78e126372b74f5baf478e6126b61
+PASS model sha256 3f5a22426976ab26cfe84dba63c1d08391717abb1af893e10f1b2968d862dcc1
+PASS table-el1: 38 lines decode as reviewed
+PASS no args/environment/clock words in the Omega programs
+hosted preadp: bytes 807694368 fnv 10228696415025726654 in 0.73 s
+PASS tcg echo: fixture output = hosted
+PASS tcg bytecopy: fixture output = hosted (55705 bytes)
+PASS tcg preadp: model length + hash = hosted
+PASS tcg preadp: fixture counted 807694368 model bytes read
+tcg preadp N RUN 1 END exit status 0 ec 0 far 0 elr 0 ticks 426140919 svc 0 5 1542 1 0 efault 0 in 0 out 41 pread_bytes 807694368 cntfrq 62500000
+PASS tcg probe: answers exactly s ok, b ok, o ok, unknown, o ok (no SURVIVED)
+PASS tcg probe: 13 runs end as nucleus/model/params/uart/gic/unmapped/own-text data aborts, data-exec abort, eret+msr undefined, deadline, exit 7, exit 0
+PASS tcg probe: exit 7 reported
+PASS tcg probe: run 1 accounting svc 6 9 2 0 3 efault 5 in 8 out 15
+PASS tcg probe: HALT runs 13 faults 10 deadlines 1
+PASS kvm echo: fixture output = hosted
+PASS kvm bytecopy: fixture output = hosted (55705 bytes)
+PASS kvm preadp: model length + hash = hosted
+PASS kvm preadp: fixture counted 807694368 model bytes read
+kvm preadp N RUN 1 END exit status 0 ec 0 far 0 elr 0 ticks 709773408 svc 0 5 1542 1 0 efault 0 in 0 out 41 pread_bytes 807694368 cntfrq 1000000000
+PASS kvm probe: answers exactly s ok, b ok, o ok, unknown, o ok (no SURVIVED)
+PASS kvm probe: 13 runs end as nucleus/model/params/uart/gic/unmapped/own-text data aborts, data-exec abort, eret+msr undefined, deadline, exit 7, exit 0
+PASS kvm probe: exit 7 reported
+PASS kvm probe: run 1 accounting svc 6 9 2 0 3 efault 5 in 8 out 15
+PASS kvm probe: HALT runs 13 faults 10 deadlines 1
+PASS control flipped nucleus byte -> STAGE1: REFUSE, program never started
+PASS control flipped program byte -> STAGE1: REFUSE, program never started
+PASS control flipped stage1 byte -> ATLAS: REFUSE, program never started
+PASS control writable+executable segment -> REFUSE program, program never started
+PASS control bad ELF magic -> REFUSE program, program never started
+PASS control bad params magic -> REFUSE params, program never started
+RC=0

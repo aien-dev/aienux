@@ -1,0 +1,784 @@
+ATLAS: AWAKEN
+ATLAS: VERIFY
+ATLAS: HANDOFF
+STAGE1: BUNDLE OK
+N NUCLEUS-FIXTURE arch314 v1 (boot fixture, not the kernel)
+N BOOT bundle 1049400 model 0 requests 55705 deadline 0 cntfrq 62500000 entry 4194480 text 824 data 8519680
+N RUN 1 START
+
+.esiwrehto `PIKS` syas dna ,tsixe `2rekcehc/2rekcehc/dliub` dna `time_agemo/time_agemo/dliub`
+,`esegemo/esegemo/dliub` nehw ylno ti snur `hs.kcehc/tsoh/dees` os ,selcaro tliub-C
+eht sdeen etag ehT .nepo sniamer RI tcurtS .deppiks era senil `eton` .rewol tonnac ti noitaralced
+a spiks reven ti ;3 rorre htiw `fotesffo` ro `foezis` ,`eunitnoc` ,drow tsoh a ,drow taolf
+a sesufer dna 9 rorre htiw noitaralced `txet` ro `labolg` ,`tcurts` a sesufer edom RI .sretemarap
+6 dna snoitcnuf 23 tsom ta ,snoitcnuf reilrae ot sllac ,seulav ralacs :ylnialp dias ,stimiL
+
+.setyb s'cmo etirw reven
+yeht ;ylno seerefer era sloot C esohT .sesac lasufer 41 snip dna ,reffid ot tnatum dda-ot-lum a
+seriuqer ,tinu yreve TPECCA ot `2rekcehc` seriuqer ,elcaro `time_agemo` + `esegemo` tliub-C eht htiw etyb-rof-etyb stinu llac noitcnuf-owt dezimodnar
+03 dna stinu llac noitcnuf-itlum nettirw-dnah enin ,smargorp ved 01 serapmoc `hs.ri-etag/cmo/dees`
+
+.)3 rorre( desufer llits si `eunitnoc` ;daed htap eht skram dna tixe s'pool tsomrenni eht ot `RB`
+a ot srewol `kaerb` .)7 rorre( emit elipmoc ta dekcehc era sepyt tnemugrA .7 rorre si dedeen si
+rehto eht erehw eno gnisu dna ,tnemetats a si llac diov a ,eulav a sa sesopmoc llac gninruter-eulav
+a ;stnemugra xis tsom ta htiw )3 rorre era sllac drawrof dna fles( noitcnuf **reilrae**
+na llac yam noitcnuf A .redro ecruos ni dedocne si noitcnuf yrevE .nekat ton si htap 46hcrAA eht
+dna ,sdrow enihcam 46hcrAA fo daetsni snoitcnuf 23 ot pu fo tinu a rof )`dm.tamrof-reyal-eno/ceps`(
+1 noisrev RI CSO setirw ti :edom RI ni cmo stup ,enil rehto yna erofeb ,`ri` enil gnidael A
+
+)tniopkcehc latnemirepxe ,ylno cmo( tuptuo RI CSO .11 ##
+
+.setag deifilauqnu-llits ,etarapes era noitucexe ledom dna hcnual UPG .sloop dexif
+sniamer egarots nwo s'relipmoc eht elihw secruoser deppam lacol-ssecorp sdda tI
+.)dm.GNIPPAM/tsoh/dees/../..(]dm.GNIPPAM/tsoh/dees[ si tcartnoc lasufer dna egnar ,pihsrenwo
+,epyt tcaxe stI .relipmoc emas siht ot `etirwpam` dna `daerpam` ,`pordpam`
+,`wenpam` ,`ltcved` dekcehc sdda noisnetxe yromem/ecived desoporp ehT
+
+.htap noitatnemelpmi wen eht no si emitnur ro relipmoc egaugnal-ngierof
+oN .snoitarepo eseht tnemelpmi ton od rotanidrooc tset llehs dna redaol
+dees ehT .`dm.EMDAER/tsoh/dees` ees ;`hs.kcehc/tsoh/dees hs` si noitacifilauQ
+
+.krow etarapes niamer stcartnoc yrarbil elbatrop ;cificeps-tsoh
+era stuoyal atadatem dna stuoyal sserdda ,sgalf SO .tsoh deifilauq ylno eht
+si 46MRA xuniL .3 spart dnuob taht gnihcaer ;BiM 1 ta nacs gnirts lanretni sti
+sdnuob `daergra` .1 part egnar taht edistuo seulav
+;latot dnocesonan dengis a dna sdnoces evitagennon eriuqer stluser kcolC
+
+.sdaerht yromem-derahs dda ton seod noisnetxe siht ;depaer eb tsum dna sessecorp
+tnednepedni era nerdlihc dekroF .dedeen erehw srotpircsed cexe-no-esolc
+tseuqer ylticilpxe dluohs smargorP .llehs a ekovni ro HTAP hcraes ton
+seod dna ,srotpircsed detirehni yranidro dna yrotcerid gnikrow eht sevreserp
+,tnemnorivne ytpme na seilppus `gorpcexe` .seulav egaugnal sa desopxe reven era
+yehT .lenrek eht rof stsil retniop dednuob ,etavirp stcurtsnoc relipmoc ehT
+
+.sdrocer htap ytpmenon owt yltcaxe seriuqer `semaner` .ytpme eb yam
+stnemugra rehtO .ytpmenon eb tsum ti ;orez tnemugra dna htap elbatucexe eht
+htob sa drocer tsrif eht sesu `gorpcexe` .3 part stnuoc egnar-fo-tuo dna setyb
+gniliart artxe ,sdrocer detacnurt ,setyb orez deddebmE .46..1 si tnuoc eht
+dna setyb 6904 tsom ta si tekcap elohw ehT .tamrof cilbup eht ni rotanimret
+ro gniddap on si erehT .setyb esoht dna htgnel etyb `61u` naidne-elttil a hcae
+,sdrocer ynam taht yb dewollof tnuoc `61u` naidne-elttil a si tsil dekcap A
+
+.ssecca llac-metsys yrartibra ro seulav retniop edivorp
+ton seod dna setyb noitpo ylnodaer stpecca ti ;`tpokcostes` xuniL si `tpokcos`
+.`)DWCDF_TA(taknildaer` dna `dwcteg` xuniL era snoitarepo esehT .etyb orez
+a sdneppa reven `knldaer` .etyb orez gniliart sti sedulcni tnuoc denruter eht
+:noitnevnoc tnuoc s'lenrek eht sevreserp tI .setyb elbatirw seriuqer `dwc`
+.efas era secils tuptuo dna htap gnippalrevo os ,tuptuo eht setirw lenrek eht
+erofeb etelpmoc si ypoc htap etavirp ehT .skcehc epyt-etyb dna sdnuob yarra
+yranidro eht eviecer secils htoB .elbatirw eb tsum tuptuo sti ;ecils ylnodaer
+a eb yam htap stI .3 part htiw htap ytpme na stcejer yllanoitidda `knldaer`
+
+.gnitirw erofeb roolf kcats gnitsixe eht tsniaga dekcehc si ecaps
+kcats etavirP .ticilpxe niamer shtgnel yarra agemO ;yradnuob xuniL eht ta
+shtap setanimret dna seipoc yletavirp relipmoc ehT .noitarepo lenrek a erofeb
+3 part shtap regnol dna setyb orez deddebmE .setyb 5904 tsom ta era shtaP
+
+seiradnuob ssecorp dna htaP ###
+
+| .LAVNIE- nruter sgalf rehto ;`ERUCESNI_DNRG` 4 ,`MODNAR_DNRG` 2 ,`KCOLBNON_DNRG` 1 ,ydaer si loop eht litnu skcolb 0 :`tni` si `sgalf` .onrre- ro nettirw setyb eht nruteR .`modnarteg` xuniL morf ecils etyb elbatirw a lliF | `sgalf n ffo A modnar` |
+| .ecils eht gnignahc tuohtiw 501- snruter yticapac tneiciffusni ;3 spart `tncvne` tsap ro ta xedni nA .htgnel etyb sti nruter ;rotanimret sti tuohtiw yrtne tnemnorivne eno ypoC | `yticapac ffo A xedni daervne` |
+| .)deilppus lenrek eht `pvne` eht( tnemnorivne ssecorp eht ni seirtne fo rebmun eht nruteR | `tncvne` |
+| .ecils eht gnignahc tuohtiw 501- snruter yticapac tneiciffusnI .3 spart xedni dilavni nA .htgnel etyb nruter ;rotanimret a tuohtiw setyb tnemugra ypoC | `yticapac ffo A xedni daergra` |
+| .eman elbatucexe eht gnidulcni ,tnuoc tnemugra nruteR | `tncgra` |
+| .eruliaf no snruter ylnO .tsil tnemugra dekcap a gnisu ssecorp eht ecalpeR | `n ffo A gorpcexe` |
+| .`3pud` gnisu rotpircsed nesohc a otno etacilpuD | `sgalf tegrat df dfpud` |
+| .thgie tsael ta yticapaC .srotpircsed tib-23 naidne-elttil owt etirw ;`2epip` htiw epip a etaerC | `sgalf n ffo A sdfepip` |
+| .ruof tsael ta yticapaC .tiaw gnikcolbnon dehsinifnu na rof orez ro DIP nruter ,sutats etyb-ruof a etirw ;`4tiaw` htiw tiaW | `snoitpo n ffo A dip diptiaw` |
+| .noissimrep/ecnetsixe skcehc langis orez ;langis a dneS | `langis dip dipllik` |
+| .DI ssecorp tnerruc eht nruteR | `dipteg` |
+| .eruliaf no onrre evitagen ,tnerap eht ni DIP dlihc ,dlihc eht ni orez :ssecorp tnerruc eht ypoC | `krof` |
+| .3 part 53556..0 edistuo stnevE .etinifni snaem evitagen ;sdnocesonan si lavretnI .onrre evitagen ro ,tuoemit no orez ,stib ssenidaer nruteR .rotpircsed eno lloP | `lavretni stneve df oitiaw` |
+| .rorre na snruter reep desolc a os ,dedda `LANGISON_GSM` htiw ecils a dneS | `sgalf n ffo A df dnes` |
+| .ecils elbatirw a otni evieceR | `sgalf n ffo A df vcer` |
+| .ecafretni 46MRA xuniL eht wollof stuoyal dna seulav noitpO .ecils etyb ylnodaer a morf noitpo tekcos a teS | `n ffo A noitpo level df tpokcos` |
+| .detacnurt nehw yticapac deecxe yam hcihw ,htgnel sserdda lluf eht nruter ;setyb sserdda tekcos etirW | `n ffo A df emankcos` |
+| .tuptuo sserdda-reep tuohtiw ,rotpircsed nruter ;`4tpecca` htiw noitcennoc a tpeccA | `sgalf df tpecca` |
+| .snoitcennoc rof netsiL | `golkcab df netsil` |
+| .ecils eht ni setyb sserdda eht gnisu tcennoC | `n ffo A df tcennoc` |
+| .ecils eht ni setyb sserdda eht ot tekcos eht dniB | `n ffo A df dnib` |
+| .tekcos a etaerC | `locotorp dnik niamod wenkcos` |
+| .rorre lenrek eht nruter snoitpurretnI .3 part slavretni evitageN .sdnocesonan evitagennon rof peelS | `lavretni snpeels` |
+| .spmatsemit rof elbatius ,hcope xinU eht ecnis sdnocesonan emitlaeR | `snlaer` |
+| .tnemerusaem emit-despale rof elbatius ,sdnocesonan cinotonoM | `snonom` |
+| .)htap knil ,txet tegrat( tsil htap-owt dekcap a morf knil cilobmys a etaerC | `n ffo A knlmys` |
+| .)wen ,dlo( tsil htap-owt dekcap a morf knil drah a etaerC | `n ffo A knil` |
+| .tnemecalper sesufer 1 galf ;`2taemaner` gnisu tsil dekcap a ni shtap owt eht emaneR | `sgalf n ffo A semaner` |
+| .)`WOLLOFON_KNILMYS_TA`( knil cilobmys lanif a wollof ton seod tub ,`tats` sA | `yticapac ffo B n ffo A tatsl` |
+| .3 spart tuptuo trohs a ;erutcurts 46MRA etyb-821 emas eht setirw ;`tatatsfwen` aiv htap dekcehc a rof atadateM | `yticapac ffo B n ffo A tats` |
+| .821 tsael ta yticapac seriuqer ;erutcurts tats 46MRA xuniL etyb-821 eht etirW | `n ffo A df tatsf` |
+| .nettirw setyb nruter ;sdrocer `46stnedteg` xuniL war etirW | `n ffo A df stndteg` |
+| .detacnurt eb yam yticapac ot lauqe tluser A .rotanimret a tuohtiw tnuoc etyb eht nruteR .setyb tuptuo elbatirw otni htap ytpmenon ,dekcehc a hguorht knil cilobmys a daeR | `yticapac ffo TUO n ffo HTAP knldaer` |
+| .onrre- ro 0 nruteR .htap ytpmenon ,dekcehc a ot yrotcerid gnikrow eht egnahC | `n ffo A ridhc` |
+| .rorre evitagen a snruter reffub trohs A .etyb orez gniliart eht gnidulcni tnuoc etyb lenrek eht nruteR .setyb elbatirw otni yrotcerid tnerruc eht etirW | `yticapac ffo A dwc` |
+| .yrotcerid ytpme na evomeR | `n ffo A ridmr` |
+| .yrotcerid a etaerC | `edom n ffo A ridekam` |
+| .elif deman eht evomeR | `n ffo A knilnu` |
+| .)`etacnurt` xuniL( htgnel s'htap dekcehc a teS | `htgnel n ffo A etacnurt` |
+| .)`etacnurtf` xuniL( htgnel s'rotpircsed nepo na teS | `htgnel df cnurtf` |
+| .tesffo elif dengis gnitluser eht nruter dna keeS | `ecnehw tesffo df keesf` |
+| .ksam suoiverp eht nruter ;ksam edom-elif eht teS | `ksam ksamu` |
+| .)dip nwo/fles = 0( puorg s'ssecorp a teS | `digp dip digptes` |
+| .tekcos detcennoc a fo trap nwod tuhS | `woh df nwodtuhs` |
+| .rotpircsed nepo na gniniatnoc metsyselif eht cnyS | `df sfcnys` |
+| .)fles = 0( `dip` fo di noisseS | `dip disteg` |
+| .)fles = 0( `dip` fo di puorg ssecorP | `dip digpteg` |
+| .redael sti emoceb dna noisses a etaerC | `distes` |
+| .di ssecorp tneraP | `dippteg` |
+| .rotpircsed yrotcerid nepo na ot yrotcerid gnikrow eht egnahC | `df ridhcf` |
+| .)771-471 sllacsys( ytitnedi ssecorP | `digeteg` / `digteg` / `diueteg` / `diuteg` |
+| .4/2/1/0 edom :)0 sgalf ,`tasseccaf`( htap dekcehc a ot ssecca kcehC | `edom n ffo A sseccaf` |
+| .)0 sgalf ,`tanwohcf`( htap dekcehc a no pihsrenwo teS | `dig diu n ffo A nwohc` |
+| .)0 sgalf ,`tadomhcf`( htap dekcehc a no snoissimrep teS | `edom n ffo A domhc` |
+| .rotpircsed nepo na no snoissimrep teS | `edom df domhcf` |
+| .)`etaerc_dfmem`( rotpircsed sti nruter dna elif yromem-ni suomynona na etaerC | `sgalf n ffo A dfmem` |
+| .)`cnysatadf`( ylno atad elif cnyS | `df cnysdf` |
+| .atadatem dna atad elif cnyS | `df cnysf` |
+| .rotpircsed esolC | `df esolcf` |
+| .rotpircsed nruteR .yrotcerid tnerruc eht ot evitaler htap detimiled-htgnel a nepO | `edom sgalf n ffo A nepof` |
+| --- | --- |
+| gninaeM | noisserpxE |
+
+.7 rorre era sepyt ralacs dehctamsim dna syarra etyb-noN
+.)02 rorre( `txet` dna `weiv` tcejer snoitarepo elbatirW .)301 tixe margorp(
+3 part esiwrehto ,ssecca lenrek erofeb `n - A nel =< ffo` dna `A nel =< n`
+skcehc ecils yrevE .yarra `rahcu` a si `A` .`gnol` era slavretni emit dna
+stesffo eliF .`gnolu` era secidni tnemugra dna seiticapac ,stnuoc etyb ,stesffO
+.`tni` era `ecnehw` dna `noitpo` ,`level` ,`snoitpo` ,`tegrat` ,`golkcab` ,`locotorp` ,`dnik`
+,`niamod` ,`stneve` ,`langis` ,`dip` ,`edom` ,`sgalf` ,`df` ,serutangis nI
+
+.llacsys yrartibra on dna seulav retniop on esopxe yehT .snoissimrep gnitsixe
+s'ssecorp eht htiw etarepo yeht :xobdnas a mrof ton od snoitarepo esehT
+.srorre kcehc tsum smargorP .rebmun rorre xuniL eht sunim nruter seruliaf
+;evitagennon era stluser lenrek lufsseccuS .`gnol` epyt evah woleb stluser llA
+
+.)edom noitcnuf ni 9 rorre( edom margorp eriuqer dna devreser era sdrow
+wen ehT .edoc enihcam sti sniater tesbus lanigiro ehT .etyb rof etyb flesti
+secudorper relipmoc dednetxe eht ;relipmoc dednetxe siht sdliub tnerap 4mo
+lanigiro ehT .`mo.cmo/cmo/dees` ni relipmoc nettirw-agemO eht yb detnemelpmI
+
+)32-01-6202( noisnetxe tsoh evitaN .01 ##
+
+.61 rorre si snoitisop eseht fo yna ni tnatsnoc taolf a dna ,8 rorre peek
+seulav egnar-fo-tuO .oot ereht skrow tnatsnoc a os ,eulav yranidro na si tnuoc `rof` a ;)999999..1(
+tnuoc `dnuob ... elihw` a sa dna )41..1( edoc `part` a sa detpecca osla si tnatsnoc regetni nA
+
+.noitcnuf taht erofeb denifed eb tsum htgnel retemarap a ni desu tnatsnoc
+a os ,dennacs-erp era serutangiS .)32 dna 8 srorre( syarra rof 61277761..1 secrofne llits `nelrra`
+dna ,61 rorre si tnatsnoc regetni na naht rehto eman a si taht nekot htgnel A .61 rorre si htgnel
+a sa desu tnatsnoc taolf a ;)41 rorre ,46..1( htgnel dleif tcurts a dna )`N T tide` / `N T weiv`(
+noitaralced retemarap a ,`labolg` ,`wen` ni htgnel yarra na sa detpecca osla si tnatsnoc regetni nA
+
+.noitcnuf taht ot elbisiv ton si noitcnuf a retfa denifed tnatsnoc
+a os ,laitneuqes era snoitinifeD .snoitaralced txet/labolg/tcurts
+era sa ,)9 rorre( desufer si ereht tnatsnoc taolf a ;tnuoc `rof` a ro ,dnuob `elihw` a ,edoc `part`
+a sa gnidulcni ,laretil sti ot dedlof si tnatsnoc regetni na edom RI nI .)7 rorre( dengissa eb
+tonnac ti dna ,tnemugra llac a sa dna snoitcnuf edisni gnidulcni ,seog eulav a reverehw sesopmoc tI
+.)61 rorre( desufer si epyt taolf a rednu laretil regetni na ;)`1.0 23f` ,`1.0 46f`( laretil taolf
+a ro )`3- gnol` ,`5 tniu`( regetni na :rebmun depyt a si tnatsnoc ehT .)8 rorre( epyt eht tif tsum
+eulav eht ;)01 rorre( tcurts a ro noitcnuf a ,eman elbisiv a htiw edilloc ton yam dna sretcarahc 8
+tsom ta si `EMAN` .esu erofeb eulav deman a senifed level pot ta `LARETIL EPYT EMAN tsnoc`
+
+)61etag ,ylno cmo( stnatsnoC 21.9 ###
+
+
+.snur `hs.kcehc/tsoh/dees` hcihw ,`hs.01etag/cmo/dees` yb dekcehC .9 rorre
+si `diov foezis` dna ,3 rorre si dleif ro tcurts nwonknu na ,61 rorre si eman epyt nwonknu nA
+
+.snoisserpxe ni esopmoc yeht os ,edoc on dda dna gnolu epyt fo stnatsnoc emit-elipmoc
+era htoB .tnemele tsrif sti sevig dleif yarra na ;`f` dleif fo tesffo etyb eht si `f S fotesffo`
+.sllec sti fo hcae rof setyb 8 :ezis s'tcurts a si `S foezis` .)8 46f/gnol/gnolu ;4 23f/tni/tniu
+;2 trohs/trohsu ;1 etyb/rahcu ;1 loob( epyt ralacs a fo setyb ni ezis eht si `T foezis`
+
+)01etag ,ylno cmo( seireuq tuoyaL 11.9 ###
+
+
+.snur `hs.kcehc/tsoh/dees` hcihw ,`hs.9etag/cmo/dees` yb dekcehC .61 rorre si `)`
+sti gnissim puorg a dna ,)11 rorre( suougibma llits si epyt on sah eulav ylno esohw puorg A .edoc
+on sdda dna ti edisni eulav eht yltcaxe snruter puorg A .drow gnidnuorrus eht fo tuo meht stilps
+rexel eht ;)`))7((` ,`)2 tni(`( eulav a tsniaga nettirw nehw neve sdrow etarapes era `)` dna `(`
+
+)9etag ,ylno cmo( sesehtnerap gnipuorG 01.9 ###
+
+
+)*_gen ,stcurts ,smarap ,slabolg ,syarra 8etag( .)3 rorre(  
+sdrow taolf sesufer edom RI dna ,)7 rorre( yarra rahcu a deen llits `etirw`/`daer` ,)7 rorre(  
+tnuoc `rof` a eb ro yarra na xedni tonnac taolf A .)flah wol sti ni nrettap tib-23 eht htiw ,llec  
+etyb-8 na seipucco llits tnemele yarra ro dleif 23f na( seilppa stcurts rof sa elur llec etyb-8  
+emas eht ;sdleif tcurts dna snruter ,sretemarap ,syarra `wen` ,sloop `labolg` ni dewolla era staolF -
+)trevnoc 8etag( .7 rorre si loob a ro htdiw rehto yna ;stib sti gnignahc  
+tuohtiw )46u/46i/46f ,23u/23i/23f( htdiw emas eht fo eulav a sterpretnier `eulav T tsactib` .TVCF  
+si 46f>-<23f ;)0 >- NaN ,etarutas ,etacnurt( UZTVCF/SZTVCF si tni ot taolf ;)neve tseraen ot dnuor(  
+FTVCU/FTVCS si taolf ot tnI .tni>-taolf dna 46f>-<23f ,taolf>-<tni eldnah `eulav >epyt<` snoisrevnoC -
+)*_rtni_gen ,scisnirtni 8etag(  
+.11 rorre si laretil devlosernu na dna 7 rorre si dnarepo regetni erab A .)0.0+ woleb sredro  
+0.0- ;dnarepo rehto eht snruter NaN teiuq eno :muNxam/muNnim EEEI( MNXAMF/MNNIMF wollof dna epyt  
+taolf eno fo owt ekat `b a xamf` dna `b a nimf` ;taolf eno ekat `x sbaf` dna `x trqsf` scisnirtnI -
+)erapmoc ,htira 8etag( .ngis eht sesopxe `tsactib` ;0.0 ot lauqe serapmoc  
+0.0- .eurt si hcihw ,`en` tpecxe erehwyreve eslaf serapmoc NaN .spart noitarepo taolf on dna ,NaN  
+sevig 0/0 ,ytinifni evig wolfrevo dna orez yb noisivid :stluser EEEI .7 rorre era taolf a no `mer`  
+dna stfihs ,srotarepo tiB .`eg tg el tl en qe` snosirapmoc ;`gen` yranu dna `/ * - +` :srotarepO -
+)3wolfrevo_gen ,2wolfrevo_gen ,wolfrevo_gen ,tod_gen ,suougibma_gen ,stib_23f  
+,stib_46f 8etag( .)taht dnoyeb 8 rorre( 1-36^2 ni tif llits tsum stigid tnacifingis ehT .orez  
+dengis ot swolfrednu lamronbus tsellams eht woleb eno ;)8 rorre( desufer si ytinifni ot sdnuor  
+taht laretil A .orez dengis dna )54-e1 ,423-e5( slamronbus gnidulcni ,derevoc si egnar 46yranib  
+dna 23yranib lluf ehT .A999999999999BF3x0 si 46f1.0 :neve tseraen ot ecno gnidnuor neht ,tib ykcits  
+eno dna tnenopxe yranib a ,dnacifingis tib-46 a gnipeek ,epyt tegrat eht ot yltcaxe detrevnoc  
+si txet lamiced ehT .11 rorre si ti epyt taolf a sevig txetnoc on erehw ;seod laretil regetni  
+na sa yltcaxe txetnoc morf epyt sti sekat xiffus on htiw laretil A .setagen `-` gnidael a dna ,tod  
+eht fo sedis htob no tneserp eb tsum tigid a ;`]46f|23f[]stigid]-|+[)E|e([stigid.stigid` :slaretiL -
+
+.7 rorre si noisrevnoc
+a tuohtiw ,regetni dna taolf ro ,46f dna 23f gnixim :noisrevnoc ticilpmi on si erehT .rotarepo rep
+gnidnuor eno ,snoitarepo desuf on ,tpek slamronbus ,neve tseraen ot dnuor :nettirw reven si RCPF .kcab
+ti sevom dna ,noitcurtsni PF ralacs eno snur ,1v/0v ot ti sevom citemhtira ;retsiger regetni yranidro
+na ni dleh nrettap tib sti si eulav taolf A .46yranib dna 23yranib 457-EEEI era `46f` dna `23f`
+
+.elur taht fo sevlah htob snip 11etag .sesu ydaerla edoc `mo.` gnitsixe taht eman a ekat ton
+yam drowyek a dna ,sreifitnedi yranidro sa sgnilleps retrohs esoht sesu suproc kramhcneb eht :`xam`
+dna `nim` ,`sba` ,`trqs` ,`stib` ton ,`xamf` dna `nimf` ,`sbaf` ,`trqsf` ,`tsactib` era sdrow ehT
+
+)8etag ,ylno cmo( tniop gnitaolF 9.9 ###
+
+
+)lasufer 4mo 7etag( .elbat drowyek eht morf devreser era lla ;eman a eb yam eerht eht fo enoN -
+)51part_dab ,0part_dab ,2t ,1t 7etag(  
+.)kcolb emas eht ni enil retal a rof 71 rorre( htap eht sdne enil ehT .`part.tRcsO`  
+sllac edom noitcnuf dna N + 001 stixe edom margorp os ,edoc rep buts eno sekam `hsinif`  
+;esu skcehc part emitnur eht hcnarb nekat-syawla emas eht stime tI .)egnar fo tuo 8 ,rebmun  
+a ton si nekot eht nehw 61 ,sdne enil eht nehw 4 rorre( 41..1 rebmun lamiced a sekat `N part` -
+)eunitnoc_retfa_dab  
+,eunitnoc_dab ,5c-1c 7etag( .)41 rorre( noitcnuf rep setis 4201 tsom ta ;71 rorre si kcolb emas  
+eht ni enil retal a ;9 rorre si ti pool a edistuO .secnavda llits retnuoc eht os ,rof a fo tnemercni  
+eht ro ,niaga nur tnuoc dnuob eht dna noitidnoc eht os ,elihw a fo daeh eht :tixe sti ton ,hctal  
+s'pool eht ot dehctap si hcnarb dedrocer sti tub ,yaw emas eht pool tsomrenni eht sdnif `eunitnoc` -
+)3n-1n ,1f ,1w 7etag( .sdne noitcnuf eht nehw teser ,)taht revo 41 rorre( noitcnuf rep  
+setis kaerb 4201 tsom tA .71 rorre si kcolb emas eht ni enil retal a :htap eht sdne enil eht  
+,`ter` ekiL .9 rorre si ti pool a edistuO .kaerb reilrae na evom tonnac tols kcolb eht sesuer  
+taht pool retal a os ,tneps meht skram dna kcolb taht rof dedrocer seirtne eht ylno sehctap  
+`dne_s` ,sesolc pool eht nehW .drow eht sdrocer dna tixe s'pool taht ot `LA.B` nekat-syawla  
+na stime ,)rof 4 ,elihw 3 dnik( pool tsomrenni eht rof skcolb nepo eht snacs `kaerb` -
+
+.`hs.kcehc/tsoh/dees`
+yb nur si ti ;`hs.7etag/cmo/dees` yb dekcehC .stcurts ekil ylno-cmo era yeht os ,meht sesufer 4mo
+;eerht lla stnemelpmi cmo .stsil 3§Â stnemetats gnidne-htap eht era `part` dna `eunitnoc` ,`kaerb`
+
+)7etag ,ylno cmo( part dna eunitnoc ,kaerB 8.9 ###
+
+.)7 rorre( desufer era tcurts a fo `etirw` dna `daer` .)7 rorre( desufer si tcurts a fo `nel` -
+.tcurts a nruter ton seod noitcnuf A .)91 rorre( seman tcnitsid era llac eno fo stcurts  
+ehT .)tide ot dessap weiv a rof 02 rorre ,esiwrehto 7 rorre( tcurts emas eht fo syawla ,weiv ot  
+tcurts yna dna ,tide ot tcurts tide ro nwo na sessap llac A .`S tide p` ro `S weiv p` si retemarap A -
+.syarra rof sa ,3 spart dna snur ti nehw dekcehc si xedni rehto yna ;12 rorre si dleif eht edistuo  
+xedni rebmun A .3 rorre si dleif nwonknu nA .)02 rorre( nettirw eb tonnac weiv A .etirw `v i f p tup`  
+dna `v f p tup` .dleif yarra na fo tnemele na sdaer `i f p teg` .dleif ralacs a sdaer `f p teg` -
+)fi_ni_wen ,eerf_llits ,6t-1t 6etag( .9 rorre syats drow eht ;)42 noisiced( `eerf` on si erehT  
+.snruter noitcnuf eht nehw kcab nevig ,dengila etyb-61 ,tols kcats a era sllec ehT .tnemele yreve ni  
+derots ,eulav eno sekat dleif yarra na ;dleif rep eulav enO .)`rof` / `elihw` / `fi` edisni 9 rorre(  
+kcolb tsomretuo s'noitcnuf eht ni ylno dna ,tnemngissa na fo elohw eht sa ylno ,`nv .. 1v S wen = p` -
+.eman s'dleif a erahs yam elbairav A .)01 rorre( tcurts rieht ni euqinu era seman dleiF .)01 rorre( emas  
+eht delleps eb yam dleif ro ,elbairav ,noitcnuf oN .no enil taht morf drow a si eman s'tcurts ehT -
+)relipmoc siht morf ton ,tuoyal eht morf ,1 era stluser detcepxe eht ;tluser eht segnahc dna ruobhgien  
+a spalrevo elacs gnorw a :9t ,8t ,7t 6etag( .gniddap on ,redro ni ,sllec etyb-8 erom ro eno si  
+dleif yrevE .)46 .. 1( htgnel taht fo dleif yarra na si epyt eht retfa rebmun a ;epyt ralacs a dna  
+eman a si dleif A .)`dne` erofeb sdne enil eht fi 4 rorre ,ytpme fi 61 rorre ,taht revo 41 rorre( sllec 46 tsom ta ,stcurts  
+61 tsom ta ,sdleif 61 ot 1 .`nf` tsrif eht erofeb ,enil eno ,`dne ... ]nel[ epyt dleif emaN tcurts` -
+
+.`hs.6etag/cmo/dees` yb dekcehC .)mo.cmo(cmo ot lauqe syats )mo.cmo(4mo
+os ,sdrow eseht esu ton seod mo.cmo .4mo yb desufer si margorp tcurts A .siht rof worg ton seod 4mo
+
+)6 gnur ,ylno cmo( stcurtS 7.9 ###
+
+.21 rorre si tuo sdnah ti sretsiger 61 eht naht erom sdeen taht noitcnuf A .skcolb
+detsen 215 ,noitcnuf rep setis part 2918 ,snoitcnuf 215 ,peed 4201 detsen seulav ,epocs ni seman 4201 ,BiM 8 tsom ta setirw
+dna setyb 1 - BiM 8 tsom ta sdaer 4mo :nurrevo reven ,41 rorre htiw desufer si yticapac a revo tupnI
+
+)32 noisiced( seiticapaC 6.9 ###
+
+)bif ,tros 6.s( .drow tsrif sti dnoyeb daer ton seod rotalsnart eht enil a si `... eton` -
+)7.s ,tixe_t 6.s( .71 rorre si kcolb emas eht ni ti  
+retfa enil a :htap eht sdne ti ,`ter` ekiL .652 oludom v sutats htiw margorp eht sdne )tni v( `v tixe` -
+)wr_t ,ypocetyb ,ohce 6.s( .tluser dna skcehc ecils emas eht htiw ,tesffo s'rotpircsed eht gnignahc tuohtiw  
+noitisop elif ticilpxe na ta emas eht od )gnol sop( `sop n ffo A df etirwp` / `sop n ffo A df daerp`  
+.setyb eb ot stnuoc eht rof rahcu fo yarra na eb tsum A .)02 rorre( yarra elbatirw a sdeen `daer` .llac  
+eht erofeb ,n - A nel =< ffo dna A nel =< n sselnu 3 part yehT .rebmun rorre xuniL eht sunim ro ,devom  
+setyb eht :gnol a evig dna ,sllac etirw dna daer xuniL eht htiw 1 - n + ffo .. ffo stnemele s'A dna df  
+elif nepo eht neewteb setyb n evom )gnolu n dna ffo ,tni df( `n ffo A df etirw` dna `n ffo A df daer` -
+
+senil dna sllac metsyS 5.9 ###
+
+)7.s ,sdnuob_t 6.s ,8mf 5.s( .eno ot sdda ro sserdda na otni yarra na snrut  
+taht drow on si erehT .)oot spart xedni dengis evitagen a( htgnel eht woleb ton si ti nehw 3 spart dna  
+snur ti nehw dekcehc si xedni rehto yna ;)12 rorre( ti sdaer 4mo nehw A edisni eb tsum xedni rebmun A  
+.gnolu a sa htgnel s'A si `A nel` .setirw neht ,v neht ,i sdaer `v i A tup` ;i tnemele sdaer `i A teg` -
+)7.s( .eman  
+rehtona hguorht nees reve si etirw on dna ,egarots tcnitsid syawla era noitcnuf eno ni secnerefer  
+evil owt os ;)91 rorre( seman tcnitsid era llac eno fo syarra eht dna ,)91 rorre( dessap reven  
+si labolg A .`tide` ro `weiv` retfa yllanoitpo ,retemarap yarra na ro yarra lacol a si tnemugra nA -
+)7.s( .yaw emas eht ni ylno-daer  
+si txet A .02 rorre si tide sa ti gnissap ro ,ti otni `daer` ,`tup` ;ylno-daer si weiv A .)esiwrehto  
+7 rorre( htgnel dna epyt taht yltcaxe fo yarra na sekat `N T tide EMAN` ro `N T weiv EMAN` retemarap A -
+)7.s ,tros 6.s ,8mf ,7mf 5.s(  
+.)9 rorre( desufer si drow eht dna ,)42 noisiced( dnah yb kcab nevig si gnihton :`eerf` on si erehT  
+.)32 rorre( syarra lacol fo BiM 4 tsom ta ;)9 rorre( kcolb tsomretuo s'noitcnuf a ni ylnO .snruter  
+noitcnuf eht nehw kcab nevig ,kcats eht no ,v hcae ,stnemele N fo yarra lacol a :`v N T wen = EMAN` -
+)7.s( .ylno edom margorP .22 rorre si  
+,dne sti gnissim etouq a ro ,epacse rehto yna ;43 si `"\` ,29 si `\\` ,9 si `t\` ,01 si `n\` ;htgnel  
+sti htiw ,setouq eht neewteb setyb eht gnidloh rahcu fo yarra ylno-daer a :`"setyb" EMAN txet` -
+)7.s ,ypocetyb ,ohce 6.s( .)9 rorre( ylno edom margorP  
+.32 rorre esle ,sloop fo BiG 1 tsom ta ;)llac noitacolla on ,paeh on( egami yromem nwo s'margorp  
+eht ni ,strats margorp eht nehw 0 lla ,)61277761 .. 1( stnemele N fo loop a :`N T EMAN labolg` -
+)7.s( .)61 rorre( desufer si htgnel sti tuohtiw nettirw loop a  
+ro retemarap yarra nA .etyb rotanimret a sa reven ,eman s'yarra eht htiw slevart htgnel eht ;rebmun  
+a sa nettirw htgnel dexif a dna )loob reven ,gnol .. rahcu( epyt tnemele dexif a sah yarra yrevE -
+
+)42 ,32 ,81 ,71 ,61 snoisiced( syarrA 4.9 ###
+
+)pool_t 6.s( .0 dna 1 srebmun loob eht era `eslaf` dna `eurt` -
+)7.s ,parw_etirw_t ,ngis_vnoc_t ,dengisnu_pmc_t  
+,xam46u_t ,36u_t 6.s( .)6 rorre si ,tigid a ton si taht retcarahc a ro ,stigid 02 naht erom ;edistuo  
+8 rorre( no os dna ,gnolu rof 1 - 46^2 .. 0 ,gnol rof 1 - 36^2 .. 36^2- :sekat ti epyt eht fo eulav  
+a eb tsum ti ;stigid 02 tsom ta ni ,evitagen nehw tnorf ni `-` a htiw ,lamiced ni nettirw si rebmun A -
+)7.s( .retcarahc a reven ,rebmun dengisnu tib-8 na si `rahcu` .sdeen ecalp eht epyt eht sekat rebmun erab A  
+.)7 rorre( desufer si enil eht ro ,epyt emas eht evah lla ,retemarap sti dna tnemugra na ,ot nettirw  
+si ti eman eht dna eulav a ,po na fo seulav owt eht :)02 noisiced( snoisrevnoc ticilpmi on era erehT -
+)vnoc_t 6.s( .epyt wen eht edistuo si eulav eht nehw 5 spart `v >epyt<` noisrevnoc A -
+)4mf ,3mf 5.s(  
+.ngis eht speek eulav dengis a fo rhs .epyt yreve rof ,7 spart 1 - htdiw .. 0 edistuo tnuoma tfihs A -
+)9mf ,2mf ,1mf 5.s( .0 si 1- mer muminim eht dna ,dnedivid eht  
+fo ngis eht sah mer dengis ;orez drawot sdnuor vid dengiS .0 si rosivid eht nehw 2 part mer dna vid -
+)9mf ,4mf-1mf 5.s( .1- yb dedivid muminim eht gnidulcni ,)stib 46 gnol ,23 tni ,61 trohs  
+,8 etyb( epyt eht edistuo si tluser tcaxe eht nehw 1 part lhs dna vid ,gen ,lum ,bus ,dda dengiS -
+)4.s ,3 etag(  
+.)stib 46 gnolu ,23 tniu ,61 trohsu ,8 rahcu( htdiw^2 oludom parw ton ,gen ,lhs ,lum ,bus ,dda dengisnU -
+
+)htdiw dna drow rep gninaem eno :91 noisiced( srebmuN 3.9 ###
+
+)kcats_t 6.s( .gnihtyna setirw ti erofeb 6  
+spart ti woleb og dluow taht yarra lacol a ro llac a ;loop BiM 8 dexif a si kcats eht edom margorp nI -
+.01 rorre :tcurts a ro noitcnuf a ,epocs ni ydaerla eman a esuer ton yam  
+eman wen A .)9 rorre( enon sah `niam` .9 rorre si htneves a ;sretemarap 6 tsom ta sah noitcnuf A -
+)7.s ,10ved 4.s( .)31 rorre( 8 ot pu seman rehto ;sretcarahc 36 ot pu evah yam seman noitcnuF -
+)5mf 5.s( .txen eht erofeb ylluf hcae ,thgir ot tfel daer era stnemugrA -
+)7.s ,diov_t 6.s( .81 rorre si dehcaer eb nac `dne` esohw epyt nruter a htiw noitcnuf A  
+.`dne` sti gnihcaer seod os dna ,ti morf snruter eulav on htiw `ter` ;noitcnuf diov a sekam `diov ot` -
+)7.s( .7 rorre si dedeen si rehto eht erehw eno eht gnisU  
+.eno diov a sllac ti enil a sa ;eulav a snruter taht noitcnuf a sllac eulav a sa `>sgra< >noitcnuf<` -
+)7.s ,elcyc_b5r ,tum_b5r ,bif 6.s( .dednuob  
+si sesu niahc llac a kcats eht os ,9 rorre si ,flesti gnillac noitcnuf a gnidulcni ,elcyc llac a  
+edom noitcnuf nI .rehto hcae llac yam snoitcnuf owt dna ,flesti llac yam noitcnuf a edom margorp nI -
+)mf_dwf_b5r ,ngissa_b5r ,dwf_b5r 6.s(  
+.`eulav = eman` gnidulcni ,7 rorre si tnemetats a sa desu noitcnuf gninruter-eulav a :ralacs  
+wen a semoceb reven noitcnuf a si taht eman A .retal ro reilrae ,tinu eht ni noitcnuf yna seman  
+llac a os ,nettirw si edoc yna erofeb erutangis yreve sdaer ssap seman A .semit ynam raeppa yam `nf` -
+
+sllac dna snoitcnuF 2.9 ###
+
+)5-4.s ,*_t 6.s( .seod htap C eht sa part.tRcsO sllac  
+ti edom noitcnuf ni ;edoc part eht + 001 sutats tixe htiw margorp eht sdne edom margorp ni part A -
+)7.s ,tixe_t 6.s( .niam diov a rof 0 ,)stib 8 wol eht speek xuniL( 652 oludom eulav s'niam  
+si sutats tixe s'margorp ehT .diov ro epyt rebmun-elohw a snruter dna sretemarap on sah `niam nf` -
+)6-4.s 4 etag( .0 drow = yrtne ,)edom noitcnuf( selur evitan 1-CSO eht rednu sdrow enihcam 'snoitcnuf  
+eht si tuptuo eht esiwrehto ;)edom margorp( margorp xuniL elohw a si `niam nf` enil a htiw margorp A -
+
+tuptuo fo sdnik owT 1.9 ###
+
+.)margorp/cod hcnarb( `dm.MARGORP/scod`
+fo esoht era 42-61 snoisiceD .)tpircs taht fo srebmun noitces ,`hs.4etag/4gnur/dees`( ti stset taht etag
+eht seman elur hcaE .tey sdrow eseht daer ton seod )`esegemo/sloot`( htap C eht ;)`stset/4gnur/dees`(
+suproc tset dees eht yb ro cmo yb desu si woleb drow yrevE .)`s.4mo/4gnur/dees`( ti sdliub tsrif
+taht rotalsnart eht dna )`mo.cmo/cmo/dees`( esegemO ni nettirw relipmoc agemO eht rof 22-01-6202 deddA
+
+)804L regdel ,cmo dna 4mo niahc dees( sdrow smetsyS .9 ##
+
+.DEIFIREVNU
+si "weN" .RI dengis ,dekcehc yltnednepedni na gnideef gnikcehc xiferp erawa-epyt htiw ,nekot
+bacov eno si lanimret eno os nesohc nocixel a :dnuof toN .)4202 ,yPmiS( snekot rewef rof dengiseder
+rammarg a dna ,)5202 IDLP ,.la te reldn¼ÃM( tpircSepyT rof gnidoced deniartsnoc-epyt ,)4202 SPIrueN(
+gnidoced dengila-rammarg ,)edoCnyS ,ecnadiugll ,rammarGX ,seniltuO( gnidoced deniartsnoc-rammarG
+
+)evitsuahxe ton ,hcraes kciuq( tra roirP .8 ##
+
+.txet CSO rof ksam a deen dluow slasufer txet 11 ehT .srewsna ruoivaheb-gnorw   
+61 eht stneverp rehtieN .meht dniheb neddih eb dluoc sehctamsim os ,kcehc erutangis eht erofeb   
+`time` ta deppots lasufer esegemO yreve tub ,nees saw enon ;hctamsim erutangis a stneverp )ledom   
+eht rof nettirw enil `nf` s'ksat eht( redaeh erutangis decrof a ylno os ,margorp detpecca na llits   
+si epyt nruter ro sretemarap ,eman gnorw eht sah noitcnuf esohw rewsna na :tneverp ton seod ti tahW   
+.4.6 ni stimil eht nihtiw ,selur pihsrenwo   
+s'2rekcehc sessap osla hguorht stel ksam eht tahw ,ni dedlof selur pihsrenwo eht htiW .seunitnoc   
+margorp detpecca emos taht sdrow hguorht stel ylno ksam eht dna lasufer `time` na saw hcae ecnis   
+,slasufer esegemO esoht fo eno yreve :stneverp )enigne eht ni `txen esegemo`( ksam drow-lagel a tahW   
+.)tluser gnorw 1 ,part   
+detcepxenu 8 ,part gnissim 6( ruoivaheb gnorw 51 ,desufer elipmoc 11 ,TPECCA 43 txet ;)part gnorw 1   
+,tluser gnorw 8 ,part detcepxenu 7( ruoivaheb gnorw 61 ,etadidnac on 12 ,TPECCA 32 esegemO :stcidrev   
+laniF .dne kcab eht yb ro kcehc erutangis eht ta ,time_agemo ta desufer saw rewsna esegemO oN   
+
+| relipmoc CSO eht | 11 | 5 | dnuor riaper | txet |   
+| relipmoc CSO eht | 61 | 44 | rewsna tsrif | txet |   
+| 1 epocs ,3 ytira ,6 erutcurts ,11 epyt :`time esegemo` ta lla | 12 | 4 | dnuor riaper | esegemO |   
+| 1 egnar ,1 epocs ,4 ytira ,6 erutcurts ,31 epyt :`time esegemo` ta lla | 52 | 53 | rewsna tsrif | esegemO |   
+|---|---|---|---|---|   
+| yrogetac yb ,desufer erehw | desufer | redaer eht dessap | dnuor | mra |   
+
+:)daer txet ksat on ,ylno tuptuo erocs eht morf seirogetac lasufer dna stnuoc etagergga ;mra   
+rep sksat tuo-dleh 06 ,1 tpmetta ,A gifnoc( egats redaer yb ,deliaf srewsna 1 egatS 3r eht erehW .4
+.ksat tuo-dleh a htiw eman yrtne   
+na serahs elpmaxe on taht dna ,selpmaxe eht fo drow yreve no etag nekot-eno eht ,`sdrow esegemo`   
+yltcaxe si drac drow eht taht ,)stupni nwo sti no ssenrah delaes eht ,dne kcab ,redaer( smrof   
+htob ni elpmaxe yreve skcehc `544pxe-tset ekam` .CSO ni margorp eht htiw sksat emas eht steg mra   
+`txet` ehT .)ylno 0 egatS( edom tohs-eno eht ni )`bus_pmalc`( elpmaxe elgnis 2r eht ,edom tohs-ynam   
+eht ni sksat elyts-ved 41 :)`tpmorp_metsys hs.redaer` yb tliub ,`/selpmaxe/smra/544pxe/sloot`(   
+selpmaxe dekrow eht neht ,)seod ti tahw htiw enil eno no drow dexif yreve   
+:drac drow a dna egaugnal eht( `dm.esegemo/smra/544pxe/sloot` neht ,`dm.nommoc/smra/544pxe/sloot`   
+si tpmorp metsys s'mra `esegemo` ehT .txet CSO tsniaga esegemO ,)31 noitces   
+`dm.LOCOTORP_544PXE/reyal_eno/scod`( 3r noisiver 544pxe :nosirapmoc tuo-dleh deretsiger-erp A .3
+.pets ledom on deen drow lagel eno htiw snoitisop   
+;nekot rep pukool eno ,UPG eht no elbat a sa `txen esegemo` :enigne nwo ruo edisni ksam ehT .2
+.dewo nureR .ecalp sti htiw ,desufer llits si dna ynam oot eulav eno sah )70ved(   
+htxis eht ;2rekcehc ssap won ,`2lairt/esegemo/reyal_eno/stset` ni mitabrev tpek ,srewsna 6 esoht   
+fo 5 :)3 noitces( tsen won seulaV .desufer 0v hcihw ,)`1 )n )3 tniu( lum( dda = n`( seulav detsen etorw seruliaf   
+esegemO 8 eht fo 6 .01/3 txet ,01/2 esegemO :)dnuor riaper eno sulp tpmetta eno ,ledom emas( 2 lairT   
+.detpecca won era esoht ;)`23u` ,`8u`( seman epyt s'erutangis ksat eht gnitirw   
+rof ylno desufer erew srewsna tsrif 01 fo 8 .72021 / 6431 / 5101 snekot noitelpmoc ;01/0 derutcurts   
+,01/3 txet ,01/3 esegemO :)DILAV NUR( `4170051-d250ee33a72e-Z940501T51016202` nur ssenrah ,tpmetta   
+eno ,enigne nwo ruo no B03 eht :)51-01-6202 ,ecno enod( ksam on ,sksat ved eht no lairt ylno-tpmorP .1
+
+2 esahP .7 ##
+
+.eruliaf on dnuof )smeti 68371( smeti 04 ot pu fo sklaw 005 dna )stnatum 5751( margorp
+rep stnatum 52 htiw nur sserts A .naelC .tsrif thguac eb hcae tsum )wolfrevo dengis a ,`2=` ;eerf
+retfa daer a ,`1=YRANAC_ESEGEMOD-`( sdliub yranac owt :lortnoc evitagen stI .nur eht sliaf gnidnif
+rezitinas yreve ;margorp rep tnatum eno dna sklaw 01 htiw ,)skcehc ruoivaheb-denifednu dna yromem(
+rezitinaSroivaheBdenifednU dna rezitinaSsserddA htiw dliub a no niaga snur neht etius emas ehT
+
+.tes era `REZINEKOT_ESEGEMO` dna )tsrif "drow " fo tnuoc nekot eht gnitnirp  
+`...>drow< sdrow >nosj.rezinekot< >loot<` :retnuoc a( `TNUOCKOT_ESEGEMO` nehw ,etag rezinekot -
+;)`DEDNUOBNU-POOL-2C`( 2rekcehc yb DETCEJER si dna time_agemo  
+sessap tnemercni retnuoc neddih eht tuohtiw tsil po 40ved eht :lortnoc evitagen draug pool -
+;stpecca `time` margorp a otni xiferp eht hsinif tsum `etelpmoc` dna )ot sgnoleb ti drow  
+elohw eht( swollof taht etyb eht wolla osla tsum `txen` ,smargorp detpecca fo sexiferp 8962 eht  
+ta ;hsarc reven dna )nosaer a htiw esufer ro tpecca( rewsna tsum hcihw ,`enihcam-- txen` dna `txen`  
+,`time` hguorht smargorp egarevoc dna lairt ,detsen eht fo sexiferp etyb 9972 lla :zzuf noitacnurt -
+;)0001 desu 4.6 ni elbat eht ;smargorp detcejer eht speek taht redlof a `PEEK_LAUDISER_ESEGEMO`  
+,tnuoc eht stes `SKLAW_LAUDISER_ESEGEMO`( ereht detcejer eb yam )0 tluafed( `XAM_LAUDISER_ESEGEMO`  
+tsom ta ;2rekcehc dna time_agemo hguorht tnes dna `etelpmoc` htiw desolc hcae ,)margorp  
+etius a ni tniop tuc a dna elif ytpme na( strats owt fo hcae morf sklaw 04 :laudiser 2rekcehc -
+;senil fo rebmun dednuob a nihtiw stpecca `time` margorp a otni klaw eht sehsinif neht  
+`etelpmoc esegemo` dna ,sretcarahc tsrif sti fo hcae retfa lagel syats dekcip drow a ,ytpme reven  
+si tes lagel eht ;)edisni eulav modnar a ta dna sdne sti ta deirt  
+si meti rebmun a( stniop tuc modnar morf smeti lagel 52 ot pu fo sklaw modnar 04 :zzuf ssendnuos -
+;)seiradnuob drow 6092( nettirw saw ti nehw lagel saw ti  
+fo drow yreve fi ylno dna fi tnatum a stpecca `time` :)drow dexif a ro eman hserf a ,eman a ,rebmun  
+a yb decalper ro ,delbuod ,deppord drow a( smargorp esoht fo stnatum drow-elgnis 051 :ssenetelpmoc -
+;lagel era ,dne eht ta tupni fo dne eht dna ,drow  
+txen laer eht ,etius eht ni smargorp detpecca 57 eht fo seiradnuob drow 6362 lla ta :elcaro txen -
+;)detpecca pool a ni yarra eno fo sesu 003 ,desufer timil gnitsen  
+eht ta denepo pool a ,dne s'noitcnuf eht ta gnieerf dna pool a gnilttes `etelpmoc` ,yarra na sdeen  
+daeh esohw pool a fo tuo tfel `dne` ,desufer eb dluow ti elihw eerf dnoces ro `ter` on :pihsrenwo  
+dna ,gnorw si xiferp a sa noos sa slasufer ,`etelpmoc` ,tsil noisulcxe eman-wen eht dna elpmaxe  
+2.6 eht gnidulcni senil `enihcam--` eht ,`0-` ,stif enon erehw ngis sunim a ,stnuoc dna sdnuob  
+pool ,shtgnel yarra ,sedoc part fo dna epyt ralacs yreve fo egnar rebmun tcaxe eht ,drow a edisni  
+tuc a ,daernu sevael htap sti seman eht daer tsum taht `ter` a ,`)` rof gnitiaw tekcarb a ,eulav  
+dnoces depyt a ,po yranib a retfa tsil epyt-nepo eht( neerg erofeb der ,sesac dna sexiferp 96 no `txen esegemo` -
+;timil emas eht sah dna tnuoc erab eht sa yltcaxe srewol stekcarb ni tnuoc  
+rof a ;)`003 tni rahcu` ,`5 tni gnol ter`( ti strevnoc rebmun depyt a fo noisrevnoc a :sexif weiver -
+;)pool detsen a hguorht meht fo eno ,`dne` s'pool a ta dediced evif dna ,nruter  
+a ta yarra epocs-fo-tuo na ,evom a retfa esu a ,eerf dnoces a ,`wen` dnoces a ta ro nruter a ta kael  
+a :sesac pihsrenwo 21 dna ,part retfa senil ,eulav a edisni `wen` ,sdrow artxe ,po eno ni srebmun owt  
+,stekcarb ,ytira( detpecca si taht lortnoc dexif a htiw hcae ,nosaer detcepxe sti htiw hcae ,slasufer 64 -
+;)seulav detsen ,noitidnoc a sa noitcnuf loob a ,seulav tuohtiw sllac ,sllac dna syarra  
+,tnuoc sa eulav a ro eman a htiw rof a ,fi-esle ,spool detsen ,kaerb ,seman epyt RI( smargorp egarevoc 8 -
+;)ynam oot eulav eno sah ti( `2 sekat ti ;ti retfa seulav 3 sah el :3 enil` htiw  
+desufer llits si )70ved( rewsna trqsi 2 lairt eht ;TPECCA lla ,)`2lairt`( mitabrev tpek srewsna 2 lairt  
+5 dna )`detsen/esegemo/reyal_eno/stset`( seulav detsen htiw nettirwer smargorp ved 6 :seulav detsen -
+;TPECCA 2rekcehc >- time_agemo >- esegemo :smargorp ved 01 eht -
+
+skcehc ehT 5.6 ###
+
+.ssentiw eht yb deirt ton si llac a otni yarra eht sevom eulav esohw `ter` a ;tuo
+tfel si ereht del taht drow eht os ,enil gnilttes on steg `dne` s'pool eht ta )eman rewen a yb neddih
+ro( epocs fo tuo si eman esohw kcehc gnitiaw a :ssim nac tcaxe erehw dnA .tpecca thgim 2rekcehc hcihw
+,dne ot spool rof gnitiaw skcehc pihsrenwo tcnitsid 652 naht erom htiw noitcnuf a sesufer `time` ,yaw rehto ehT
+
+.meht sehcaer margorp on os ,sanera on sah esegemO :ANERA-ESAELER-NWO-2C dna EVOM-ANERA-NWO-2C -
+;dekcart ton era 46 tsap seno eht :noitcnuf eno ni syarra nwo 46 naht erom -
+;)ti tem sklaw 0002  
+fo 0( sworrob wollof ton seod `time` ;)nigiro sti sesol syarra owt morf dellif weiv a( noitcnuf  
+elohw eht revo morf nekat saw ti yarra eht ot weiv hcae seit 2rekcehc :RENWO-SEVILTUO-WORROB-2C -
+:retal detcejer eb llits nac stpecca `time` margorp a os ,dedlof toN
+
+| enon | 0002 fo 0 | retfa |
+| )ti erofeb deerf yarra na fo daeh pool a ni esu a( DAED-ESU-NWO-2C 2 | )%1.0( 0002 fo 2 | skcehc pool on ,ylno setats pihsrenwo |
+| ESAELER-ELBUOD-NWO-2C 3 ,DAED-ESU-NWO-2C 51 ,KAEL-NWO-2C 631 | )%7.7( 0002 fo 451 | )`65344b6f` ,51-01-6202( erofeb |
+|---|---|---|
+| elur yb | retal detcejer | dliub |
+
+.stcejer neht 2rekcehc ro time_agemo dna stpecca `time` taht sklaw
+detelpmoc :)3544 dees ,strats owt fo hcae morf sklaw 0001( 5.6 ni klaw laudiser eht htiw derusaeM
+
+.)epocs fo tuo si eman s'yarra taht nehw
+`1 part` htiw htap eht sdne ro( htap yreve no eno sdloh llits taht yarra hcae seerf ti dne s'noitcnuf
+eht ta dna ,ereht yarra sti dloh llits dluow taht eno seerf ro )`... wen = x`( yarra na sdeen daeh pool
+eht eman a sevig ti `dne` s'pool a erofeb :nac ti tahw selttes )ssentiw yreve dna( `etelpmoc` .`dne`
+ta dediced si dna stiaw kcehc a hcus ;)ti egnahc nac ydob eht fo enil retal a( enil `dne` s'pool
+eht litnu nwonk ton si daeh pool eht sedulcni taht etats a pool nepo na edisnI .ereht sdael taht drow
+eht tuo sevael `txen` os ,nettirw si ti erehw enil a hcus sesufer dna sdaer ti senil eht gnola setats
+emas eht speek `time` .)KAEL-NWO-2C( htap yreve no eno sdloh llits ti erehw nruter a ro yarra wen
+a dna ,)ESAELER-ELBUOD-NWO-2C ,DAED-ESU-NWO-2C( htap yreve no gnihton sdloh ti erehw eerf a ro evom a
+,esu a stcejer dna )devom ro deerf saw ro ,tey gnihton sdloh ,yarra na sdloh ti( htap yreve gnola yarra
+nwo yreve swollof 2rekcehc **.51-01-6202 no `time` otni dedlof ,)selur NWO-2C s'2rekcehc( pihsrenwO**
+
+.zzuf eht ro etius eht ni margorp yna yb
+dehcaer si eseht fo enoN .)eman evitatneserper eno yb dediced si ssalc eht( timil retcarahc-36 eht
+fo sretcarahc wef a nihtiw eman wen a ro ,daer eb dluoc dnik thgir eht fo seman lareves nehw seirt
+46 naht erom ,margorp eno ni stimil emarf dna kcolb eht ro stnatsnoc tcnitsid 652 ,sretsiger 084
+naht erom ,)noitelpmoc tsetrohs eht naht regnol eb nac ssentiw a( sdrow 69 naht regnol enil a :stimil
+eseht fo eno sdeen hcihw ,stsixe noitelpmoc a hguohtla sliaf rednif ssentiw eht nehw ylno dessim
+eb nac meti nA .resrap laer eht yb detpecca saw meti detnirp yreve :noitamixorppa-revo on si erehT
+
+)ssim nac tcaxe erehw( stimiL 4.6 ###
+
+.enon si ereht nehw )`DESUFER`( 1 tixe ;margorp
+a ydaerla si xiferp eht nehw gnihton ;)gnihtyreve esolc neht ,enil eht dna drow eht hsinif( stpecca
+`time` margorp a sevig ,xiferp eht ot dedneppa ,taht txet eno stnirp `>xiferp< etelpmoc esegemo`
+
+.)`)tupni fo dne(` ,`)enilwen(` ,drow a edisni `)ecaps(` ,`)`
+,`(` ,snoitcnuf ,sdrow dexif( `:sdrow` dna ,`esu ni ton eman yna :eman-wen` ,`... ,IH..OL :rebmun`
+,`:seman` ro )dengissa eb yam taht seman eht ,trats enil a ta( `:ngissa` :tuo tfel senil ytpme
+,dnik rep enil dellebal eno ,nosrep a rof tes emas eht stnirp `enihcam--` tuohtiw `txen esegemo`
+
+`etelpmoc esegemo` dna tuptuo namuH 3.6 ###
+
+.`enilwen` ,`ecaps` ,`f a emanwen` ,`a drow` ,`part drow`
+,`ter drow` ,`rof drow` ,`elihw drow` ,`fi drow` :enilwen a dna `tniu ot tniu a f nf` retfa ,elpmaxE
+
+.sretcarahc tsrif sti fo hcae retfa lagel syats
+drow a taht skcehc zzuf ssendnuos eht ;meti `rebmun` ro `emanwen` ,`drow` emos fo trats eht llits
+si s yb dewollof U nehw yltcaxe drow tnerruc eht ot s txet dneppa yam )ksam s'enigne na( retirw A
+
+| margorp detpecca na ydaerla si xiferp eht :ereh dne yam tupni eht | `foe` |
+| enil eht dna drow tnerruc eht sdne | `enilwen` |
+| sdrow neewteb ecaps knalb sdda ro ,drow tnerruc eht sdne :bat ro ecaps a | `ecaps` |
+| )drow tnerruc eht sdne osla ti( tekcarb gnisolc a | `)` |
+| )drow tnerruc eht sdne osla ti( tekcarb gninepo na | `(` |
+| U htiw strats txet lamiced esohw IH =< v =< OL htiw v rebmun a sa drow tnerruc eht hsinif | `IH OL rebmun` |
+| )ytpme eb yam tsil eht ;U htiw trats taht enil eht no reilrae seman dna snoitcnuf ,seman elbisiv eht( ... 2E 1E fo eno ton dna ,drow devreser a ton ,U htiw gnitrats ,sretcarahc 36 tsom ta ,`_` ro stigid ,srettel neht ,`_` ro rettel a :eman wen yna sa drow tnerruc eht hsinif | `... 2E 1E emanwen` |
+| )retemarap wen a( enil emas eht no reilrae nettirw eman a ro ,noitcnuf a ,eman elbisiv a ,drow dexif a :)U htiw strats X( X sa drow tnerruc eht hsinif | `X drow` |
+|---|---|
+| gninaem | enil |
+
+.nettirw gnieb llits drow eht eb U teL .` :esegemo DESUFER` gnitrats enil eno yltcaxe htiw
+1 tixe ro ,meti eno tsael ta htiw 0 tixE .tuodts no esle gnihton ,redro siht ni ,enil rep meti enO
+
+rammarg dexif eht :`enihcam-- txen esegemo` 2.6 ###
+
+.)rebmun a ton si ti( llew sa `time` yb desufer si `0-` ;sorez gnidael on
+dna ngis sunim lanoitpo na htiw stigid lamiced sa nettirw era srebmuN .egrem seceip lagel gniruobhgien
+dna ,rebmun yreve sediced stniopkaerb neewteb pag rep dna tniopkaerb rep tset eno os ,epocs ni syarra
+eht fo shtgnel eht htiw dna )0000001 ot pu stnuoc dna sdnuob pool ,41..1 sedoc part ,46..1 shtgnel
+yarra ,segnar epyt( sdnuob dexif htiw rebmun a serapmoc ylno resrap eht :slavretni sa emoc srebmuN
+.dnik dna epyt thgir eht fo )snoitcnuf reilrae dna( seman elbisiv
+eht era detnirp seman eht ,eman a sdaer enil a nehW .meti ssalc eno sa detnirp si taht ;eman
+elbisiv a ot lauqe eno ro )`46i` .. `8u` seman epyt RI eht dna `sdrow esegemo`( drow devreser a
+tpecxe lagel si reifitnedi yna ,eman wen a sdnib enil a nehW .level retcarahc eht ta nepo yats semaN
+
+.ti skcehc woleb zzuf tset eht ;rednif ssentiw eht no stser ssenetelpmoC .noitcurtsnoc yb lagel
+si meti detnirp yreve os ,detpecca si ssentiw sti nehw ylno detnirp si meti nA .kcehc tupni-fo-dne
+yreve htiw ,senil etelpmoc eht retfa etats eht morf senil gnisolc eht dna enil taht sdaer-er
+snur `time` taht resrap laer eht dna ,)`dne` ,dewo si eulav a erehw orez a fo `ter` a ,eman daernu
+hcae rof `x = x`( desolc si kcolb nepo yreve ,)daernu evael esiwrehto dluow htap gnidne eht seman eht
+sdaer osla enil `ter` a( sdeen llits ti sdrow eht htiw dehsinif si enil eht :tliub si ssentiw a meti
+etadidnac hcae roF .)trats enil a ta ro tekcarb a ,ecaps a retfa ytpme( nettirw gnieb llits drow eht
+dna ,enil tsal eht fo sdrow etelpmoc eht ,senil etelpmoc sti otni tilps si xiferp ehT .sediced ti woH
+
+.deliaf tpmetta tseraen
+eht nosaer eht htiw `stpecca time margorp a sekam xiferp siht retfa txet on` syas enil eht )dehsinif eb tonnac nettirw gnieb drow eht nehw osla( esiwrehto ;evig
+dluow `time` nosaer eht steg sdrow etelpmoc sti ni tcefed a :1 stixe dna enil `... :esegemo DESUFER`
+eno stnirp ti ,nac txet on nehW .dne daed a ot sdael detnirp gnihton dna ,)4.6 ni stimil eht nihtiw( gnissim si margorp detpecca
+na ot dael llits nac taht gnihtoN .stpecca `time esegemo` margorp a otni xiferp eht snrut ti htiw
+strats taht txet emos fi ylno dna fi detnirp si meti na :**tcaxe** si tI .txen emoc yam tahw stnirp
+dna )drow a edisni neve ,erehwyna tuc ,txet yna( margorp a fo xiferp a sdaer `>xiferp< txen esegemo`
+
+sesimorp `txen esegemo` tahW 1.6 ###
+
+)`esegemo-tset ekam`( skcehc eht dna elcaro txen ehT .6 ##
+
+.tey derusaem ton si ylbailer esegemO etirw sledom rehtehW .etirwer
+troffe-lauqe na ton si nmuloc txet eht os ,)seipoc fo daetsni sretemarap ot gnitirw( mrof tsetrohs
+eht esu secalp ni dna ,ledom a yb ton ,rengised eht yb nettirw erew smargorp esegemO eht :stimiL
+
+.)01 lla no TPECCA 2rekcehc ;`410265-d250ee33a72e-Z000490T51016202`
+nur ,DILAV NUR ,01/01 detpecca 1-esegemo tes `tnemirepxe hs.alo` ssenrah :01 lla( epahs RI
+emas eht rof ,txet CSO naht rewef %23 dna tsil po derutcurts eht naht snekot rewef x4.9 si esegemO
+
+| **714** | **944** | **0124** | **2673** | **166** | **latot** |
+| 51 | 51 | 97 | 89 | 22 | 01ved |
+| 05 | 55 | 745 | 884 | 57 | 90ved |
+| 77 | 48 | 629 | 708 | 301 | 80ved |
+| 56 | 27 | 057 | 495 | 021 | 70ved |
+| 71 | 71 | 19 | 211 | 72 | 60ved |
+| 71 | 71 | 19 | 811 | 72 | 50ved |
+| 83 | 14 | 705 | 144 | 28 | 40ved |
+| 35 | 75 | 426 | 765 | 18 | 30ved |
+| 04 | 34 | 682 | 652 | 06 | 20ved |
+| 54 | 84 | 903 | 182 | 46 | 10ved |
+|---|---|---|---|---|---|
+| trohs esegemO | esegemO | derutcurts | setyb | txet | ksat |
+
+.)tuo tfel `=` htiw emas eht = trohs esegemO ;`esegemo.*/ved/esegemo/reyal_eno/stset`
+= esegemO ;RI taht fo `tfil time_agemo` = derutcurts ;RI delipmoc eht fo xeh = setyb
+;cso.ecnerefer = txet :dohtem hs.erusaem eht( rezinekot 3newQ eht htiw enilffo detnuoc snekot
+,gnilleps hcae ni snoitulos ecnerefer ,)`ved/544pxe/reyal_eno/stset`( sksat ved cilbup 01 ehT
+
+)1 esahp( derusaeM .5 ##
+
+.rotanimret a sdeen llits kcolb RI eht  
+esuaceb ,)epyt nruter eht fo orez a htiw( dehcaer reven si taht `ter` a neht ,`N part` :`N part` -
+.pool eht erofeb ,ecno detupmoc si eulav  
+rehto yna ;)0v sa( ssap yreve ta daer si eman a :)rebmun a ton si taht tnuoc a( `>eulav< T i rof` -
+.ssap yreve erofeb niaga detupmoc  
+si noitidnoc detsen elohw eht os ,kcolb daeh eht ni dettime era spo s'noitidnoc eht :`elihw` -
+.)ypoc on( ecalp ni daer si dnarepo na sa  
+desu rebmun ro eman erab a ;flesti TSNOC detsioh eht si )`5 tniu`( eulav a sa desu rebmun depyt A -
+.serots neht ,eulav sti neht ,xedni sti setaulave `tup` a ;llac eht  
+erofeb thgir ot tfel detaulave era stnemugra llaC .daer neeb sah dnarepo yreve retfa ,eman tegrat  
+eht setirw po tsomretuo eht ylnO .)`c t dda = x ;b a lum = t` >- `c b a lum dda = x`( thgir ot  
+tfel ,tsrif tsomrenni :redro noitaulave ni ,)ylppa ton seod elur eman-daernu eht os ,eman a reven  
+,epyt s'po eht htiw lacol a( retsiger neddih hserf a setirw eulav a edisni po hcae :seulav detseN -
+.ti sehcaer hcnarb emos fi ylno stsixe kcolb nioj a ;nioj-ro-esle | neht rbc >- `c fi` -
+.hctal eht ta `1 i dda = i` sulp  
+,draug neddih eht htiw ,`n i tl elihw` sa :)rebmun a ton si taht eulav yna ro eman a n( `n T i rof` -
+.`1 i dda = i` :hctal ;tixe | ydob >- `K i tl` :daeh ;0 = i :)rebmun a K( `K T i rof` -
+.`1 retnuoc dda = retnuoc` htiw strats ydob eht ;ydob | )tixe rb ,4 part( kcolb part  
+>- `N retnuoc eg` :draug ;tixe | draug >- c :daeh ;0 = retnuoc gnolu neddih :`N dnuob c elihw` -
+
+.trats yeht redro eht ni derebmun era skcolB .)seriuqer 2rekcehc sa ,ecno yltcaxe denifed si
+dnuob pool eht os( epyt dna eulav tcnitsid rep TSNOC eno ,kcolb yrtne eht otni detsioh era srebmuN
+
+gnirewoL .4 ##
+
+```
+dne
+a ter
+dne
+t = b
+b = a
+b a mer = t
+001 dnuob 0 b en elihw
+tniu ot tniu b tniu a dcg nf
+```
+
+:)40ved( elpmaxE
+
+.`>nel< >epyt< weiv|tide|nwo` :syarrA .)eno si `tniu` ;snekot 3newQ eerht si `23u`(
+)snekot 3 ro 2 tsoc yeht ;meht setirw erutangis ksat eht sa ,oot detpecca era `46i` .. `8u` seman RI eht(
+46i 23i 61i 8i 46u 23u 61u 8u loob = `gnol tni trohs etyb gnolu tniu trohsu rahcu loob` :sepyT
+
+.`'b' :enil eht fo dne eht ta sdrow artxe` ,`2 sekat ti ;ti retfa eulav 1 sah bus :2 enil`
+,`2 sekat ti ;ti retfa seulav 3 sah el :3 enil` :ecalp sti htiw desufer si seulav fo rebmun gnorw A
+
+.)tuc trohs on( sedis htob etaulave `ro` ,`dna` .snoisrevnoc edisni ,tnuoc `rof` a ,stnemugra
+llac ,)eulav dna xedni( `tup` ,`elihw` ,`fi` ,`ter` ,`=` retfa :seog eulav a reverehw detsen eb
+yam seulaV .)`76723 p tg 86723- p tl ro fi` ,`0 b en elihw`( loob sevig taht eulav yna si noitidnoc A
+
+.)5 spart `003 tni rahcu` ;gnol ot detrevnoc 5 tni eht si `5 tni gnol`( detrevnoc
+si noisrevnoc a edisni rebmun depyt A .)`hs 1 gnolu lhs`( rehtona naem uoy nehw epyt sti etirw
+;)rahcu a stfihs rahcu hs htiw `hs 1 lhs`( tnuoma tfihs eht fo epyt eht sekat tfel eht no rebmun erab
+a tfihs a nI .loob evig snosirapmoC .)`3 2 lum a dda` :detsen nehw osla ,`2 1 dda`( desufer era po
+eno ni srebmun erab owT .)tniu si xedni na ,tnemugra llac a ,x gnitsixe na rof `5 = x` ,`0 ter`( enola
+sdnats ti nehw sdeen ecalp eht epyt eht ro ,)`hs 1 lhs` ,`i 51 bus` ,`1 x dda`( po sti fo eulav
+rehto eht fo epyt eht sekat rebmun erab a ;po sti morf semoc epyt s'eulav A .pu-mottob si gnipyT
+
+.eman a tsniaga nettirw
+nehw neve sdrow etarapes era `)` dna `(` .desufer si eulav eno naht erom gnidloh `) (` a ro ,`) (`
+ytpme na ,`(` sti tuohtiw `)` a ,`)` sti tuohtiw `(` A .)`b 46i ffid bus` = `)b 46i( ffid bus`( esle
+gnihton segnahc dna eulav etelpmoc eno yltcaxe sdloh `) >eulav< (` :gnipuorg lanoitpo era stekcarB
+
+| llac | noitcnuf reilrae na llac | tnuoc retemarap sti | sgra `>noitcnuf<` |
+| vom | )eman yarra na si rra( worrob derahs / worrob elbatum / evom | 1 | rra `weiv` / `tide` / `nwo` |
+| colla | `= >eman<` fo eulav elohw eht sa ylno ;stnemele )46..1( nel fo yarra nwo wen a | 3 | tini nel epyt `wen` |
+| daol | )eman yarra na si rra( daol | 2 | i rra `teg` |
+| tsac / tsnoc | )`b a dda gnolu` ,`x gnolu`( noisrevnoc a ro )`5 tniu`( rebmun depyt a | 1 | a `>epyt<` |
+| nu | )rebmun( ton esiwtib ro )loob( ton lacigol / )dengis( etagen | 1 | a `ton` / a `gen` |
+| pmc | loob sevig ,nosirapmoc | 2 | b a `eg tg el tl en qe` |
+| nib | )epyt rebmun-elohw yna tnuoma tfihs( stfihs ,esiwtib ,citemhtira | 2 | b a `rhs lhs rox ro dna mer vid lum bus dda` |
+| tsnoc / vom | ypoc | 0 | rebmun / `>eman<` |
+|---|---|---|---|
+| RI | gninaem | sekat | eulav |
+
+.)0 ,)2 ,n(mer(qe si `0 2 n mer qe`
+dna ,)4 ,)r ,r(lum(dda si `4 r r lum dda` :dedeen era stekcarb on os ,po na eb flesti
+yam seulav esoht fo hcae dna ,seulav fo rebmun dexif a sekat po yrevE .snoisserpxe xiferp era seulaV
+
+```
+gnihton snruter taht noitcnuf a llac         >sgra< >noitcnuf<
+)71 rorre si kcolb emas eht                          
+ni enil retal a( htap eht sdne ti ,ter ekiL .part.tRcsO sllac edom noitcnuf                          
+;edoc + 001 stixe edom margorP .)8 rorre :egnar fo tuo( edoc taht htiw pots         >41..1 edoc< part
+erots      >eulav< >xedni< >yarra< tup
+]>eulav<[ ter
+)71 rorre si enil retal a( htap eht sdne ti ,ter ekiL .9 rorre :pool                          
+a edistuO .tnemercni s'rof a ,daeh s'elihw a :noitareti txen eht ot pmuj                  eunitnoc
+)71 rorre si kcolb emas eht ni enil retal a( htap                          
+eht sdne ti ,ter ekiL .9 rorre :pool a edistuo ;pool tsomrenni eht evael                     kaerb
+)dnuob on htiw elihw a sa ,sessap 0000001 retfa 4 part :tnuoc rehto yna(                          
+)epyt taht fo eulav a ro ,rebmun a tnuoc( 1-tnuoc .. 0 = eman   dne / >tnuoc< >epyt< >eman< rof
+4 part :snoitareti N tsap ;0000001 tluafed ,999999..1 N      dne / ]N dnuob[ >dnoc< elihw
+dne / esle / >dnoc< fi
+tuo tfel `=` htiw ,emas eht            >eulav< >eman<
+;)epyt emas eht fo eno gnitsixe na ro ,eman wen a( eulav a etirw          >eulav< = >eman<
+ti sesolc `dne` ;noitcnuf a      diov | >epyt< ot *)>epyt< >marap<( >eman< nf
+```
+
+.secaps yb detarapes era sdrow ;tnemetats eno sdloh enil A .snoitcnuf erom ro eno si margorp A
+
+egaugnal ehT .3 ##
+
+.tsil po eht retfa gnihton segnahc esegemO .tpiecer dengis   
+>- 2rekcehc >- RI yranib CSO lacinonac >- tsil po time_agemo >- esegemO **.niahc tsurt emaS** .7
+.nettirw eb tonnac margorp   
+dilavni na os ,setirw ledom eht elihw ylppa nac enigne ecnerefni na ksam eht :)`txen esegemo`(   
+txen emoc yam sdrow hcihw swonk rekcehc eht xiferp yna retfA **.elbadiced-xiferP** .6
+.)`N dnuob ... elihw` rof stime ccso epahs eht ;"sdnuob pool" ,`c.kcehc_2c/2rekcehc/crs`(   
+gnitanimret sevorp 2rekcehc epahs eht ot srewol pool yrevE **.dne ot nevorp era spooL** .5
+.)yna morf weiv ,tide ro nwo morf tide ,nwo morf nwo :syarra( retemarap eht tsniaga   
+dekcehc tnemugra hcae htiw ,ylno snoitcnuf reilrae ot og sllaC .tcnitsid era seman retemaraP .)dedulcni seman pool( eno elbisiv a sedih eman oN   
+.desufer si eulav nettogrof a ro )eman wen a otni `a etr` snrut mrof trohs eht( drow dellepssim   
+a os ,)detpecxe sretnuoc pool dna sretemarap( sdne epocs sti erofeb daer eb tsum nettirw eman yrevE   
+.noitcurtsnoc yb htap yreve no nettirw   
+si daer yreve oS .kcolb eht erofeb ti etirw ,tuo eulav a yrrac ot ;`dne` sti ta seid `rof`   
+ro `elihw` ,`esle` ,`fi` na edisni nettirw tsrif eman A **.tnemngissa etinifed sevig epocS** .4
+.)`rof` ,`elihw` ,`dne`/`esle`/`fi`( derutcurts si lortnoC .rotalsnart eht   
+yb derebmun era stegrat hcnarb dna skcolb ,sretsiger ;deman era seulaV **.srebmun ton ,semaN** .3
+.ssalc rorre "rehtona htiw nettirw ,epyt eno deralced retsiger"   
+eht sevomer sihT .po sti ni eulav rehto eht fo epyt eht sekat rebmun a ;seulav detsen hguorht   
+pu-mottob ,ti sekam taht po eht morf semoc epyt s'eulav A .epyt a eman syarra wen dna )`5 tniu`(   
+srebmun depyt ,snoisrevnoc ,epyt nruter eht ,sretemarap ylnO **.derrefni era sepyT** .2
+.)stigid   
+stilps 3newQ( tigid rep eno sulp ecaps eht rof nekot eno tsoc srebmuN .dedeen reven era stekcarb   
+os ,)seulav fo rebmun dexif a sekat po yreve( redro xiferp ni tsen seulaV .noitatnedni on ,sammoc   
+on ;`) (` stekcarb lanoitpo eht dna )lanoitpo dna ,nekot eno osla( `=` sediseb noitautcnup   
+on si erehT .)6 noitces( rezinekot a nevig nehw siht skcehc `esegemo-tset ekam` .)yralubacov eno   
+erahs srezinekot B4 dna B03 ,B8 eht ;3newQ( ecaps gnidael sti htiw nettirw nehw rezinekot tegrat   
+eht fo nekot eno yltcaxe si )sdrowyek ,sepyt ,spo( drow dexif yrevE **.nekot eno ,drow enO** .1
+
+selur ngiseD .2 ##
+
+.yralubacov nwo s'ledom retirw eht morf nesohc era sdrow stI .noitautcnup eht dna gnipeekkoob
+eht sevomer dna )noitcudorp ni egaugnal ecruos namuh on( htap tsrif-enihcam eht speek esegemO
+
+.egaugnal elbadaer-namuh a rof relipmoc a sdeen tub gnipeekkoob eht sdiova txeT .stesffo etyb
+,skcolb derebmun ,sepyt deralced htiw sretsiger derebmun :daeh sti ni od tsum retirw eht gnipeekkoob
+dna ,)xeh( etyb rep sretcarahc owt ,)NOSJ( syek dna noitautcnup :secalp emas eht morf emoc srorre
+eht dna tsoc ehT .RI yranib eht fo setyb xeh sa dna )`dm.AMEHCS/time_agemo/sloot`( tsil po NOSJ
+a sa ,txet CSO sa smargorp agemO etirw ot sIA sksa )`dm.LOCOTORP_544PXE/reyal_eno/scod`( 544pxe
+
+yhW .1 ##
+
+.)51-01-6202 ecnis ekarD yb denwo( moc.esegemo :emoH .hpylg syas neht erofeb dedrocer ecnedive ;)nekat
+saw eman eht( 51-01-6202 litnu hpylG demaN .`esegemo-tset ekam` :stset ;`c.esegemo/esegemo/sloot` :looT
+.)7 noitces( detrats 2 esahp
+;)tnemerusaem nekot ,skcehc ,rotalsnart ,egaugnal( enod 1 esahP .)51-01-6202 ,elcaro txen tcaxe ,seulav detsen( 1v :sutatS
+
+retirw IA eht rof tliub egaugnal margorp a :esegemO #N RUN 1 END exit status 0 ec 0 far 0 elr 0 ticks 2359792 svc 776 1 0 1 0 efault 0 in 55705 out 55705 pread_bytes 0
+N HALT runs 1 faults 0 deadlines 0 ticks 2577326

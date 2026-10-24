@@ -1,0 +1,58 @@
+note preadp: read the model on fd 3 with pread only, in 512 KiB pieces (a for loop runs at most 1,000,000 passes), and print its length and FNV-1a 64 hash.
+note Same ELF hosted (fd 3 = the model file) and under the boot fixture (fd 3 = the model region).
+global buf uchar 524288
+global out uchar 64
+fn putu v ulong to ulong
+k = ulong 0
+x = v
+while true bound 30
+put out k uchar add rem x 10 48
+k = add k 1
+x = div x 10
+if eq x 0
+break
+end
+end
+for i ulong k
+put out add 40 i get out sub sub k i 1
+end
+w = write 1 out 40 k
+ret k
+end
+fn main to int
+h = ulong 14695981039346656037
+p = ulong 1099511628211
+pos = long 0
+total = ulong 0
+n = pread 3 buf 0 len buf pos
+while gt n 0 bound 999999
+for i ulong ulong n
+h = xor h ulong get buf i
+h = mul h p
+end
+total = add total ulong n
+pos = add pos n
+n = pread 3 buf 0 len buf pos
+end
+if lt n 0
+exit 2
+end
+put out 0 98
+put out 1 121
+put out 2 116
+put out 3 101
+put out 4 115
+put out 5 32
+w = write 1 out 0 6
+d = putu total
+put out 0 32
+put out 1 102
+put out 2 110
+put out 3 118
+put out 4 32
+w = write 1 out 0 5
+d = putu h
+put out 0 10
+w = write 1 out 0 1
+ret 0
+end

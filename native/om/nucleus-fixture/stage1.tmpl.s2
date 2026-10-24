@@ -1,0 +1,97 @@
+; stage1.tmpl.s2 -- arch#314 boot fixture, second stage (256 bytes exactly; Atlas checks its SHA-256 before running it).
+; Entered from the Atlas ROM at 0x40200000, EL1, MMU off, x0 = Atlas descriptor (0x401fe000, UART base at +16).
+; Pins the bundle (nucleus + program ELF, placed by the emulator loader at 0x1_0000_0000): its length @LEN@ and
+; its SHA-256 below. Hashes it with the ROM's own sha256_compute (0x340), compares all 32 bytes, then jumps to the
+; nucleus entry 0x1_0000_0800 with x0 = descriptor, x1 = bundle length. Any mismatch: prints REFUSE and halts.
+; build.sh fills @LEN0@..@LEN3@ (16-bit pieces of the length) and @D0@..@D7@ (digest words, Atlas word order).
+  b S1GO
+  .w 0
+:DIGEST
+  .w @D0@
+  .w @D1@
+  .w @D2@
+  .w @D3@
+  .w @D4@
+  .w @D5@
+  .w @D6@
+  .w @D7@
+:M_OK
+  .b 0x53
+  .b 0x54
+  .b 0x41
+  .b 0x47
+  .b 0x45
+  .b 0x31
+  .b 0x3a
+  .b 0x20
+  .b 0x42
+  .b 0x55
+  .b 0x4e
+  .b 0x44
+  .b 0x4c
+  .b 0x45
+  .b 0x20
+  .b 0x4f
+  .b 0x4b
+  .b 0x0a
+  .b 0
+  .b 0
+:M_NO
+  .b 0x53
+  .b 0x54
+  .b 0x41
+  .b 0x47
+  .b 0x45
+  .b 0x31
+  .b 0x3a
+  .b 0x20
+  .b 0x52
+  .b 0x45
+  .b 0x46
+  .b 0x55
+  .b 0x53
+  .b 0x45
+  .b 0x0a
+  .b 0
+:S1GO
+  mov.x x22 x0
+  ldr.x x20 x22 2
+  movz.x x0 1 2
+  movz.x x23 @LEN0@ 0
+  movk.x x23 @LEN1@ 1
+  movk.x x23 @LEN2@ 2
+  movk.x x23 @LEN3@ 3
+  mov.x x1 x23
+  add.x.i x2 x22 0x100
+  add.x.i x3 x22 0x80
+  movz.x x9 0x340 0
+  blr x9
+  add.x.i x2 x22 0x80
+  adr x3 DIGEST
+  ldp.x x4 x5 x2 0
+  ldp.x x6 x7 x3 0
+  cmp.x x4 x6
+  b.ne S1NO
+  cmp.x x5 x7
+  b.ne S1NO
+  ldp.x x4 x5 x2 2
+  ldp.x x6 x7 x3 2
+  cmp.x x4 x6
+  b.ne S1NO
+  cmp.x x5 x7
+  b.ne S1NO
+  adr x21 M_OK
+  movz.x x9 0xc4 0
+  blr x9
+  mov.x x0 x22
+  mov.x x1 x23
+  movz.x x9 0x0800 0
+  movk.x x9 1 2
+  br x9
+:S1NO
+  adr x21 M_NO
+  movz.x x9 0xc4 0
+  blr x9
+:S1HALT
+  wfe
+  b S1HALT

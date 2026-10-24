@@ -1,0 +1,33 @@
+ATLAS: AWAKEN
+ATLAS: VERIFY
+ATLAS: HANDOFF
+STAGE1: BUNDLE OK
+N NUCLEUS-FIXTURE arch314 v1 (boot fixture, not the kernel)
+N BOOT bundle 1052672 model 0 requests 34 deadline 31250000 cntfrq 62500000 entry 4194480 text 4096 data 4096
+N RUN 1 START
+N RUN 1 END fault status 0 ec 36 far 4294967296 elr 4195000 ticks 33413 svc 6 9 2 0 3 efault 5 in 8 out 15 pread_bytes 0
+N RUN 2 START
+N RUN 2 END fault status 0 ec 36 far 5368709120 elr 4195016 ticks 2124 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 3 START
+N RUN 3 END fault status 0 ec 36 far 6442450944 elr 4195032 ticks 1399 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 4 START
+N RUN 4 END fault status 0 ec 36 far 150994944 elr 4195044 ticks 1390 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 5 START
+N RUN 5 END fault status 0 ec 36 far 134217728 elr 4195056 ticks 1567 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 6 START
+N RUN 6 END fault status 0 ec 36 far 1077936128 elr 4195068 ticks 1320 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 7 START
+N RUN 7 END fault status 0 ec 36 far 4194304 elr 4195080 ticks 1294 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 8 START
+N RUN 8 END fault status 0 ec 32 far 268435456 elr 268435456 ticks 1235 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 9 START
+N RUN 9 END fault status 0 ec 0 far 268435456 elr 4195100 ticks 1248 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 10 START
+N RUN 10 END fault status 0 ec 0 far 268435456 elr 4195112 ticks 1274 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 11 START
+N RUN 11 END deadline status 0 ec 0 far 0 elr 4195120 ticks 31383708 svc 1 0 0 0 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 12 START
+N RUN 12 END exit status 7 ec 0 far 0 elr 0 ticks 2553 svc 1 0 0 1 0 efault 0 in 2 out 0 pread_bytes 0
+N RUN 13 START
+N RUN 13 END exit status 0 ec 0 far 0 elr 0 ticks 4585 svc 3 3 0 1 0 efault 0 in 4 out 22 pread_bytes 0
+N HALT runs 13 faults 10 deadlines 1 ticks 31633821

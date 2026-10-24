@@ -1,0 +1,6 @@
+ATLAS: AWAKEN
+ATLAS: VERIFY
+ATLAS: HANDOFF
+STAGE1: BUNDLE OK
+N NUCLEUS-FIXTURE arch314 v1 (boot fixture, not the kernel)
+N REFUSE params

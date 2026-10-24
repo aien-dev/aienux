@@ -1,0 +1,361 @@
+; probe.s2 -- arch#314 boot-fixture negative probe: an EL0 program that misbehaves on request, one action per
+; request line. It is assembled by asm2 because Omega deliberately cannot express these actions (raw addresses,
+; unknown service numbers, privileged instructions). Same ELF runs hosted on Linux for the actions Linux allows.
+; Actions (first byte of each line): s bad service numbers -> -38; b bad buffers/fd/pos -> -14 -9 -22;
+; o print ok; t/m/k/u/g/a load from nucleus/model/params/UART/GIC/unmapped memory; w store to own text;
+; d jump into own data; e eret at EL0; p write VBAR_EL1 at EL0; l spin forever; x exit 7. EOF -> exit 0.
+; Each line that is answered prints "<action> ok\n" or "<action> BAD <n>\n"; faulting actions end the run.
+; ---- ELF64 header (64 bytes) ----
+  .w 0x464c457f
+  .w 0x00010102
+  .w 0
+  .w 0
+  .w 0x00b70002
+  .w 1
+  .w 0x004000b0
+  .w 0
+  .w 64
+  .w 0
+  .w 0
+  .w 0
+  .w 0
+  .w 0x00380040
+  .w 0x00000002
+  .w 0
+; ---- program header 1: text, R X, file offset 0 -> 0x400000, 4096 bytes ----
+  .w 1
+  .w 5
+  .w 0
+  .w 0
+  .w 0x00400000
+  .w 0
+  .w 0x00400000
+  .w 0
+  .w 0x1000
+  .w 0
+  .w 0x1000
+  .w 0
+  .w 0x10000
+  .w 0
+; ---- program header 2: data, R W, no file bytes, 4096 zero bytes at 0x10000000 ----
+  .w 1
+  .w 6
+  .w 0
+  .w 0
+  .w 0x10000000
+  .w 0
+  .w 0x10000000
+  .w 0
+  .w 0
+  .w 0
+  .w 0x1000
+  .w 0
+  .w 0x10000
+  .w 0
+; ---- 0xb0 entry ----
+:TOP
+  movz.x x0 0 0
+  movz.x x1 0x1000 1
+  movz.x x2 64 0
+  movz.x x8 63 0
+  svc 0
+  cbz.x x0 DONE
+  movz.x x1 0x1000 1
+  ldrb x9 x1 0
+  cmp.x.i x9 0x73
+  b.eq TS
+  cmp.x.i x9 0x62
+  b.eq TB
+  cmp.x.i x9 0x6f
+  b.eq TO
+  cmp.x.i x9 0x74
+  b.eq TT
+  cmp.x.i x9 0x6d
+  b.eq TM
+  cmp.x.i x9 0x6b
+  b.eq TK
+  cmp.x.i x9 0x75
+  b.eq TU
+  cmp.x.i x9 0x67
+  b.eq TG
+  cmp.x.i x9 0x61
+  b.eq TA
+  cmp.x.i x9 0x77
+  b.eq TW
+  cmp.x.i x9 0x64
+  b.eq TD
+  cmp.x.i x9 0x65
+  b.eq TE
+  cmp.x.i x9 0x70
+  b.eq TP
+  cmp.x.i x9 0x6c
+  b.eq TL
+  cmp.x.i x9 0x78
+  b.eq TX
+  adr x21 M_UNK
+  bl PUTS
+  b TOP
+:DONE
+  movz.x x0 0 0
+  movz.x x8 93 0
+  svc 0
+; s: unknown service numbers must return -38 (ENOSYS)
+:TS
+  movz.x x22 0 0
+  movz.x x8 999 0
+  svc 0
+  add.x.i x0 x0 38
+  cbz.x x0 TS1
+  add.x.i x22 x22 1
+:TS1
+  movz.x x8 113 0
+  svc 0
+  add.x.i x0 x0 38
+  cbz.x x0 TS2
+  add.x.i x22 x22 1
+:TS2
+  movz.x x8 222 0
+  svc 0
+  add.x.i x0 x0 38
+  cbz.x x0 TS3
+  add.x.i x22 x22 1
+:TS3
+  adr x21 M_S
+  b REPORT
+; b: buffers outside the program's own memory -> -14, bad descriptor -> -9, negative position -> -22
+:TB
+  movz.x x22 0 0
+  movz.x x0 1 0
+  movz.x x1 1 2
+  movz.x x2 8 0
+  movz.x x8 64 0
+  svc 0
+  add.x.i x0 x0 14
+  cbz.x x0 TB1
+  add.x.i x22 x22 1
+:TB1
+  movz.x x0 0 0
+  movz.x x1 0x40 1
+  movz.x x2 8 0
+  movz.x x8 63 0
+  svc 0
+  add.x.i x0 x0 14
+  cbz.x x0 TB2
+  add.x.i x22 x22 1
+:TB2
+  movz.x x0 1 0
+  movz.x x1 0x1000 1
+  movz.x x2 1 0
+  movk.x x2 0x4000 1
+  movz.x x8 64 0
+  svc 0
+  add.x.i x0 x0 14
+  cbz.x x0 TB3
+  add.x.i x22 x22 1
+:TB3
+  movz.x x0 0 0
+  movz.x x1 0x0ffc 0
+  movk.x x1 0x1000 1
+  movz.x x2 8 0
+  movz.x x8 63 0
+  svc 0
+  add.x.i x0 x0 14
+  cbz.x x0 TB4
+  add.x.i x22 x22 1
+:TB4
+  movz.x x0 5 0
+  movz.x x1 0x1000 1
+  movz.x x2 1 0
+  movz.x x8 64 0
+  svc 0
+  add.x.i x0 x0 9
+  cbz.x x0 TB5
+  add.x.i x22 x22 1
+:TB5
+  movz.x x0 3 0
+  movz.x x1 0x1000 1
+  movz.x x2 8 0
+  movz.x x3 0 0
+  sub.x.i x3 x3 1
+  movz.x x8 67 0
+  svc 0
+  add.x.i x0 x0 22
+  cbz.x x0 TB6
+  add.x.i x22 x22 1
+:TB6
+  movz.x x0 3 0
+  movz.x x1 0x40 1
+  movz.x x2 8 0
+  movz.x x3 0 0
+  movz.x x8 67 0
+  svc 0
+  add.x.i x0 x0 14
+  cbz.x x0 TB7
+  add.x.i x22 x22 1
+:TB7
+  adr x21 M_B
+  b REPORT
+:TO
+  movz.x x22 0 0
+  adr x21 M_O
+  b REPORT
+; faulting actions: each must end the run (EL0 has no access), never reach the next line
+:TT
+  movz.x x9 1 2
+  ldr.x x0 x9 0
+  b SURV
+:TM
+  movz.x x9 1 2
+  movk.x x9 0x4000 1
+  ldr.x x0 x9 0
+  b SURV
+:TK
+  movz.x x9 1 2
+  movk.x x9 0x8000 1
+  ldr.x x0 x9 0
+  b SURV
+:TU
+  movz.x x9 0x0900 1
+  ldr.w x0 x9 0
+  b SURV
+:TG
+  movz.x x9 0x0800 1
+  ldr.w x0 x9 0
+  b SURV
+:TA
+  movz.x x9 0x4040 1
+  ldr.x x0 x9 0
+  b SURV
+:TW
+  movz.x x9 0x40 1
+  str.x x9 x9 0
+  b SURV
+:TD
+  movz.x x9 0x1000 1
+  br x9
+  b SURV
+:TE
+  eret
+  b SURV
+:TP
+  movz.x x0 0 0
+  msr.vbar x0
+  b SURV
+:TL
+  b TL
+:TX
+  movz.x x0 7 0
+  movz.x x8 93 0
+  svc 0
+:SURV
+  adr x21 M_SURV
+  bl PUTS
+  b TOP
+; REPORT: x21 = "<a> ok" prefix message, x22 = failures; prints ok or BAD n
+:REPORT
+  cbnz.x x22 RBAD
+  bl PUTS
+  adr x21 M_OK
+  bl PUTS
+  b TOP
+:RBAD
+  bl PUTS
+  adr x21 M_BAD
+  bl PUTS
+  add.x.i x22 x22 0x30
+  movz.x x1 0x1000 1
+  strb x22 x1 0
+  movz.x x0 10 0
+  strb x0 x1 1
+  movz.x x0 1 0
+  movz.x x2 2 0
+  movz.x x8 64 0
+  svc 0
+  b TOP
+; PUTS: write the NUL-terminated text at x21 to fd 1
+:PUTS
+  mov.x x1 x21
+  movz.x x2 0 0
+:PL
+  ldrb.r x9 x21 x2
+  cbz.x x9 PW
+  add.x.i x2 x2 1
+  b PL
+:PW
+  movz.x x0 1 0
+  movz.x x8 64 0
+  svc 0
+  ret
+:M_S
+  .b 0x73
+  .b 0
+:M_B
+  .b 0x62
+  .b 0
+:M_O
+  .b 0x6f
+  .b 0
+:M_OK
+  .b 0x20
+  .b 0x6f
+  .b 0x6b
+  .b 0x0a
+  .b 0
+:M_BAD
+  .b 0x20
+  .b 0x42
+  .b 0x41
+  .b 0x44
+  .b 0x20
+  .b 0
+:M_UNK
+  .b 0x3f
+  .b 0x20
+  .b 0x75
+  .b 0x6e
+  .b 0x6b
+  .b 0x6e
+  .b 0x6f
+  .b 0x77
+  .b 0x6e
+  .b 0x20
+  .b 0x61
+  .b 0x63
+  .b 0x74
+  .b 0x69
+  .b 0x6f
+  .b 0x6e
+  .b 0x0a
+  .b 0
+:M_SURV
+  .b 0x53
+  .b 0x55
+  .b 0x52
+  .b 0x56
+  .b 0x49
+  .b 0x56
+  .b 0x45
+  .b 0x44
+  .b 0x20
+  .b 0x28
+  .b 0x70
+  .b 0x72
+  .b 0x6f
+  .b 0x74
+  .b 0x65
+  .b 0x63
+  .b 0x74
+  .b 0x69
+  .b 0x6f
+  .b 0x6e
+  .b 0x20
+  .b 0x6d
+  .b 0x69
+  .b 0x73
+  .b 0x73
+  .b 0x69
+  .b 0x6e
+  .b 0x67
+  .b 0x29
+  .b 0x0a
+  .b 0

@@ -1,0 +1,12 @@
+ATLAS: AWAKEN
+ATLAS: VERIFY
+ATLAS: HANDOFF
+STAGE1: BUNDLE OK
+N NUCLEUS-FIXTURE arch314 v1 (boot fixture, not the kernel)
+N BOOT bundle 1049240 model 0 requests 32 deadline 0 cntfrq 1000000000 entry 4194480 text 664 data 8392704
+N RUN 1 START
+hello fixture
+second line
+third
+N RUN 1 END exit status 0 ec 0 far 0 elr 0 ticks 349312 svc 4 3 0 1 0 efault 0 in 32 out 32 pread_bytes 0
+N HALT runs 1 faults 0 deadlines 0 ticks 2355696
