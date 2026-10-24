@@ -59,4 +59,4 @@ Start with [issues labelled `good first issue`](https://github.com/aien-spark/ai
 
 ## License
 
-Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE) and [NOTICE](NOTICE). Contact: aien@aienos.com.
+Licensed under the Apache License, Version 2.0 (Apache-2.0). See [LICENSE](LICENSE) and [NOTICE](NOTICE). Contact: aien@aienos.com.

@@ -276,7 +276,7 @@ Firmware package: `/usr/share/doc/nvidia-firmware-580-580.173.02/copyright`,
   kernels distributed under the terms of an OSI-approved open source license
   ... provided that (i) the binary files thereof are not modified in any way
   ... and (ii) this Agreement is provided to each SOFTWARE recipient". AIENOS is
-  AGPL-3.0, an OSI-approved licence, so shipping the unmodified file plus the
+  Apache-2.0, an OSI-approved licence, so shipping the unmodified file plus the
   agreement text is within this clause [INFERRED (high): plain reading, not
   legal advice].
 - 2.1: firmware only on NVIDIA platforms; no translation to another
