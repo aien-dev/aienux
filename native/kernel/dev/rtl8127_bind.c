@@ -21,7 +21,7 @@ static struct {
 static uint8_t *g_mem;
 static uint64_t g_phys;
 static uint8_t frame[1600];
-static uint8_t rxbuf[RTL_FRAME_MAX];
+static uint8_t rxbuf[RTL_RX_BUF]; /* every frame RMS 1522 lets through, VLAN tag included */
 
 static uint32_t o_read(void *ctx, uint32_t off, unsigned w)
 {

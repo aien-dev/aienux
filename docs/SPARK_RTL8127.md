@@ -28,6 +28,8 @@ github.com/openwrt/rtl8127 commit ec2f285, local copy `~/workspace/_ext/rtl8127-
 | PHYstatus | 0x6C (16 bit): LinkStatus 0x02, FullDup 0x01, 10G 0x4000, 5G 0x1000, 2.5G 0x400, 1G 0x10, 100M 0x08, 10M 0x04; 0xffff = no device | r8127.h:1474, 1742-1754; r8127_n.c:4537-4547 |
 | MAC OCP window | MACOCP 0xB0: write `((addr/2) << 16) | value | 0x80000000`; read: write `(addr/2) << 16`, then read low 16 bits | r8127_n.c:3287-3314; r8127.h:1814-1817 |
 | MCUCmd_reg | 0xD3: Now_is_oob bit 7, Txfifo_empty bit 5, Rxfifo_empty bit 4 | r8127.h:1821-1823 |
+| TX descriptor format (MAC OCP) | 0xEB58 bits 1:0 = 01, "new tx desc format" (the 32-byte descriptor this driver uses) | r8127_n.c:14992-14996 |
+| RSS off, one RX queue | RSS_CTRL_8125 0x4500 = 0; Q_NUM_CTRL_8125 0x4800 bits 4:2 = ilog2(queues) = 0 | r8127.h:1553-1554; r8127_n.c:14983, 14876-14886 |
 | LL share FIFO ready | 0xD2 (16 bit) bit 9 | r8127_n.c:4872-4882 |
 | RxMaxSize | 0xDA | r8127.h |
 | CPlusCmd | 0xE0 | r8127.h |
@@ -91,7 +93,9 @@ interrupt mask, RX repost) was killed by the test every time.
    (CFG_METHOD_1 or 2) is printed (`rtl8127: init ... tcr= mcfg=`), not known in advance.
 4. TX no-close on this chip: tail pointer 0x0D30 and close pointer 0x0D34 (version 6 registers) are taken
    from the vendor's per-version table; that the close pointer restarts at 0 after a soft reset is the
-   vendor's assumption (Aienux reads a base instead and prints `clo_base=`).
+   vendor's assumption (Aienux reads a base instead and prints `clo_base=`). Both the tail it writes and
+   the closed count are taken relative to that base, so a nonzero base keeps them consistent (2026-10-24
+   review fix); whether the chip's fetch index really counts from that base is also UNKNOWN.
 5. RX descriptor type 1 with RSS off is what the vendor's default build runs (INFERRED from the module
    version string, medium-high); not observed on the chip.
 6. The UPS-resume PHY wait in `exit_oob` is not done; Aienux only records `ups_resume=`.

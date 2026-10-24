@@ -43,7 +43,8 @@ typedef struct {
     unsigned dma_faults;
     /* ring state inside the chip */
     uint32_t tx_hw, rx_hw, clo, tail;
-    int defer_tx;             /* close descriptors only when asked */
+    uint32_t tx_origin;       /* close pointer after reset: tx_hw, clo and tail count from it */
+    int defer_tx;            /* close descriptors only when asked */
     unsigned resets, writes, ocp_writes;
     int mac_written_unlocked, mac_written_locked;
     int enabled_before_rings; /* TE|RE written before both ring bases */
@@ -90,7 +91,8 @@ static uint64_t ring_base(uint32_t lo)
 
 static void chip_reset_state(void)
 {
-    C.tx_hw = C.rx_hw = 0;
+    C.rx_hw = 0;
+    C.tx_hw = C.tx_origin = (uint32_t)C.clo_after_reset; /* the chip's TX index counts from its close base */
     C.clo = (uint32_t)C.clo_after_reset;
     C.tail = 0;
     put(RTL_HW_CLO0, 4, C.clo);
@@ -103,8 +105,13 @@ static void chip_tx_run(void)
     uint8_t *ring = dma_ptr(ring_base(RTL_TNPDS_LO), RTL_TX_N * RTL_TXD_SIZE);
     if (!ring || !(get(RTL_CHIPCMD, 1) & RTL_CMD_TXEN))
         return;
-    while (C.tx_hw != C.tail) {
-        uint8_t *d = ring + (C.tx_hw % RTL_TX_N) * RTL_TXD_SIZE;
+    if (((C.tail - C.tx_hw) & RTL_CLO_MASK) > RTL_TX_N) {
+        C.dma_faults += 1000; /* tail more than a ring ahead of the chip: tail and close pointer disagree */
+        return;
+    }
+    while (C.tx_hw != (C.tail & RTL_CLO_MASK)) {
+        uint32_t slot = (C.tx_hw - C.tx_origin) % RTL_TX_N;
+        uint8_t *d = ring + slot * RTL_TXD_SIZE;
         uint32_t o1 = rd32le(d);
         if (!(o1 & RTL_DESC_OWN))
             break;
@@ -119,9 +126,9 @@ static void chip_tx_run(void)
         }
         C.tx_count++;
         int eor = (o1 & RTL_DESC_EOR) != 0;
-        if (eor != ((C.tx_hw % RTL_TX_N) == RTL_TX_N - 1))
+        if (eor != (slot == RTL_TX_N - 1))
             C.dma_faults += 1000; /* EOR on the wrong slot: flagged loudly */
-        C.tx_hw++;
+        C.tx_hw = (C.tx_hw + 1) & RTL_CLO_MASK;
         if (!C.defer_tx)
             C.clo++;
     }
@@ -238,6 +245,9 @@ static void chip_init(uint8_t *mem, uint64_t dma, size_t len)
     put(RTL_INTRMIT, 2, 0x0103);
     put(RTL_RXDESC_TYPE, 1, 0x02); /* type 4 left on by a previous owner */
     put(RTL_TXNOCLOSE_EN, 1, 0);
+    put(RTL_RSS_CTRL, 4, 0x00000f01u);         /* RSS on from a previous owner */
+    put(RTL_Q_NUM_CTRL, 2, 0x0108u | 0x0008u); /* 4 RX queues (bits 4:2 = 2), other bits kept */
+    C.ocp[RTL_OCP_TXDESC_FMT / 2] = 0x8002u;   /* old 16-byte TX descriptor format selected */
     put(RTL_RXDV_GATE, 1, 0);
     put(RTL_PHYSTATUS, 2, 0x4000 | RTL_PHYS_LINK | RTL_PHYS_FULLDUP);
     put(RTL_ISR0, 4, 0x00000085u);
@@ -313,6 +323,10 @@ static void test_init(void)
     CHECK(get(RTL_RCR, 4) == (RTL_RCR_CHIP | RTL_RCR_ACCEPT_BCAST | RTL_RCR_ACCEPT_MYPHYS), "RCR");
     CHECK(get(RTL_RMS, 2) == (RTL_RMS_VALUE | RTL_RMS_VLAN), "RMS");
     CHECK(get(RTL_TXNOCLOSE_EN, 1) & 0x04, "no-close enabled");
+    CHECK(C.ocp[RTL_OCP_TXDESC_FMT / 2] == 0x8001u, "32-byte TX descriptor format, other bits kept (0x%04x)",
+          C.ocp[RTL_OCP_TXDESC_FMT / 2]);
+    CHECK(get(RTL_RSS_CTRL, 4) == 0, "RSS off");
+    CHECK(get(RTL_Q_NUM_CTRL, 2) == 0x0100u, "one RX queue, other bits kept (0x%04x)", get(RTL_Q_NUM_CTRL, 2));
     CHECK(!(get(RTL_RXDESC_TYPE, 1) & 0x02), "RX descriptor type 1");
     CHECK(!(get(RTL_RXDV_GATE, 1) & 0x08), "RX DV gate open");
     CHECK(get(RTL_IMR0, 4) == 0, "interrupts masked");
@@ -477,6 +491,15 @@ static void test_tx_hostile(void)
     CHECK(rtl_init(&d, &OPS, region, DMA, RTL_MEM_SIZE) == RTL_OK && d.clo_base == 7, "close base 7");
     unsigned r = 0;
     CHECK(rtl_tx(&d, f, 60) == RTL_OK && rtl_tx_reclaim(&d, &r) == RTL_OK && r == 1, "reclaim with base 7");
+    CHECK(get(RTL_SW_TAIL0, 4) == 8 && C.tx_count == 1 && C.dma_faults == 0, "tail counts from base 7 (tail %u)",
+          get(RTL_SW_TAIL0, 4));
+    for (unsigned k = 0; k < 3 * RTL_TX_N; k++)
+        if (rtl_tx(&d, f, 60) != RTL_OK || rtl_tx_reclaim(&d, 0) != RTL_OK) {
+            CHECK(0, "round %u with base 7", k);
+            break;
+        }
+    CHECK(C.tx_count == 1 + 3 * RTL_TX_N && C.dma_faults == 0, "three rings of frames with base 7 (%u sent)",
+          C.tx_count);
 }
 
 static void test_rx(void)
@@ -506,17 +529,30 @@ static void test_rx(void)
     CHECK(chip_rx(f, 10, 0, 0) == 0, "inject runt");
     CHECK(chip_rx(f, 100, 0, 0) == 0, "inject good");
     uint8_t *ring = region + RTL_OFF_RXD;
-    uint32_t slot = (d.rx_cur + 1) % RTL_RX_N;
+    uint32_t slot = (d.rx_cur + 2) % RTL_RX_N; /* the third frame: error, runt, then this one */
     wr32le(ring + slot * RTL_RXD_SIZE, rd32le(ring + slot * RTL_RXD_SIZE) & ~RTL_DESC_LS); /* not last */
-    CHECK(chip_rx(f, 100, 0, 0) == 0, "inject good 2");
+    uint8_t f2[100];
+    frame_fill(f2, 100, 4);
+    CHECK(chip_rx(f2, 100, 0, 0) == 0, "inject good 2");
     unsigned dropped = d.rx_dropped;
-    CHECK(rtl_rx(&d, out, sizeof out, &n, &got) == RTL_OK && got && n == 100, "good after drops");
-    CHECK(d.rx_dropped == dropped + 2, "error frame and runt dropped");
-    (void)slot;
+    CHECK(rtl_rx(&d, out, sizeof out, &n, &got) == RTL_OK && got && n == 100 && memcmp(out, f2, 100) == 0,
+          "good 2 after drops");
+    CHECK(d.rx_dropped == dropped + 3, "error frame, runt and split frame dropped");
 
-    /* Small output buffer: refused, frame kept for the next call. */
-    CHECK(rtl_rx(&d, out, 50, &n, &got) == RTL_E_ARG && !got, "cap too small");
-    CHECK(rtl_rx(&d, out, sizeof out, &n, &got) == RTL_OK && got && n == 100, "still there");
+    /* Output buffer smaller than the frame: dropped and reposted, the ring keeps moving. */
+    CHECK(chip_rx(f, 100, 0, 0) == 0, "inject for small cap");
+    dropped = d.rx_dropped;
+    CHECK(rtl_rx(&d, out, 50, &n, &got) == RTL_OK && !got && d.rx_dropped == dropped + 1, "cap too small: dropped");
+    CHECK(chip_rx(f2, 100, 0, 0) == 0, "inject after small cap");
+    CHECK(rtl_rx(&d, out, sizeof out, &n, &got) == RTL_OK && got && n == 100 && memcmp(out, f2, 100) == 0,
+          "next frame still arrives");
+
+    /* Largest frame RMS 1522 lets through: 1518 bytes (VLAN tag) without FCS. */
+    static uint8_t big[RTL_RX_BUF], bigout[RTL_RX_BUF];
+    frame_fill(big, 1518, 9);
+    CHECK(chip_rx(big, 1518, 0, 0) == 0, "inject 1518-byte frame");
+    CHECK(rtl_rx(&d, bigout, sizeof bigout, &n, &got) == RTL_OK && got && n == 1518 && memcmp(bigout, big, 1518) == 0,
+          "1518-byte frame received whole");
 
     /* Overflow: the chip finds no free slot when the driver never reads. */
     for (unsigned i = 0; i < RTL_RX_N + 3; i++)

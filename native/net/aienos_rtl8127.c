@@ -274,6 +274,9 @@ rtl_err rtl_init(rtl_dev *d, const rtl_ops *ops, void *mem, uint64_t dma, size_t
     w32(d, RTL_RDSAR_LO, (uint32_t)rx_ring);
     w32(d, RTL_RDSAR_HI, (uint32_t)(rx_ring >> 32));
     w32(d, RTL_TCR, RTL_TCR_VALUE); /* 14958-14963: burst, IFG, no-close bit 6 */
+    w32(d, RTL_RSS_CTRL, 0);                                          /* 14983: no RSS, one RX queue */
+    w16(d, RTL_Q_NUM_CTRL, r16(d, RTL_Q_NUM_CTRL) & ~0x001Cu);       /* 14876-14886: rx_q_num = ilog2(1) */
+    ocp_wr(d, RTL_OCP_TXDESC_FMT, (ocp_rd(d, RTL_OCP_TXDESC_FMT) & ~0x3u) | 0x1u); /* 14992-14996: 32 B TX desc */
     w8(d, RTL_TXNOCLOSE_EN, r8(d, RTL_TXNOCLOSE_EN) | 0x04u);        /* 14998-15001 */
     w8(d, RTL_RXDESC_TYPE, r8(d, RTL_RXDESC_TYPE) & ~0x02u);         /* 15003-15010: type 1 */
     w16(d, RTL_RMS, RTL_RMS_VALUE | RTL_RMS_VLAN);                   /* 14470-14473 */
@@ -338,7 +341,8 @@ rtl_err rtl_tx(rtl_dev *d, const uint8_t *frame, size_t len)
     *word(d, txd(i)) = le(RTL_DESC_OWN | RTL_DESC_FS | RTL_DESC_LS | (i == RTL_TX_N - 1 ? RTL_DESC_EOR : 0) |
                           (uint32_t)n);
     d->tx_cur++;
-    w32(d, RTL_SW_TAIL0, d->tx_cur); /* write op orders the descriptor first */
+    /* Same origin as the close pointer (clo_base), so tail - close = frames in flight. */
+    w32(d, RTL_SW_TAIL0, (d->clo_base + d->tx_cur) & RTL_CLO_MASK); /* write op orders the descriptor first */
     return RTL_OK;
 }
 
@@ -386,12 +390,10 @@ rtl_err rtl_rx(rtl_dev *d, uint8_t *out, size_t cap, size_t *len, int *got)
             return RTL_E_DEVICE;
         }
         int whole = (s & (RTL_DESC_FS | RTL_DESC_LS)) == (RTL_DESC_FS | RTL_DESC_LS);
-        if (!whole || (s & RTL_RX_RES) || n < 14 + 4) {
-            d->rx_dropped++;
+        size_t f = n >= 4 ? n - 4 : 0; /* FCS, r8127_n.c:17119-17126 */
+        if (!whole || (s & RTL_RX_RES) || n < 14 + 4 || cap < f) {
+            d->rx_dropped++; /* a frame too big for `cap` is dropped too, so the slot never blocks the ring */
         } else {
-            size_t f = n - 4; /* FCS, r8127_n.c:17119-17126 */
-            if (cap < f)
-                return RTL_E_ARG; /* slot left for a bigger buffer */
             memcpy(out, d->mem + RTL_OFF_RXBUF + (size_t)i * RTL_BUF_STRIDE, f);
             *len = f;
             *got = 1;

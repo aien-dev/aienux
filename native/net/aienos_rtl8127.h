@@ -33,7 +33,7 @@
 #define RTL_PCI_VENDOR 0x10ecu
 #define RTL_PCI_DEVICE 0x8127u
 #define RTL_MMIO_BAR 2u            /* r8127_n.c init_board: BAR 2 is the MMIO region */
-#define RTL_MMIO_MIN 0x4000u       /* highest register used is 0x20E4; Spark BAR 2 is 256 KiB */
+#define RTL_MMIO_MIN 0x5000u       /* highest register used is 0x4800 (Q_NUM_CTRL); Spark BAR 2 is 256 KiB */
 
 /* Registers (offsets in BAR 2) */
 #define RTL_MAC0 0x00u             /* r8127.h:1438 */
@@ -68,6 +68,9 @@
 #define RTL_BACKUP_ADDR0 0x19E0u   /* 32 bit, the MAC address Linux uses */
 #define RTL_BACKUP_ADDR1 0x19E4u   /* 16 bit */
 #define RTL_TXNOCLOSE_EN 0x20E4u   /* bit 2 */
+#define RTL_RSS_CTRL 0x4500u       /* RSS_CTRL_8125, r8127.h:1553 */
+#define RTL_Q_NUM_CTRL 0x4800u     /* Q_NUM_CTRL_8125, r8127.h:1554; bits 4:2 = ilog2(RX queues) */
+#define RTL_OCP_TXDESC_FMT 0xEB58u /* MAC OCP, bits 1:0 = 01 "new tx desc format" (32 B), r8127_n.c:14992 */
 
 /* Bits */
 #define RTL_CMD_STOPREQ 0x80u
@@ -194,10 +197,11 @@ rtl_err rtl_tx_reclaim(rtl_dev *d, unsigned *reclaimed);
 /* Frames posted and not yet closed. */
 unsigned rtl_tx_pending(const rtl_dev *d);
 
-/* Take at most one received frame: copies it (FCS stripped) to out (cap >=
- * RTL_FRAME_MAX + 4 not required; cap >= the frame), sets *len and *got = 1,
- * and gives the buffer back to the chip. *got 0: nothing pending. Error,
- * runt and multi-descriptor frames are dropped (counted) and skipped. */
+/* Take at most one received frame: copies it (FCS stripped) to out, sets
+ * *len and *got = 1, and gives the buffer back to the chip. *got 0: nothing
+ * pending. Error, runt, multi-descriptor and larger-than-cap frames are
+ * dropped (counted in rx_dropped) and their slot is reposted. A cap of
+ * RTL_RX_BUF holds every frame the chip can deliver (VLAN tag included). */
 rtl_err rtl_rx(rtl_dev *d, uint8_t *out, size_t cap, size_t *len, int *got);
 
 /* Stop DMA (only on a chip rtl_init identified; RTL_E_NOT_READY otherwise,
