@@ -1,0 +1,19 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-25T23:11:33Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:db1a2df90a58f599d07e4a64f7f14d3bd88677e71c10a9f744dc64dee4ef065c",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 0,
+      "generated_at_commit": "965d9128193284517f88b2172bb9914d4f23ede6",
+      "source_tree": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "name": "imac-image",
+  "purpose": "Omega-written builder for the Allen iMac boot medium: GPT with one FAT32 ESP",
+  "schema_version": "1.0.0"
+}
