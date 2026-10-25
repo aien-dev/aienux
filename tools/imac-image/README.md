@@ -15,13 +15,14 @@ trial stages a partitioned disk.
 Two steps, both from this directory:
 
 ```sh
-# 1. the EFI application, composed in the order that compiles
-OMEGA_COMPILER=<seed>/seed/out/omc ALLEN_SRC=<checkout>/native/omega/allen \
-  sh build-efi.sh BOOTX64.EFI ff17a936719049af35c793860d246003170ade526bc8da4a421bdaf9cf0dc33b
+OMC=<seed>/seed/out/omc                                   # the pinned seed compiler
+export OMEGA_COMPILER="$OMC" ALLEN_SRC=<checkout>/native/omega/allen
+
+# 1. the EFI application, composed in the order that compiles (exit 65 on digest drift)
+sh build-efi.sh BOOTX64.EFI ff17a936719049af35c793860d246003170ade526bc8da4a421bdaf9cf0dc33b
 
 # 2. the boot medium that carries it
-"$OMEGA_COMPILER" < imac-image.om > imac-image
-chmod +x imac-image
+"$OMC" < imac-image.om > imac-image && chmod +x imac-image
 ./imac-image                      # writes imac-boot.img next to BOOTX64.EFI
 ```
 
@@ -30,6 +31,9 @@ them to the pinned compiler, prints the compiler and output digests, and exits 6
 does not match the one you passed. The twenty sources are **not on main**: they are on aienux
 `feat/allen-imac-competition` (`d4ffde3c`), so point `ALLEN_SRC` at a checkout of that branch. On the
 `d4ffde3c` sources with compiler `c99eda24…` it reproduces `ff17a936…` exactly.
+
+`build-efi.sh` exit status: 0 written, 64 the compiler refused (nothing published), 65 digest
+mismatch, 66 missing sources, 69 no `OMEGA_COMPILER`, 73 `$out` already exists.
 
 `imac-image` exit status: 0 written, 2 input open, 3 input empty, 4 output open, 5 truncate, 9 close
 input, 6 sync, 7 close output, 8 a short write. The geometry is fixed (disk 196608 sectors, ESP
@@ -62,8 +66,12 @@ Reading tools are used only as independent checkers, never as part of the build:
 - `sgdisk -v imac-boot.img` — `No problems found` (both CRCs, primary and backup headers agree).
 - `fsck.vfat -n <partition>` — clean: 5 files, 2990/191501 clusters, no FSInfo or `..` complaints.
 - `mdir -i imac-boot.img@@1M ::/EFI/BOOT` — `BOOTX64.EFI`, 1528832 bytes.
-- `build-efi.sh` with `ALLEN_SRC` on `d4ffde3c` and compiler `c99eda24…` — exits 0 against the
-  expected digest `ff17a936…` (run 2026-10-25 23:14Z; the digest is an argument, so a drift exits 65).
+- The printed build block, executed verbatim in a clean directory: `build-efi.sh` → `ff17a936…`
+  (rc 0), `imac-image` → `f0811738…` (rc 0). Exit paths exercised rather than declared: 65 wrong
+  expected digest, 66 missing sources, 69 no `OMEGA_COMPILER`, 64 compiler refusal, 73 existing
+  output. A refusal publishes nothing (compile goes to a scratch file and is linked into place only
+  on success), so a retry at the same path succeeds and `imac-image` can never pick up a zero-byte
+  EFI.
 - `mcopy` round trip on the final image `f0811738…` — the extracted EFI hashes to `ff17a936…` and
   `cmp` is silent; `STARTUP.NSH` reads `fs0:\EFI\BOOT\BOOTX64.EFI\r\n`.
 - OVMF with a fresh NVRAM (no boot entry) — `BdsDxe` creates its own entry from the ESP, starts the

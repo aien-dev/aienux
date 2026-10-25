@@ -46,13 +46,22 @@ trap 'rm -f -- "$unit"' EXIT HUP INT TERM
  done
 } > "$unit"
 
-"$compiler" < "$unit" > "$out"
-got=$(sha256sum "$out" | cut -d' ' -f1)
-printf '%s  %s\n' "$got" "$out"
-printf 'compiler %s\n' "$(sha256sum "$compiler" | cut -d' ' -f1)"
+# Compile to a scratch file and publish by link: a refused compile leaves nothing at $out, so a
+# retry is not blocked by the fresh-output guard and no zero-byte EFI can be picked up by imac-image.
+tmp="${out}.build.$$"
+trap 'rm -f -- "$unit" "$tmp"' EXIT HUP INT TERM
+if ! "$compiler" < "$unit" > "$tmp" || [ ! -s "$tmp" ]; then
+ echo 'compile refused; nothing published' >&2
+ exit 64
+fi
+got=$(sha256sum "$tmp" | cut -d' ' -f1)
 
 want=${2:-}
 if [ -n "$want" ] && [ "$got" != "$want" ]; then
  echo "expected $want; the sources or compiler differ" >&2
  exit 65
 fi
+
+ln -T -- "$tmp" "$out"
+printf '%s  %s\n' "$got" "$out"
+printf 'compiler %s\n' "$(sha256sum "$compiler" | cut -d' ' -f1)"
