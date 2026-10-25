@@ -1139,14 +1139,17 @@ if or ne nr16 p 443 ne nr16 add p 2 get Ncfg 21
 ret
 end
 if ne get Npk 3 get Tcpstate 2
+put Ndrop 0 12
 ret
 end
 s = npssum get Npk 3 get Npk 4 6 get Npk 6
 if ne nfold add s nrsum p get Npk 6 0
+put Ndrop 0 13
 ret
 end
 put Npk 13 mul ulong shr get Nrx add p 12 4 4
 if or lt get Npk 13 20 gt get Npk 13 get Npk 6
+put Ndrop 0 14
 ret
 end
 note RFC9293: the four reserved header bits are ignored on receipt.
@@ -1161,9 +1164,11 @@ ntsynin
 ret
 end
 if or lt get Tcpstate 0 4 gt get Tcpstate 0 5
+put Ndrop 0 15
 ret
 end
 if ne get Nct 31 0
+put Ndrop 0 16
 ret
 end
 if ne and get Npk 9 4 0

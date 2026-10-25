@@ -18,8 +18,8 @@ put Gs 5 code
 put Gdiag 0 code
 put Gdiag 1 get Tcpstate 0
 put Gdiag 2 get Tcpstate 1
-put Gdiag 3 get Ndropt 0
-put Gdiag 4 get Ndropd 0
+put Gdiag 3 get Ndrop 0
+put Gdiag 4 get Ndropw 0
 netclose now
 tlsclose
 tcwipe
