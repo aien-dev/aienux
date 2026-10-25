@@ -127,7 +127,7 @@ end
 put A 1 0
 ret true
 end
-fn apppoll now ulong link bool to bool
+fn apppoll now ulong online bool to bool
 if not appclock now
 ret false
 end
@@ -147,7 +147,7 @@ appcancel
 put A 2 3
 ret false
 end
-ret qnext now link
+ret qnext now online
 end
 fn appsent now ulong ok bool to bool
 if not appclock now

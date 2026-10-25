@@ -60,7 +60,7 @@ put T 9 1
 put T 13 0
 ret true
 end
-fn qnext now ulong link bool to bool
+fn qnext now ulong online bool to bool
 if or eq get Q 0 0 lt now get T 0
 ret false
 end
@@ -68,7 +68,7 @@ if ne get T 10 0
 ret false
 end
 put T 0 now
-if not link
+if not online
 ret false
 end
 if ne get T 13 0

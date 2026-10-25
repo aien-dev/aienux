@@ -1,0 +1,471 @@
+note SPDX-License-Identifier: Apache-2.0
+note Modified 2026-10-25: public verification subset of aien-dev/spark-rsi-mv om/p256/p256.om (P256 arithmetic adapted to P384).
+note Source commit bba3877510daeb8a0e070a781a689bcf1952b6f6, SHA256
+note 92da68007af091ccfbe01aa845be779502130e02bf57e9550332d669905db958.
+note Adapted to P384, names prefixed cp3/C3, digest supplied by caller; signing, HMAC, nonce and private-key APIs removed.
+note Public ECDSA inputs only. 32-bit-limb Montgomery arithmetic and complete a=-3 point addition.
+note Renes-Costello-Batina 2015 algorithm 4; SEC2 v2 section 2.5.1 parameters.
+note Byte buffer: key3072 (97 bytes), raw signature3200 (96), prehash3296 (48).
+note No secret-key or constant-time compiler claim. Apache license in CERT-APACHE-LICENSE.
+
+const C3MP ulong 0
+const C3MN ulong 72
+const C3ONE1 ulong 144
+const C3BM ulong 156
+const C3GX ulong 180
+const C3W1 ulong 240
+const C3W2 ulong 252
+const C3XX ulong 264
+const C3YY ulong 276
+const C3ZZ ulong 288
+const C3XY ulong 300
+const C3YZ ulong 312
+const C3XZ ulong 324
+const C3U ulong 336
+const C3V ulong 348
+const C3YM ulong 360
+const C3YP ulong 372
+const C3BX3 ulong 384
+const C3XX3 ulong 396
+const C3ZZ3 ulong 408
+const C3RX ulong 420
+const C3ACC ulong 456
+const C3TMP ulong 492
+const C3BASE ulong 528
+const C3ZI ulong 564
+const C3Z ulong 792
+const C3R ulong 804
+const C3S ulong 816
+const C3U1 ulong 828
+const C3U2 ulong 840
+const C3T1 ulong 864
+const C3T2 ulong 876
+const C3T3 ulong 888
+const C3X ulong 912
+const C3Y ulong 924
+const C3Q ulong 960
+const C3P1 ulong 996
+const C3P2 ulong 1032
+const C3BPUB ulong 3072
+const C3BSIG ulong 3200
+const C3BDIG ulong 3296
+
+fn cp3cpy w edit ulong 1536 o ulong a ulong to void
+for i ulong 12
+put w add o i get w add a i
+end
+end
+
+fn cp3pcpy w edit ulong 1536 o ulong a ulong to void
+for i ulong 36
+put w add o i get w add a i
+end
+end
+
+fn cp3set w edit ulong 1536 o ulong v ulong to void
+put w o v
+for i ulong 11
+put w add o add i 1 0
+end
+end
+
+fn cp3red w edit ulong 1536 o ulong t view ulong 14 m ulong to void
+u = new ulong 12 0
+bw = ulong 0
+x = ulong 0
+for i ulong 12
+x = sub sub get t i get w add m i bw
+put u i and x 4294967295
+bw = shr x 63
+end
+sel = or get t 12 xor bw 1
+mk = sub 0 sel
+for j ulong 12
+y = and get u j mk
+put w add o j or y and get t j not mk
+end
+end
+
+fn cp3mrow t edit ulong 14 w edit ulong 1536 a ulong bi ulong to void
+c = ulong 0
+x = ulong 0
+for j ulong 12
+x = add add get t j mul get w add a j bi c
+put t j and x 4294967295
+c = shr x 32
+end
+x = add get t 12 c
+put t 12 and x 4294967295
+put t 13 shr x 32
+end
+
+fn cp3mred t edit ulong 14 w edit ulong 1536 m ulong to void
+q = and mul get t 0 get w add m 12 4294967295
+x = add get t 0 mul q get w m
+c = shr x 32
+j1 = ulong 0
+for k ulong 11
+j1 = add k 1
+x = add add get t j1 mul q get w add m j1 c
+put t k and x 4294967295
+c = shr x 32
+end
+x = add get t 12 c
+put t 11 and x 4294967295
+put t 12 add get t 13 shr x 32
+end
+
+fn cp3mul w edit ulong 1536 o ulong a ulong b ulong m ulong to void
+t = new ulong 14 0
+for i ulong 12
+cp3mrow t w a get w add b i
+cp3mred t w m
+end
+cp3red w o t m
+end
+
+fn cp3add w edit ulong 1536 o ulong a ulong b ulong m ulong to void
+t = new ulong 14 0
+c = ulong 0
+x = ulong 0
+for i ulong 12
+x = add add get w add a i get w add b i c
+put t i and x 4294967295
+c = shr x 32
+end
+put t 12 c
+cp3red w o t m
+end
+
+fn cp3sub w edit ulong 1536 o ulong a ulong b ulong m ulong to void
+t = new ulong 12 0
+bw = ulong 0
+x = ulong 0
+for i ulong 12
+x = sub sub get w add a i get w add b i bw
+put t i and x 4294967295
+bw = shr x 63
+end
+mk = sub 0 bw
+c = ulong 0
+for j ulong 12
+x = add add get t j and get w add m j mk c
+put w add o j and x 4294967295
+c = shr x 32
+end
+end
+
+fn cp3modr w edit ulong 1536 o ulong m ulong to void
+t = new ulong 14 0
+for i ulong 12
+put t i get w add o i
+end
+cp3red w o t m
+end
+
+fn cp3lt w edit ulong 1536 a ulong m ulong to bool
+bw = ulong 0
+x = ulong 0
+for i ulong 12
+x = sub sub get w add a i get w add m i bw
+bw = shr x 63
+end
+ret eq bw 1
+end
+
+fn cp3isz w edit ulong 1536 a ulong to bool
+v = ulong 0
+for i ulong 12
+v = or v get w add a i
+end
+ret eq v 0
+end
+
+fn cp3eqv w edit ulong 1536 a ulong b ulong to bool
+v = ulong 0
+for i ulong 12
+v = or v xor get w add a i get w add b i
+end
+ret eq v 0
+end
+
+fn cp3rng w edit ulong 1536 a ulong to bool
+ret and not cp3isz w a cp3lt w a C3MN
+end
+
+fn cp3pow w edit ulong 1536 o ulong a ulong e ulong m ulong to void
+cp3cpy w C3W2 a
+cp3cpy w C3W1 add m 36
+i = ulong 0
+bit = ulong 0
+for j ulong 384
+i = sub 383 j
+cp3mul w C3W1 C3W1 C3W1 m
+bit = and shr get w add e shr i 5 and i 31 1
+if eq bit 1
+cp3mul w C3W1 C3W1 C3W2 m
+end
+end
+cp3cpy w o C3W1
+end
+
+fn cp3inv w edit ulong 1536 o ulong a ulong m ulong to void
+cp3pow w o a add m 48 m
+end
+
+fn cp3tom w edit ulong 1536 o ulong a ulong m ulong to void
+cp3mul w o a add m 24 m
+end
+
+fn cp3frm w edit ulong 1536 o ulong a ulong m ulong to void
+cp3mul w o a C3ONE1 m
+end
+
+fn cp3mod w edit ulong 1536 m ulong to void
+m0 = get w m
+x = m0
+for i ulong 5
+x = mul x sub 2 mul m0 x
+end
+put w add m 12 and sub 0 x 4294967295
+cp3set w add m 24 1
+for j ulong 768
+cp3add w add m 24 add m 24 add m 24 m
+end
+cp3mul w add m 36 C3ONE1 add m 24 m
+cp3cpy w add m 48 m
+put w add m 48 sub get w add m 48 2
+end
+
+fn cp3init w edit ulong 1536 to void
+for i ulong 1536
+put w i 0
+end
+put w 0 4294967295
+put w 1 0
+put w 2 0
+put w 3 4294967295
+put w 4 4294967294
+put w 5 4294967295
+put w 6 4294967295
+put w 7 4294967295
+put w 8 4294967295
+put w 9 4294967295
+put w 10 4294967295
+put w 11 4294967295
+put w 72 3435473267
+put w 73 3974895978
+put w 74 1219536762
+put w 75 1478102450
+put w 76 4097256927
+put w 77 3345173889
+put w 78 4294967295
+put w 79 4294967295
+put w 80 4294967295
+put w 81 4294967295
+put w 82 4294967295
+put w 83 4294967295
+put w C3ONE1 1
+cp3mod w C3MP
+cp3mod w C3MN
+put w 864 3555470063
+put w 865 713410797
+put w 866 2318324125
+put w 867 3327539597
+put w 868 1343457114
+put w 869 51644559
+put w 870 4269883666
+put w 871 404593774
+put w 872 3824692505
+put w 873 2559444331
+put w 874 3795773412
+put w 875 3006345127
+cp3tom w C3BM C3T1 C3MP
+put w 864 1920338615
+put w 865 978607672
+put w 866 3210029420
+put w 867 1426256477
+put w 868 2186553912
+put w 869 1509376480
+put w 870 2343017368
+put w 871 1847409506
+put w 872 4079005044
+put w 873 2394015518
+put w 874 3196781879
+put w 875 2861025826
+cp3tom w C3GX C3T1 C3MP
+put w 864 2431258207
+put w 865 2051218812
+put w 866 494829981
+put w 867 174109134
+put w 868 3052452032
+put w 869 3923390739
+put w 870 681186428
+put w 871 4176747965
+put w 872 2459098153
+put w 873 1570674879
+put w 874 2519084143
+put w 875 907533898
+cp3tom w add C3GX 12 C3T1 C3MP
+cp3cpy w add C3GX 24 add C3MP 36
+cp3set w C3T1 0
+end
+
+fn cp3padd w edit ulong 1536 o ulong a ulong q ulong to void
+cp3mul w C3XX a q C3MP
+cp3mul w C3YY add a 12 add q 12 C3MP
+cp3mul w C3ZZ add a 24 add q 24 C3MP
+cp3add w C3U a add a 12 C3MP
+cp3add w C3V q add q 12 C3MP
+cp3mul w C3XY C3U C3V C3MP
+cp3add w C3U C3XX C3YY C3MP
+cp3sub w C3XY C3XY C3U C3MP
+cp3add w C3U add a 12 add a 24 C3MP
+cp3add w C3V add q 12 add q 24 C3MP
+cp3mul w C3YZ C3U C3V C3MP
+cp3add w C3U C3YY C3ZZ C3MP
+cp3sub w C3YZ C3YZ C3U C3MP
+cp3add w C3U a add a 24 C3MP
+cp3add w C3V q add q 24 C3MP
+cp3mul w C3XZ C3U C3V C3MP
+cp3add w C3U C3XX C3ZZ C3MP
+cp3sub w C3XZ C3XZ C3U C3MP
+note bzz3 = 3 (xz - b zz); ym = yy - bzz3; yp = yy + bzz3
+cp3mul w C3U C3BM C3ZZ C3MP
+cp3sub w C3U C3XZ C3U C3MP
+cp3add w C3V C3U C3U C3MP
+cp3add w C3U C3V C3U C3MP
+cp3sub w C3YM C3YY C3U C3MP
+cp3add w C3YP C3YY C3U C3MP
+note zz3 = 3 zz; bxz3 = 3 (b xz - (zz3 + xx)); xx3 = 3 xx - zz3
+cp3add w C3ZZ3 C3ZZ C3ZZ C3MP
+cp3add w C3ZZ3 C3ZZ3 C3ZZ C3MP
+cp3mul w C3U C3BM C3XZ C3MP
+cp3add w C3V C3ZZ3 C3XX C3MP
+cp3sub w C3U C3U C3V C3MP
+cp3add w C3V C3U C3U C3MP
+cp3add w C3BX3 C3V C3U C3MP
+cp3add w C3V C3XX C3XX C3MP
+cp3add w C3V C3V C3XX C3MP
+cp3sub w C3XX3 C3V C3ZZ3 C3MP
+note X3 = yp xy - yz bxz3; Y3 = yp ym + xx3 bxz3; Z3 = ym yz + xy xx3
+cp3mul w C3U C3YP C3XY C3MP
+cp3mul w C3V C3YZ C3BX3 C3MP
+cp3sub w C3RX C3U C3V C3MP
+cp3mul w C3U C3YP C3YM C3MP
+cp3mul w C3V C3XX3 C3BX3 C3MP
+cp3add w add C3RX 12 C3U C3V C3MP
+cp3mul w C3U C3YM C3YZ C3MP
+cp3mul w C3V C3XY C3XX3 C3MP
+cp3add w add C3RX 24 C3U C3V C3MP
+cp3pcpy w o C3RX
+end
+
+fn cp3psel w edit ulong 1536 bit ulong to void
+mk = sub 0 bit
+nm = not mk
+for c ulong 36
+y = and get w add C3TMP c mk
+put w add C3ACC c or y and get w add C3ACC c nm
+end
+end
+
+fn cp3smul w edit ulong 1536 o ulong k ulong p ulong to void
+cp3pcpy w C3BASE p
+cp3set w C3ACC 0
+cp3cpy w add C3ACC 12 add C3MP 36
+cp3set w add C3ACC 24 0
+i = ulong 0
+for j ulong 384
+i = sub 383 j
+cp3padd w C3ACC C3ACC C3ACC
+cp3padd w C3TMP C3ACC C3BASE
+cp3psel w and shr get w add k shr i 5 and i 31 1
+end
+cp3pcpy w o C3ACC
+end
+
+fn cp3aff w edit ulong 1536 x ulong y ulong p ulong to void
+cp3inv w C3ZI add p 24 C3MP
+cp3mul w x p C3ZI C3MP
+cp3frm w x x C3MP
+cp3mul w y add p 12 C3ZI C3MP
+cp3frm w y y C3MP
+end
+
+fn cp3ld w edit ulong 1536 o ulong b edit uchar 4096 off ulong to void
+q = ulong 0
+v = ulong 0
+for i ulong 12
+q = add off sub 44 mul i 4
+v = ulong get b q
+v = or shl v 8 ulong get b add q 1
+v = or shl v 8 ulong get b add q 2
+v = or shl v 8 ulong get b add q 3
+put w add o i v
+end
+end
+
+fn cp3oncv w edit ulong 1536 to bool
+if not cp3lt w C3X C3MP
+ret false
+end
+if not cp3lt w C3Y C3MP
+ret false
+end
+cp3tom w C3T1 C3X C3MP
+cp3tom w C3T2 C3Y C3MP
+cp3mul w C3T3 C3T2 C3T2 C3MP
+cp3mul w C3T2 C3T1 C3T1 C3MP
+cp3mul w C3T2 C3T2 C3T1 C3MP
+cp3sub w C3T2 C3T2 C3T1 C3MP
+cp3sub w C3T2 C3T2 C3T1 C3MP
+cp3sub w C3T2 C3T2 C3T1 C3MP
+cp3add w C3T2 C3T2 C3BM C3MP
+ret cp3eqv w C3T2 C3T3
+end
+
+fn cp3vrfy w edit ulong 1536 b edit uchar 4096 to ulong
+if ne get b C3BPUB 4
+ret 0
+end
+cp3ld w C3X b add C3BPUB 1
+cp3ld w C3Y b add C3BPUB 49
+if not cp3oncv w
+ret 0
+end
+cp3ld w C3R b C3BSIG
+cp3ld w C3S b add C3BSIG 48
+if not cp3rng w C3R
+ret 0
+end
+if not cp3rng w C3S
+ret 0
+end
+cp3ld w C3Z b C3BDIG
+cp3modr w C3Z C3MN
+cp3tom w C3T1 C3S C3MN
+cp3inv w C3T1 C3T1 C3MN
+cp3tom w C3T2 C3Z C3MN
+cp3mul w C3U1 C3T2 C3T1 C3MN
+cp3frm w C3U1 C3U1 C3MN
+cp3tom w C3T2 C3R C3MN
+cp3mul w C3U2 C3T2 C3T1 C3MN
+cp3frm w C3U2 C3U2 C3MN
+cp3tom w C3Q C3X C3MP
+cp3tom w add C3Q 12 C3Y C3MP
+cp3cpy w add C3Q 24 add C3MP 36
+cp3smul w C3P1 C3U1 C3GX
+cp3smul w C3P2 C3U2 C3Q
+cp3padd w C3P1 C3P1 C3P2
+if cp3isz w add C3P1 24
+ret 0
+end
+cp3aff w C3X C3Y C3P1
+cp3modr w C3X C3MN
+if cp3eqv w C3X C3R
+ret 1
+end
+ret 0
+end
+

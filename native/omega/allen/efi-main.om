@@ -1,0 +1,465 @@
+note SPDX-License-Identifier: MIT
+note Firmware-hosted native Allen: UEFI Boot Services stay active. Display via GOP Blt,
+note keys via Simple Text Input, packets via Simple Network, time via GetTime, entropy via
+note EFI_RNG or CPU RDRAND, elapsed time via calibrated invariant TSC. Compile with the
+note leading line `target x86efi`. All application, network, TLS and UI logic is Omega.
+global Eb uchar 64
+global Ek uchar 8
+global Ep uchar 32
+global Et uchar 16
+global Eclk uchar 8
+global Erx uchar 1608
+global Etx uchar 2048
+note BGRA staging for GOP Blt bands (16 MiB, the compiler's per-array limit).
+global Escr uchar 16777216
+note Es: width,height,scale,left,top,MAC ready,network ready,dirty,epoch base,ms base,
+note pointer drag rows,status flags,last error.
+global Es ulong 16
+fn efok st ulong to bool
+ret eq st 0
+end
+fn efms to ulong
+st = efi 10 0 Eclk 0 8
+if not efok st
+put Es 12 10
+ret 18446744073709551615
+end
+v = ulong 0
+for i ulong 8
+v = or v shl ulong get Eclk i mul i 8
+end
+ret v
+end
+fn efdays y ulong m ulong d ulong to ulong
+note Days since 1970-01-01, proleptic Gregorian (civil_from_days inverse).
+yy = y
+if le m 2
+yy = sub yy 1
+end
+era = div yy 400
+yoe = sub yy mul era 400
+mp = add m 9
+if gt m 2
+mp = sub m 3
+end
+doy = mul 153 mp
+doy = div add doy 2 5
+doy = add doy sub d 1
+doe = mul yoe 365
+doe = add doe div yoe 4
+doe = sub doe div yoe 100
+doe = add doe doy
+days = mul era 146097
+days = add days doe
+ret sub days 719468
+end
+fn efepoch to ulong
+st = efi 4 0 Et 0 16
+if not efok st
+ret 0
+end
+y = or ulong get Et 0 shl ulong get Et 1 8
+mo = ulong get Et 2
+d = ulong get Et 3
+h = ulong get Et 4
+mi = ulong get Et 5
+s = ulong get Et 6
+if or or lt y 2024 gt y 2099 or lt mo 1 gt mo 12
+ret 0
+end
+if or or lt d 1 gt d 31 or gt h 23 gt mi 59
+ret 0
+end
+if gt s 59
+ret 0
+end
+v = mul efdays y mo d 86400
+v = add v add mul h 3600 add mul mi 60 s
+tz = or ulong get Et 12 shl ulong get Et 13 8
+if ne tz 2047
+note UEFI 2.10 8.3: Localtime = UTC - TimeZone (signed 16-bit minutes), so UTC = local + TimeZone.
+note EFI_UNSPECIFIED_TIMEZONE (2047): firmware time is taken as UTC; shown on screen for the operator.
+if ge tz 32768
+v = sub v mul sub 65536 tz 60
+else
+v = add v mul tz 60
+end
+end
+ret v
+end
+fn efentropy to bool
+st = efi 5 0 Gsrand 0 96
+if not efok st
+put Es 12 5
+ret false
+end
+put Gsrandn 0 96
+ret true
+end
+fn efzero at ulong count ulong to void
+for i ulong count
+put Escr add at i 0
+end
+end
+fn efcell src ulong dst ulong s ulong to void
+b = get Canvas add src 2
+g = get Canvas add src 1
+r = get Canvas src
+for k ulong s
+at = add dst mul k 4
+put Escr at b
+put Escr add at 1 g
+put Escr add at 2 r
+put Escr add at 3 0
+end
+end
+fn efpixel cy ulong row ulong to void
+w = get Es 0
+s = get Es 2
+left = get Es 3
+base = mul mul row w 4
+efzero base mul left 4
+srow = mul mul cy 768 3
+for cx ulong 768
+dst = mul add left mul cx s 4
+efcell add srow mul cx 3 add base dst s
+end
+used = add left mul 768 s
+efzero add base mul used 4 mul sub w used 4
+end
+fn efblit rows ulong dest ulong to bool
+w = get Es 0
+arg = or or w shl rows 32 shl dest 48
+st = efi 3 arg Escr 0 mul mul w rows 4
+ret efok st
+end
+fn efblank y0 ulong rows ulong to bool
+w = get Es 0
+note Computed-count loops trap past 1,000,000 passes: clear row by row.
+for r ulong rows
+efzero mul mul r w 4 mul w 4
+end
+ret efblit rows y0
+end
+fn efpresent to bool
+w = get Es 0
+s = get Es 2
+band = div len Escr mul mul w 4 s
+if gt band 384
+band = 384
+end
+cy = ulong 0
+while lt cy 384
+n = band
+if gt add cy n 384
+n = sub 384 cy
+end
+for j ulong n
+for k ulong s
+efpixel add cy j add mul j s k
+end
+end
+if not efblit mul n s add get Es 4 mul cy s
+ret false
+end
+cy = add cy n
+end
+ret true
+end
+fn efscreen to bool
+st = efi 0 0 Eb 0 64
+if not efok st
+ret false
+end
+w = or ulong get Eb 8 shl ulong get Eb 9 8
+w = or w shl ulong get Eb 10 16
+h = or ulong get Eb 12 shl ulong get Eb 13 8
+h = or h shl ulong get Eb 14 16
+if or or lt w 768 lt h 384 or gt w 8192 gt h 8192
+ret false
+end
+s = div w 768
+if lt div h 384 s
+s = div h 384
+end
+put Es 0 w
+put Es 1 h
+put Es 2 s
+put Es 3 div sub w mul 768 s 2
+put Es 4 div sub h mul 384 s 2
+band = div len Escr mul w 4
+y = ulong 0
+while lt y h
+n = band
+if gt add y n h
+n = sub h y
+end
+if not efblank y n
+ret false
+end
+y = add y n
+end
+ret cvinit 768 384
+end
+fn efnetup now ulong to void
+st = efi 8 0 Eb 0 0
+if not efok st
+put Es 12 8
+ret
+end
+st = efi 0 0 Eb 0 64
+if or not efok st eq and ulong get Eb 4 2 0
+put Es 12 9
+ret
+end
+for i ulong 6
+put Nmac i get Eb add 24 i
+end
+netinit now
+put Es 6 1
+end
+fn efpackets now ulong to void
+if eq get Es 6 0
+ret
+end
+for burst ulong 32
+st = efi 6 0 Erx 0 len Erx
+if not efok st
+ret
+end
+n = ulong 0
+for i ulong 8
+n = or n shl ulong get Erx i mul i 8
+end
+if and ge n 14 le n 1514
+for i ulong n
+put Nrx i get Erx add 8 i
+end
+netinput n now
+end
+end
+end
+fn eftransmit now ulong to void
+if or eq get Es 6 0 eq get Ntxlen 0 0
+ret
+end
+n = get Ntxlen 0
+for i ulong n
+put Etx i get Ntx i
+end
+st = efi 7 0 Etx 0 n
+note EFI_NOT_READY: the previous private copy is still owned by firmware; retry later.
+if eq st 9223372036854775814
+ret
+end
+netsent efok st now
+end
+fn efkeymap scan ulong ch ulong to ulong
+if ne ch 0
+ret ch
+end
+if eq scan 1
+ret 256
+end
+if eq scan 2
+ret 257
+end
+if eq scan 3
+ret 261
+end
+if eq scan 4
+ret 260
+end
+if eq scan 9
+ret 258
+end
+if eq scan 10
+ret 259
+end
+if eq scan 23
+ret 27
+end
+ret 0
+end
+fn efkeys to bool
+changed = false
+for burst ulong 16
+st = efi 1 0 Ek 0 4
+if not efok st
+ret changed
+end
+scan = or ulong get Ek 0 shl ulong get Ek 1 8
+ch = or ulong get Ek 2 shl ulong get Ek 3 8
+key = efkeymap scan ch
+if ne key 0
+ok = dmkey key
+changed = true
+end
+end
+ret changed
+end
+fn efpointer to bool
+st = efi 9 0 Ep 0 32
+if not efok st
+ret false
+end
+z = ulong 0
+y = ulong 0
+for i ulong 8
+z = or z shl ulong get Ep add 24 i mul i 8
+y = or y shl ulong get Ep add 16 i mul i 8
+end
+if ne get Dmo 0 1
+ret false
+end
+note Wheel/scroll: signed rows. Drag with button held: accumulate vertical swipe.
+if ne z 0
+if ge z 9223372036854775808
+ghscroll -3
+else
+ghscroll 3
+end
+ret true
+end
+if and ne and ulong get Ep 4 1 0 ne y 0
+if ge y 9223372036854775808
+ghswipe -1
+else
+ghswipe 1
+end
+ret true
+end
+ret false
+end
+fn efnet now ulong to void
+if eq get Es 6 0
+if ne get Ghreq 0 0
+ok = ghreply get Ghreq 0 0 0 get Ghreq 2
+end
+ret
+end
+if and eq get Gs 0 0 ne get Ghreq 0 0
+if not efentropy
+ok = ghreply get Ghreq 0 0 0 get Ghreq 2
+ret
+end
+epoch = efepoch
+if eq epoch 0
+put Es 12 4
+ok = ghreply get Ghreq 0 0 0 get Ghreq 2
+ret
+end
+gsnext now epoch
+ret
+end
+if ge get Gs 0 4
+put Gs 0 0
+ret
+end
+gspoll now
+end
+fn efsig to ulong
+v = get Gh 0
+v = add v shl get Gh 1 8
+v = add v shl get Gs 0 40
+v = add v shl get Ghreq 0 48
+v = add v shl get Dmo 0 56
+ret v
+end
+fn efstep to int
+now = efms
+if eq now 18446744073709551615
+ret 4
+end
+efpackets now
+changed = efkeys
+if efpointer
+changed = true
+end
+before = efsig
+efnet now
+eftransmit now
+if or changed ne before efsig
+put Es 7 1
+end
+if ne get Es 7 0
+if not dmrender
+ret 5
+end
+if not efpresent
+ret 6
+end
+put Es 7 0
+end
+st = efi 2 1000 Eb 0 0
+ret 0
+end
+fn efloop to int
+for outer ulong 1000
+for tick ulong 60000
+rc = efstep
+if ne rc 0
+ret rc
+end
+end
+end
+ret 0
+end
+fn efbpaint rh ulong gh ulong bh ulong w ulong n ulong to bool
+for r ulong n
+base = mul mul r w 4
+for x ulong w
+at = add base mul x 4
+put Escr at uchar bh
+put Escr add at 1 uchar gh
+put Escr add at 2 uchar rh
+put Escr add at 3 0
+end
+end
+ret efblit n 0
+end
+fn efbanner code ulong to int
+note Paint a distinct colour for a failing stage, then hold it so a photograph is possible.
+note No font or canvas dependency: this must work even when efscreen failed.
+w = ulong 640
+h = ulong 480
+st = efi 0 0 Eb 0 64
+if efok st
+tw = or ulong get Eb 8 shl ulong get Eb 9 8
+th = or ulong get Eb 12 shl ulong get Eb 13 8
+if and gt tw 0 le tw 1280
+w = tw
+end
+if and gt th 0 le th 800
+h = th
+end
+end
+note Colour encodes the failing stage: red/green/blue derived from code.
+rr = and mul code 37 255
+gg = and mul code 91 255
+bb = and mul code 149 255
+ok = efbpaint rr gg bb w h
+for k ulong 12
+st = efi 2 500000 Eb 0 0
+end
+ret int code
+end
+fn main to int
+constants
+if not efscreen
+ret efbanner 1
+end
+dminit
+put Es 7 1
+now = efms
+if eq now 18446744073709551615
+ret efbanner 2
+end
+efnetup now
+rc = efloop
+if ne rc 0
+bad = add ulong 10 ulong rc
+ret efbanner bad
+end
+ret 0
+end

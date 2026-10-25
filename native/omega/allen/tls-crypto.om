@@ -1,0 +1,628 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note Allen bounded TLS cryptography. Concatenate vendor/sha256-core.om before this unit.
+note SHA256 reuses the existing first-party core and its provenance/license unchanged.
+note X25519 follows RFC7748 sections 5/6 and native/net/x25519.c's Montgomery ladder.
+note Unsigned radix-65536 field representation follows the first-party omnet field bounds;
+note no verification-only branches, allocations, or point routines are reused.
+note ChaCha20/Poly1305 are implemented from RFC8439 sections 2.1/2.3/2.5/2.8 equations.
+note uint arithmetic wraps modulo 2^32 per OMEGESE 9.3; narrowing conversions are masked.
+note No secret-indexed accesses or secret-dependent loop counts. Compiler/machine timing is unaudited.
+note Single caller, nonreentrant; all input/output arrays are disjoint fixed globals, no caller aliases.
+note Caller owns key/nonce uniqueness and entropy. Public calls preserve key/private input until tcwipe.
+note tcsha/tchmac preserve Tcbuf; tcopen verifies the full tag BEFORE touching ciphertext.
+note All public bool functions reject invalid lengths. HMAC accepts keys of 0..32 bytes only.
+note HKDF-Extract/Expand RFC5869 is composed by tls.om using tchmac.
+note Scratch globals are wiped after calls. tcwipe also clears caller-visible secrets and plaintext.
+
+global Tcbuf uchar 65536
+global Tckey uchar 32
+global Tciv uchar 12
+global Tcaad uchar 32
+global Tctag uchar 16
+global Tcdigest uchar 32
+global Tcxpriv uchar 32
+global Tcxpub uchar 32
+global Tcxpeer uchar 32
+global Tcxshare uchar 32
+
+global Tchi uchar 32
+global Tcxf ulong 176
+global Tcxt ulong 32
+global Tcxsc uchar 32
+global Tcxres uchar 32
+global Tccs uint 16
+global Tccw uint 16
+global Tccblk uchar 64
+global Tcmkey uchar 32
+global Tcmblk uchar 16
+global Tcmtag uchar 16
+global Tcmr ulong 10
+global Tcmh ulong 10
+global Tcmt ulong 10
+global Tcmg ulong 10
+
+fn tcshwipe to void
+for i ulong 8
+put H i 0
+put Vv i 0
+end
+for i ulong 64
+put W i 0
+put Hb i 0
+end
+put Hs 0 0
+put Hs 1 0
+for i ulong 32
+put Hash i 0
+put Tchi i 0
+end
+end
+
+fn tcsha n ulong to bool
+for i ulong 32
+put Tcdigest i 0
+end
+tcshwipe
+if gt n 65536
+ret false
+end
+constants
+hinit
+for i ulong n
+hbyte get Tcbuf i
+end
+finish
+for i ulong 32
+put Tcdigest i get Hash i
+end
+tcshwipe
+ret true
+end
+
+fn tchmac keylen ulong n ulong to bool
+for i ulong 32
+put Tcdigest i 0
+end
+tcshwipe
+if or gt keylen 32 gt n 65536
+ret false
+end
+constants
+hinit
+for i ulong 64
+v = uchar 54
+if lt i keylen
+v = xor v get Tckey i
+end
+hbyte v
+end
+for i ulong n
+hbyte get Tcbuf i
+end
+finish
+for i ulong 32
+put Tchi i get Hash i
+end
+hinit
+for i ulong 64
+v = uchar 92
+if lt i keylen
+v = xor v get Tckey i
+end
+hbyte v
+end
+for i ulong 32
+hbyte get Tchi i
+end
+finish
+for i ulong 32
+put Tcdigest i get Hash i
+end
+tcshwipe
+ret true
+end
+
+note Field slots: x0,a16,b32,c48,d64,e80,f96,k112,inverse128,canonical144,subtract160.
+note A mul input limb is below 2^21; folded convolution below 2^52, so ulong never overflows.
+note Mul gives limbs <=65535 except limb0<=65573. Sub adds 8p, keeping intermediates positive.
+fn tcxwipe to void
+for i ulong 176
+put Tcxf i 0
+end
+for i ulong 32
+put Tcxt i 0
+put Tcxsc i 0
+put Tcxres i 0
+end
+end
+
+fn tcfcopy o ulong a ulong to void
+for i ulong 16
+put Tcxf add o i get Tcxf add a i
+end
+end
+
+fn tcfadd o ulong a ulong b ulong to void
+for i ulong 16
+v = add get Tcxf add a i get Tcxf add b i
+put Tcxf add o i v
+end
+end
+
+fn tcfprime i ulong to ulong
+if eq i 0
+ret 65517
+end
+if eq i 15
+ret 32767
+end
+ret 65535
+end
+
+fn tcfsub o ulong a ulong b ulong to void
+for i ulong 16
+v = add get Tcxf add a i mul tcfprime i 8
+put Tcxf add o i sub v get Tcxf add b i
+end
+end
+
+fn tcfcarry o ulong to void
+for i ulong 15
+p = add o i
+v = get Tcxf p
+put Tcxf add p 1 add get Tcxf add p 1 shr v 16
+put Tcxf p and v 65535
+end
+v = get Tcxf add o 15
+put Tcxf add o 15 and v 65535
+put Tcxf o add get Tcxf o mul shr v 16 38
+end
+
+fn tcfmul o ulong a ulong b ulong to void
+for i ulong 32
+put Tcxt i 0
+end
+for i ulong 16
+x = get Tcxf add a i
+for j ulong 16
+p = add i j
+v = mul x get Tcxf add b j
+put Tcxt p add get Tcxt p v
+end
+end
+for i ulong 15
+v = add get Tcxt i mul 38 get Tcxt add i 16
+put Tcxf add o i v
+end
+put Tcxf add o 15 get Tcxt 15
+tcfcarry o
+tcfcarry o
+end
+
+fn tcfswap a ulong b ulong bit ulong to void
+mask = sub ulong 0 bit
+for i ulong 16
+x = get Tcxf add a i
+y = get Tcxf add b i
+v = and mask xor x y
+put Tcxf add a i xor x v
+put Tcxf add b i xor y v
+end
+end
+
+fn tcflad bit ulong to void
+tcfswap 16 32 bit
+tcfswap 48 64 bit
+tcfadd 80 16 48
+tcfsub 16 16 48
+tcfadd 48 32 64
+tcfsub 32 32 64
+tcfmul 64 80 80
+tcfmul 96 16 16
+tcfmul 16 48 16
+tcfmul 48 32 80
+tcfadd 80 16 48
+tcfsub 16 16 48
+tcfmul 32 16 16
+tcfsub 48 64 96
+tcfmul 16 48 112
+tcfadd 16 16 64
+tcfmul 48 48 16
+tcfmul 16 64 96
+tcfmul 64 32 0
+tcfmul 32 80 80
+tcfswap 16 32 bit
+tcfswap 48 64 bit
+end
+
+fn tcfinv to void
+tcfcopy 128 48
+for i ulong 254
+j = sub 253 i
+tcfmul 128 128 128
+note Branch uses fixed public exponent p-2, not any secret bit.
+if and ne j 2 ne j 4
+tcfmul 128 128 48
+end
+end
+tcfmul 16 16 128
+end
+
+fn tcfpack to void
+tcfcopy 144 16
+tcfcarry 144
+tcfcarry 144
+tcfcarry 144
+for j ulong 2
+borrow = ulong 0
+for i ulong 16
+v = add get Tcxf add 144 i 65536
+v = sub sub v tcfprime i borrow
+put Tcxf add 160 i and v 65535
+borrow = sub 1 shr v 16
+end
+tcfswap 144 160 sub 1 borrow
+end
+for i ulong 16
+v = get Tcxf add 144 i
+put Tcxres mul i 2 uchar and v 255
+put Tcxres add mul i 2 1 uchar and shr v 8 255
+end
+end
+
+fn tcxrun base bool to bool
+tcxwipe
+for i ulong 32
+put Tcxsc i get Tcxpriv i
+end
+put Tcxsc 0 and get Tcxsc 0 248
+put Tcxsc 31 or and get Tcxsc 31 127 64
+if base
+put Tcxf 0 9
+else
+for i ulong 16
+v = ulong get Tcxpeer mul i 2
+v = or v shl ulong get Tcxpeer add mul i 2 1 8
+put Tcxf i v
+end
+put Tcxf 15 and get Tcxf 15 32767
+end
+tcfcopy 32 0
+put Tcxf 16 1
+put Tcxf 64 1
+put Tcxf 112 56129
+put Tcxf 113 1
+for i ulong 255
+j = sub 254 i
+v = ulong get Tcxsc div j 8
+tcflad and shr v rem j 8 1
+end
+tcfinv
+tcfpack
+acc = uchar 0
+for i ulong 32
+acc = or acc get Tcxres i
+end
+ret ne acc 0
+end
+
+fn tcx25519 to bool
+ok = tcxrun false
+for i ulong 32
+put Tcxshare i get Tcxres i
+end
+tcxwipe
+ret ok
+end
+
+fn tcxpublic to bool
+ok = tcxrun true
+for i ulong 32
+put Tcxpub i get Tcxres i
+end
+tcxwipe
+ret ok
+end
+
+fn tccwipe to void
+for i ulong 16
+put Tccs i 0
+put Tccw i 0
+put Tcmblk i 0
+put Tcmtag i 0
+end
+for i ulong 64
+put Tccblk i 0
+end
+for i ulong 32
+put Tcmkey i 0
+end
+for i ulong 10
+put Tcmr i 0
+put Tcmh i 0
+put Tcmt i 0
+put Tcmg i 0
+end
+end
+
+fn tclrot x uint n uint to uint
+ret or shl x n shr x sub 32 n
+end
+
+fn tccqr a ulong b ulong c ulong d ulong to void
+put Tccw a add get Tccw a get Tccw b
+put Tccw d tclrot xor get Tccw d get Tccw a 16
+put Tccw c add get Tccw c get Tccw d
+put Tccw b tclrot xor get Tccw b get Tccw c 12
+put Tccw a add get Tccw a get Tccw b
+put Tccw d tclrot xor get Tccw d get Tccw a 8
+put Tccw c add get Tccw c get Tccw d
+put Tccw b tclrot xor get Tccw b get Tccw c 7
+end
+
+fn tccinit to void
+put Tccs 0 1634760805
+put Tccs 1 857760878
+put Tccs 2 2036477234
+put Tccs 3 1797285236
+for i ulong 8
+v = uint 0
+for j ulong 4
+b = uint get Tckey add mul i 4 j
+v = or v shl b mul j 8
+end
+put Tccs add i 4 v
+end
+for i ulong 3
+v = uint 0
+for j ulong 4
+b = uint get Tciv add mul i 4 j
+v = or v shl b mul j 8
+end
+put Tccs add i 13 v
+end
+end
+
+fn tccgen ctr uint to void
+put Tccs 12 ctr
+for i ulong 16
+put Tccw i get Tccs i
+end
+for i ulong 10
+tccqr 0 4 8 12
+tccqr 1 5 9 13
+tccqr 2 6 10 14
+tccqr 3 7 11 15
+tccqr 0 5 10 15
+tccqr 1 6 11 12
+tccqr 2 7 8 13
+tccqr 3 4 9 14
+end
+for i ulong 16
+v = add get Tccw i get Tccs i
+for j ulong 4
+put Tccblk add mul i 4 j uchar and shr v mul j 8 255
+end
+end
+end
+
+note Standalone block entry for primitive qualification; AEAD initializes the key only once.
+fn tccblock ctr uint to void
+tccinit
+tccgen ctr
+end
+
+note At most 1024 payload blocks: counters 1..1024, never 0 or a wrapped uint.
+fn tccxor n ulong to void
+p = ulong 0
+ctr = uint 1
+while lt p n bound 1024
+tccgen ctr
+m = sub n p
+if gt m 64
+m = 64
+end
+for i ulong m
+v = xor get Tcbuf add p i get Tccblk i
+put Tcbuf add p i v
+end
+p = add p m
+ctr = add ctr 1
+end
+end
+
+note Poly1305 radix 2^13: 10 limbs, B^10 = 5 mod p. Folded products <2^40.
+note Tcmkey is the one-time key, Tcmblk a block, Tcmh the accumulator. No secret tables.
+fn tcminit to void
+for i ulong 10
+put Tcmr i 0
+put Tcmh i 0
+end
+for i ulong 16
+v = ulong get Tcmkey i
+if eq rem i 4 3
+v = and v 15
+end
+if and ne i 0 eq rem i 4 0
+v = and v 252
+end
+j = div mul i 8 13
+v = shl v rem mul i 8 13
+put Tcmr j or get Tcmr j and v 8191
+if lt j 9
+put Tcmr add j 1 or get Tcmr add j 1 shr v 13
+end
+end
+end
+
+fn tcmcarry to void
+for i ulong 9
+v = get Tcmh i
+put Tcmh i and v 8191
+put Tcmh add i 1 add get Tcmh add i 1 shr v 13
+end
+v = get Tcmh 9
+put Tcmh 9 and v 8191
+put Tcmh 0 add get Tcmh 0 mul shr v 13 5
+end
+
+fn tcmblock n ulong to void
+for i ulong n
+j = div mul i 8 13
+v = shl ulong get Tcmblk i rem mul i 8 13
+put Tcmh j add get Tcmh j and v 8191
+if lt j 9
+put Tcmh add j 1 add get Tcmh add j 1 shr v 13
+end
+end
+top = div mul n 8 13
+v = shl ulong 1 rem mul n 8 13
+put Tcmh top add get Tcmh top v
+for i ulong 10
+put Tcmt i 0
+end
+for i ulong 10
+for j ulong 10
+p = add i j
+v = mul get Tcmh i get Tcmr j
+if ge p 10
+p = sub p 10
+v = mul v 5
+end
+put Tcmt p add get Tcmt p v
+end
+end
+for i ulong 10
+put Tcmh i get Tcmt i
+end
+tcmcarry
+tcmcarry
+tcmcarry
+end
+
+fn tcmfinish to void
+note h is normalized below B^10; h+5 overflows exactly when h >= p.
+v = ulong 5
+for i ulong 10
+v = add v get Tcmh i
+put Tcmg i and v 8191
+v = shr v 13
+end
+mask = sub ulong 0 v
+for i ulong 10
+v = xor get Tcmg i get Tcmh i
+put Tcmh i xor get Tcmh i and mask v
+end
+carry = ulong 0
+for i ulong 16
+j = div mul i 8 13
+s = rem mul i 8 13
+v = shr get Tcmh j s
+if lt j 9
+v = or v shl get Tcmh add j 1 sub 13 s
+end
+v = add and v 255 carry
+v = add v ulong get Tcmkey add i 16
+put Tcmtag i uchar and v 255
+carry = shr v 8
+end
+end
+
+fn tcmauth n ulong aadlen ulong to void
+tccgen 0
+for i ulong 32
+put Tcmkey i get Tccblk i
+end
+tcminit
+p = ulong 0
+while lt p aadlen bound 2
+for i ulong 16
+put Tcmblk i 0
+if lt add p i aadlen
+put Tcmblk i get Tcaad add p i
+end
+end
+tcmblock 16
+p = add p 16
+end
+p = 0
+while lt p n bound 4096
+for i ulong 16
+put Tcmblk i 0
+if lt add p i n
+put Tcmblk i get Tcbuf add p i
+end
+end
+tcmblock 16
+p = add p 16
+end
+for i ulong 8
+put Tcmblk i uchar and shr aadlen mul i 8 255
+put Tcmblk add i 8 uchar and shr n mul i 8 255
+end
+tcmblock 16
+tcmfinish
+end
+
+fn tcseal n ulong aadlen ulong to bool
+tccwipe
+for i ulong 16
+put Tctag i 0
+end
+if or gt n 65536 gt aadlen 32
+ret false
+end
+tccinit
+tccxor n
+tcmauth n aadlen
+for i ulong 16
+put Tctag i get Tcmtag i
+end
+tccwipe
+ret true
+end
+
+fn tcopen n ulong aadlen ulong to bool
+tccwipe
+if or gt n 65536 gt aadlen 32
+ret false
+end
+tccinit
+tcmauth n aadlen
+v = uchar 0
+for i ulong 16
+v = or v xor get Tctag i get Tcmtag i
+end
+note Only the final accumulated authentication result branches; no partial tag comparison.
+if ne v 0
+tccwipe
+ret false
+end
+tccxor n
+tccwipe
+ret true
+end
+
+fn tcwipe to void
+tcshwipe
+tcxwipe
+tccwipe
+for i ulong 65536
+put Tcbuf i 0
+end
+for i ulong 32
+put Tckey i 0
+put Tcaad i 0
+put Tcdigest i 0
+put Tcxpriv i 0
+put Tcxpub i 0
+put Tcxpeer i 0
+put Tcxshare i 0
+end
+for i ulong 12
+put Tciv i 0
+end
+for i ulong 16
+put Tctag i 0
+end
+end

@@ -1,0 +1,1253 @@
+note SPDX-License-Identifier: AGPL-3.0-only
+note Strict JSON copied unchanged from omega-mv native/hermes/src/json.om.
+note Source revision b8e57bc6be5e40efc1d0d1ce01afdc58e814b449; single pinned parser.
+note SPDX-License-Identifier: AGPL-3.0-only
+note Bounded strict JSON. Tokens are valid only when jparse returns zero.
+note Types object1 array2 string3 number4 true5 false6 null7.
+note Raw token spans include string quotes; parent4096 denotes root.
+global jin uchar 65536
+global jerr ulong 1
+global jcnt ulong 1
+global jbeg ulong 4096
+global jend ulong 4096
+global jtyp ulong 4096
+global jpar ulong 4096
+global jpos ulong 1
+global jlen ulong 1
+fn jfail to void
+put jerr 0 1
+end
+fn jpeek to ulong
+p = get jpos 0
+if ge p get jlen 0
+ret 256
+end
+ret ulong get jin p
+end
+fn jtake to ulong
+c = jpeek
+if eq c 256
+jfail
+else
+put jpos 0 add get jpos 0 1
+end
+ret c
+end
+fn jspace to void
+c = jpeek
+while or or eq c 32 eq c 9 or eq c 10 eq c 13
+c = jtake
+c = jpeek
+end
+end
+fn jexpect want ulong to void
+if ne jtake want
+jfail
+end
+end
+fn jhex to ulong
+v = ulong 0
+for i ulong 4
+c = jtake
+d = ulong 16
+if and ge c 48 le c 57
+d = sub c 48
+end
+if and ge c 65 le c 70
+d = sub c 55
+end
+if and ge c 97 le c 102
+d = sub c 87
+end
+if eq d 16
+jfail
+ret 0
+end
+v = add mul v 16 d
+end
+ret v
+end
+fn jutf c ulong to void
+n = ulong 0
+lo = ulong 128
+hi = ulong 191
+if and ge c 194 le c 223
+n = 1
+end
+if and ge c 224 le c 239
+n = 2
+if eq c 224
+lo = 160
+end
+if eq c 237
+hi = 159
+end
+end
+if and ge c 240 le c 244
+n = 3
+if eq c 240
+lo = 144
+end
+if eq c 244
+hi = 143
+end
+end
+if eq n 0
+jfail
+ret
+end
+for i ulong n
+d = jtake
+if or lt d lo gt d hi
+jfail
+ret
+end
+lo = 128
+hi = 191
+end
+end
+fn jstring to void
+jexpect 34
+while eq get jerr 0 0
+c = jtake
+if eq c 34
+ret
+end
+if or lt c 32 eq c 256
+jfail
+ret
+end
+if eq c 92
+c = jtake
+if eq c 117
+u = jhex
+if and ge u 55296 le u 56319
+jexpect 92
+jexpect 117
+v = jhex
+if or lt v 56320 gt v 57343
+jfail
+end
+else
+if and ge u 56320 le u 57343
+jfail
+end
+end
+else
+ok = or or eq c 34 eq c 92 eq c 47
+ok = or ok or eq c 98 eq c 102
+ok = or ok or eq c 110 eq c 114
+ok = or ok eq c 116
+if not ok
+jfail
+end
+end
+else
+if ge c 128
+jutf c
+end
+end
+end
+end
+fn jdigit c ulong to bool
+ret and ge c 48 le c 57
+end
+fn jdigits to void
+if not jdigit jpeek
+jfail
+ret
+end
+while jdigit jpeek
+c = jtake
+end
+end
+fn jnumber to void
+if eq jpeek 45
+c = jtake
+end
+if eq jpeek 48
+c = jtake
+else
+jdigits
+end
+if eq jpeek 46
+c = jtake
+jdigits
+end
+if or eq jpeek 101 eq jpeek 69
+c = jtake
+if or eq jpeek 43 eq jpeek 45
+c = jtake
+end
+jdigits
+end
+end
+fn jtoken typ ulong par ulong to ulong
+n = get jcnt 0
+if ge n 4096
+jfail
+ret 4096
+end
+put jcnt 0 add n 1
+put jbeg n get jpos 0
+put jtyp n typ
+put jpar n par
+ret n
+end
+fn jvalue par ulong depth ulong to void
+jspace
+c = jpeek
+t = ulong 0
+if eq c 123
+t = 1
+end
+if eq c 91
+t = 2
+end
+if eq c 34
+t = 3
+end
+if or eq c 45 jdigit c
+t = 4
+end
+if eq c 116
+t = 5
+end
+if eq c 102
+t = 6
+end
+if eq c 110
+t = 7
+end
+if eq t 0
+jfail
+ret
+end
+id = jtoken t par
+if ne get jerr 0 0
+ret
+end
+if le t 2
+if ge depth 32
+jfail
+ret
+end
+c = jtake
+closing = ulong 93
+if eq t 1
+closing = 125
+end
+jspace
+if ne jpeek closing
+more = true
+while and more eq get jerr 0 0
+if eq t 1
+if ne jpeek 34
+jfail
+ret
+end
+key = jtoken 3 id
+if ne get jerr 0 0
+ret
+end
+jstring
+put jend key get jpos 0
+jspace
+jexpect 58
+end
+if eq get jerr 0 0
+jvalue id add depth 1
+end
+jspace
+if eq jpeek 44
+c = jtake
+jspace
+else
+more = false
+end
+end
+end
+jexpect closing
+else
+if eq t 3
+jstring
+end
+if eq t 4
+jnumber
+end
+if eq t 5
+jexpect 116
+jexpect 114
+jexpect 117
+jexpect 101
+end
+if eq t 6
+jexpect 102
+jexpect 97
+jexpect 108
+jexpect 115
+jexpect 101
+end
+if eq t 7
+jexpect 110
+jexpect 117
+jexpect 108
+jexpect 108
+end
+end
+put jend id get jpos 0
+end
+fn jparse n ulong to ulong
+put jerr 0 0
+put jcnt 0 0
+put jpos 0 0
+put jlen 0 n
+if or eq n 0 gt n len jin
+jfail
+ret 1
+end
+jvalue 4096 0
+jspace
+if ne get jpos 0 n
+jfail
+end
+if ne get jerr 0 0
+put jcnt 0 0
+end
+ret get jerr 0
+end
+
+note Network provider owns transport and writes only complete authenticated HTTPS bodies.
+note Host api.github.com; no redirects or credentials. Ghreq path is not a URL.
+note Ghreq kind,pathlen,unique generation,accept raw1/json0,maxbody,reserved3.
+note ghreply must echo kind AND generation. Timeout/network failure uses status0.
+global Ghbody uchar 262144
+global Ghpath uchar 1024
+global Ghreq ulong 8
+note Gh state0 idle1 loading2 ready3 error4 unsupported; generation; error; HTTP;
+note view0 README1 files2 details; scroll; selected; read bytes; file count;
+note pool bytes; directory bytes; clock; last accepted generation; readme absent.
+global Gh ulong 16
+global Ghat ulong 4
+global Ghmeta uchar 1024
+note Metadata offsets name0/64, branch64/256, description320/512, sha832/64,date896/64.
+global Ghlen ulong 8
+global Ghread uchar 262144
+global Ghdir uchar 512
+global Ghpool uchar 65536
+note Five words per directory entry: path offset,length,type(file1 dir2 other3),bytes,sha offset.
+global Ghfiles ulong 1280
+global Ghdec uchar 4096
+global Ghdn ulong 1
+global Ghbad ulong 1
+global Ghword uchar 160
+note Repository identity is DISCOVERED from a live listing and validated, never fixed.
+note Ghmeta 720/64 holds the selected full_name; 784/48 holds its created_at.
+global Ghbase uchar 128
+global Ghslen ulong 1
+text Ghext "/repos/"
+text Ghghu "https://github.com/"
+text Ghown "aien-dev/"
+text Ghlst "/orgs/aien-dev/repos?sort=created&direction=desc&per_page=10"
+text Ghkeys "full_name\ndefault_branch\ndescription\nprivate\nhtml_url\nsha\ncommit\ncommitter\ndate\npath\ntype\nsize\n"
+text Ghsuf "/commits//readme?ref=/contents"
+text Ghhex "0123456789ABCDEF"
+text Ghvoc "repo\nrepository\nrepositories\ngit\ngithub\nfind\nshow\nopen\nbrowse\nwhere\nwhat\ncurrent\nyour\nallen\nsource\ncode\ncreate\ndelete\npush\nother\n"
+note Select the first repository in the live listing, then prove its identity before use.
+note Ordering is the server's (sort=created, direction=desc); we do not re-sort, we verify.
+fn ghdiscover to bool
+if not ghdecode ghfield 0 9
+ret false
+end
+id = ghfield 0 9
+if eq id 4096
+ret false
+end
+if ne get jtyp id 2
+ret false
+end
+if eq ghnext id get jcnt 0
+put Gh 2 0
+ret false
+end
+entry = add id 1
+if ne get jtyp entry 1
+ret false
+end
+if not ghcopy ghfield entry 1 32 64 5
+ret false
+end
+n = get Ghlen 5
+if or lt n 13 gt n 64
+ret false
+end
+for i ulong len Ghown
+if ne get Ghmeta add 64 i get Ghown i
+ret false
+end
+end
+name = sub n len Ghown
+for i ulong name
+put Ghmeta add 720 i get Ghmeta add 64 add i len Ghown
+end
+put Ghlen 5 name
+if or eq get Ghmeta 720 46 eq get Ghmeta 720 45
+ret false
+end
+if or eq get Ghmeta add 719 name 46 eq get Ghmeta add 719 name 45
+ret false
+end
+for i ulong name
+c = get Ghmeta add 720 i
+ok = and ge c 48 le c 57
+ok = or ok and ge c 65 le c 90
+ok = or ok and ge c 97 le c 122
+ok = or ok or eq c 46 eq c 95
+ok = or ok eq c 45
+if not ok
+ret false
+end
+end
+if not ghcopy ghfield entry 2 48 784 6
+ret false
+end
+if ne get Ghlen 6 20
+ret false
+end
+for i ulong 20
+c = get Ghmeta add 784 i
+want = uchar 0
+if or eq i 4 eq i 7
+want = 45
+end
+if eq i 10
+want = 84
+end
+if or eq i 13 eq i 16
+want = 58
+end
+if eq i 19
+want = 90
+end
+if ne want 0
+if ne c want
+ret false
+end
+else
+if or lt c 48 gt c 57
+ret false
+end
+end
+end
+put Gh 2 1
+ret eq get Ghbad 0 0
+end
+fn gherror code ulong to void
+put Gh 0 3
+put Gh 2 code
+put Ghreq 0 0
+note Existing bytes are never drawn as current after an error.
+end
+fn ghtime epoch ulong to void
+put Gh 11 epoch
+end
+fn ghinit to void
+for i ulong 16
+put Gh i 0
+end
+for i ulong 8
+put Ghreq i 0
+put Ghlen i 0
+end
+for i ulong 4
+put Ghat i 0
+end
+end
+fn ghreset to void
+for i ulong 8
+put Ghlen i 0
+end
+for i ulong 4
+put Ghat i 0
+end
+put Gh 2 0
+put Gh 3 0
+put Gh 4 0
+put Gh 5 0
+put Gh 6 0
+put Gh 7 0
+put Gh 8 0
+put Gh 9 0
+put Gh 10 0
+put Gh 12 0
+put Gh 13 0
+end
+fn ghbyte c uchar to void
+n = get Ghreq 1
+if ge n len Ghpath
+put Ghbad 0 1
+ret
+end
+put Ghpath n c
+put Ghreq 1 add n 1
+end
+fn ghenc c uchar to void
+ok = or and ge c 65 le c 90 and ge c 97 le c 122
+ok = or ok and ge c 48 le c 57
+ok = or ok or eq c 45 eq c 95
+ok = or ok or eq c 46 eq c 126
+if ok
+ghbyte c
+else
+ghbyte 37
+ghbyte get Ghhex div ulong c 16
+ghbyte get Ghhex rem ulong c 16
+end
+end
+fn ghbasebuf to bool
+note Ghbase = "/repos/" + the validated full_name held at Ghmeta 720.
+n = get Ghlen 5
+if or eq n 0 gt n 64
+ret false
+end
+put Ghslen 0 0
+for i ulong len Ghext
+put Ghbase i get Ghext i
+put Ghslen 0 add i 1
+end
+for i ulong n
+put Ghbase add len Ghext i get Ghmeta add 720 i
+end
+put Ghslen 0 add len Ghext n
+ret true
+end
+fn ghissue kind ulong to void
+if eq get Gh 1 18446744073709551615
+gherror 8
+ret
+end
+put Gh 1 add get Gh 1 1
+put Ghreq 0 kind
+put Ghreq 1 0
+put Ghreq 2 get Gh 1
+put Ghreq 3 0
+put Ghreq 4 65536
+put Ghbad 0 0
+note Clock is per response, never inherited as a fresh retrieval timestamp.
+put Gh 11 0
+if eq kind 5
+for i ulong len Ghlst
+ghbyte get Ghlst i
+end
+else
+if not ghbasebuf
+gherror 3
+ret
+end
+for i ulong get Ghslen 0
+ghbyte get Ghbase i
+end
+end
+if eq kind 2
+for i ulong 9
+ghbyte get Ghsuf i
+end
+for i ulong get Ghlen 1
+ghenc get Ghmeta add 64 i
+end
+end
+if eq kind 3
+put Ghreq 3 1
+put Ghreq 4 len Ghbody
+for i ulong 12
+ghbyte get Ghsuf add 9 i
+end
+end
+if eq kind 4
+for i ulong 9
+ghbyte get Ghsuf add 21 i
+end
+if gt get Gh 10 0
+ghbyte 47
+for i ulong get Gh 10
+c = get Ghdir i
+if eq c 47
+ghbyte c
+else
+ghenc c
+end
+end
+end
+ghbyte 63
+ghbyte 114
+ghbyte 101
+ghbyte 102
+ghbyte 61
+end
+if or eq kind 3 eq kind 4
+for i ulong get Ghlen 3
+ghbyte get Ghmeta add 832 i
+end
+end
+if ne get Ghbad 0 0
+gherror 8
+ret
+end
+put Gh 0 1
+end
+fn ghrefresh to void
+ghreset
+ghissue 5
+end
+note Intent is bounded word classification, not a canned prompt equality.
+fn ghvocab n ulong to ulong
+word = ulong 1
+at = ulong 0
+same = true
+for i ulong len Ghvoc
+c = get Ghvoc i
+if eq c 10
+if and same eq at n
+ret word
+end
+word = add word 1
+at = 0
+same = true
+else
+if ge at n
+same = false
+else
+if ne c get Ghword at
+same = false
+end
+end
+at = add at 1
+end
+end
+ret 0
+end
+fn ghask to bool
+ghreset
+put Ghreq 0 0
+put Gh 0 4
+n = get Inlen 0
+if or eq n 0 gt n 159
+ret false
+end
+bits = ulong 0
+at = ulong 0
+for i ulong add n 1
+c = uchar 32
+if lt i n
+c = get In i
+end
+if and ge c 65 le c 90
+c = add sub c 65 97
+end
+if and ge c 97 le c 122
+put Ghword at c
+at = add at 1
+else
+if or eq c 47 eq c 58
+ret false
+end
+if gt at 0
+w = ghvocab at
+if and ge w 1 le w 5
+bits = or bits 1
+end
+if and ge w 6 le w 16
+bits = or bits 2
+end
+if ge w 17
+ret false
+end
+at = 0
+end
+end
+end
+if ne bits 3
+ret false
+end
+ghissue 1
+ret true
+end
+note Decode only validated JSON strings, preserving UTF8. No renderer executes text.
+fn ghdbyte c ulong to void
+n = get Ghdn 0
+if ge n len Ghdec
+put Ghbad 0 1
+ret
+end
+put Ghdec n uchar c
+put Ghdn 0 add n 1
+end
+fn ghutf cp ulong to void
+if lt cp 128
+ghdbyte cp
+else
+if lt cp 2048
+ghdbyte add 192 shr cp 6
+ghdbyte add 128 and cp 63
+else
+if lt cp 65536
+ghdbyte add 224 shr cp 12
+ghdbyte add 128 and shr cp 6 63
+ghdbyte add 128 and cp 63
+else
+ghdbyte add 240 shr cp 18
+ghdbyte add 128 and shr cp 12 63
+ghdbyte add 128 and shr cp 6 63
+ghdbyte add 128 and cp 63
+end
+end
+end
+end
+fn ghdecode id ulong to bool
+put Ghdn 0 0
+if ge id get jcnt 0
+ret false
+end
+if ne get jtyp id 3
+ret false
+end
+put jpos 0 add get jbeg id 1
+stop = sub get jend id 1
+while lt get jpos 0 stop
+c = jtake
+if eq c 92
+c = jtake
+if eq c 117
+c = jhex
+if and ge c 55296 le c 56319
+put jpos 0 add get jpos 0 2
+v = jhex
+c = add 65536 add mul sub c 55296 1024 sub v 56320
+end
+ghutf c
+else
+if eq c 98
+c = 8
+end
+if eq c 102
+c = 12
+end
+if eq c 110
+c = 10
+end
+if eq c 114
+c = 13
+end
+if eq c 116
+c = 9
+end
+ghdbyte c
+end
+else
+ghdbyte c
+end
+if ne get Ghbad 0 0
+ret false
+end
+end
+ret true
+end
+fn ghwhich id ulong to ulong
+if not ghdecode id
+ret 0
+end
+word = ulong 1
+at = ulong 0
+same = true
+for i ulong len Ghkeys
+c = get Ghkeys i
+if eq c 10
+if and same eq at get Ghdn 0
+ret word
+end
+word = add word 1
+at = 0
+same = true
+else
+if ge at get Ghdn 0
+same = false
+else
+if ne c get Ghdec at
+same = false
+end
+end
+at = add at 1
+end
+end
+ret 0
+end
+fn ghnext id ulong to ulong
+stop = get jend id
+i = add id 1
+while lt i get jcnt 0
+if ge get jbeg i stop
+ret i
+end
+i = add i 1
+end
+ret i
+end
+note Lookup validates object and rejects duplicate decoded keys for each consumed field.
+fn ghfield obj ulong key ulong to ulong
+if ge obj get jcnt 0
+put Ghbad 0 1
+ret 4096
+end
+if ne get jtyp obj 1
+put Ghbad 0 1
+ret 4096
+end
+found = ulong 4096
+i = add obj 1
+while lt i get jcnt 0
+if ge get jbeg i get jend obj
+ret found
+end
+if eq ghwhich i key
+if ne found 4096
+put Ghbad 0 1
+end
+found = add i 1
+end
+i = ghnext add i 1
+end
+ret found
+end
+fn ghcopy id ulong off ulong cap ulong slot ulong to bool
+if not ghdecode id
+ret false
+end
+n = get Ghdn 0
+if gt n cap
+ret false
+end
+for i ulong n
+c = get Ghdec i
+if lt c 32
+ret false
+end
+put Ghmeta add off i c
+end
+put Ghlen slot n
+ret true
+end
+fn ghbranch to bool
+n = get Ghlen 1
+if eq n 0
+ret false
+end
+for i ulong n
+c = get Ghmeta add 64 i
+if or lt c 33 eq c 127
+ret false
+end
+end
+ret true
+end
+fn ghmetadata to bool
+if not ghcopy ghfield 0 1 0 64 0
+ret false
+end
+if eq get Ghlen 5 0
+ret false
+end
+if ne get Ghlen 0 get Ghlen 5
+ret false
+end
+for i ulong get Ghlen 5
+if ne get Ghmeta i get Ghmeta add 720 i
+ret false
+end
+end
+id = ghfield 0 4
+if eq id 4096
+ret false
+end
+if ne get jtyp id 6
+ret false
+end
+if not ghdecode ghfield 0 5
+ret false
+end
+if ne get Ghdn 0 add len Ghghu get Ghlen 5
+ret false
+end
+for i ulong len Ghghu
+if ne get Ghdec i get Ghghu i
+ret false
+end
+end
+for i ulong get Ghlen 5
+if ne get Ghdec add len Ghghu i get Ghmeta add 720 i
+ret false
+end
+end
+if not ghcopy ghfield 0 2 64 256 1
+ret false
+end
+if not ghbranch
+ret false
+end
+id = ghfield 0 3
+if eq id 4096
+ret false
+end
+if ne get jtyp id 7
+if not ghcopy id 320 512 2
+ret false
+end
+end
+ret eq get Ghbad 0 0
+end
+fn ghsha to bool
+if ne get Ghdn 0 40
+ret false
+end
+for i ulong 40
+c = get Ghdec i
+ok = or and ge c 48 le c 57 and ge c 97 le c 102
+if not ok
+ret false
+end
+end
+ret true
+end
+fn ghcommit to bool
+if not ghdecode ghfield 0 6
+ret false
+end
+if not ghsha
+ret false
+end
+for i ulong 40
+put Ghmeta add 832 i get Ghdec i
+end
+put Ghlen 3 40
+id = ghfield 0 7
+id = ghfield id 8
+id = ghfield id 9
+if not ghcopy id 896 64 4
+ret false
+end
+if ne get Ghlen 4 20
+ret false
+end
+for i ulong 20
+c = get Ghmeta add 896 i
+want = uchar 0
+if or eq i 4 eq i 7
+want = 45
+end
+if eq i 10
+want = 84
+end
+if or eq i 13 eq i 16
+want = 58
+end
+if eq i 19
+want = 90
+end
+if ne want 0
+if ne c want
+ret false
+end
+else
+if or lt c 48 gt c 57
+ret false
+end
+end
+end
+ret eq get Ghbad 0 0
+end
+note Paths must be relative immediate children of the requested directory.
+note No dot components, controls, backslash, URL metacharacters or percent escapes.
+fn ghpathok to bool
+n = get Ghdn 0
+base = get Gh 10
+if or eq n 0 gt n 511
+ret false
+end
+at = ulong 0
+if gt base 0
+if le n add base 1
+ret false
+end
+for i ulong base
+if ne get Ghdec i get Ghdir i
+ret false
+end
+end
+if ne get Ghdec base 47
+ret false
+end
+at = add base 1
+end
+size = sub n at
+if eq get Ghdec at 46
+if eq size 1
+ret false
+end
+if eq size 2
+if eq get Ghdec add at 1 46
+ret false
+end
+end
+end
+while lt at n
+c = get Ghdec at
+if or lt c 32 eq c 127
+ret false
+end
+if or or eq c 47 eq c 92 or eq c 58 eq c 37
+ret false
+end
+if or eq c 63 eq c 35
+ret false
+end
+at = add at 1
+end
+ret true
+end
+fn ghuint id ulong to ulong
+if ge id get jcnt 0
+put Ghbad 0 1
+ret 0
+end
+if ne get jtyp id 4
+put Ghbad 0 1
+ret 0
+end
+v = ulong 0
+p = get jbeg id
+while lt p get jend id
+c = get jin p
+if or lt c 48 gt c 57
+put Ghbad 0 1
+ret 0
+end
+if gt v 1844674407370955161
+put Ghbad 0 1
+ret 0
+end
+if eq v 1844674407370955161
+if gt c 53
+put Ghbad 0 1
+ret 0
+end
+end
+v = add mul v 10 sub ulong c 48
+p = add p 1
+end
+ret v
+end
+fn ghentry obj ulong to bool
+if ge get Gh 8 256
+ret false
+end
+if not ghdecode ghfield obj 10
+ret false
+end
+if not ghpathok
+ret false
+end
+n = get Ghdn 0
+p = get Gh 9
+if gt add add p n 40 len Ghpool
+ret false
+end
+slot = mul get Gh 8 5
+put Ghfiles slot p
+put Ghfiles add slot 1 n
+for i ulong n
+put Ghpool add p i get Ghdec i
+end
+p = add p n
+put Ghfiles add slot 4 p
+if not ghdecode ghfield obj 6
+ret false
+end
+if not ghsha
+ret false
+end
+for i ulong 40
+put Ghpool add p i get Ghdec i
+end
+put Gh 9 add p 40
+put Ghfiles add slot 3 ghuint ghfield obj 12
+if not ghdecode ghfield obj 11
+ret false
+end
+typ = ulong 3
+if eq get Ghdn 0 4
+if and eq get Ghdec 0 102 eq get Ghdec 1 105
+if and eq get Ghdec 2 108 eq get Ghdec 3 101
+typ = 1
+end
+end
+end
+if eq get Ghdn 0 3
+if and eq get Ghdec 0 100 eq get Ghdec 1 105
+if eq get Ghdec 2 114
+typ = 2
+end
+end
+end
+put Ghfiles add slot 2 typ
+put Gh 8 add get Gh 8 1
+ret eq get Ghbad 0 0
+end
+fn ghlisting to bool
+if ne get jtyp 0 2
+ret false
+end
+put Gh 8 0
+put Gh 9 0
+i = ulong 1
+while lt i get jcnt 0
+if not ghentry i
+ret false
+end
+i = ghnext i
+end
+ret eq get Ghbad 0 0
+end
+fn ghrawutf p ulong n ulong to ulong
+c = ulong get Ghbody p
+p = add p 1
+if lt c 128
+if lt c 32
+if not or or eq c 9 eq c 10 eq c 13
+ret 262145
+end
+end
+if eq c 127
+ret 262145
+end
+ret p
+end
+k = ulong 0
+lo = ulong 128
+hi = ulong 191
+if and ge c 194 le c 223
+k = 1
+end
+if and ge c 224 le c 239
+k = 2
+if eq c 224
+lo = 160
+end
+if eq c 237
+hi = 159
+end
+end
+if and ge c 240 le c 244
+k = 3
+if eq c 240
+lo = 144
+end
+if eq c 244
+hi = 143
+end
+end
+if eq k 0
+ret 262145
+end
+if gt add p k n
+ret 262145
+end
+for i ulong k
+c = ulong get Ghbody p
+if or lt c lo gt c hi
+ret 262145
+end
+p = add p 1
+lo = 128
+hi = 191
+end
+ret p
+end
+fn ghreadme n ulong to bool
+note Validate plain UTF8 and reject binary controls; tabs/newlines are text.
+p = ulong 0
+while lt p n
+p = ghrawutf p n
+if gt p n
+ret false
+end
+end
+for i ulong n
+put Ghread i get Ghbody i
+end
+put Gh 7 n
+ret true
+end
+fn ghreply kind ulong status ulong size ulong gen ulong to bool
+if or eq kind 0 ne kind get Ghreq 0
+ret false
+end
+if ne gen get Ghreq 2
+ret false
+end
+put Gh 3 status
+if gt size get Ghreq 4
+gherror 2
+ret true
+end
+if and eq kind 3 eq status 404
+put Gh 13 1
+put Gh 7 0
+put Ghat 2 get Gh 11
+ghissue 4
+ret true
+end
+if ne status 200
+if or eq status 403 eq status 429
+gherror 4
+else
+gherror 1
+end
+ret true
+end
+put Ghbad 0 0
+ok = false
+if eq kind 3
+ok = ghreadme size
+else
+for i ulong size
+put jin i get Ghbody i
+end
+if ne jparse size 0
+gherror 3
+ret true
+end
+if eq kind 1
+ok = ghmetadata
+end
+if eq kind 2
+ok = ghcommit
+end
+if eq kind 4
+ok = ghlisting
+end
+end
+if not ok
+gherror 3
+ret true
+end
+put Ghat sub kind 1 get Gh 11
+put Gh 12 gen
+if lt kind 4
+ghissue add kind 1
+else
+put Ghreq 0 0
+put Gh 0 2
+put Gh 5 0
+put Gh 6 0
+end
+ret true
+end

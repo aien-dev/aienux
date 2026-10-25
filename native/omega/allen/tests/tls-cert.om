@@ -1,0 +1,338 @@
+note Certificate verifier fixtures. Build order: base.om vendor/sha256-core.om vendor/cert-sha384.om
+note vendor/cert-p256.om tls-p384.om vendor/cert-root.om tls-cert.om tests/check.om tests/tls-cert.om.
+note Public api.github.com chain observed by parent 2026-10-25 in /tmp/allen-imac-qualification/github-api-fullchain.txt
+note through an OpenSSL TLS1.3 ChaCha20 handshake. Independent oracle: openssl verify -CAfile system Root E46
+note -untrusted intermediate -purpose sslserver -verify_hostname api.github.com leaf: OK. Test-only bytes.
+note Leaf DER SHA256 06e6a4a004329905d4a4e7c0d2c6ec7a632c56443f256424a43cc786951b3149.
+note Intermediate DER SHA256 873f0ba80e3ac222656dfd04158cc15c2927d42d5d05f01dee4a47eb43a916df.
+note Cross-signed Root E46 DER SHA256 ea6b89ed6907a209ff9188676fb164e7aced894b8996dfbe5ce5bbcc22de4ddd.
+note Production code never reads these texts; trust comes from vendor/cert-root.om only.
+note certsig positive uses the public intermediate key and its real ECDSA-SHA256 over leaf TBS.
+text Tleaf "308203ee30820394a003020102021078f8ae8f2ae4d74fda13a80568074b6f300a06082a8648ce3d0403023060310b300906035504061302474231183016060355040a130f5365637469676f204c696d69746564313730350603550403132e5365637469676f205075626c6963205365727665722041757468656e7469636174696f6e20434120445620453336301e170d3236303833303030303030305a170d3236313132373233353935395a30173115301306035504030c0c2a2e6769746875622e636f6d3059301306072a8648ce3d020106082a8648ce3d03010703420004d6c33b882041438111d499cbbc698be6be414eeeb0cba06bbfa5216e3474dc32cea9f39feb4f8c08230d8ccf2cddce43ac95b2e83079ca112d9716fa412034f0a382027730820273301f0603551d230418301680141799a804c16fe42d70a80a103d03d3e91ab82663301d0603551d0e04160414c3ee316094e517ebe26296f8081f03c03f7437d0300e0603551d0f0101ff040403020780300c0603551d130101ff0402300030130603551d25040c300a06082b0601050507030130490603551d20044230403034060b2b06010401b231010202073025302306082b06010505070201161768747470733a2f2f7365637469676f2e636f6d2f4350533008060667810c01020130818406082b0601050507010104783076304f06082b060105050730028643687474703a2f2f6372742e7365637469676f2e636f6d2f5365637469676f5075626c696353657276657241757468656e7469636174696f6e434144564533362e637274302306082b060105050730018617687474703a2f2f6f6373702e7365637469676f2e636f6d30820105060a2b06010401d6790204020481f60481f300f1007700d76d7d10d1a7f577c2c7e95fd700bff982c9335a65e1d0b3017317c0c8c56977000001a0501f4ff70000040300483046022100bf8417b321ff4d63069da780ea0c80da79814e122c327d43555da2a91ce3e49902210085dacc1bf48945ba84793afaa16d81ce31c52ce22968c482d4a0a24cf3019ca4007600c8a3c47fc7b3adb9356b013f6a7a126de33a4e43a5c646f997ad3975991dcf9a000001a0501f4ffe0000040300473045022100af24545a95f9858841971cb29838c25a51b8a4fb11f1b8add82a6586dbe6894f02204143eecce1001622a34b8d15a7407eb0bc0e38bfc0f1ff68ee87ea43feeacc1430230603551d11041c301a820c2a2e6769746875622e636f6d820a6769746875622e636f6d300a06082a8648ce3d040302034800304502204d4e9857f70ea04285bbe15853684007b109c5da74be76e8b7eaf721dcfd9172022100c9e9743bced1f6ad830c6ba69b0be117cae6aa5d69deb0ba9615a9704b4e02a8"
+text Tint "3082035f308202e6a003020102021036e059ed888dd57aedd570b6727f9bda300a06082a8648ce3d040303305f310b300906035504061302474231183016060355040a130f5365637469676f204c696d69746564313630340603550403132d5365637469676f205075626c6963205365727665722041757468656e7469636174696f6e20526f6f7420453436301e170d3231303332323030303030305a170d3336303332313233353935395a3060310b300906035504061302474231183016060355040a130f5365637469676f204c696d69746564313730350603550403132e5365637469676f205075626c6963205365727665722041757468656e7469636174696f6e204341204456204533363059301306072a8648ce3d020106082a8648ce3d0301070342000468a1a76c05270589631c39a7ff2521c5edd32f1298bb2cdcf555e849a08457917bdc585f6bf4a2fd132c9b04c55b747db3b27a269619166bb8768def93f56097a38201813082017d301f0603551d23041830168014d122da4c59f14b5f2638aa9dd6eeeb0dc3fba961301d0603551d0e041604141799a804c16fe42d70a80a103d03d3e91ab82663300e0603551d0f0101ff04040302018630120603551d130101ff040830060101ff020100301d0603551d250416301406082b0601050507030106082b06010505070302301b0603551d200414301230060604551d20003008060667810c01020130540603551d1f044d304b3049a047a0458643687474703a2f2f63726c2e7365637469676f2e636f6d2f5365637469676f5075626c696353657276657241757468656e7469636174696f6e526f6f744534362e63726c30818406082b0601050507010104783076304f06082b060105050730028643687474703a2f2f6372742e7365637469676f2e636f6d2f5365637469676f5075626c696353657276657241757468656e7469636174696f6e526f6f744534362e703763302306082b060105050730018617687474703a2f2f6f6373702e7365637469676f2e636f6d300a06082a8648ce3d040303036700306402305b0a9c140387ae25faff9a5185a30c224a40cc475141a67300180c88c9f696d1608b4c088c79c6ed2851beac21f4d7a902303dd75cb0313829d78bbb58497691e074bbec1c02b7bf28322c6ba3314f7104908369c9114fddd51c4134829a6036a755"
+text Tcross "30820346308202cba00302010202101a9eafec6de8e19b5c193141b68d90dd300a06082a8648ce3d040303308188310b3009060355040613025553311330110603550408130a4e6577204a6572736579311430120603550407130b4a65727365792043697479311e301c060355040a131554686520555345525452555354204e6574776f726b312e302c06035504031325555345525472757374204543432043657274696669636174696f6e20417574686f72697479301e170d3231303332323030303030305a170d3338303131383233353935395a305f310b300906035504061302474231183016060355040a130f5365637469676f204c696d69746564313630340603550403132d5365637469676f205075626c6963205365727665722041757468656e7469636174696f6e20526f6f74204534363076301006072a8648ce3d020106052b810400220362000476fa99a96e20edf9d777e3073ba8db3d5f38e8ab55a6564fd648eaec7f2daac3b2c579ec99617f1079c7025af90437f534352b77ce7f208f52a30089ecd5a7a26d5be34b9293a080f50194dcf068071ecdeefe2552b520431c1bfeeb19ce43a3a38201203082011c301f0603551d230418301680143ae10986d4cf19c29676744976dce035c663639a301d0603551d0e04160414d122da4c59f14b5f2638aa9dd6eeeb0dc3fba961300e0603551d0f0101ff040403020186300f0603551d130101ff040530030101ff301d0603551d250416301406082b0601050507030106082b0601050507030230110603551d20040a300830060604551d200030500603551d1f044930473045a043a041863f687474703a2f2f63726c2e7573657274727573742e636f6d2f55534552547275737445434343657274696669636174696f6e417574686f726974792e63726c303506082b0601050507010104293027302506082b060105050730018619687474703a2f2f6f6373702e7573657274727573742e636f6d300a06082a8648ce3d04030303690030660231008c0b2062b7df6f5f66daeb11240def983bbbc2d2dc236e4bfd3caa6a186b99eb5259af28c5b29f8316911c942572e27a023100b0bd90d70ff9b62a8d470390649b3ed840e14088d0c3e3d2166b6c1d4fb4770ed3836925c7fc1897bfc7f007db2ee2d5"
+text Tok1 "api.github.com"
+text Tok2 "API.GitHub.COM"
+text Tok3 "*.github.com"
+text Tbad1 "*.*.github.com"
+text Tbad2 "x.api.github.com"
+text Tbad3 "github.com"
+text Tbad4 "api.github.com."
+text Tbad5 "a*.github.com"
+text Tbad6 "api.github.co"
+text Tutc1 "260230000000Z"
+text Tgen1 "20491231235959Z"
+text Tutc2 "2610251200000"
+text Tutc3 "261025120000Z"
+global Tpos ulong 1
+
+fn thexb w ulong i ulong to uchar
+if eq w 0
+ret or shl cthexv get Tleaf mul i 2 4 cthexv get Tleaf add mul i 2 1
+end
+if eq w 1
+ret or shl cthexv get Tint mul i 2 4 cthexv get Tint add mul i 2 1
+end
+ret or shl cthexv get Tcross mul i 2 4 cthexv get Tcross add mul i 2 1
+end
+
+fn tlen w ulong to ulong
+if eq w 0
+ret div len Tleaf 2
+end
+if eq w 1
+ret div len Tint 2
+end
+ret div len Tcross 2
+end
+
+fn tbegin to void
+for i ulong 65536
+put Certbuf i 0
+end
+put Tpos 0 4
+end
+
+fn tentry w ulong to void
+p = get Tpos 0
+n = tlen w
+put Certbuf p uchar and shr n 16 255
+put Certbuf add p 1 uchar and shr n 8 255
+put Certbuf add p 2 uchar and n 255
+for i ulong n
+put Certbuf add add p 3 i thexb w i
+end
+put Tpos 0 add add p 5 n
+end
+
+fn tend to void
+e = get Tpos 0
+n = sub e 4
+put Certbuf 1 uchar and shr n 16 255
+put Certbuf 2 uchar and shr n 8 255
+put Certbuf 3 uchar and n 255
+put Certlen 0 e
+end
+
+fn tchain to void
+tbegin
+tentry 0
+tentry 1
+tentry 2
+tend
+end
+
+fn tkey to bool
+ok = true
+for i ulong 65
+if ne get Certkey i thexb 0 add 224 i
+ok = false
+end
+end
+ret ok
+end
+
+note Synthetic DER/name bytes are placed at62000 after the fixture chain; ctdns sees only its range.
+fn tdnsok w ulong to bool
+n = ulong 0
+if eq w 0
+n = len Tok1
+for i ulong n
+put Certbuf add 62000 i get Tok1 i
+end
+end
+if eq w 1
+n = len Tok2
+for i ulong n
+put Certbuf add 62000 i get Tok2 i
+end
+end
+if eq w 2
+n = len Tok3
+for i ulong n
+put Certbuf add 62000 i get Tok3 i
+end
+end
+ret ctdns 62000 add 62000 n
+end
+
+fn tdnsbad w ulong to bool
+n = ulong 0
+if eq w 0
+n = len Tbad1
+for i ulong n
+put Certbuf add 62000 i get Tbad1 i
+end
+end
+if eq w 1
+n = len Tbad2
+for i ulong n
+put Certbuf add 62000 i get Tbad2 i
+end
+end
+if eq w 2
+n = len Tbad3
+for i ulong n
+put Certbuf add 62000 i get Tbad3 i
+end
+end
+if eq w 3
+n = len Tbad4
+for i ulong n
+put Certbuf add 62000 i get Tbad4 i
+end
+end
+if eq w 4
+n = len Tbad5
+for i ulong n
+put Certbuf add 62000 i get Tbad5 i
+end
+end
+if eq w 5
+n = len Tbad6
+for i ulong n
+put Certbuf add 62000 i get Tbad6 i
+end
+end
+ret ctdns 62000 add 62000 n
+end
+
+fn tder a uchar b uchar c uchar to bool
+put Certbuf 62000 a
+put Certbuf 62001 b
+put Certbuf 62002 c
+put Certbuf 62003 0
+put Certbuf 62004 0
+ret ctder 62000 62005
+end
+
+fn ttime w ulong to bool
+p = ulong 62002
+n = ulong 13
+put Certbuf 62000 23
+if eq w 0
+for i ulong 13
+put Certbuf add p i get Tutc1 i
+end
+end
+if eq w 1
+put Certbuf 62000 24
+n = 15
+for i ulong 15
+put Certbuf add p i get Tgen1 i
+end
+end
+if eq w 2
+for i ulong 13
+put Certbuf add p i get Tutc2 i
+end
+end
+if eq w 3
+for i ulong 13
+put Certbuf add p i get Tutc3 i
+end
+end
+put Certbuf 62001 uchar n
+if not cttime 62000 add p n
+ret false
+end
+ret ne ctepoch 0
+end
+
+note Leaf parse-only mutants: the fixture leaf begins at Certbuf 7 and ends at 1017.
+fn tmut at ulong v uchar to bool
+tchain
+put Certbuf add 7 at v
+ret ctparse 0 7 1017
+end
+
+fn tsigmsg to void
+for i ulong 920
+put Certmsg i thexb 0 add 4 i
+end
+for j ulong 71
+put Certsig j thexb 0 add 939 j
+end
+for k ulong 65
+put Cleaf k thexb 1 add 296 k
+end
+end
+
+fn main to int
+put Certnow 0 1792929600
+tchain
+check certcheck 1
+check tkey 2
+check eq get Ccount 0 3 3
+check not ctca 1 1 4
+check ctca 1 0 5
+tsigmsg
+check certsig 920 71 6
+put Certmsg 10 xor get Certmsg 10 1
+check not certsig 920 71 7
+put Certmsg 10 xor get Certmsg 10 1
+check not certsig 920 71 8
+certreset
+tsigmsg
+check not certsig 920 71 9
+put Certnow 0 1788048000
+tchain
+check certcheck 10
+put Certnow 0 1788047999
+check not certcheck 11
+put Certnow 0 1795823999
+check certcheck 12
+put Certnow 0 1795824000
+check not certcheck 13
+put Certnow 0 0
+check not certcheck 14
+put Certnow 0 1792929600
+tbegin
+tentry 0
+tentry 1
+tend
+check certcheck 15
+tbegin
+tentry 0
+tend
+check not certcheck 16
+tbegin
+tentry 1
+tentry 0
+tend
+check not certcheck 17
+tbegin
+tentry 1
+tend
+check not certcheck 18
+tchain
+put Certbuf 1016 xor get Certbuf 1016 1
+check not certcheck 19
+tchain
+put Certbuf 22 xor get Certbuf 22 1
+check not certcheck 20
+tchain
+put Certbuf 1888 xor get Certbuf 1888 1
+check not certcheck 21
+tchain
+put Certbuf 1018 1
+check not certcheck 22
+tchain
+put Certbuf 0 1
+check not certcheck 23
+tchain
+put Certlen 0 add get Certlen 0 1
+check not certcheck 24
+tchain
+put Certlen 0 61000
+check not certcheck 25
+tchain
+put Certbuf 3 xor get Certbuf 3 1
+check not certcheck 26
+tchain
+check ctparse 0 7 1017 27
+check not tmut 336 35 28
+check not tmut 367 127 29
+check tmut 336 126 30
+check not tmut 935 3 31
+check not tmut 1 0 32
+check tmut 911 110 33
+check eq get Cm 18 0 34
+tchain
+put Certbuf 918 110
+check not certcheck 35
+check tdnsok 0 36
+check tdnsok 1 37
+check tdnsok 2 38
+check not tdnsbad 0 39
+check not tdnsbad 1 40
+check not tdnsbad 2 41
+check not tdnsbad 3 42
+check not tdnsbad 4 43
+check not tdnsbad 5 44
+check not tder 48 128 0 45
+check not tder 48 129 3 46
+check not tder 31 1 0 47
+check not tder 48 4 0 48
+check tder 48 3 0 49
+check not ttime 0 50
+check not ttime 1 51
+check not ttime 2 52
+check ttime 3 53
+put Certnow 0 253402300800
+tchain
+check not certcheck 54
+put Certnow 0 1792929600
+tchain
+check certcheck 55
+certreset
+check not certsig 920 71 56
+check eq get Certkey 0 0 57
+note Leaf policy without signatures: the SAN mutant parses but must fail the identity check.
+tchain
+check ctparse 0 7 1017 58
+check ctleaf 59
+check tmut 911 110 60
+check not ctleaf 61
+ret int get Fails 0
+end

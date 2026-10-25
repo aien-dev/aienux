@@ -1,0 +1,180 @@
+note SPDX-License-Identifier: MIT
+note One-request-per-connection GitHub driver over TCP, TLS 1.3 and HTTP framing.
+note The platform supplies elapsed milliseconds, Unix time, packet results and 96 fresh
+note random bytes in Gsrand before every gsstart: 64 for TLS, 32 for TCP/DHCP/DNS IDs.
+global Gsrand uchar 96
+global Gsrandn ulong 1
+global Gs ulong 8
+note Gs: state0 idle,1 connecting,2 TLS,3 HTTP,4 completed,5 failed; deadline; request kind;
+note generation; send offset; failure code; pending close flag.
+fn gsfail now ulong code ulong to void
+if ne get Gs 0 0
+kind = get Gs 2
+gen = get Gs 3
+put Gs 0 5
+put Gs 5 code
+netclose now
+tlsclose
+tcwipe
+ok = ghreply kind 0 0 gen
+end
+end
+fn gsstart now ulong epoch ulong to bool
+kind = get Ghreq 0
+if or eq kind 0 ne get Gs 0 0
+ret false
+end
+if ne get Gsrandn 0 len Gsrand
+ok = ghreply kind 0 0 get Ghreq 2
+ret false
+end
+for i ulong 64
+put Tlsrand i get Gsrand i
+end
+for i ulong 32
+put Nrand i get Gsrand add i 64
+end
+for i ulong len Gsrand
+put Gsrand i 0
+end
+put Gsrandn 0 0
+if not httpstart kind get Ghreq 2 get Ghreq 3 get Ghreq 4 get Ghreq 1
+ok = ghreply kind 0 0 get Ghreq 2
+ret false
+end
+for i ulong 8
+put Gs i 0
+end
+put Gs 0 1
+put Gs 1 add now 45000
+put Gs 2 kind
+put Gs 3 get Ghreq 2
+ghtime epoch
+tlsinit epoch
+if eq get Tlsstate 0 4
+gsfail now 9
+ret false
+end
+netconnect now
+ret true
+end
+fn gstlsout now ulong to void
+if eq get Tlsoutn 0 0
+ret
+end
+if gt get Tlsoutn 0 len Tcpout
+gsfail now 2
+ret
+end
+for i ulong get Tlsoutn 0
+put Tcpout i get Tlsout i
+end
+if netwrite get Tlsoutn 0 now
+tlssent
+end
+end
+fn gstcpin now ulong to void
+n = get Tcpn 0
+if eq n 0
+ret
+end
+if gt n len Tlsin
+n = len Tlsin
+end
+for i ulong n
+put Tlsin i get Tcpin i
+end
+tlsinput n
+netconsume n
+end
+fn gshttp now ulong to void
+while gt get Tlsappn 0 0
+n = get Tlsappn 0
+if gt n len Hchunk
+n = len Hchunk
+end
+for i ulong n
+put Hchunk i get Tlsapp i
+end
+if not httpfeed n
+gsfail now 3
+ret
+end
+tlsconsume n
+end
+if eq get Hstate 0 2
+size = get Hstate 2
+status = get Hstate 1
+kind = get Gs 2
+gen = get Gs 3
+put Gs 0 4
+netclose now
+tlsclose
+tcwipe
+ok = ghreply kind status size gen
+end
+end
+fn gsrequest now ulong to void
+if or ne get Gs 4 0 ne get Tlsstate 0 2
+ret
+end
+if gt get Httpreqn 0 len Tlsplain
+gsfail now 4
+ret
+end
+for i ulong get Httpreqn 0
+put Tlsplain i get Httpreq i
+end
+if tlswrite get Httpreqn 0
+put Gs 4 1
+put Gs 0 3
+end
+end
+fn gspoll now ulong to void
+state = get Gs 0
+if or eq state 0 ge state 4
+ret
+end
+if gt now get Gs 1
+gsfail now 5
+ret
+end
+netstep now
+if eq get Tcpstate 0 6
+gsfail now 6
+ret
+end
+if eq get Tcpstate 0 4
+if eq state 1
+put Gs 0 2
+tlsinput 0
+end
+end
+gstcpin now
+if eq get Tlsstate 0 4
+gsfail now 7
+ret
+end
+gstlsout now
+gsrequest now
+gstlsout now
+gshttp now
+if ne get Gs 0 3
+ret
+end
+if or eq get Tcpstate 0 5 eq get Tlsstate 0 3
+if httpend eq get Tlsstate 2 1
+gshttp now
+else
+gsfail now 8
+end
+end
+end
+fn gsnext now ulong epoch ulong to void
+if ge get Gs 0 4
+put Gs 0 0
+end
+if and eq get Gs 0 0 ne get Ghreq 0 0
+ok = gsstart now epoch
+end
+end

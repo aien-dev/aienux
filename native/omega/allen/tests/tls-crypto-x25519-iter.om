@@ -1,0 +1,24 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note RFC7748 section5.2 official 1000-iteration X25519 vector, separate from short fixtures.
+note https://www.rfc-editor.org/rfc/rfc7748 ; attribution/license in tls-crypto-fixture.om.
+text Viter "684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51"
+fn main to int
+tcwipe
+put Tcxpriv 0 9
+put Tcxpeer 0 9
+for j ulong 1000
+tvcheck tcx25519 1
+for i ulong 32
+put Tcxpeer i get Tcxpriv i
+put Tcxpriv i get Tcxshare i
+end
+end
+for i ulong 32
+p = mul i 2
+v = tvbyte get Viter p get Viter add p 1
+tvcheck eq get Tcxpriv i v 2
+end
+tcwipe
+tvscrub
+ret 0
+end

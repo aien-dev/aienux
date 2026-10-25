@@ -1,0 +1,495 @@
+note SPDX-License-Identifier: MIT
+note HTTP/1.1 framing for one authenticated api.github.com connection, RFC 9110/9112.
+note Only TLS-authenticated plaintext enters Hchunk. No redirects, compression or pipelining.
+global Httpreq uchar 8192
+global Httpreqn ulong 1
+global Hchunk uchar 16384
+global Hstate ulong 8
+global Hline uchar 8192
+global Hp ulong 16
+text Hget "GET "
+text Htail " HTTP/1.1\nHost: api.github.com\nUser-Agent: Allen-Omega/1.0\nAccept-Encoding: identity\nX-GitHub-Api-Version: 2022-11-28\nConnection: close\nAccept: "
+text Hjson "application/vnd.github+json"
+text Hraw "application/vnd.github.raw+json"
+text Hver "HTTP/1.1 "
+text Hcl "content-length"
+text Hte "transfer-encoding"
+text Hce "content-encoding"
+text Hckword "chunked"
+text Hident "identity"
+text Htokens "!#$%&'*+-.^_`|~"
+note Hstate: state(0idle,1reading,2done,3error),status,body bytes,generation,kind,error.
+note Hp: phase,line bytes,CR pending,header bytes,CL present,CL,TE,remaining,maxbody,interim.
+fn hplower c uchar to uchar
+if and ge c 65 le c 90
+ret uchar add ulong c 32
+end
+ret c
+end
+fn hpkw kind ulong at ulong to uchar
+if eq kind 0
+ret get Hcl at
+end
+if eq kind 1
+ret get Hte at
+end
+if eq kind 2
+ret get Hce at
+end
+if eq kind 3
+ret get Hckword at
+end
+ret get Hident at
+end
+fn hpeq at ulong n ulong kind ulong size ulong to bool
+if ne n size
+ret false
+end
+for i ulong size
+if ne hplower get Hline add at i hpkw kind i
+ret false
+end
+end
+ret true
+end
+fn hpfail code ulong to void
+put Hstate 0 3
+put Hstate 5 code
+put Hstate 2 0
+put Httpreqn 0 0
+put Hp 0 10
+end
+fn hpemit c uchar to void
+n = get Httpreqn 0
+if ge n len Httpreq
+hpfail 1
+ret
+end
+put Httpreq n c
+put Httpreqn 0 add n 1
+end
+fn hpcrlf to void
+hpemit 13
+hpemit 10
+end
+fn httpstart kind ulong gen ulong mode ulong maxbody ulong pathlen ulong to bool
+for i ulong 16
+put Hp i 0
+end
+for i ulong 8
+put Hstate i 0
+end
+put Httpreqn 0 0
+if or or eq pathlen 0 ge pathlen len Ghpath gt maxbody len Ghbody
+hpfail 2
+ret false
+end
+if or gt mode 1 ne get Ghpath 0 47
+hpfail 2
+ret false
+end
+for i ulong pathlen
+c = get Ghpath i
+if or or le c 32 ge c 127 eq c 35
+hpfail 2
+ret false
+end
+end
+for i ulong len Hget
+hpemit get Hget i
+end
+for i ulong pathlen
+hpemit get Ghpath i
+end
+for i ulong len Htail
+c = get Htail i
+if eq c 10
+hpcrlf
+else
+hpemit c
+end
+end
+if eq mode 0
+for i ulong len Hjson
+hpemit get Hjson i
+end
+else
+for i ulong len Hraw
+hpemit get Hraw i
+end
+end
+hpcrlf
+hpcrlf
+if eq get Hstate 0 3
+ret false
+end
+put Hstate 0 1
+put Hstate 3 gen
+put Hstate 4 kind
+put Hp 8 maxbody
+ret true
+end
+fn hptoken c uchar to bool
+if or or and ge c 65 le c 90 and ge c 97 le c 122 and ge c 48 le c 57
+ret true
+end
+for i ulong len Htokens
+if eq c get Htokens i
+ret true
+end
+end
+ret false
+end
+fn hpfinish to void
+put Hp 0 9
+put Hstate 0 2
+end
+fn hpstatus to void
+n = get Hp 1
+if lt n 12
+hpfail 3
+ret
+end
+for i ulong len Hver
+if ne get Hline i get Hver i
+hpfail 3
+ret
+end
+end
+s = ulong 0
+for i ulong 3
+c = get Hline add i 9
+if or lt c 48 gt c 57
+hpfail 3
+ret
+end
+s = add mul s 10 sub ulong c 48
+end
+if or lt s 100 gt s 599
+hpfail 3
+ret
+end
+if gt n 12
+if ne get Hline 12 32
+hpfail 3
+ret
+end
+end
+put Hstate 1 s
+put Hp 0 1
+end
+fn hpheadersend to void
+s = get Hstate 1
+if lt s 200
+if or or eq s 101 gt get Hp 9 2 ne get Hp 6 0
+hpfail 4
+ret
+end
+if and ne get Hp 4 0 ne get Hp 5 0
+hpfail 4
+ret
+end
+put Hp 9 add get Hp 9 1
+put Hp 0 0
+put Hp 4 0
+put Hp 5 0
+put Hp 6 0
+ret
+end
+if and ne get Hp 4 0 ne get Hp 6 0
+hpfail 5
+ret
+end
+if or eq s 204 eq s 304
+if or ne get Hp 6 0 and ne get Hp 4 0 ne get Hp 5 0
+hpfail 5
+else
+hpfinish
+end
+ret
+end
+if ne get Hp 6 0
+put Hp 0 3
+ret
+end
+if ne get Hp 4 0
+put Hp 7 get Hp 5
+if eq get Hp 7 0
+hpfinish
+else
+put Hp 0 2
+end
+ret
+end
+note Close-delimited bodies complete only after authenticated TLS close_notify via httpend.
+put Hp 0 8
+end
+fn hpdecimal at ulong stop ulong to bool
+v = ulong 0
+for i ulong sub stop at
+c = get Hline add at i
+if or lt c 48 gt c 57
+ret false
+end
+d = sub ulong c 48
+if gt v div get Hp 8 10
+ret false
+end
+v = add mul v 10 d
+if gt v get Hp 8
+ret false
+end
+end
+put Hp 5 v
+ret true
+end
+fn hpheader trailer bool to void
+n = get Hp 1
+if eq n 0
+if trailer
+hpfinish
+else
+hpheadersend
+end
+ret
+end
+p = ulong 0
+while lt p n
+if eq get Hline p 58
+break
+end
+if not hptoken get Hline p
+hpfail 6
+ret
+end
+p = add p 1
+end
+if or eq p 0 eq p n
+hpfail 6
+ret
+end
+beg = add p 1
+stop = n
+while lt beg stop
+c = get Hline beg
+if and ne c 32 ne c 9
+break
+end
+beg = add beg 1
+end
+while gt stop beg
+c = get Hline sub stop 1
+if and ne c 32 ne c 9
+break
+end
+stop = sub stop 1
+end
+cl = hpeq 0 p 0 14
+te = hpeq 0 p 1 17
+ce = hpeq 0 p 2 16
+if trailer
+if or or cl te ce
+hpfail 7
+end
+ret
+end
+if cl
+if or ne get Hp 4 0 eq beg stop
+hpfail 5
+ret
+end
+if not hpdecimal beg stop
+hpfail 8
+ret
+end
+put Hp 4 1
+end
+if te
+if or ne get Hp 6 0 not hpeq beg sub stop beg 3 7
+hpfail 5
+ret
+end
+put Hp 6 1
+end
+if ce
+if not hpeq beg sub stop beg 4 8
+hpfail 9
+end
+end
+end
+fn hphex c uchar to ulong
+if and ge c 48 le c 57
+ret sub ulong c 48
+end
+x = hplower c
+if and ge x 97 le x 102
+ret sub ulong x 87
+end
+ret 16
+end
+fn hpchunkline to void
+n = get Hp 1
+v = ulong 0
+p = ulong 0
+while lt p n
+c = get Hline p
+if eq c 59
+break
+end
+d = hphex c
+if or ge d 16 gt v div get Hp 8 16
+hpfail 10
+ret
+end
+v = add mul v 16 d
+if gt v sub get Hp 8 get Hstate 2
+hpfail 8
+ret
+end
+p = add p 1
+end
+if eq p 0
+hpfail 10
+ret
+end
+if and lt p n eq add p 1 n
+hpfail 10
+ret
+end
+put Hp 7 v
+if eq v 0
+put Hp 0 7
+else
+put Hp 0 4
+end
+end
+fn hplineend to void
+p = get Hp 0
+if eq p 0
+hpstatus
+else
+if eq p 1
+hpheader false
+else
+if eq p 3
+hpchunkline
+else
+if eq p 7
+hpheader true
+else
+hpfail 11
+end
+end
+end
+end
+put Hp 1 0
+put Hp 2 0
+end
+fn hplinebyte c uchar to void
+put Hp 3 add get Hp 3 1
+if gt get Hp 3 65536
+hpfail 12
+ret
+end
+if ne get Hp 2 0
+if ne c 10
+hpfail 6
+else
+hplineend
+end
+ret
+end
+if eq c 13
+put Hp 2 1
+ret
+end
+if or or eq c 10 and lt c 32 ne c 9 eq c 127
+hpfail 6
+ret
+end
+n = get Hp 1
+if ge n len Hline
+hpfail 12
+ret
+end
+put Hline n c
+put Hp 1 add n 1
+end
+fn hpbody c uchar to void
+n = get Hstate 2
+if ge n get Hp 8
+hpfail 8
+ret
+end
+put Ghbody n c
+put Hstate 2 add n 1
+phase = get Hp 0
+if or eq phase 2 eq phase 4
+left = sub get Hp 7 1
+put Hp 7 left
+if eq left 0
+if eq phase 2
+hpfinish
+else
+put Hp 0 5
+end
+end
+end
+end
+fn httpfeed n ulong to bool
+if or gt n len Hchunk and eq get Hstate 0 2 ne n 0
+hpfail 13
+ret false
+end
+if ne get Hstate 0 1
+ret false
+end
+for i ulong n
+c = get Hchunk i
+phase = get Hp 0
+if or or eq phase 0 eq phase 1 or eq phase 3 eq phase 7
+hplinebyte c
+else
+if or or eq phase 2 eq phase 4 eq phase 8
+hpbody c
+else
+if eq phase 5
+if eq c 13
+put Hp 0 6
+else
+hpfail 10
+end
+else
+if eq phase 6
+if eq c 10
+put Hp 0 3
+else
+hpfail 10
+end
+else
+hpfail 13
+end
+end
+end
+end
+if eq get Hstate 0 3
+ret false
+end
+end
+ret true
+end
+fn httpend auth bool to bool
+if not auth
+hpfail 14
+ret false
+end
+if eq get Hstate 0 2
+ret true
+end
+if and eq get Hstate 0 1 eq get Hp 0 8
+hpfinish
+ret true
+end
+hpfail 14
+ret false
+end

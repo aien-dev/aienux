@@ -1,0 +1,186 @@
+note SPDX-License-Identifier: MIT
+note Qualification only: real Omega TLS/HTTP client on Linux AArch64.
+note Argument1 is a DNS-resolved IPv4 address supplied by the external test orchestrator.
+note Production firmware build uses net.om DNS instead; this harness is not the deployed network provider.
+global Laddr uchar 16
+global Lip uchar 32
+global Lfd int 1
+global Lstate ulong 4
+text Lpath "/repos/aien-dev/allen"
+fn laddress to bool
+n = argread 1 Lip 0 len Lip
+if or le n 0 gt n 15
+ret false
+end
+put Laddr 0 2
+put Laddr 2 1
+put Laddr 3 187
+part = ulong 0
+value = ulong 0
+digits = ulong 0
+for i ulong add ulong n 1
+c = uchar 46
+if lt i ulong n
+c = get Lip i
+end
+if eq c 46
+if or or eq digits 0 gt value 255 ge part 4
+ret false
+end
+put Laddr add 4 part uchar value
+part = add part 1
+value = 0
+digits = 0
+else
+if or lt c 48 gt c 57
+ret false
+end
+digits = add digits 1
+if gt digits 3
+ret false
+end
+value = add mul value 10 sub ulong c 48
+end
+end
+ret eq part 4
+end
+fn lflush to bool
+off = ulong 0
+while lt off get Tlsoutn 0
+n = send get Lfd 0 Tlsout off sub get Tlsoutn 0 off 0
+if gt n 0
+off = add off ulong n
+else
+if ne n -11
+ret false
+end
+r = waitio get Lfd 0 4 10000000000
+if le r 0
+ret false
+end
+end
+end
+tlssent
+ret true
+end
+fn lhttp to bool
+while gt get Tlsappn 0 0
+n = get Tlsappn 0
+if gt n len Hchunk
+n = len Hchunk
+end
+for i ulong n
+put Hchunk i get Tlsapp i
+end
+if not httpfeed n
+ret false
+end
+tlsconsume n
+end
+ret true
+end
+fn ldrive to int
+start = monons
+sent = false
+while eq get Hstate 0 1
+if gt sub monons start 120000000000
+ret 71
+end
+if eq get Tlsstate 0 4
+ret 72
+end
+if gt get Tlsoutn 0 0
+if not lflush
+ret 73
+end
+end
+if and eq get Tlsstate 0 2 not sent
+for i ulong get Httpreqn 0
+put Tlsplain i get Httpreq i
+end
+if tlswrite get Httpreqn 0
+sent = true
+end
+end
+if not lhttp
+ret 74
+end
+if eq get Hstate 0 2
+break
+end
+if eq get Tlsstate 0 3
+if not httpend eq get Tlsstate 2 1
+ret 75
+end
+break
+end
+if eq get Tlsoutn 0 0
+r = waitio get Lfd 0 1 1000000000
+if lt r 0
+ret 76
+end
+if gt r 0
+n = recv get Lfd 0 Tlsin 0 len Tlsin 0
+if gt n 0
+tlsinput ulong n
+else
+if eq n 0
+ret 77
+end
+if ne n -11
+ret 78
+end
+end
+end
+end
+end
+if ne get Hstate 1 200
+ret 79
+end
+n = write 1 Ghbody 0 get Hstate 2
+if ne n long get Hstate 2
+ret 80
+end
+ret 0
+end
+fn main to int
+if ne argcnt 2
+ret 64
+end
+if not laddress
+ret 65
+end
+for i ulong len Lpath
+put Ghpath i get Lpath i
+end
+if not httpstart 1 1 0 65536 len Lpath
+ret 66
+end
+off = ulong 0
+while lt off len Tlsrand
+n = random Tlsrand off sub len Tlsrand off 0
+if le n 0
+ret 67
+end
+off = add off ulong n
+end
+now = realns
+if le now 0
+ret 68
+end
+tlsinit ulong div now 1000000000
+fd = socknew 2 526337 0
+if lt fd 0
+ret 69
+end
+put Lfd 0 int fd
+r = connect int fd Laddr 0 len Laddr
+if and ne r 0 ne r -115
+r = fclose int fd
+ret 70
+end
+rc = ldrive
+r = fclose int fd
+tcwipe
+ret rc
+end

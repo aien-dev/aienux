@@ -1,0 +1,677 @@
+note Packet stack behavior; concatenate after base.om, net.om, tests/check.om.
+note Frames are built here from RFC791/768/826/2131/1035/9293 layouts with an
+note independent checksum; outgoing frames are checked against the same rules.
+note Host-only protocol fixtures: no live network, firmware or peer qualification.
+global Vnow ulong 1
+global Vpeer uchar 6
+global Vip ulong 1
+global Vxid ulong 1
+global Vport ulong 1
+global Viss ulong 1
+global Vdport ulong 1
+global Vdid ulong 1
+text Vq "apigithubcom"
+text Vqmix "ApIgithubCOM"
+text Vget "GEThello"
+fn nvip4 a ulong b ulong c ulong d ulong to ulong
+ret add add shl a 24 shl b 16 add shl c 8 d
+end
+fn nvsrv to ulong
+ret nvip4 10 9 8 1
+end
+fn nvdns to ulong
+ret nvip4 10 9 8 53
+end
+fn nvgh to ulong
+ret nvip4 140 82 112 6
+end
+fn nvsseq to ulong
+ret 3000000000
+end
+fn nvw16 p ulong v ulong to void
+put Nrx p uchar and shr v 8 255
+put Nrx add p 1 uchar and v 255
+end
+fn nvw32 p ulong v ulong to void
+nvw16 p shr v 16
+nvw16 add p 2 and v 65535
+end
+fn nvt16 p ulong to ulong
+ret add shl ulong get Ntx p 8 ulong get Ntx add p 1
+end
+fn nvt32 p ulong to ulong
+ret add shl nvt16 p 16 nvt16 add p 2
+end
+note Independent one's-complement sum: byte pairs, odd tail as high octet.
+fn nvsum tx bool p ulong n ulong to ulong
+s = ulong 0
+for i ulong n
+v = ulong 0
+if tx
+v = ulong get Ntx add p i
+else
+v = ulong get Nrx add p i
+end
+if eq rem i 2 0
+s = add s shl v 8
+else
+s = add s v
+end
+end
+ret s
+end
+fn nvcpl s ulong to ulong
+while gt s 65535 bound 8
+s = add shr s 16 and s 65535
+end
+ret xor s 65535
+end
+fn nvpseudo a ulong b ulong pr ulong n ulong to ulong
+s = add add shr a 16 and a 65535 add shr b 16 and b 65535
+ret add s add pr n
+end
+fn nvsetmac p ulong last ulong to void
+for i ulong 5
+put Vpeer i uchar 0
+end
+put Vpeer 0 uchar 2
+put Vpeer 5 uchar last
+put Vpeer 4 uchar p
+end
+fn nvclr to void
+for i ulong 2048
+put Nrx i uchar 0
+end
+end
+fn nveth typ ulong to void
+for i ulong 6
+put Nrx i get Nmac i
+put Nrx add i 6 get Vpeer i
+end
+nvw16 12 typ
+end
+fn nvip src ulong dst ulong pr ulong l4 ulong to void
+nveth 2048
+put Nrx 14 uchar 69
+nvw16 16 add l4 20
+nvw16 20 16384
+put Nrx 22 uchar 64
+put Nrx 23 uchar pr
+nvw32 26 src
+nvw32 30 dst
+nvw16 24 0
+nvw16 24 nvcpl nvsum false 14 20
+end
+fn nvudp src ulong dst ulong sp ulong dp ulong n ulong to ulong
+nvw16 34 sp
+nvw16 36 dp
+nvw16 38 add n 8
+s = nvpseudo src dst 17 add n 8
+c = nvcpl add s nvsum false 34 add n 8
+if eq c 0
+c = 65535
+end
+nvw16 40 c
+nvip src dst 17 add n 8
+ret add 42 n
+end
+fn nvtcp src ulong seq ulong ack ulong fl ulong hl ulong dl ulong to ulong
+nvw16 34 443
+nvw16 36 get Vport 0
+nvw32 38 seq
+nvw32 42 ack
+put Nrx 46 uchar mul div hl 4 16
+put Nrx 47 uchar fl
+nvw16 48 65535
+nvw16 50 0
+s = nvpseudo src get Vip 0 6 add hl dl
+nvw16 50 nvcpl add s nvsum false 34 add hl dl
+nvip src get Vip 0 6 add hl dl
+ret add 34 add hl dl
+end
+fn nvin n ulong to void
+if lt n 60
+n = 60
+end
+netinput n get Vnow 0
+end
+note Each outgoing IPv4 frame: header checksum, UDP/TCP pseudo-header checksum.
+fn nvtxok to bool
+if ne nvt16 12 2048
+ret false
+end
+if ne nvcpl nvsum true 14 20 0
+ret false
+end
+n = sub nvt16 16 20
+if gt add n 34 get Ntxlen 0
+ret false
+end
+s = nvpseudo nvt32 26 nvt32 30 ulong get Ntx 23 n
+ret eq nvcpl add s nvsum true 34 n 0
+end
+fn nvnext to bool
+for i ulong 400
+netstep get Vnow 0
+if ne get Ntxlen 0 0
+ret true
+end
+put Vnow 0 add get Vnow 0 250
+end
+ret false
+end
+fn nvsent to void
+netsent true get Vnow 0
+end
+fn nvstart to bool
+put Vnow 0 5000
+put Nmac 0 uchar 2
+for i ulong 4
+put Nmac add i 1 uchar 0
+end
+put Nmac 5 uchar 1
+netinit get Vnow 0
+for i ulong 32
+put Nrand i uchar add i 1
+end
+put Vip 0 nvip4 10 9 8 20
+netconnect get Vnow 0
+for i ulong 32
+if ne get Nrand i 0
+ret false
+end
+end
+ret eq get Tcpstate 0 1
+end
+fn nvdisc to bool
+if not nvnext
+ret false
+end
+for i ulong 6
+if ne get Ntx i 255
+ret false
+end
+end
+if or ne nvt16 34 68 ne nvt16 36 67
+ret false
+end
+if or ne get Ntx 42 1 ne nvt32 278 1669485411
+ret false
+end
+put Vxid 0 nvt32 46
+if ne get Vxid 0 nvip4 1 2 3 4
+ret false
+end
+if or ne get Ntx 282 53 ne get Ntx 284 1
+ret false
+end
+ret nvtxok
+end
+fn nvopt p ulong code ulong v ulong to void
+put Nrx p uchar code
+put Nrx add p 1 uchar 4
+nvw32 add p 2 v
+end
+fn nvdhcp typ ulong xid ulong to ulong
+nvclr
+nvsetmac 0 170
+put Nrx 42 uchar 2
+put Nrx 43 uchar 1
+put Nrx 44 uchar 6
+nvw32 46 xid
+nvw32 58 get Vip 0
+for i ulong 6
+put Nrx add i 70 get Nmac i
+end
+nvw32 278 1669485411
+put Nrx 282 uchar 53
+put Nrx 283 uchar 1
+put Nrx 284 uchar typ
+nvopt 285 54 nvsrv
+nvopt 291 1 nvip4 255 255 255 0
+nvopt 297 3 nvsrv
+nvopt 303 6 nvdns
+nvopt 309 51 3600
+put Nrx 315 uchar 255
+ret nvudp nvsrv 4294967295 67 68 274
+end
+fn nvreq to bool
+if not nvnext
+ret false
+end
+if or ne get Ntx 284 3 ne get Ntx 285 50
+ret false
+end
+if or ne nvt32 287 get Vip 0 ne nvt32 293 nvsrv
+ret false
+end
+if ne nvt32 46 get Vxid 0
+ret false
+end
+ret nvtxok
+end
+fn nvarpq spa ulong tpa ulong to bool
+if not nvnext
+ret false
+end
+if or ne nvt16 12 2054 ne nvt16 20 1
+ret false
+end
+for i ulong 6
+if or ne get Ntx add i 6 get Nmac i ne get Ntx add i 22 get Nmac i
+ret false
+end
+end
+ret and eq nvt32 28 spa eq nvt32 38 tpa
+end
+fn nvarp op ulong spa ulong tpa ulong to ulong
+nvclr
+nveth 2054
+nvw16 14 1
+nvw16 16 2048
+put Nrx 18 uchar 6
+put Nrx 19 uchar 4
+nvw16 20 op
+for i ulong 6
+put Nrx add i 22 get Vpeer i
+put Nrx add i 32 get Nmac i
+end
+nvw32 28 spa
+nvw32 38 tpa
+ret 60
+end
+fn nvdnsq to bool
+if not nvnext
+ret false
+end
+for i ulong 6
+if ne get Ntx i get Vpeer i
+ret false
+end
+end
+if or ne nvt32 30 nvdns ne nvt16 36 53
+ret false
+end
+put Vdport 0 nvt16 34
+put Vdid 0 nvt16 42
+if ne get Vdport 0 add 49152 rem nvip4 9 10 11 12 16384
+ret false
+end
+if or ne get Vdid 0 and nvip4 5 6 7 8 65535 ne nvt16 44 256
+ret false
+end
+if or ne get Ntx 54 3 ne get Ntx 58 6
+ret false
+end
+if or ne get Ntx 65 3 ne get Ntx 69 0
+ret false
+end
+for i ulong 3
+if or ne get Ntx add i 55 get Vq i ne get Ntx add i 66 get Vq add i 9
+ret false
+end
+end
+for i ulong 6
+if ne get Ntx add i 59 get Vq add i 3
+ret false
+end
+end
+if or ne nvt16 70 1 ne nvt16 72 1
+ret false
+end
+ret nvtxok
+end
+fn nvboot to bool
+if not nvstart
+ret false
+end
+if not nvdisc
+ret false
+end
+nvsent
+nvin nvdhcp 2 add get Vxid 0 1
+netstep get Vnow 0
+if ne get Ntxlen 0 0
+ret false
+end
+n = nvdhcp 2 get Vxid 0
+put Nrx 100 uchar 1
+nvin n
+netstep get Vnow 0
+if ne get Ntxlen 0 0
+ret false
+end
+nvin nvdhcp 2 get Vxid 0
+if not nvreq
+ret false
+end
+nvsent
+nvin nvdhcp 5 get Vxid 0
+for k ulong 3
+if not nvarpq 0 get Vip 0
+ret false
+end
+nvsent
+end
+for k ulong 2
+if not nvarpq get Vip 0 get Vip 0
+ret false
+end
+nvsent
+end
+if not nvarpq get Vip 0 nvdns
+ret false
+end
+nvsent
+if ne get Tcpstate 0 2
+ret false
+end
+nvsetmac 0 187
+nvin nvarp 2 nvdns get Vip 0
+if not nvdnsq
+ret false
+end
+nvsent
+ret true
+end
+note DNS question in mixed case; CNAME via compression to the question, A via
+note compression to the CNAME rdata. mode 1 forward pointer, 2 TC, 3 wrong id.
+fn nvqname p ulong to void
+put Nrx p uchar 3
+put Nrx add p 4 uchar 6
+put Nrx add p 11 uchar 3
+for i ulong 3
+put Nrx add add p 1 i get Vqmix i
+put Nrx add add p 12 i get Vqmix add i 9
+end
+for i ulong 6
+put Nrx add add p 5 i get Vqmix add i 3
+end
+end
+fn nvrr p ulong name ulong typ ulong n ulong to void
+nvw16 p name
+nvw16 add p 2 typ
+nvw16 add p 4 1
+nvw32 add p 6 60
+nvw16 add p 10 n
+end
+fn nvdnsr mode ulong to ulong
+nvclr
+nvsetmac 0 187
+id = get Vdid 0
+if eq mode 3
+id = xor id 1
+end
+nvw16 42 id
+if eq mode 2
+nvw16 44 33664
+else
+nvw16 44 33152
+end
+nvw16 46 1
+nvw16 48 2
+nvqname 54
+nvw16 70 1
+nvw16 72 1
+nvrr 74 49164 5 7
+put Nrx 86 uchar 4
+put Nrx 87 uchar 101
+put Nrx 88 uchar 100
+put Nrx 89 uchar 103
+put Nrx 90 uchar 101
+nvw16 91 49168
+if eq mode 1
+nvrr 93 49232 1 4
+else
+nvrr 93 49196 1 4
+end
+nvw32 105 nvgh
+src = nvdns
+if eq mode 6
+src = add src 1
+end
+dp = get Vdport 0
+if eq mode 4
+dp = add dp 1
+end
+n = nvudp src get Vip 0 53 dp 67
+if eq mode 5
+put Nrx 108 xor get Nrx 108 1
+end
+ret n
+end
+fn nvsyn to bool
+if not nvnext
+ret false
+end
+for i ulong 6
+if ne get Ntx i get Vpeer i
+ret false
+end
+end
+if or ne nvt32 30 nvgh ne get Ntx 23 6
+ret false
+end
+if or ne get Ntx 47 2 ne get Ntx 46 96
+ret false
+end
+if or ne nvt16 54 516 ne nvt16 56 1460
+ret false
+end
+put Viss 0 nvt32 38
+put Vport 0 nvt16 34
+if ne get Viss 0 nvip4 13 14 15 16
+ret false
+end
+if ne get Vport 0 add 49152 rem nvip4 17 18 19 20 16384
+ret false
+end
+if ne nvt16 36 443
+ret false
+end
+ret nvtxok
+end
+fn nvsynack bad ulong to ulong
+nvclr
+nvsetmac 0 170
+put Nrx 54 uchar 2
+put Nrx 55 uchar 4
+nvw16 56 1400
+src = nvgh
+ack = nadd get Viss 0 1
+if eq bad 2
+ack = nadd ack 1
+end
+if eq bad 3
+src = add src 1
+end
+n = nvtcp src nvsseq ack 18 24 0
+if eq bad 1
+put Nrx 51 xor get Nrx 51 1
+end
+ret n
+end
+fn nvisack seq ulong ack ulong fl ulong dl ulong to bool
+if not nvtxok
+ret false
+end
+if or ne nvt32 38 seq ne nvt32 42 ack
+ret false
+end
+if or ne get Ntx 47 uchar fl ne nvt16 16 add 40 dl
+ret false
+end
+ret and eq nvt16 34 get Vport 0 eq nvt16 36 443
+end
+fn nvopen hard bool to bool
+if not nvboot
+ret false
+end
+if hard
+for m ulong 4
+nvin nvdnsr add m 3
+end
+if ne get Tcpstate 0 2
+ret false
+end
+end
+nvin nvdnsr 0
+if or ne get Tcpstate 0 3 ne get Tcpstate 2 nvgh
+ret false
+end
+if not nvarpq get Vip 0 nvsrv
+ret false
+end
+nvsent
+nvsetmac 0 170
+nvin nvarp 2 nvsrv get Vip 0
+if not nvsyn
+ret false
+end
+nvsent
+if hard
+for b ulong 3
+nvin nvsynack add b 1
+if ne get Tcpstate 0 3
+ret false
+end
+end
+end
+nvin nvsynack 0
+if ne get Tcpstate 0 4
+ret false
+end
+if not nvnext
+ret false
+end
+if not nvisack nadd get Viss 0 1 nadd nvsseq 1 16 0
+ret false
+end
+nvsent
+ret true
+end
+fn nvdata off ulong n ulong fl ulong src ulong ack ulong dat ulong to ulong
+nvclr
+nvsetmac 0 170
+for i ulong n
+put Nrx add 54 i get Vget add dat i
+end
+ret nvtcp src nadd nvsseq add 1 off ack fl 20 n
+end
+fn nvwire to void
+note RFC1071/791 header example with known checksum b861.
+for i ulong 20
+put Ntx i uchar 0
+end
+put Ntx 0 uchar 69
+put Ntx 3 uchar 115
+put Ntx 6 uchar 64
+put Ntx 8 uchar 64
+put Ntx 9 uchar 17
+put Ntx 12 uchar 192
+put Ntx 13 uchar 168
+put Ntx 15 uchar 1
+put Ntx 16 uchar 192
+put Ntx 17 uchar 168
+put Ntx 19 uchar 199
+check eq nfold ntsum 0 20 47201 1
+check eq nvcpl nvsum true 0 20 47201 2
+put Nrx 0 uchar 1
+put Nrx 1 uchar 2
+put Nrx 2 uchar 3
+check eq nrsum 0 3 1026 3
+check nlt 4294967295 0 4
+check not nlt 0 4294967295 5
+check eq nadd 4294967295 2 1 6
+check eq ndiff 1 4294967295 2 7
+end
+fn nvfail code ulong id ulong to void
+check eq get Tcpstate 0 6 id
+check eq get Tcpstate 1 code add id 1
+check eq get Ntxlen 0 0 add id 2
+end
+fn main to int
+nvwire
+check nvopen true 10
+put Tcpout 0 uchar 71
+put Tcpout 1 uchar 69
+put Tcpout 2 uchar 84
+check netwrite 3 get Vnow 0 11
+check not netwrite 1 get Vnow 0 12
+check nvnext 13
+a = nadd nvsseq 1
+check nvisack nadd get Viss 0 1 a 24 3 14
+check eq get Ntx 54 71 15
+netstep get Vnow 0
+check eq get Ntx 54 71 16
+netsent false get Vnow 0
+check ne get Ntxlen 0 0 17
+nvsent
+check nvnext 18
+check nvisack nadd get Viss 0 1 a 24 3 19
+nvsent
+s = nadd get Viss 0 4
+nvin nvdata 3 2 24 nvgh s 6
+check eq get Tcpn 0 0 20
+nvin nvdata 0 3 24 nvgh s 3
+check eq get Tcpn 0 5 21
+for i ulong 5
+check eq get Tcpin i get Vget add i 3 add 22 i
+end
+check netwrite 1 get Vnow 0 27
+nvin nvdata 0 3 24 nvgh s 3
+check eq get Tcpn 0 5 28
+nvin nvdata 5 1 24 add nvgh 1 s 3
+check eq get Tcpn 0 5 29
+nvin nvdata 5 0 17 nvgh s 3
+check eq get Tcpstate 0 5 30
+check eq get Tcpn 0 5 31
+netconsume 5
+check eq get Tcpn 0 0 32
+netconsume 1
+nvfail 17 33
+check nvopen false 40
+nvin nvtcp nvgh nadd nvsseq 101 nadd get Viss 0 1 4 20 0
+check eq get Tcpstate 0 4 41
+check nvnext 42
+nvin nvtcp nvgh nadd nvsseq 1 nadd get Viss 0 1 4 20 0
+nvfail 12 43
+check nvopen false 50
+s = nadd get Viss 0 1
+nvin nvdata 10 2 24 nvgh s 3
+check eq get Tcpn 0 0 51
+nvin nvdata 10 2 24 nvgh s 5
+nvfail 13 52
+check nvopen false 60
+check not netwrite 65537 get Vnow 0 61
+nvfail 17 62
+check nvboot 70
+nvin nvdnsr 1
+nvfail 10 71
+check nvboot 80
+nvin nvdnsr 2
+nvfail 9 81
+check nvstart 90
+netstep 1
+nvfail 1 91
+put Vnow 0 5000
+netinit get Vnow 0
+netconnect get Vnow 0
+nvfail 2 92
+check nvstart 100
+check nvdisc 101
+nvsent
+nvin nvdhcp 2 get Vxid 0
+check nvreq 102
+nvsent
+nvin nvdhcp 5 get Vxid 0
+check nvarpq 0 get Vip 0 103
+nvsent
+nvsetmac 0 204
+nvin nvarp 1 get Vip 0 nvsrv
+check nvnext 104
+check eq get Ntx 284 4 105
+nvsent
+nvfail 6 106
+ret int get Fails 0
+end

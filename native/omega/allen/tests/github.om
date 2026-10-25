@@ -1,0 +1,327 @@
+note SPDX-License-Identifier: AGPL-3.0-only
+note Compose committed gate core + github.om + repository-screen.om + check.om
+note + github-fixtures.om + this file. Exit0 means every behavioral assertion passed.
+note Fixtures never enter production composition. Network/TLS are not tested here.
+text Gxask "Please find your current Git repo"
+text Gxask2 "Allen, could you open the GitHub repository?"
+text Gxno "Create a repository for another project"
+text Gxesc "{\"full_name\":\"aien-dev/allen\",\"private\":false,\"html_url\":\"https://github.com/aien-dev/allen\",\"default_branch\":\"feature/demo\",\"description\":\"say \\\"hi\\\" \\\\ \\u00e9 \\ud83d\\ude00\"}"
+text Gxdup "{\"full_name\":\"aien-dev/allen\",\"private\":false,\"html_url\":\"https://github.com/aien-dev/allen\",\"default_branch\":\"main\",\"default_\\u0062ranch\":\"evil\",\"description\":null}"
+text Gxwrong "{\"full_name\":\"aien-dev/not-allen\",\"private\":false,\"html_url\":\"https://github.com/aien-dev/allen\",\"default_branch\":\"main\",\"description\":null}"
+text Gxbad "{\"a\":1,}\n{\"x\":\"\\q\"}\n{\"x\":\"\\ud800\"}\n[01]\n{}{}\n{\"x\":1e}\n{\"x\":true false}\n"
+text Gxdirbad "[{\"path\":\"../escape\",\"type\":\"file\",\"size\":0,\"sha\":\"e97222eb82f1ec56e852ba9571786db9ccc5c97a\"}]"
+text Gxchild "[{\"path\":\"docs/PHASES.md\",\"type\":\"file\",\"size\":2345,\"sha\":\"d42f5dea4ca628f6ee539da8d2b732b52faf03ec\"}]"
+text Gxpath "/repos/aien-dev/allen/commits/feature%2Fdemo"
+text Gxroot "/repos/aien-dev/allen/contents?ref=e97222eb82f1ec56e852ba9571786db9ccc5c97a"
+text Gxdocs "/repos/aien-dev/allen/contents/docs?ref=e97222eb82f1ec56e852ba9571786db9ccc5c97a"
+text Gxpre "{\"full_name\":\"aien-dev/allen\",\"private\":false,\"html_url\":\"https://github.com/aien-dev/allen\",\"default_branch\":\"main\",\"description\":\""
+text Gxpost "\"}"
+fn gxmeta to void
+for i ulong len Gxmeta
+put Ghbody i get Gxmeta i
+end
+check ghreply 1 200 len Gxmeta get Ghreq 2 100
+end
+fn gxcommit to void
+for i ulong len Gxcommit
+put Ghbody i get Gxcommit i
+end
+check ghreply 2 200 len Gxcommit get Ghreq 2 101
+end
+fn gxfiles to void
+for i ulong len Gxfiles
+put Ghbody i get Gxfiles i
+end
+check ghreply 4 200 len Gxfiles get Ghreq 2 102
+end
+fn gxread to void
+note Enough actual input rows to exercise paging, not a pre-rendered card.
+for i ulong 200
+put Ghbody mul i 2 65
+put Ghbody add mul i 2 1 10
+end
+check ghreply 3 200 400 get Ghreq 2 103
+end
+fn gxready to void
+ghrefresh
+gxmeta
+gxcommit
+gxread
+gxfiles
+check eq get Gh 0 2 104
+end
+fn gxintent to void
+ghinit
+for i ulong len Gxask
+put In i get Gxask i
+end
+put Inlen 0 len Gxask
+check ghask 1
+check eq get Ghreq 0 1 2
+check eq get Ghreq 1 len Ghbase 3
+for i ulong len Ghbase
+check eq get Ghpath i get Ghbase i 4
+end
+for i ulong len Gxask2
+put In i get Gxask2 i
+end
+put Inlen 0 len Gxask2
+check ghask 5
+for i ulong len Gxno
+put In i get Gxno i
+end
+put Inlen 0 len Gxno
+check not ghask 6
+check eq get Gh 0 4 7
+check eq get Ghreq 0 0 8
+end
+fn gxlive to void
+ghrefresh
+old = get Ghreq 2
+ghrefresh
+check not ghreply 1 200 len Gxmeta old 10
+check eq get Ghreq 0 1 11
+check not ghreply 2 200 len Gxmeta get Ghreq 2 12
+ghtime 1792886400
+gxmeta
+check eq get Ghreq 0 2 13
+check eq get Ghlen 1 4 14
+check eq get Ghmeta 64 109 15
+check eq get Ghmeta 67 110 16
+check eq get Ghat 0 1792886400 17
+gxcommit
+check eq get Ghlen 3 40 18
+check eq get Ghlen 4 20 19
+check eq get Ghreq 3 1 20
+check eq get Ghreq 0 3 21
+gxread
+check eq get Ghreq 0 4 22
+check eq get Ghreq 1 len Gxroot 23
+for i ulong len Gxroot
+check eq get Ghpath i get Gxroot i 24
+end
+gxfiles
+check eq get Gh 0 2 25
+check eq get Ghreq 0 0 26
+check eq get Gh 8 9 27
+check eq get Ghfiles 1 10 28
+check eq get Ghfiles 3 197 29
+check not ghreply 4 200 len Gxfiles get Ghreq 2 30
+end
+fn gxescape to void
+ghrefresh
+for i ulong len Gxesc
+put Ghbody i get Gxesc i
+end
+check ghreply 1 200 len Gxesc get Ghreq 2 40
+check eq get Ghreq 0 2 41
+check eq get Ghreq 1 len Gxpath 42
+for i ulong len Gxpath
+check eq get Ghpath i get Gxpath i 43
+end
+check eq get Ghmeta 324 34 44
+check eq get Ghmeta 329 92 45
+check eq get Ghmeta 331 195 46
+check eq get Ghmeta 332 169 47
+check eq get Ghmeta 334 240 48
+end
+fn gxmalformed to void
+n = ulong 0
+for i ulong len Gxbad
+c = get Gxbad i
+if eq c 10
+ghrefresh
+check ghreply 1 200 n get Ghreq 2 50
+check eq get Gh 0 3 51
+check eq get Gh 2 3 52
+check eq get jcnt 0 0 53
+n = 0
+else
+put Ghbody n c
+n = add n 1
+end
+end
+ghrefresh
+for i ulong len Gxdup
+put Ghbody i get Gxdup i
+end
+check ghreply 1 200 len Gxdup get Ghreq 2 54
+check eq get Gh 0 3 55
+ghrefresh
+for i ulong len Gxwrong
+put Ghbody i get Gxwrong i
+end
+check ghreply 1 200 len Gxwrong get Ghreq 2 56
+check eq get Gh 0 3 57
+ghrefresh
+check ghreply 1 200 65537 get Ghreq 2 58
+check eq get Gh 2 2 59
+ghrefresh
+for i ulong len Gxpre
+put Ghbody i get Gxpre i
+end
+for i ulong 513
+put Ghbody add len Gxpre i 65
+end
+for i ulong len Gxpost
+put Ghbody add add len Gxpre 513 i get Gxpost i
+end
+n = add add len Gxpre 513 len Gxpost
+check ghreply 1 200 n get Ghreq 2 60
+check eq get Gh 0 3 61
+end
+fn gxerrors to void
+ghrefresh
+check ghreply 1 429 0 get Ghreq 2 70
+check eq get Gh 2 4 71
+check eq get Gh 3 429 72
+ghrefresh
+check ghreply 1 0 0 get Ghreq 2 73
+check eq get Gh 2 1 74
+ghrefresh
+gxmeta
+gxcommit
+put Ghbody 0 192
+put Ghbody 1 128
+check ghreply 3 200 2 get Ghreq 2 75
+check eq get Gh 0 3 76
+ghrefresh
+gxmeta
+gxcommit
+put Ghbody 0 0
+check ghreply 3 200 1 get Ghreq 2 77
+check eq get Gh 0 3 78
+ghrefresh
+gxmeta
+gxcommit
+check ghreply 3 404 0 get Ghreq 2 79
+check eq get Gh 13 1 80
+check eq get Ghreq 0 4 81
+gxfiles
+check eq get Gh 0 2 82
+end
+fn gxnavigation to void
+gxready
+check cvinit 768 384 90
+ghmeasure
+check eq get Ghr 2 201 91
+ghscroll 9223372036854775807
+check eq get Gh 5 ghlimit 92
+ghscroll -9223372036854775808
+check eq get Gh 5 0 93
+ghkey 259
+check eq get Gh 5 get Ghr 1 94
+ghkey 258
+check eq get Gh 5 0 95
+ghkey 9
+check eq get Gh 4 1 96
+for i ulong 4
+ghkey 257
+end
+check eq get Gh 6 4 97
+ghkey 13
+check eq get Ghreq 0 4 98
+check eq get Ghreq 1 len Gxdocs 99
+for i ulong len Gxdocs
+check eq get Ghpath i get Gxdocs i 105
+end
+for i ulong len Gxchild
+put Ghbody i get Gxchild i
+end
+check ghreply 4 200 len Gxchild get Ghreq 2 106
+check eq get Gh 8 1 107
+ghkey 13
+check eq get Gh 4 2 108
+ghkey 98
+check eq get Gh 4 1 109
+ghkey 98
+check eq get Gh 10 0 110
+check eq get Ghreq 1 len Gxroot 111
+gxfiles
+ghpointer 20 150 1
+check eq get Gh 4 0 112
+ghswipe 20
+check eq get Gh 5 20 113
+ghpointer -1 150 1
+check eq get Gh 4 0 114
+check ghrender 115
+ghkey 114
+check eq get Gh 0 1 116
+check eq get Gh 7 0 117
+check eq get Ghlen 3 0 118
+end
+fn gxpathbad to void
+ghrefresh
+gxmeta
+gxcommit
+gxread
+for i ulong len Gxdirbad
+put Ghbody i get Gxdirbad i
+end
+check ghreply 4 200 len Gxdirbad get Ghreq 2 120
+check eq get Gh 0 3 121
+ghrefresh
+gxmeta
+gxcommit
+gxread
+for i ulong len Gxchild
+put Ghbody i get Gxchild i
+end
+note Root listing cannot inject a nested child path.
+check ghreply 4 200 len Gxchild get Ghreq 2 122
+check eq get Gh 0 3 123
+end
+fn gxbounds to void
+ghrefresh
+gxmeta
+gxcommit
+put Ghbody 0 195
+put Ghbody 1 169
+put Ghbody 2 10
+check ghreply 3 200 3 get Ghreq 2 130
+old = get Ghreq 2
+ghrefresh
+check not ghreply 4 200 len Gxfiles old 131
+check eq get Ghreq 0 1 132
+gxmeta
+gxcommit
+put Ghbody 0 240
+put Ghbody 1 159
+check ghreply 3 200 2 get Ghreq 2 133
+check eq get Gh 0 3 134
+ghrefresh
+for i ulong 33
+put Ghbody i 91
+put Ghbody add 34 i 93
+end
+put Ghbody 33 48
+check ghreply 1 200 67 get Ghreq 2 135
+check eq get Gh 0 3 136
+ghrefresh
+gxmeta
+gxcommit
+for i ulong 148
+put Ghbody i 65
+end
+check ghreply 3 200 148 get Ghreq 2 137
+gxfiles
+ghmeasure
+check eq get Ghr 2 3 138
+check eq get Ghlines 1 73 139
+check eq get Ghlines 2 146 140
+check eq get Ghat 3 0 141
+put Inlen 0 160
+check not ghask 142
+check eq get Gh 0 4 143
+end
+fn main to int
+gxintent
+gxlive
+gxescape
+gxmalformed
+gxerrors
+gxnavigation
+gxpathbad
+gxbounds
+ret int get Fails 0
+end

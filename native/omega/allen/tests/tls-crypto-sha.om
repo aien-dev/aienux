@@ -1,0 +1,158 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note SHA256 empty/abc/56-byte standard FIPS180-4 examples; RFC4231 sections4.2..4.5 HMAC.
+note HKDF RFC5869 Appendix A.1/A.3 extract and both expand blocks via public HMAC API.
+note https://www.rfc-editor.org/rfc/rfc4231 https://www.rfc-editor.org/rfc/rfc5869
+note Attribution/license in required tls-crypto-fixture.om. Return0 means every assertion matched.
+text Vhash "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff75bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e519ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04"
+text Vokm "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b8871858658da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8"
+text Vabc "abc"
+text Vlong "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+text Vhi "Hi There"
+text Vjefe "Jefe"
+text Vwhat "what do ya want for nothing?"
+
+fn tvhash slot ulong to void
+for i ulong 32
+p = add mul slot 64 mul i 2
+v = tvbyte get Vhash p get Vhash add p 1
+tvcheck eq get Tcdigest i v 20
+end
+tvscrub
+end
+
+fn tvwipe to void
+tcwipe
+tvscrub
+end
+
+fn tvsha to void
+tvwipe
+tvcheck tcsha 0 1
+tvhash 0
+for i ulong 3
+put Tcbuf i get Vabc i
+end
+put Tcbuf 3 201
+tvcheck tcsha 3 2
+tvhash 1
+for i ulong 3
+tvcheck eq get Tcbuf i get Vabc i 3
+end
+tvcheck eq get Tcbuf 3 201 3
+for i ulong len Vlong
+put Tcbuf i get Vlong i
+end
+tvcheck tcsha len Vlong 4
+tvhash 2
+tvcheck not tcsha 65537 5
+for i ulong 32
+tvcheck eq get Tcdigest i 0 5
+end
+tvcheck not tcsha 18446744073709551615 5
+tvscrub
+end
+
+fn tvhmac to void
+tvwipe
+for i ulong 20
+put Tckey i 11
+end
+for i ulong len Vhi
+put Tcbuf i get Vhi i
+end
+tvcheck tchmac 20 len Vhi 6
+tvhash 3
+for i ulong len Vhi
+tvcheck eq get Tcbuf i get Vhi i 7
+end
+for i ulong 4
+put Tckey i get Vjefe i
+end
+tvcheck tchmac 4 0 8
+for i ulong len Vwhat
+put Tcbuf i get Vwhat i
+end
+tvcheck tchmac 4 len Vwhat 9
+tvhash 4
+for i ulong 20
+put Tckey i 170
+end
+for i ulong 50
+put Tcbuf i 221
+end
+tvcheck tchmac 20 50 10
+tvhash 5
+for i ulong 25
+put Tckey i uchar add i 1
+end
+for i ulong 50
+put Tcbuf i 205
+end
+tvcheck tchmac 25 50 11
+tvhash 6
+tvcheck not tchmac 33 50 12
+tvcheck not tchmac 32 65537 12
+tvcheck not tchmac 18446744073709551615 0 12
+for i ulong 32
+tvcheck eq get Tcdigest i 0 13
+end
+tvcheck eq get Tcbuf 0 205 13
+tvscrub
+end
+
+fn tvhkdf empty bool to void
+tvwipe
+for i ulong 22
+put Tcbuf i 11
+end
+n = ulong 13
+z = ulong 10
+slot = ulong 7
+base = ulong 0
+if empty
+n = 0
+z = 0
+slot = 8
+base = 84
+else
+for i ulong 13
+put Tckey i uchar i
+end
+end
+tvcheck tchmac n 22 14
+tvhash slot
+for i ulong 32
+put Tckey i get Tcdigest i
+end
+for i ulong z
+put Tcbuf i uchar add i 240
+end
+put Tcbuf z 1
+tvcheck tchmac 32 add z 1 15
+for i ulong 32
+p = add base mul i 2
+v = tvbyte get Vokm p get Vokm add p 1
+tvcheck eq get Tcdigest i v 16
+put Tcbuf i get Tcdigest i
+end
+for i ulong z
+put Tcbuf add i 32 uchar add i 240
+end
+put Tcbuf add z 32 2
+tvcheck tchmac 32 add z 33 17
+for i ulong 10
+p = add add base 64 mul i 2
+v = tvbyte get Vokm p get Vokm add p 1
+tvcheck eq get Tcdigest i v 18
+end
+tvscrub
+end
+
+fn main to int
+tvsha
+tvhmac
+tvhkdf false
+tvhkdf true
+tvwipe
+ret 0
+end

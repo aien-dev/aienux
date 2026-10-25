@@ -1,0 +1,128 @@
+note RFC8448 section3 independent published SHA256 schedule values.
+note Concatenate production crypto, cert, tls modules then this fixture. No replacement APIs.
+note RFC trace suite1301 uses the same SHA256 schedule; only its 12-byte IV is checked here.
+text Vhs "1dc826e93606aa6fdc0aadc12f741b01046aa6b99f691ed221a9f0ca043fbeac"
+text Vhash "860c06edc07858ee8e78f0e7428c58edd6b43f2ca3e6e95f02ed063cf0e1cad8"
+text Vchs "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21"
+text Vshs "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38"
+text Vder "43de77e0c77713859a944db9db2590b53190a65b3ee2e4f12dd7a0bb7ce254b4"
+text Vmaster "18df06843d13a08bf2a449844c5f8a478001bc4d4c627984d5a41da8d0402919"
+text Vfkey "008d3b66f816ea559f96b537e885c31fc068bf492c652f01f288a1d8cdc19fc8"
+text Vempty "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+text Viv "5d313eb2671276ee13000b30"
+fn vhex c uchar to uchar
+if le c 57
+ret sub c 48
+end
+ret add sub c 97 10
+end
+fn main to int
+tsclear
+for i ulong 32
+p = mul i 2
+put Tssec i or shl vhex get Vhs p 4 vhex get Vhs add p 1
+put Tshash i or shl vhex get Vhash p 4 vhex get Vhash add p 1
+end
+if not tsexpand 1 0 true 32
+ret 1
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vchs p 4 vhex get Vchs add p 1
+if ne get Tcdigest i b
+ret 2
+end
+end
+if not tsexpand 2 0 true 32
+ret 3
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vshs p 4 vhex get Vshs add p 1
+if ne get Tcdigest i b
+ret 4
+end
+put Tssec add i 64 b
+end
+if not tsexpand 6 64 false 12
+ret 5
+end
+for i ulong 12
+p = mul i 2
+b = or shl vhex get Viv p 4 vhex get Viv add p 1
+if ne get Tcdigest i b
+ret 6
+end
+end
+if not tsexpand 7 64 false 32
+ret 7
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vfkey p 4 vhex get Vfkey add p 1
+if ne get Tcdigest i b
+ret 8
+end
+end
+if not tsempty
+ret 9
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vempty p 4 vhex get Vempty add p 1
+if ne get Tshash i b
+ret 10
+end
+end
+if not tsexpand 0 0 true 32
+ret 11
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vder p 4 vhex get Vder add p 1
+if ne get Tcdigest i b
+ret 12
+end
+put Tckey i get Tcdigest i
+put Tcbuf i 0
+end
+if not tchmac 32 32
+ret 13
+end
+for i ulong 32
+p = mul i 2
+b = or shl vhex get Vmaster p 4 vhex get Vmaster add p 1
+if ne get Tcdigest i b
+ret 14
+end
+end
+note RFC8446 section5.3 sequence is big endian, left-padded to IV length, XOR.
+for i ulong 12
+put Tsiv i uchar i
+end
+tsnonce 0 0 72623859790382856
+for i ulong 4
+if ne get Tciv i uchar i
+ret 15
+end
+end
+for i ulong 8
+b = xor uchar add i 4 uchar add i 1
+if ne get Tciv add i 4 b
+ret 16
+end
+end
+if tsexpand 5 0 false 33
+ret 17
+end
+if tsexpand 5 0 false 0
+ret 18
+end
+tswipe
+for i ulong 192
+if ne get Tssec i 0
+ret 19
+end
+end
+ret 0
+end

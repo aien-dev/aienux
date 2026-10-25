@@ -1,0 +1,547 @@
+note SPDX-License-Identifier: AGPL-3.0-only
+note Repository window over committed Canvas/font API. No platform calls.
+note Inputs ghkey: ASCII r refresh,b back,Tab switch,Enter open,Esc back;
+note 256 up,257 down,258 page up,259 page down,260 left,261 right.
+note Pointer uses logical Canvas coordinates and button1 press; wheel/swipe in rows.
+note Gh view README0/files1/details2. Unsupported Unicode glyphs render one ? per scalar.
+global Ghr ulong 8
+global Ghlines ulong 262145
+global Ghnumb uchar 20
+text Ghlabs "Allen / GitHub\nREADME\nFiles\nRefresh [R]\nBack [B]\nLIVE HTTPS / api.github.com\nLoading live GitHub response...\nNo current response. Refresh to retry.\nAsk me to find Allen's GitHub repository.\nUnsupported request. I can open Allen's repository.\nHTTP / transport error\nResponse exceeds bounded capacity\nInvalid response, identity, path or text\nAccess denied or GitHub rate limit\nRequest generation or path limit\nDefault branch:\nCommit:\nCommit time:\nRetrieved epoch seconds:\nRetrieval clock unavailable; session response:\nREADME not present at this commit (HTTP 404).\nEmpty README.\nEmpty directory.\nPath:\nBytes:\nObject SHA:\nDirectory\nFile\nOther object (not followed)\nText only; links and instructions are not executed.\nUp/Down scroll | PgUp/PgDn | Tab views | Enter open\nSource: github.com/aien-dev/allen\n"
+fn ghscalar p ulong to ulong
+c = get Ghread p
+if lt c 128
+ret add p 1
+end
+if lt c 224
+ret add p 2
+end
+if lt c 240
+ret add p 3
+end
+ret add p 4
+end
+fn ghmeasure to void
+w = get Cv 0
+h = get Cv 1
+if lt w 160
+w = 160
+end
+if lt h 240
+h = 240
+end
+cols = div sub w 32 10
+put Ghr 0 cols
+put Ghr 1 div sub h 212 18
+if eq get Ghr 1 0
+put Ghr 1 1
+end
+if and eq get Ghr 3 get Gh 12 eq get Ghr 4 cols
+ret
+end
+put Ghr 3 get Gh 12
+put Ghr 4 cols
+put Ghlines 0 0
+nrows = ulong 1
+col = ulong 0
+p = ulong 0
+while lt p get Gh 7
+c = get Ghread p
+p = ghscalar p
+if eq c 10
+put Ghlines nrows p
+nrows = add nrows 1
+col = 0
+else
+if ne c 13
+col = add col 1
+if ge col cols
+if lt p get Gh 7
+if ne get Ghread p 10
+put Ghlines nrows p
+nrows = add nrows 1
+col = 0
+end
+end
+end
+end
+end
+end
+put Ghr 2 nrows
+end
+fn ghrows to ulong
+if eq get Gh 4 0
+ret get Ghr 2
+end
+if eq get Gh 4 1
+ret get Gh 8
+end
+ret 1
+end
+fn ghlimit to ulong
+n = ghrows
+if le n get Ghr 1
+ret 0
+end
+ret sub n get Ghr 1
+end
+fn ghscroll delta long to void
+if ne get Gh 0 2
+ret
+end
+ghmeasure
+n = ghlimit
+at = get Gh 5
+if gt at n
+at = n
+end
+if lt delta 0
+note Avoid negating LONG_MIN.
+if le delta neg long at
+at = 0
+else
+at = ulong add long at delta
+end
+else
+if ge ulong delta sub n at
+at = n
+else
+at = add at ulong delta
+end
+end
+put Gh 5 at
+end
+fn ghswipe delta long to void
+ghscroll delta
+end
+fn ghopen to void
+if ne get Gh 4 1
+ret
+end
+if ge get Gh 6 get Gh 8
+ret
+end
+slot = mul get Gh 6 5
+if ne get Ghfiles add slot 2 2
+put Gh 4 2
+put Gh 5 0
+ret
+end
+p = get Ghfiles slot
+n = get Ghfiles add slot 1
+for i ulong n
+put Ghdir i get Ghpool add p i
+end
+put Gh 10 n
+put Gh 8 0
+put Gh 9 0
+put Gh 5 0
+put Gh 6 0
+ghissue 4
+end
+fn ghback to void
+if eq get Gh 4 2
+put Gh 4 1
+put Gh 5 0
+ret
+end
+if and eq get Gh 4 1 gt get Gh 10 0
+n = get Gh 10
+while gt n 0
+n = sub n 1
+if eq get Ghdir n 47
+put Gh 10 n
+put Gh 8 0
+put Gh 9 0
+ghissue 4
+ret
+end
+end
+put Gh 10 0
+put Gh 8 0
+put Gh 9 0
+ghissue 4
+ret
+end
+put Gh 4 0
+put Gh 5 0
+end
+fn ghselect down bool to void
+if eq get Gh 8 0
+ret
+end
+n = get Gh 6
+if down
+if lt add n 1 get Gh 8
+n = add n 1
+end
+else
+if gt n 0
+n = sub n 1
+end
+end
+put Gh 6 n
+if lt n get Gh 5
+put Gh 5 n
+end
+if ge n add get Gh 5 get Ghr 1
+put Gh 5 add sub n get Ghr 1 1
+end
+end
+fn ghkey key ulong to void
+if or eq key 114 eq key 82
+ghrefresh
+ret
+end
+if ne get Gh 0 2
+ret
+end
+ghmeasure
+if or or eq key 98 eq key 27 eq key 260
+ghback
+ret
+end
+if eq key 9
+put Gh 4 rem add get Gh 4 1 2
+put Gh 5 0
+ret
+end
+if or eq key 13 eq key 261
+ghopen
+ret
+end
+if or eq key 256 eq key 257
+if eq get Gh 4 1
+ghselect eq key 257
+else
+if eq key 256
+ghscroll -1
+else
+ghscroll 1
+end
+end
+end
+if eq key 258
+ghscroll neg long get Ghr 1
+end
+if eq key 259
+ghscroll long get Ghr 1
+end
+end
+fn ghpointer x long y long button ulong to void
+if ne button 1
+ret
+end
+if or lt x 0 lt y 0
+ret
+end
+if or ge x long get Cv 0 ge y long get Cv 1
+ret
+end
+if and ge y 142 lt y 170
+if and ge x 300 lt x 460
+ghrefresh
+ret
+end
+if ne get Gh 0 2
+ret
+end
+if lt x 140
+put Gh 4 0
+put Gh 5 0
+else
+if lt x 280
+put Gh 4 1
+put Gh 5 0
+else
+if ge x 460
+ghback
+end
+end
+end
+ret
+end
+if ne get Gh 0 2
+ret
+end
+if and eq get Gh 4 1 ge y 178
+ghmeasure
+row = div ulong sub y 178 18
+if ge row get Ghr 1
+ret
+end
+row = add row get Gh 5
+if lt row get Gh 8
+if eq row get Gh 6
+ghopen
+else
+put Gh 6 row
+end
+end
+end
+end
+fn ghfillrow at ulong w ulong color ulong to void
+for xx ulong w
+put Canvas at uchar and shr color 16 255
+put Canvas add at 1 uchar and shr color 8 255
+put Canvas add at 2 uchar and color 255
+at = add at 3
+end
+end
+fn ghfill x ulong y ulong w ulong h ulong color ulong to void
+if or gt x get Cv 0 gt y get Cv 1
+ret
+end
+if or gt w sub get Cv 0 x gt h sub get Cv 1 y
+ret
+end
+for yy ulong h
+at = add y yy
+at = mul at get Cv 0
+at = mul add at x 3
+ghfillrow at w color
+end
+end
+fn ghdraw c uchar x long y long color ulong to void
+if not cvglyph c x y color
+put Ghr 7 1
+end
+end
+fn ghlabel wanted ulong x long y long to void
+which = ulong 0
+for i ulong len Ghlabs
+c = get Ghlabs i
+if eq c 10
+if eq which wanted
+ret
+end
+which = add which 1
+else
+if eq which wanted
+if ge x long sub get Cv 0 8
+ret
+end
+ghdraw c x y 12573663
+x = add x 10
+end
+end
+end
+end
+fn ghsource src ulong p ulong to uchar
+if eq src 0
+ret get Ghmeta p
+end
+if eq src 1
+ret get Ghread p
+end
+if eq src 2
+ret get Ghpool p
+end
+ret get Ghdir p
+end
+fn ghtext src ulong p ulong n ulong x long y long color ulong to void
+stop = add p n
+while lt p stop
+c = ghsource src p
+p = add p 1
+if eq c 10
+ret
+end
+if ne c 13
+if ge x long sub get Cv 0 8
+ret
+end
+if ge c 128
+while lt p stop
+d = ghsource src p
+if or lt d 128 ge d 192
+break
+end
+p = add p 1
+end
+c = 63
+end
+if lt c 32
+c = 32
+end
+ghdraw c x y color
+x = add x 10
+end
+end
+end
+fn ghnum v ulong x long y long to void
+n = ulong 0
+put Ghnumb n uchar add rem v 10 48
+n = add n 1
+v = div v 10
+while gt v 0
+put Ghnumb n uchar add rem v 10 48
+n = add n 1
+v = div v 10
+end
+while gt n 0
+n = sub n 1
+ghdraw get Ghnumb n x y 12573663
+x = add x 10
+end
+end
+fn ghreadview to void
+if ne get Gh 13 0
+ghlabel 20 16 192
+ret
+end
+if eq get Gh 7 0
+ghlabel 21 16 192
+ret
+end
+for i ulong get Ghr 1
+row = add get Gh 5 i
+if ge row get Ghr 2
+ret
+end
+p = get Ghlines row
+stop = get Gh 7
+if lt add row 1 get Ghr 2
+stop = get Ghlines add row 1
+end
+y = long add 192 mul i 18
+ghtext 1 p sub stop p 16 y 15132654
+end
+end
+fn ghfileview to void
+if eq get Gh 8 0
+ghlabel 22 16 192
+ret
+end
+for i ulong get Ghr 1
+row = add get Gh 5 i
+if ge row get Gh 8
+ret
+end
+slot = mul row 5
+y = add 178 mul i 18
+if eq row get Gh 6
+ghfill 8 y sub get Cv 0 16 18 1850175
+end
+p = get Ghfiles slot
+n = get Ghfiles add slot 1
+mark = uchar 45
+if eq get Ghfiles add slot 2 2
+mark = 43
+end
+ghdraw mark 16 long add y 14 7119850
+ghtext 2 p n 36 long add y 14 15132654
+end
+end
+fn ghdetails to void
+slot = mul get Gh 6 5
+ghlabel 23 16 192
+ghtext 2 get Ghfiles slot get Ghfiles add slot 1 86 192 15132654
+ghlabel 24 16 212
+ghnum get Ghfiles add slot 3 96 212
+ghlabel 25 16 232
+ghtext 2 get Ghfiles add slot 4 40 16 250 15132654
+typ = get Ghfiles add slot 2
+if eq typ 1
+ghlabel 27 16 270
+else
+ghlabel 28 16 270
+end
+end
+fn ghheader to void
+ghlabel 0 16 24
+ghlabel 31 16 44
+if eq get Gh 0 2
+ghlabel 5 16 64
+ghtext 0 320 get Ghlen 2 16 84 15132654
+ghlabel 15 16 104
+ghtext 0 64 get Ghlen 1 176 104 15132654
+ghlabel 16 16 124
+ghtext 0 832 12 96 124 15132654
+ghtext 0 896 get Ghlen 4 236 124 12573663
+end
+ghfill 8 142 sub get Cv 0 16 28 1581342
+ghlabel 1 16 160
+ghlabel 2 156 160
+ghlabel 3 306 160
+ghlabel 4 476 160
+end
+fn ghstatus to void
+state = get Gh 0
+if eq state 0
+ghlabel 8 16 192
+end
+if eq state 1
+ghlabel 6 16 192
+ghnum get Ghreq 0 16 216
+end
+if eq state 4
+ghlabel 9 16 192
+end
+if eq state 3
+ghlabel 7 16 192
+err = get Gh 2
+label = ulong 10
+if eq err 2
+label = 11
+end
+if eq err 3
+label = 12
+end
+if eq err 4
+label = 13
+end
+if eq err 8
+label = 14
+end
+ghlabel label 16 216
+ghnum get Gh 3 16 240
+end
+end
+fn ghfooter to void
+y = long sub get Cv 1 24
+if eq get Gh 0 2
+stamp = get Ghat 3
+if gt stamp 0
+ghlabel 18 16 y
+ghnum stamp 266 y
+else
+ghlabel 19 16 y
+ghnum get Gh 12 516 y
+end
+end
+ghlabel 30 16 long sub get Cv 1 6
+end
+fn ghrender to bool
+if eq get Cv 6 0
+ret false
+end
+if or lt get Cv 0 320 lt get Cv 1 288
+ret false
+end
+if not afinit 10 1000
+ret false
+end
+if not cvclip 0 0 get Cv 0 get Cv 1
+ret false
+end
+put Ghr 7 0
+ghmeasure
+ghfill 0 0 get Cv 0 get Cv 1 395282
+ghheader
+if eq get Gh 0 2
+if eq get Gh 4 0
+ghreadview
+end
+if eq get Gh 4 1
+ghfileview
+end
+if eq get Gh 4 2
+ghdetails
+end
+else
+ghstatus
+end
+ghfooter
+ret eq get Ghr 7 0
+end

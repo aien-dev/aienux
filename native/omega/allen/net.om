@@ -1,0 +1,1766 @@
+note Native bounded single HTTPS client. RFC826/791/768/2131/2132/1035/9293/6298.
+note Caller provides Ethernet frames without FCS, checked monotonic milliseconds,
+note six-byte unicast Nmac before netinit, and 32 fresh EFI entropy bytes in
+note Nrand before every netconnect. netconnect consumes and wipes Nrand: DHCP xid,
+note IPv4 id, DNS id/port, TCP port and ISN are never reused across connections.
+note netwrite true transfers a copy, not a peer ACK. netsent is firmware acceptance.
+note Public state 0idle 1DHCP 2DNS 3SYN 4open 5EOF/closed 6error.
+note Errors: 1clock 2MAC/entropy 3DHCPtimeout 4DHCPnak 5config 6conflict
+note 7ARPtimeout 8DNStimeout 9DNSrefused/truncated 10DNSinvalid/empty
+note 11TCPtimeout 12peerreset 13unsupportedTCP 14leaseexpired 15transmit
+note 16establishdeadline 17callerbounds. Invalid unrelated packets are ignored.
+note Limits: untagged Ethernet MTU1500, IPv4 without options/fragments,
+note DHCP lease without renewal, 120s establishment, DNS A/CNAME <=8 links,
+note 64 DNS records/UDP message, one stop-and-wait TCP segment, receive64KiB.
+note No DNS-over-TCP or EDNS: truncation fails; lease expiry fails explicitly.
+note A bound lease is reused by later netconnect calls; anything else restarts DHCP.
+note Internal Ncfg slots: now,dhcp,ip,mask,router,dns,server,offer,xid,leaseMS,
+note leaseAt,initAt,dhcpDue,dhcpTries,probeCount,want,connectAt,generation,
+note ipid,dnsid,dnsport,tcpport,dnsDue,dnsTries,cnameHops,qnameLen,
+note arpWanted,arpCached,arpDue,arpTries,arpAt,initialized.
+global Nrx uchar 2048
+global Ntx uchar 2048
+global Ntxlen ulong 1
+global Nmac uchar 6
+global Nrand uchar 32
+global Tcpin uchar 65536
+global Tcpout uchar 65536
+global Tcpn ulong 1
+global Tcpstate ulong 8
+global Ncfg ulong 32
+note Nct: una,next,rcvnxt,ringHead,peerwin,wl1,wl2,mss,ackPending,
+note flightLen,flightKind(1syn2data3fin),flightSent,flightSeq,sentAt,rto,
+note retries,sendTotal,sendOffset,closeWanted,finAcked,peerFin,finPending,
+note finSeq,activity,timewaitAt,iss,srtt,rttvar,rttValid,zeroAt,synRetried.
+global Nct ulong 32
+global Nsbuf uchar 65536
+global Nrbuf uchar 65536
+global Nrmap uchar 65536
+global Nhop uchar 6
+global Narp uchar 6
+global Napip ulong 1
+note Queue kind 1DHCP 2ARPquery 3ARPreply 4DNS 5TCPflight 6TCPack.
+note Q1 failures Q2 queuedAt Q3 DHCP/ARP phase Q4 seq Q5 ack Q6 window Q7 generation.
+global Nq ulong 8
+note Parsed packet: frameLen,ipHlen,ipLen,src,dst,l4off,l4len,seq,ack,
+note flags,dataOff,dataLen,window,tcpHlen.
+global Npk ulong 16
+global Nopt ulong 8
+note DNS decoder base,end,next,nameLen,answerStart,answerCount,rrNext,rrData.
+global Nd ulong 8
+global Nname uchar 256
+global Nwant uchar 256
+global Nrr ulong 4
+text Nhost "api.github.com"
+fn nr16 p ulong to ulong
+ret add shl ulong get Nrx p 8 ulong get Nrx add p 1
+end
+fn nr32 p ulong to ulong
+ret add shl nr16 p 16 nr16 add p 2
+end
+fn nt16 p ulong v ulong to void
+put Ntx p uchar and shr v 8 255
+put Ntx add p 1 uchar and v 255
+end
+fn nt32 p ulong v ulong to void
+nt16 p shr v 16
+nt16 add p 2 and v 65535
+end
+fn nadd a ulong b ulong to ulong
+ret and add a b 4294967295
+end
+fn ndiff a ulong b ulong to ulong
+ret and sub add a 4294967296 b 4294967295
+end
+fn nlt a ulong b ulong to bool
+ret gt ndiff a b 2147483647
+end
+fn nfold s ulong to ulong
+while gt s 65535 bound 8
+s = add and s 65535 shr s 16
+end
+ret xor s 65535
+end
+fn nrsum p ulong n ulong to ulong
+s = ulong 0
+while ge n 2 bound 1024
+s = add s nr16 p
+p = add p 2
+n = sub n 2
+end
+if eq n 1
+s = add s shl ulong get Nrx p 8
+end
+ret s
+end
+fn ntsum p ulong n ulong to ulong
+s = ulong 0
+while ge n 2 bound 1024
+s = add s shl ulong get Ntx p 8
+s = add s ulong get Ntx add p 1
+p = add p 2
+n = sub n 2
+end
+if eq n 1
+s = add s shl ulong get Ntx p 8
+end
+ret s
+end
+fn npssum a ulong b ulong proto ulong n ulong to ulong
+s = add shr a 16 and a 65535
+s = add s shr b 16
+s = add s and b 65535
+ret add add s proto n
+end
+fn nipok ip ulong to bool
+if or eq ip 0 eq ip 4294967295
+ret false
+end
+x = shr ip 24
+ret and ne x 0 and ne x 127 lt x 224
+end
+fn nmacrx p ulong to bool
+v = uchar 0
+for i ulong 6
+v = or v get Nrx add p i
+end
+ret and ne v 0 eq and get Nrx p 1 0
+end
+fn nmaceq p ulong to bool
+for i ulong 6
+if ne get Nrx add p i get Nmac i
+ret false
+end
+end
+ret true
+end
+fn nwipe to void
+for i ulong 65536
+put Tcpin i uchar 0
+put Tcpout i uchar 0
+put Nsbuf i uchar 0
+put Nrbuf i uchar 0
+put Nrmap i uchar 0
+end
+put Tcpn 0 0
+end
+fn nfail code ulong to void
+put Tcpstate 0 6
+put Tcpstate 1 code
+put Ntxlen 0 0
+for i ulong 2048
+put Ntx i uchar 0
+end
+for i ulong 32
+put Nrand i uchar 0
+put Nct i 0
+end
+nwipe
+end
+fn nclock now ulong to bool
+if or lt now get Ncfg 0 gt now 1000000000000000000
+nfail 1
+ret false
+end
+put Ncfg 0 now
+ret true
+end
+fn ntxzero to void
+for i ulong 1514
+put Ntx i uchar 0
+end
+end
+fn neth typ ulong broad bool to void
+for i ulong 6
+if broad
+put Ntx i uchar 255
+else
+put Ntx i get Nhop i
+end
+put Ntx add i 6 get Nmac i
+end
+nt16 12 typ
+end
+fn nqueue kind ulong n ulong to void
+if lt n 60
+n = 60
+end
+put Ntxlen 0 n
+put Nq 0 kind
+put Nq 1 0
+put Nq 2 get Ncfg 0
+put Nq 7 get Ncfg 17
+end
+fn nipbuild dest ulong proto ulong n ulong broad bool to void
+neth 2048 broad
+put Ntx 14 uchar 69
+nt16 16 add n 20
+nt16 18 get Ncfg 18
+put Ncfg 18 and add get Ncfg 18 1 65535
+nt16 20 16384
+put Ntx 22 uchar 64
+put Ntx 23 uchar proto
+nt32 26 get Ncfg 2
+nt32 30 dest
+nt16 24 nfold ntsum 14 20
+end
+fn nudp dest ulong srcp ulong dstp ulong n ulong broad bool to void
+nt16 34 srcp
+nt16 36 dstp
+nt16 38 add n 8
+s = npssum get Ncfg 2 dest 17 add n 8
+s = nfold add s ntsum 34 add n 8
+if eq s 0
+s = 65535
+end
+nt16 40 s
+nipbuild dest 17 add n 8 broad
+end
+fn narpout target ulong probe bool to void
+ntxzero
+neth 2054 true
+nt16 14 1
+nt16 16 2048
+put Ntx 18 uchar 6
+put Ntx 19 uchar 4
+nt16 20 1
+for i ulong 6
+put Ntx add i 22 get Nmac i
+end
+if not probe
+nt32 28 get Ncfg 2
+end
+nt32 38 target
+put Nq 3 get Ncfg 1
+nqueue 2 42
+end
+fn narprepl to void
+ntxzero
+neth 2054 false
+for i ulong 6
+put Ntx i get Narp i
+put Ntx add i 32 get Narp i
+put Ntx add i 22 get Nmac i
+end
+nt16 14 1
+nt16 16 2048
+put Ntx 18 uchar 6
+put Ntx 19 uchar 4
+nt16 20 2
+nt32 28 get Ncfg 2
+nt32 38 get Napip 0
+put Napip 0 0
+nqueue 3 42
+end
+fn nroute dest ulong to bool
+if ne and dest get Ncfg 3 and get Ncfg 2 get Ncfg 3
+dest = get Ncfg 4
+end
+if eq dest 0
+nfail 5
+ret false
+end
+if eq get Ncfg 27 dest
+if lt sub get Ncfg 0 get Ncfg 30 60000
+ret true
+end
+put Ncfg 27 0
+end
+if ne get Ncfg 26 dest
+put Ncfg 26 dest
+put Ncfg 29 0
+put Ncfg 28 get Ncfg 0
+end
+if ge get Ncfg 0 get Ncfg 28
+if ge get Ncfg 29 5
+nfail 7
+ret false
+end
+narpout dest false
+end
+ret false
+end
+fn ndhcpout to void
+ntxzero
+put Ntx 42 uchar 1
+put Ntx 43 uchar 1
+put Ntx 44 uchar 6
+nt32 46 get Ncfg 8
+nt16 50 div sub get Ncfg 0 get Ncfg 11 1000
+nt16 52 32768
+for i ulong 6
+put Ntx add i 70 get Nmac i
+end
+nt32 278 1669485411
+put Ntx 282 uchar 53
+put Ntx 283 uchar 1
+mt = uchar 1
+if eq get Ncfg 1 2
+mt = 3
+end
+if eq get Ncfg 1 5
+mt = 4
+end
+put Ntx 284 mt
+p = ulong 285
+if ne mt 1
+put Ntx p uchar 50
+put Ntx add p 1 uchar 4
+nt32 add p 2 get Ncfg 7
+put Ntx add p 6 uchar 54
+put Ntx add p 7 uchar 4
+nt32 add p 8 get Ncfg 6
+p = add p 12
+end
+put Ntx p uchar 61
+put Ntx add p 1 uchar 7
+put Ntx add p 2 uchar 1
+for i ulong 6
+put Ntx add add p 3 i get Nmac i
+end
+p = add p 9
+note RFC2131 table 5: DHCPDECLINE carries no parameter list or size option.
+if ne mt 4
+put Ntx p uchar 55
+put Ntx add p 1 uchar 6
+put Ntx add p 2 uchar 1
+put Ntx add p 3 uchar 3
+put Ntx add p 4 uchar 6
+put Ntx add p 5 uchar 51
+put Ntx add p 6 uchar 58
+put Ntx add p 7 uchar 59
+put Ntx add p 8 uchar 57
+put Ntx add p 9 uchar 2
+nt16 add p 10 1472
+p = add p 12
+end
+put Ntx p uchar 255
+p = add p 1
+if lt p 342
+p = 342
+end
+nudp 4294967295 68 67 sub p 42 true
+put Nq 3 get Ncfg 1
+nqueue 1 p
+end
+fn ndnsout to void
+ntxzero
+nt16 42 get Ncfg 19
+nt16 44 256
+nt16 46 1
+for i ulong get Ncfg 25
+put Ntx add i 54 get Nwant i
+end
+p = add 54 get Ncfg 25
+nt16 p 1
+nt16 add p 2 1
+nudp get Ncfg 5 get Ncfg 20 53 sub add p 4 42 false
+nqueue 4 add p 4
+end
+fn nwindow to ulong
+ret sub 65535 get Tcpn 0
+end
+fn ntcpout flight bool to void
+ntxzero
+nt16 34 get Ncfg 21
+nt16 36 443
+nt32 38 get Nct 1
+nt32 42 get Nct 2
+put Ntx 46 uchar 80
+put Ntx 47 uchar 16
+nt16 48 nwindow
+n = ulong 20
+if flight
+nt32 38 get Nct 12
+if eq get Nct 10 1
+put Ntx 46 uchar 96
+put Ntx 47 uchar 2
+nt32 42 0
+put Ntx 54 uchar 2
+put Ntx 55 uchar 4
+nt16 56 1460
+n = 24
+else
+if eq get Nct 10 3
+put Ntx 47 uchar 17
+else
+put Ntx 47 uchar 24
+n = add n get Nct 9
+for i ulong get Nct 9
+put Ntx add i 54 get Nsbuf add get Nct 17 i
+end
+end
+end
+end
+s = npssum get Ncfg 2 get Tcpstate 2 6 n
+nt16 50 nfold add s ntsum 34 n
+nipbuild get Tcpstate 2 6 n false
+put Nq 4 get Nct 12
+put Nq 5 get Nct 2
+put Nq 6 nwindow
+if flight
+nqueue 5 add n 34
+else
+nqueue 6 add n 34
+end
+end
+note DHCP option fields are parsed atomically before changing lease state.
+fn ndopt code ulong p ulong n ulong to bool
+slot = ulong 8
+if eq code 53
+slot = 0
+end
+if eq code 54
+slot = 1
+end
+if eq code 1
+slot = 2
+end
+if eq code 3
+slot = 3
+end
+if eq code 6
+slot = 4
+end
+if eq code 51
+slot = 5
+end
+if eq code 52
+slot = 7
+end
+if eq slot 8
+ret true
+end
+if ne and get Nopt 6 shl ulong 1 slot 0
+ret false
+end
+put Nopt 6 or get Nopt 6 shl ulong 1 slot
+if or eq slot 0 eq slot 7
+if ne n 1
+ret false
+end
+put Nopt slot ulong get Nrx p
+ret true
+end
+if or eq slot 3 eq slot 4
+if or lt n 4 ne rem n 4 0
+ret false
+end
+else
+if ne n 4
+ret false
+end
+end
+put Nopt slot nr32 p
+ret true
+end
+fn ndopts p ulong stop ulong to bool
+while lt p stop bound 2048
+code = ulong get Nrx p
+p = add p 1
+if eq code 255
+ret true
+end
+if ne code 0
+if ge p stop
+ret false
+end
+n = ulong get Nrx p
+p = add p 1
+if gt n sub stop p
+ret false
+end
+if not ndopt code p n
+ret false
+end
+p = add p n
+end
+end
+ret false
+end
+fn ndconf to bool
+m = get Ncfg 3
+if or eq m 0 eq m 4294967295
+ret false
+end
+v = xor m 4294967295
+if ne and v add v 1 0
+ret false
+end
+v = and get Ncfg 7 xor m 4294967295
+if or eq v 0 eq v xor m 4294967295
+ret false
+end
+if not nipok get Ncfg 4
+ret false
+end
+if ne and get Ncfg 4 m and get Ncfg 7 m
+ret false
+end
+if not nipok get Ncfg 5
+ret false
+end
+ret ge get Ncfg 9 10000
+end
+fn ndcopy to void
+if ne get Nopt 2 0
+put Ncfg 3 get Nopt 2
+end
+if ne get Nopt 3 0
+put Ncfg 4 get Nopt 3
+end
+if ne get Nopt 4 0
+put Ncfg 5 get Nopt 4
+end
+if ne get Nopt 5 0
+put Ncfg 9 mul get Nopt 5 1000
+end
+end
+fn ndhcpin to void
+p = add get Npk 5 8
+n = sub get Npk 6 8
+if lt n 240
+ret
+end
+if or ne get Nrx p 2 ne get Nrx add p 1 1
+ret
+end
+if ne get Nrx add p 2 6
+ret
+end
+if ne nr32 add p 4 get Ncfg 8
+ret
+end
+if not nmaceq add p 28
+ret
+end
+if ne nr32 add p 236 1669485411
+ret
+end
+for i ulong 8
+put Nopt i 0
+end
+if not ndopts add p 240 add p n
+ret
+end
+if gt get Nopt 7 3
+ret
+end
+if ne and get Nopt 7 1 0
+if not ndopts add p 108 add p 236
+ret
+end
+end
+if ne and get Nopt 7 2 0
+if not ndopts add p 44 add p 108
+ret
+end
+end
+if not nipok get Nopt 1
+ret
+end
+if eq get Ncfg 1 1
+if ne get Nopt 0 2
+ret
+end
+if not nipok nr32 add p 16
+ret
+end
+put Ncfg 7 nr32 add p 16
+put Ncfg 6 get Nopt 1
+ndcopy
+put Ncfg 1 2
+put Ncfg 13 0
+put Ncfg 12 get Ncfg 0
+ret
+end
+if ne get Ncfg 1 2
+ret
+end
+if ne get Nopt 1 get Ncfg 6
+ret
+end
+if eq get Nopt 0 6
+nfail 4
+ret
+end
+if ne get Nopt 0 5
+ret
+end
+if ne nr32 add p 16 get Ncfg 7
+ret
+end
+ndcopy
+if not ndconf
+nfail 5
+ret
+end
+put Ncfg 10 get Ncfg 0
+put Ncfg 1 3
+put Ncfg 14 0
+put Ncfg 12 add get Ncfg 0 rem get Ncfg 8 1000
+end
+fn narpin to void
+if lt get Npk 0 42
+ret
+end
+if or ne nr16 14 1 ne nr16 16 2048
+ret
+end
+if or ne get Nrx 18 6 ne get Nrx 19 4
+ret
+end
+if or lt nr16 20 1 gt nr16 20 2
+ret
+end
+if not nmacrx 22
+ret
+end
+for i ulong 6
+if ne get Nrx add i 6 get Nrx add i 22
+ret
+end
+end
+if nmaceq 22
+ret
+end
+if eq get Ncfg 1 3
+if or eq nr32 28 get Ncfg 7 and eq nr32 28 0 eq nr32 38 get Ncfg 7
+put Ncfg 1 5
+put Ncfg 12 get Ncfg 0
+end
+ret
+end
+if ne get Ncfg 1 4
+ret
+end
+if eq nr32 28 get Ncfg 2
+nfail 6
+ret
+end
+if ne nr32 38 get Ncfg 2
+ret
+end
+if eq nr16 20 2
+if not nmaceq 32
+ret
+end
+if or eq get Ncfg 26 0 ne nr32 28 get Ncfg 26
+ret
+end
+for i ulong 6
+put Nhop i get Nrx add i 22
+end
+put Ncfg 27 get Ncfg 26
+put Ncfg 26 0
+put Ncfg 30 get Ncfg 0
+ret
+end
+if nipok nr32 28
+if eq get Napip 0 0
+for i ulong 6
+put Narp i get Nrx add i 22
+end
+put Napip 0 nr32 28
+end
+end
+end
+note DNS names expand to lowercase wire labels, never textual pointer arithmetic.
+note Compression pointers must point backward into this message, with <=128 hops.
+fn ndname p ulong to bool
+used = ulong 0
+next = ulong 0
+for hop ulong 256
+if ge p get Nd 1
+ret false
+end
+c = ulong get Nrx p
+if eq and c 192 192
+if ge add p 1 get Nd 1
+ret false
+end
+q = add get Nd 0 and nr16 p 16383
+if or ge q p lt q add get Nd 0 12
+ret false
+end
+if eq next 0
+next = add p 2
+end
+p = q
+else
+if ne and c 192 0
+ret false
+end
+p = add p 1
+if or gt add used add c 1 255 gt c sub get Nd 1 p
+ret false
+end
+put Nname used uchar c
+used = add used 1
+if eq c 0
+if eq next 0
+next = p
+end
+put Nd 2 next
+put Nd 3 used
+ret true
+end
+for i ulong c
+v = get Nrx add p i
+if and ge v 65 le v 90
+v = add v 32
+end
+put Nname used v
+used = add used 1
+end
+p = add p c
+end
+end
+ret false
+end
+fn ndmatch to bool
+if ne get Nd 3 get Ncfg 25
+ret false
+end
+for i ulong get Nd 3
+if ne get Nname i get Nwant i
+ret false
+end
+end
+ret true
+end
+fn ndrr p ulong to bool
+if not ndname p
+ret false
+end
+p = get Nd 2
+if gt add p 10 get Nd 1
+ret false
+end
+put Nrr 0 nr16 p
+put Nrr 1 nr16 add p 2
+put Nrr 2 nr16 add p 8
+put Nrr 3 nr32 add p 4
+p = add p 10
+if gt get Nrr 2 sub get Nd 1 p
+ret false
+end
+put Nd 7 p
+put Nd 6 add p get Nrr 2
+ret true
+end
+fn ndtarget to void
+for i ulong get Nd 3
+put Nwant i get Nname i
+end
+put Ncfg 25 get Nd 3
+put Ncfg 24 add get Ncfg 24 1
+end
+fn ndanswer to void
+for pass ulong 9
+p = get Nd 4
+changed = false
+for i ulong get Nd 5
+if not ndrr p
+nfail 10
+ret
+end
+p = get Nd 6
+if and eq get Nrr 1 1 ndmatch
+if eq get Nrr 0 1
+if ne get Nrr 2 4
+nfail 10
+ret
+end
+if not nipok nr32 get Nd 7
+nfail 10
+ret
+end
+put Tcpstate 2 nr32 get Nd 7
+put Tcpstate 0 3
+put Nct 9 1
+put Nct 10 1
+put Nct 11 0
+put Nct 12 get Nct 25
+put Nct 0 get Nct 25
+put Nct 1 get Nct 25
+put Nct 14 1000
+put Nct 15 0
+ret
+end
+if eq get Nrr 0 5
+if ge get Ncfg 24 8
+nfail 10
+ret
+end
+if not ndname get Nd 7
+nfail 10
+ret
+end
+if ne get Nd 2 p
+nfail 10
+ret
+end
+if ndmatch
+nfail 10
+ret
+end
+ndtarget
+changed = true
+break
+end
+end
+end
+if not changed
+if eq pass 0
+nfail 10
+ret
+end
+put Ncfg 19 and add get Ncfg 19 1 65535
+put Ncfg 22 get Ncfg 0
+put Ncfg 23 0
+ret
+end
+end
+nfail 10
+end
+fn ndnsin to void
+p = add get Npk 5 8
+if lt get Npk 6 20
+ret
+end
+if ne nr16 p get Ncfg 19
+ret
+end
+if ne and nr16 add p 2 63488 32768
+ret
+end
+if ne nr16 add p 4 1
+ret
+end
+put Nd 0 p
+put Nd 1 add get Npk 5 get Npk 6
+if not ndname add p 12
+ret
+end
+if not ndmatch
+ret
+end
+q = get Nd 2
+if gt add q 4 get Nd 1
+ret
+end
+if or ne nr16 q 1 ne nr16 add q 2 1
+ret
+end
+if ne and nr16 add p 2 527 0
+nfail 9
+ret
+end
+put Nd 4 add q 4
+put Nd 5 nr16 add p 6
+n = add get Nd 5 nr16 add p 8
+n = add n nr16 add p 10
+if gt n 64
+nfail 10
+ret
+end
+q = get Nd 4
+for i ulong n
+if not ndrr q
+nfail 10
+ret
+end
+q = get Nd 6
+end
+if ne q get Nd 1
+nfail 10
+ret
+end
+ndanswer
+end
+fn nrtt to void
+if ne get Nct 15 0
+ret
+end
+r = sub get Ncfg 0 get Nct 13
+if eq r 0
+r = 1
+end
+if eq get Nct 28 0
+put Nct 26 r
+put Nct 27 div r 2
+put Nct 28 1
+else
+d = get Nct 26
+if ge d r
+d = sub d r
+else
+d = sub r d
+end
+put Nct 27 div add mul get Nct 27 3 d 4
+put Nct 26 div add mul get Nct 26 7 r 8
+end
+r = add get Nct 26 mul get Nct 27 4
+if lt r 1000
+r = 1000
+end
+if gt r 60000
+r = 60000
+end
+if and ne get Nct 30 0 lt r 3000
+r = 3000
+end
+put Nct 14 r
+end
+fn ntopts p ulong stop ulong to bool
+while lt p stop bound 40
+kind = ulong get Nrx p
+if eq kind 0
+ret true
+end
+if eq kind 1
+p = add p 1
+else
+if ge add p 1 stop
+ret false
+end
+n = ulong get Nrx add p 1
+if or lt n 2 gt n sub stop p
+ret false
+end
+if eq kind 2
+if ne n 4
+ret false
+end
+n = nr16 add p 2
+if eq n 0
+ret false
+end
+if gt n 1460
+n = 1460
+end
+put Nct 7 n
+n = 4
+end
+p = add p n
+end
+end
+ret true
+end
+fn ntaccept to bool
+n = get Npk 11
+if ne and get Npk 9 1 0
+n = add n 1
+end
+w = nwindow
+if eq n 0
+if eq w 0
+ret eq get Npk 7 get Nct 2
+end
+ret lt ndiff get Npk 7 get Nct 2 w
+end
+if eq w 0
+ret false
+end
+if lt ndiff get Npk 7 get Nct 2 w
+ret true
+end
+ret lt ndiff nadd get Npk 7 sub n 1 get Nct 2 w
+end
+fn ntack to bool
+a = get Npk 8
+if nlt get Nct 1 a
+put Nct 8 1
+ret false
+end
+if nlt a get Nct 0
+ret true
+end
+if or nlt get Nct 5 get Npk 7 and eq get Nct 5 get Npk 7 not nlt a get Nct 6
+put Nct 4 get Npk 12
+put Nct 5 get Npk 7
+put Nct 6 a
+end
+if eq a get Nct 0
+ret true
+end
+if or eq get Nct 9 0 eq get Nct 11 0
+ret false
+end
+n = ndiff a get Nct 0
+if gt n get Nct 9
+ret false
+end
+if eq n get Nct 9
+nrtt
+end
+if eq get Nct 10 2
+for i ulong n
+put Nsbuf add get Nct 17 i uchar 0
+end
+put Nct 17 add get Nct 17 n
+end
+put Nct 0 a
+put Nct 12 a
+put Nct 9 sub get Nct 9 n
+put Nct 13 get Ncfg 0
+if ne get Nct 9 0
+note Partial ACK retains Karn ambiguity for the remaining bytes.
+put Nct 15 1
+ret true
+end
+if eq get Nct 10 3
+put Nct 19 1
+end
+put Nct 10 0
+put Nct 11 0
+put Nct 15 0
+if eq get Nct 17 get Nct 16
+put Nct 17 0
+put Nct 16 0
+end
+ret true
+end
+fn ntfinish to void
+if and ne get Nct 19 0 ne get Nct 20 0
+if eq get Nct 24 0
+put Nct 24 add get Ncfg 0 1
+end
+put Tcpstate 0 5
+end
+end
+fn ntdrain to void
+while ne get Nrmap get Nct 3 0 bound 65536
+if ge get Tcpn 0 65535
+break
+end
+if ne get Nct 20 0
+break
+end
+if and ne get Nct 21 0 eq get Nct 22 get Nct 2
+break
+end
+put Tcpin get Tcpn 0 get Nrbuf get Nct 3
+put Tcpn 0 add get Tcpn 0 1
+put Nrmap get Nct 3 uchar 0
+put Nrbuf get Nct 3 uchar 0
+put Nct 3 and add get Nct 3 1 65535
+put Nct 2 nadd get Nct 2 1
+end
+if and ne get Nct 21 0 eq get Nct 22 get Nct 2
+put Nct 2 nadd get Nct 2 1
+put Nct 21 0
+put Nct 20 1
+put Nct 18 1
+put Nct 8 1
+put Tcpstate 0 5
+end
+ntfinish
+end
+fn ntdata to void
+if ne get Nct 20 0
+put Nct 8 1
+ret
+end
+if ne and get Npk 9 1 0
+f = nadd get Npk 7 get Npk 11
+if lt ndiff f get Nct 2 nwindow
+if eq get Nct 21 0
+put Nct 21 1
+put Nct 22 f
+end
+end
+end
+for i ulong get Npk 11
+s = nadd get Npk 7 i
+d = ndiff s get Nct 2
+if lt d nwindow
+if or eq get Nct 21 0 nlt s get Nct 22
+p = and add get Nct 3 d 65535
+v = get Nrx add get Npk 10 i
+if eq get Nrmap p 0
+put Nrbuf p v
+put Nrmap p uchar 1
+else
+if ne get Nrbuf p v
+nfail 13
+ret
+end
+end
+end
+end
+end
+if or ne get Npk 11 0 ne and get Npk 9 1 0
+put Nct 8 1
+end
+ntdrain
+end
+fn ntsynin to void
+if eq get Nct 11 0
+ret
+end
+if ne get Npk 8 nadd get Nct 25 1
+ret
+end
+if eq and get Npk 9 20 20
+nfail 12
+ret
+end
+if ne and get Npk 9 23 18
+ret
+end
+if ne get Npk 11 0
+nfail 13
+ret
+end
+if not ntopts add get Npk 5 20 get Npk 10
+ret
+end
+nrtt
+put Nct 0 get Npk 8
+put Nct 1 get Npk 8
+put Nct 2 nadd get Npk 7 1
+put Nct 4 get Npk 12
+put Nct 5 get Npk 7
+put Nct 6 get Npk 8
+put Nct 9 0
+put Nct 10 0
+put Nct 11 0
+put Nct 15 0
+put Nct 8 1
+put Nct 23 get Ncfg 0
+put Tcpstate 0 4
+end
+fn ntcpin to void
+p = get Npk 5
+if lt get Npk 6 20
+ret
+end
+if or ne nr16 p 443 ne nr16 add p 2 get Ncfg 21
+ret
+end
+if ne get Npk 3 get Tcpstate 2
+ret
+end
+s = npssum get Npk 3 get Npk 4 6 get Npk 6
+if ne nfold add s nrsum p get Npk 6 0
+ret
+end
+put Npk 13 mul ulong shr get Nrx add p 12 4 4
+if or lt get Npk 13 20 gt get Npk 13 get Npk 6
+ret
+end
+note RFC9293: the four reserved header bits are ignored on receipt.
+put Npk 7 nr32 add p 4
+put Npk 8 nr32 add p 8
+put Npk 9 ulong get Nrx add p 13
+put Npk 10 add p get Npk 13
+put Npk 11 sub get Npk 6 get Npk 13
+put Npk 12 nr16 add p 14
+if eq get Tcpstate 0 3
+ntsynin
+ret
+end
+if or lt get Tcpstate 0 4 gt get Tcpstate 0 5
+ret
+end
+if ne get Nct 31 0
+ret
+end
+if ne and get Npk 9 4 0
+if eq get Npk 7 get Nct 2
+nfail 12
+else
+if ntaccept
+put Nct 8 1
+end
+end
+ret
+end
+if not ntaccept
+put Nct 8 1
+if and ne get Nct 24 0 ne and get Npk 9 1 0
+if eq nadd get Npk 7 add get Npk 11 1 get Nct 2
+put Nct 24 add get Ncfg 0 1
+end
+end
+ret
+end
+if ne and get Npk 9 2 0
+put Nct 8 1
+ret
+end
+if eq and get Npk 9 16 0
+ret
+end
+note CWR/ECE are ignored (ECN was not offered); urgent data is refused.
+if ne and get Npk 9 32 0
+nfail 13
+ret
+end
+if not ntack
+ret
+end
+put Nct 23 get Ncfg 0
+ntdata
+end
+fn nipin to void
+if lt get Npk 0 34
+ret
+end
+if ne shr get Nrx 14 4 4
+ret
+end
+put Npk 1 mul ulong and get Nrx 14 15 4
+if lt get Npk 1 20
+ret
+end
+put Npk 2 nr16 16
+if or lt get Npk 2 get Npk 1 gt add get Npk 2 14 get Npk 0
+ret
+end
+if ne and nr16 20 49151 0
+ret
+end
+if eq get Nrx 22 0
+ret
+end
+if ne nfold nrsum 14 get Npk 1 0
+ret
+end
+note All IPv4 options are refused; no source-route or hidden forwarding path.
+if ne get Npk 1 20
+ret
+end
+put Npk 3 nr32 26
+put Npk 4 nr32 30
+if not nipok get Npk 3
+ret
+end
+put Npk 5 add 14 get Npk 1
+put Npk 6 sub get Npk 2 get Npk 1
+if eq get Nrx 23 6
+if and eq get Ncfg 1 4 eq get Npk 4 get Ncfg 2
+ntcpin
+end
+ret
+end
+if ne get Nrx 23 17
+ret
+end
+p = get Npk 5
+if lt get Npk 6 8
+ret
+end
+if ne nr16 add p 4 get Npk 6
+ret
+end
+if ne nr16 add p 6 0
+s = npssum get Npk 3 get Npk 4 17 get Npk 6
+if ne nfold add s nrsum p get Npk 6 0
+ret
+end
+end
+if and eq nr16 p 67 eq nr16 add p 2 68
+if or eq get Ncfg 1 1 eq get Ncfg 1 2
+note Any destination: chaddr, random xid and server-id gate acceptance.
+ndhcpin
+end
+ret
+end
+if ne get Tcpstate 0 2
+ret
+end
+if or ne get Npk 4 get Ncfg 2 ne get Npk 3 get Ncfg 5
+ret
+end
+if or ne nr16 p 53 ne nr16 add p 2 get Ncfg 20
+ret
+end
+ndnsin
+end
+fn nrnd32 p ulong to ulong
+v = ulong 0
+for i ulong 4
+v = add shl v 8 ulong get Nrand add p i
+end
+ret v
+end
+fn nqhost to void
+put Nwant 0 uchar 3
+put Nwant 4 uchar 6
+put Nwant 11 uchar 3
+put Nwant 15 uchar 0
+for i ulong 3
+put Nwant add i 1 get Nhost i
+put Nwant add i 12 get Nhost add i 11
+end
+for i ulong 6
+put Nwant add i 5 get Nhost add i 4
+end
+put Ncfg 25 16
+end
+fn netinit now ulong to void
+put Ntxlen 0 0
+nwipe
+for i ulong 32
+put Ncfg i 0
+put Nct i 0
+put Nrand i uchar 0
+end
+for i ulong 8
+put Tcpstate i 0
+put Nq i 0
+end
+put Napip 0 0
+for i ulong 6
+put Nhop i uchar 0
+put Narp i uchar 0
+end
+if not nclock now
+ret
+end
+v = uchar 0
+for i ulong 6
+v = or v get Nmac i
+end
+if or eq v 0 ne and get Nmac 0 1 0
+nfail 2
+ret
+end
+put Ncfg 31 1
+end
+fn nbound to bool
+if or ne get Ncfg 1 4 lt get Ncfg 14 5
+ret false
+end
+ret lt sub get Ncfg 0 get Ncfg 10 get Ncfg 9
+end
+fn ndhcpnew to void
+for i ulong 14
+put Ncfg add i 1 0
+end
+for i ulong 5
+put Ncfg add i 26 0
+end
+put Ncfg 8 nrnd32 0
+put Ncfg 1 1
+put Ncfg 11 get Ncfg 0
+put Ncfg 12 get Ncfg 0
+end
+fn netconnect now ulong to void
+if not nclock now
+ret
+end
+if eq get Ncfg 31 0
+nfail 17
+ret
+end
+if and ge get Tcpstate 0 1 le get Tcpstate 0 4
+ret
+end
+v = uchar 0
+for i ulong 32
+v = or v get Nrand i
+end
+if eq v 0
+nfail 2
+ret
+end
+note A queued frame from an older generation is completed, never reinterpreted.
+g = add get Ncfg 17 1
+nwipe
+for i ulong 32
+put Nct i 0
+end
+for i ulong 8
+put Tcpstate i 0
+end
+for i ulong 10
+put Ncfg add i 15 0
+end
+put Napip 0 0
+put Ncfg 17 g
+put Ncfg 18 and nrnd32 20 65535
+put Ncfg 19 and nrnd32 4 65535
+put Ncfg 20 add 49152 rem nrnd32 8 16384
+put Ncfg 21 add 49152 rem nrnd32 16 16384
+put Nct 25 nrnd32 12
+put Nct 7 536
+put Nct 14 1000
+if nbound
+put Tcpstate 0 2
+put Ncfg 22 now
+else
+ndhcpnew
+put Tcpstate 0 1
+end
+for i ulong 32
+put Nrand i uchar 0
+end
+put Ncfg 15 1
+put Ncfg 16 now
+nqhost
+end
+fn netinput n ulong now ulong to void
+if not nclock now
+ret
+end
+if eq get Tcpstate 0 6
+ret
+end
+if or lt n 14 gt n 1514
+ret
+end
+if not nmacrx 6
+ret
+end
+if nmaceq 6
+ret
+end
+if not nmaceq 0
+for i ulong 6
+if ne get Nrx i 255
+ret
+end
+end
+end
+put Npk 0 n
+if eq nr16 12 2054
+narpin
+end
+if eq nr16 12 2048
+nipin
+end
+end
+fn netwrite n ulong now ulong to bool
+if not nclock now
+ret false
+end
+if gt n 65536
+nfail 17
+ret false
+end
+if or ne get Tcpstate 0 4 ne get Nct 18 0
+ret false
+end
+if ne get Nct 16 0
+ret false
+end
+if eq n 0
+ret true
+end
+for i ulong n
+put Nsbuf i get Tcpout i
+end
+put Nct 16 n
+put Nct 17 0
+put Nct 29 now
+ret true
+end
+fn netconsume n ulong to void
+if gt n get Tcpn 0
+nfail 17
+ret
+end
+if eq n 0
+ret
+end
+left = sub get Tcpn 0 n
+for i ulong left
+put Tcpin i get Tcpin add i n
+end
+for i ulong n
+put Tcpin add left i uchar 0
+end
+put Tcpn 0 left
+put Nct 8 1
+ntdrain
+end
+fn netclose now ulong to void
+if not nclock now
+ret
+end
+if eq get Tcpstate 0 6
+ret
+end
+if lt get Tcpstate 0 4
+put Tcpstate 0 5
+put Nct 31 1
+nwipe
+ret
+end
+put Nct 18 1
+put Tcpstate 0 5
+end
+fn nstepset to void
+if eq get Ncfg 1 5
+ndhcpout
+ret
+end
+if or eq get Ncfg 1 1 eq get Ncfg 1 2
+if ge sub get Ncfg 0 get Ncfg 11 60000
+nfail 3
+ret
+end
+if ge get Ncfg 0 get Ncfg 12
+if ge get Ncfg 13 5
+nfail 3
+else
+ndhcpout
+end
+end
+ret
+end
+if eq get Ncfg 1 3
+if lt get Ncfg 0 get Ncfg 12
+ret
+end
+if lt get Ncfg 14 3
+narpout get Ncfg 7 true
+ret
+end
+put Ncfg 2 get Ncfg 7
+put Ncfg 1 4
+end
+if ne get Ncfg 1 4
+ret
+end
+if lt get Ncfg 14 5
+if ge get Ncfg 0 get Ncfg 12
+narpout get Ncfg 2 false
+put Nq 3 6
+end
+ret
+end
+if eq get Tcpstate 0 1
+put Tcpstate 0 2
+put Ncfg 22 get Ncfg 0
+end
+end
+fn nstepdns to void
+if lt get Ncfg 0 get Ncfg 22
+ret
+end
+if ge get Ncfg 23 4
+nfail 8
+ret
+end
+if nroute get Ncfg 5
+ndnsout
+end
+end
+fn nflight kind ulong n ulong to void
+put Nct 9 n
+put Nct 10 kind
+put Nct 11 0
+put Nct 12 get Nct 1
+put Nct 15 0
+end
+fn nsteptcp to void
+if ne get Nct 24 0
+if ge sub add get Ncfg 0 1 get Nct 24 120000
+put Nct 31 1
+put Nct 8 0
+ret
+end
+end
+if ne get Nct 31 0
+ret
+end
+note FIN-WAIT-2 is bounded: our FIN is acknowledged, the peer stays silent.
+if and ne get Nct 19 0 eq get Nct 20 0
+if ge sub get Ncfg 0 get Nct 23 60000
+put Nct 31 1
+ret
+end
+end
+if ne get Nct 8 0
+if nroute get Tcpstate 2
+ntcpout false
+end
+ret
+end
+if ne get Nct 9 0
+if ne get Nct 11 0
+if lt sub get Ncfg 0 get Nct 13 get Nct 14
+ret
+end
+if ge get Nct 15 6
+nfail 11
+ret
+end
+end
+if nroute get Tcpstate 2
+ntcpout true
+end
+ret
+end
+if eq get Tcpstate 0 3
+ret
+end
+if ne get Nct 16 0
+n = sub get Nct 16 get Nct 17
+if gt n get Nct 7
+n = get Nct 7
+end
+if gt n get Nct 4
+n = get Nct 4
+end
+if eq n 0
+if lt sub get Ncfg 0 get Nct 29 1000
+ret
+end
+note A one-byte persist probe is retained and retransmitted, never discarded.
+n = 1
+end
+nflight 2 n
+else
+if and ne get Nct 18 0 eq get Nct 19 0
+nflight 3 1
+else
+ret
+end
+end
+if nroute get Tcpstate 2
+ntcpout true
+end
+end
+fn netstep now ulong to void
+if not nclock now
+ret
+end
+if or eq get Tcpstate 0 6 ne get Nct 31 0
+ret
+end
+if ge get Ncfg 1 3
+if and ne get Ncfg 9 0 ge sub now get Ncfg 10 get Ncfg 9
+nfail 14
+ret
+end
+end
+if and ne get Ncfg 15 0 lt get Tcpstate 0 4
+if ge sub now get Ncfg 16 120000
+nfail 16
+ret
+end
+end
+if ne get Ntxlen 0 0
+if ge sub now get Nq 2 10000
+nfail 15
+end
+ret
+end
+nstepset
+if or eq get Tcpstate 0 6 ne get Ntxlen 0 0
+ret
+end
+if lt get Ncfg 14 5
+ret
+end
+if ne get Napip 0 0
+narprepl
+ret
+end
+if eq get Tcpstate 0 2
+nstepdns
+end
+if and ge get Tcpstate 0 3 le get Tcpstate 0 5
+nsteptcp
+end
+end
+fn nqdhcp to void
+if ne get Nq 3 get Ncfg 1
+ret
+end
+if eq get Ncfg 1 5
+nfail 6
+ret
+end
+d = add 3000 rem get Ncfg 8 2001
+d = mul d shl ulong 1 get Ncfg 13
+if gt d 16000
+d = 16000
+end
+put Ncfg 13 add get Ncfg 13 1
+put Ncfg 12 add get Ncfg 0 d
+end
+fn nqarp to void
+if eq get Nq 3 3
+if ne get Ncfg 1 3
+ret
+end
+put Ncfg 14 add get Ncfg 14 1
+d = add 1000 rem get Ncfg 8 1001
+if eq get Ncfg 14 3
+d = 2000
+end
+put Ncfg 12 add get Ncfg 0 d
+ret
+end
+if eq get Nq 3 6
+put Ncfg 14 add get Ncfg 14 1
+put Ncfg 12 add get Ncfg 0 2000
+ret
+end
+put Ncfg 28 add get Ncfg 0 mul 1000 shl ulong 1 get Ncfg 29
+put Ncfg 29 add get Ncfg 29 1
+end
+fn nqflight to void
+if or eq get Nct 9 0 ne get Nq 4 get Nct 12
+ret
+end
+if ne get Nct 11 0
+put Nct 15 add get Nct 15 1
+r = mul get Nct 14 2
+if gt r 60000
+r = 60000
+end
+put Nct 14 r
+if eq get Nct 10 1
+put Nct 30 1
+end
+end
+put Nct 11 1
+put Nct 13 get Ncfg 0
+put Nct 1 nadd get Nct 12 get Nct 9
+end
+fn netsent ok bool now ulong to void
+if not nclock now
+ret
+end
+if eq get Ntxlen 0 0
+ret
+end
+if not ok
+put Nq 1 add get Nq 1 1
+if ge get Nq 1 8
+nfail 15
+end
+ret
+end
+put Ntxlen 0 0
+if ne get Nq 7 get Ncfg 17
+ret
+end
+if eq get Nq 0 1
+nqdhcp
+end
+if eq get Nq 0 2
+nqarp
+end
+if eq get Nq 0 4
+d = mul 2000 shl ulong 1 get Ncfg 23
+put Ncfg 23 add get Ncfg 23 1
+put Ncfg 22 add now d
+end
+if eq get Nq 0 5
+nqflight
+end
+if or eq get Nq 0 5 eq get Nq 0 6
+if and eq get Nq 5 get Nct 2 eq get Nq 6 nwindow
+put Nct 8 0
+end
+end
+end

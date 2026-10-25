@@ -1,0 +1,82 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note Shared fixture support, concatenate before exactly one tls-crypto-{sha,x25519,aead,poly}.om.
+note RFC vectors: RFC4231 M.Nystrom (2005 Internet Society), RFC5869 H.Krawczyk/P.Eronen,
+note RFC7748 A.Langley/M.Hamburg/S.Turner, RFC8439 Y.Nir/A.Langley.
+note RFC5869/7748/8439 Copyright (c) 2010/2016/2018 IETF Trust and identified authors.
+note All rights reserved. Source URLs are included in the individual fixtures.
+note RFC Code Components carry the IETF Trust Simplified BSD License:
+note Redistribution and use in source and binary forms, with or without modification, are
+note permitted provided that the following conditions are met:
+note 1. Redistributions of source code must retain the above copyright notice, this list of
+note conditions and the following disclaimer.
+note 2. Redistributions in binary form must reproduce the above copyright notice, this list of
+note conditions and the following disclaimer in the documentation and/or other materials
+note provided with the distribution.
+note THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+note EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+note MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+note THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+note SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+note OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+note HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+note OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+note SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+note This harness is first-party Omega. No fixture executes external code or substitutes runtime bytes.
+
+fn tvcheck ok bool code int to void
+if not ok
+exit code
+end
+end
+
+fn tvnib c uchar to uchar
+if and ge c 48 le c 57
+ret sub c 48
+end
+if and ge c 97 le c 102
+ret sub c 87
+end
+tvcheck false 99
+ret 0
+end
+
+fn tvbyte a uchar b uchar to uchar
+ret or shl tvnib a 4 tvnib b
+end
+
+fn tvscrub to void
+for i ulong 8
+tvcheck eq get H i 0 91
+tvcheck eq get Vv i 0 91
+end
+for i ulong 64
+tvcheck eq get W i 0 91
+tvcheck eq get Hb i 0 91
+tvcheck eq get Tccblk i 0 92
+end
+for i ulong 32
+tvcheck eq get Tchi i 0 91
+tvcheck eq get Hash i 0 91
+tvcheck eq get Tcxsc i 0 93
+tvcheck eq get Tcxres i 0 93
+tvcheck eq get Tcxt i 0 93
+tvcheck eq get Tcmkey i 0 92
+end
+for i ulong 176
+tvcheck eq get Tcxf i 0 93
+end
+for i ulong 16
+tvcheck eq get Tccs i 0 92
+tvcheck eq get Tccw i 0 92
+tvcheck eq get Tcmblk i 0 92
+tvcheck eq get Tcmtag i 0 92
+end
+for i ulong 10
+tvcheck eq get Tcmr i 0 92
+tvcheck eq get Tcmh i 0 92
+tvcheck eq get Tcmt i 0 92
+tvcheck eq get Tcmg i 0 92
+end
+tvcheck eq get Hs 0 0 91
+tvcheck eq get Hs 1 0 91
+end

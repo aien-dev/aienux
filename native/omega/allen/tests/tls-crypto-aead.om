@@ -1,0 +1,179 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note RFC8439 sections2.3.2/2.8.2 official block and AEAD vectors; negative cases mutate those vectors.
+note https://www.rfc-editor.org/rfc/rfc8439 ; attribution/license in tls-crypto-fixture.om.
+note Additional zero/partial/full/block-boundary/max-buffer roundtrips are property tests, not oracles.
+text Vblock "10f1e7e4d13b5915500fdd1fa32071c4c7d1f4c733c068030422aa9ac3d46c4ed2826446079faa0914c2d705d98b02a2b5129cd1de164eb9cbd083e8a2503c4e"
+text Vplain "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
+text Vcipher "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d63dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b3692ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc3ff4def08e4b7a9de576d26586cec64b6116"
+text Vtag "1ae10b594f09e26a7e902ecbd0600691"
+text Vaad "50515253c0c1c2c3c4c5c6c7"
+
+fn tvblock to void
+tcwipe
+for i ulong 32
+put Tckey i uchar i
+end
+put Tciv 3 9
+put Tciv 7 74
+tccblock 1
+for i ulong 64
+p = mul i 2
+v = tvbyte get Vblock p get Vblock add p 1
+tvcheck eq get Tccblk i v 1
+end
+tccwipe
+tvscrub
+end
+
+fn tvsetup to void
+tcwipe
+for i ulong 32
+put Tckey i uchar add i 128
+end
+put Tciv 0 7
+for i ulong 8
+put Tciv add i 4 uchar add i 64
+end
+for i ulong 12
+p = mul i 2
+put Tcaad i tvbyte get Vaad p get Vaad add p 1
+end
+for i ulong len Vplain
+put Tcbuf i get Vplain i
+end
+put Tcbuf len Vplain 221
+end
+
+fn tvcipher to void
+for i ulong len Vplain
+p = mul i 2
+v = tvbyte get Vcipher p get Vcipher add p 1
+tvcheck eq get Tcbuf i v 2
+end
+tvcheck eq get Tcbuf len Vplain 221 3
+tvscrub
+end
+
+fn tvtag to void
+for i ulong 16
+p = mul i 2
+v = tvbyte get Vtag p get Vtag add p 1
+tvcheck eq get Tctag i v 4
+end
+end
+
+fn tvbad to void
+note Each bit of every tag byte is checked, with ciphertext unchanged after every rejection.
+for i ulong 16
+for j ulong 8
+v = shl uchar 1 j
+put Tctag i xor get Tctag i v
+tvcheck not tcopen len Vplain 12 5
+tvcipher
+put Tctag i xor get Tctag i v
+end
+end
+for i ulong 12
+put Tcaad i xor get Tcaad i 1
+tvcheck not tcopen len Vplain 12 6
+tvcipher
+put Tcaad i xor get Tcaad i 1
+end
+for i ulong 12
+put Tciv i xor get Tciv i 1
+tvcheck not tcopen len Vplain 12 7
+tvcipher
+put Tciv i xor get Tciv i 1
+end
+for i ulong 32
+put Tckey i xor get Tckey i 1
+tvcheck not tcopen len Vplain 12 8
+tvcipher
+put Tckey i xor get Tckey i 1
+end
+for i ulong len Vplain
+put Tcbuf i xor get Tcbuf i 1
+tvcheck not tcopen len Vplain 12 9
+put Tcbuf i xor get Tcbuf i 1
+tvcipher
+end
+tvcheck not tcopen sub len Vplain 1 12 10
+tvcipher
+tvcheck not tcopen len Vplain 11 11
+tvcipher
+tvcheck not tcopen 65537 12 12
+tvcipher
+tvcheck not tcopen len Vplain 33 12
+tvcipher
+tvcheck not tcopen 18446744073709551615 0 12
+tvcipher
+tvcheck not tcseal 65537 12 13
+tvcipher
+tvcheck not tcseal len Vplain 33 13
+tvcipher
+for i ulong 16
+p = mul i 2
+put Tctag i tvbyte get Vtag p get Vtag add p 1
+end
+end
+
+fn tvround n ulong aadlen ulong to void
+tcwipe
+for i ulong 32
+put Tckey i uchar i
+put Tcaad i uchar add i 32
+end
+note Unique deterministic fixture nonce per length/AAD combination; not production randomness.
+put Tciv 0 uchar and n 255
+put Tciv 1 uchar and shr n 8 255
+put Tciv 2 uchar and shr n 16 255
+put Tciv 3 uchar aadlen
+for i ulong n
+put Tcbuf i uchar and i 255
+end
+if lt n 65536
+put Tcbuf n 233
+end
+tvcheck tcseal n aadlen 30
+tvscrub
+tvcheck tcopen n aadlen 31
+tvscrub
+for i ulong n
+tvcheck eq get Tcbuf i uchar and i 255 32
+end
+if lt n 65536
+tvcheck eq get Tcbuf n 233 33
+end
+end
+
+fn main to int
+tvblock
+tvsetup
+tvcheck tcseal len Vplain 12 14
+tvcipher
+tvtag
+tvbad
+tvcheck tcopen len Vplain 12 15
+for i ulong len Vplain
+tvcheck eq get Tcbuf i get Vplain i 16
+end
+tvscrub
+tvround 0 0
+tvround 1 1
+tvround 15 15
+tvround 16 16
+tvround 17 17
+tvround 63 31
+tvround 64 32
+tvround 65 0
+tvround 65536 32
+tcwipe
+tvscrub
+for i ulong 65536
+tvcheck eq get Tcbuf i 0 34
+end
+for i ulong 32
+tvcheck eq get Tckey i 0 35
+end
+ret 0
+end

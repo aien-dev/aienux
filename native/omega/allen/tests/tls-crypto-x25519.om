@@ -1,0 +1,106 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note RFC7748 sections5.2/6.1 official scalar/u/public/shared vectors.
+note https://www.rfc-editor.org/rfc/rfc7748 ; attribution/license in tls-crypto-fixture.om.
+note Negative/metamorphic cases exercise specified clamping, top-bit masking, noncanonical input,
+note small-order rejection, preserved input buffers, and cleared internal scalar/field scratch.
+text Vs "a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac44b66e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba0d77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb"
+text Vu "e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4ce5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a4938520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6ade9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f"
+text Vx "c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a2855295cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac79574a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079"
+
+fn tvxload slot ulong peer ulong to void
+for i ulong 32
+p = add mul slot 64 mul i 2
+put Tcxpriv i tvbyte get Vs p get Vs add p 1
+p = add mul peer 64 mul i 2
+put Tcxpeer i tvbyte get Vu p get Vu add p 1
+end
+end
+
+fn tvxwant slot ulong to void
+for i ulong 32
+p = add mul slot 64 mul i 2
+v = tvbyte get Vx p get Vx add p 1
+tvcheck eq get Tcxshare i v 10
+end
+tvscrub
+end
+
+fn tvxpub slot ulong to void
+for i ulong 32
+p = add mul slot 64 mul i 2
+v = tvbyte get Vu p get Vu add p 1
+tvcheck eq get Tcxpub i v 11
+p = add mul slot 64 mul i 2
+v = tvbyte get Vs p get Vs add p 1
+tvcheck eq get Tcxpriv i v 12
+end
+tvscrub
+end
+
+fn tvxzero to void
+tvcheck not tcx25519 20
+for i ulong 32
+tvcheck eq get Tcxshare i 0 21
+end
+tvscrub
+end
+
+fn main to int
+tcwipe
+tvxload 0 0
+tvcheck tcx25519 1
+tvxwant 0
+put Tcxpeer 31 xor get Tcxpeer 31 128
+tvcheck tcx25519 2
+tvxwant 0
+put Tcxpriv 0 xor get Tcxpriv 0 7
+put Tcxpriv 31 xor get Tcxpriv 31 192
+tvcheck tcx25519 3
+tvxwant 0
+tvxload 1 1
+tvcheck tcx25519 4
+tvxwant 1
+tvxload 2 3
+tvcheck tcxpublic 5
+tvxpub 2
+tvcheck tcx25519 6
+tvxwant 2
+tvxload 3 2
+tvcheck tcxpublic 7
+tvxpub 3
+tvcheck tcx25519 8
+tvxwant 2
+for i ulong 32
+put Tcxpeer i 0
+end
+tvxzero
+put Tcxpeer 0 1
+tvxzero
+note p and p+1 are noncanonical encodings of small-order u=0 and u=1.
+for i ulong 32
+put Tcxpeer i 255
+end
+put Tcxpeer 31 127
+put Tcxpeer 0 237
+tvxzero
+put Tcxpeer 0 238
+tvxzero
+note p+9 is a valid noncanonical encoding of the base point u=9.
+put Tcxpeer 0 246
+tvcheck tcx25519 22
+for i ulong 32
+tvcheck eq get Tcxshare i get Tcxpub i 23
+end
+tcwipe
+put Tcxpriv 0 9
+put Tcxpeer 0 9
+tvcheck tcx25519 24
+tvxwant 3
+tcwipe
+tvscrub
+for i ulong 32
+tvcheck eq get Tcxshare i 0 25
+tvcheck eq get Tcxpriv i 0 25
+end
+ret 0
+end

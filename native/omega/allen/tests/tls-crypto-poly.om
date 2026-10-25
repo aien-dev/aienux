@@ -1,0 +1,133 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note RFC8439 section2.5.2 and Appendix A.3 vectors1,5,6,7,8,9,10,11.
+note https://www.rfc-editor.org/rfc/rfc8439 ; attribution/license in tls-crypto-fixture.om.
+note Internal primitive entry points are used to isolate reduction and final-pad carry bugs.
+text Vpk "85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b"
+text Vpm "Cryptographic Forum Research Group"
+text Vpt "a8061dc1305136c6c22b8baf0c0127a9"
+text Vred "e33594d7505e43b900000000000000003394d7505e4379cd0100000000000000"
+
+fn tvpoly n ulong to void
+tcminit
+p = ulong 0
+while lt p n bound 4
+m = sub n p
+if gt m 16
+m = 16
+end
+for i ulong m
+put Tcmblk i get Tcbuf add p i
+end
+tcmblock m
+p = add p m
+end
+tcmfinish
+end
+
+fn tvsmall first uchar to void
+tvcheck eq get Tcmtag 0 first 40
+for i ulong 15
+tvcheck eq get Tcmtag add i 1 0 41
+end
+tccwipe
+tvscrub
+end
+
+fn tvreduce last bool to void
+tcwipe
+put Tcmkey 0 1
+put Tcmkey 8 4
+for i ulong 32
+p = mul i 2
+put Tcbuf i tvbyte get Vred p get Vred add p 1
+end
+if last
+put Tcbuf 48 1
+tvpoly 64
+tvcheck eq get Tcmtag 0 20 50
+tvcheck eq get Tcmtag 8 85 51
+for i ulong 16
+if and ne i 0 ne i 8
+tvcheck eq get Tcmtag i 0 52
+end
+end
+else
+tvpoly 48
+tvsmall 19
+end
+end
+
+fn main to int
+tcwipe
+for i ulong 32
+p = mul i 2
+put Tcmkey i tvbyte get Vpk p get Vpk add p 1
+end
+for i ulong len Vpm
+put Tcbuf i get Vpm i
+end
+tvpoly len Vpm
+for i ulong 16
+p = mul i 2
+v = tvbyte get Vpt p get Vpt add p 1
+tvcheck eq get Tcmtag i v 1
+end
+tcwipe
+tvpoly 64
+tvsmall 0
+note Appendix A.3 vector5: final 130-bit partial reduction.
+tcwipe
+put Tcmkey 0 2
+for i ulong 16
+put Tcbuf i 255
+end
+tvpoly 16
+tvsmall 3
+note Vector6: addition of pad overflows modulo2^128.
+tcwipe
+put Tcmkey 0 2
+for i ulong 16
+put Tcmkey add i 16 255
+end
+put Tcbuf 0 2
+tvpoly 16
+tvsmall 3
+note Vector7: all-ones limbs with a carry.
+tcwipe
+put Tcmkey 0 1
+for i ulong 32
+put Tcbuf i 255
+end
+put Tcbuf 16 240
+put Tcbuf 32 17
+tvpoly 48
+tvsmall 5
+note Vector8: accumulator exactly p must encode0.
+tcwipe
+put Tcmkey 0 1
+for i ulong 16
+put Tcbuf i 255
+put Tcbuf add i 16 254
+put Tcbuf add i 32 1
+end
+put Tcbuf 16 251
+tvpoly 48
+tvsmall 0
+note Vector9: accumulator exactly p-1 must not reduce to0.
+tcwipe
+put Tcmkey 0 2
+for i ulong 16
+put Tcbuf i 255
+end
+put Tcbuf 0 253
+tvpoly 16
+tvcheck eq get Tcmtag 0 250 60
+for i ulong 15
+tvcheck eq get Tcmtag add i 1 255 61
+end
+tvreduce true
+tvreduce false
+tcwipe
+tvscrub
+ret 0
+end

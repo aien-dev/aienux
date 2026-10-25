@@ -1,0 +1,105 @@
+note HTTP response boundary tests; concatenate after base.om, github.om, http.om, tests/check.om.
+note Fixtures are protocol data only. This gate makes no network or TLS qualification claim.
+text Hcases "HTTP/1.1 200 OK\nContent-Length: 5\n\nhello|HTTP/1.1 200 OK\nTransfer-Encoding: chunked\n\n2;ext=yes\nhe\n3\nllo\n0\nX-Trace: safe\n\n|HTTP/1.1 200 OK\nContent-Length: 5\nContent-Length: 5\n\nhello|HTTP/1.1 200 OK\nContent-Length: 5\nTransfer-Encoding: chunked\n\n|HTTP/1.1 200 OK\nContent-Encoding: gzip\nContent-Length: 5\n\nhello|HTTP/1.1 200 OK\nContent-Length: 9999999999999999999999999\n\n|HTTP/1.1 200 OK\n\nhello|HTTP/1.1 200 OK\nContent-Length: 5\n\nhell|HTTP/1.1 200 OK\nTransfer-Encoding: chunked\n\n1\nh\n0\nContent-Length: 0\n\n|HTTP/1.1 103 Early Hints\nLink: x\n\nHTTP/1.1 200 OK\nContent-Length: 5\n\nhello|HTTP/1.1 200 OK\nContent-Length: 0\n\nx|HTTP/1.1 200 OK\nTransfer-Encoding: chunked\n\n6\nhello!\n0\n\n|HTTP/1.1 204 No Content\nContent-Length: 4\n\n|HTTP/1.1 403 Forbidden\nContent-Length: 2\n\n{}|HTTP/1.1 200 OK\nTransfer-Encoding: chunked, gzip\n\n|HTTP/1.1 200 OK\nBad Header: x\n\n|"
+text Hpath "/repos/aien-dev/allen"
+text Hhello "hello"
+fn htbegin cap ulong to void
+for i ulong len Hpath
+put Ghpath i get Hpath i
+end
+check httpstart 1 42 0 cap len Hpath 1
+end
+fn htpush c uchar to void
+put Hchunk 0 c
+ok = httpfeed 1
+end
+fn htcase wanted ulong to void
+index = ulong 0
+for i ulong len Hcases
+c = get Hcases i
+if eq c 124
+if eq index wanted
+ret
+end
+index = add index 1
+else
+if eq index wanted
+if eq c 10
+htpush 13
+end
+htpush c
+end
+end
+end
+end
+fn htgood id ulong to void
+check eq get Hstate 0 2 id
+check eq get Hstate 2 5 add id 1
+ok = true
+for i ulong 5
+if ne get Ghbody i get Hhello i
+ok = false
+end
+end
+check ok add id 2
+check eq get Hstate 3 42 add id 3
+end
+fn main to int
+htbegin 5
+htcase 0
+htgood 10
+htbegin 5
+htcase 1
+htgood 20
+for i ulong 4
+htbegin 5
+htcase add i 2
+check eq get Hstate 0 3 add 30 i
+end
+htbegin 5
+htcase 6
+check eq get Hstate 0 1 40
+check httpend true 41
+htgood 42
+htbegin 5
+htcase 6
+check not httpend false 46
+check eq get Hstate 0 3 47
+htbegin 5
+htcase 7
+check not httpend true 50
+check eq get Hstate 0 3 51
+htbegin 5
+htcase 8
+check eq get Hstate 0 3 52
+htbegin 5
+htcase 9
+htgood 60
+for i ulong 3
+htbegin 5
+htcase add i 10
+check eq get Hstate 0 3 add 70 i
+end
+htbegin 5
+htcase 13
+check eq get Hstate 0 2 80
+check eq get Hstate 1 403 81
+check eq get Hstate 2 2 82
+for i ulong 2
+htbegin 5
+htcase add i 14
+check eq get Hstate 0 3 add 85 i
+end
+htbegin 5
+htpush 10
+check eq get Hstate 0 3 90
+htbegin 5
+put Ghpath 1 13
+check not httpstart 1 43 0 5 len Hpath 91
+check eq get Httpreqn 0 0 92
+htbegin 5
+put Ghpath 1 35
+check not httpstart 1 43 0 5 len Hpath 93
+check eq get Httpreqn 0 0 94
+ret int get Fails 0
+end

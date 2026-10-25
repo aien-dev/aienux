@@ -1,0 +1,1299 @@
+note SPDX-License-Identifier: Apache-2.0
+note Bounded X509/TLS1.3 verifier for api.github.com; RFC5280,5480,5758,8446,9525.
+note Supports uncompressed named P256/P384 and ECDSA-SHA256/P256 or ECDSA-SHA384/P384.
+note No AIA, CRL/OCSP fetching, RSA, SHA1, explicit curves, policy/name constraints or fallback.
+note Unsupported critical extensions and constrained CA paths fail closed, even if noncritical.
+note Up to8 peer certificates, each <=8192 bytes, TLS body <=60000,32 extensions/certificate.
+note Exact DER issuer/subject matching is deliberately conservative; no ambiguous normalization.
+note Trust anchor is the local OS Sectigo Public Server Authentication Root E46 certificate.
+note Source /etc/ssl/certs/Sectigo_Public_Server_Authentication_Root_E46.pem, read2026-10-25.
+note DER SHA256 C90F26F0FB1B4018B22227519B5CA2B53E2CA5B3BE5CF18EFE1BEF47380C5383.
+note Trust is in this root, never in a downloaded self-signed or leaf certificate.
+note Root cross-signatures need not validate: path terminates at the locally trusted subject/key.
+note Caller must supply trustworthy current Unix seconds. No network time or zero-time bypass.
+global Certbuf uchar 65536
+global Certlen ulong 1
+global Certnow ulong 1
+global Certkey uchar 65
+global Cleaf uchar 65
+global Certmsg uchar 4096
+global Certsig uchar 128
+global Cready ulong 1
+global Cd ulong 4
+global Cm ulong 288
+global Ce ulong 64
+global Cen ulong 1
+global Ckey uchar 97
+global Csig uchar 96
+global Chash uchar 48
+global Ctime ulong 8
+global Cchain ulong 8
+global Ccount ulong 1
+text Chost "api.github.com"
+text Cwild "*.github.com"
+
+note Cd: tag,value-start,end. Definite minimal DER only, bounds checked before every access.
+fn ctder p ulong e ulong to bool
+if or gt e 65536 ge p e
+ret false
+end
+if lt sub e p 2
+ret false
+end
+t = get Certbuf p
+if or eq and t 31 31 eq t 0
+ret false
+end
+p = add p 1
+n = ulong get Certbuf p
+p = add p 1
+if ge n 128
+k = sub n 128
+if or eq k 0 gt k 3
+ret false
+end
+if gt k sub e p
+ret false
+end
+if eq get Certbuf p 0
+ret false
+end
+n = 0
+for j ulong k
+n = or shl n 8 ulong get Certbuf add p j
+end
+p = add p k
+if lt n 128
+ret false
+end
+end
+if gt n sub e p
+ret false
+end
+put Cd 0 ulong t
+put Cd 1 p
+put Cd 2 add p n
+ret true
+end
+
+fn cttake p ulong e ulong t ulong to bool
+if not ctder p e
+ret false
+end
+ret eq get Cd 0 t
+end
+
+fn ctequal a ulong ae ulong b ulong be ulong to bool
+if ne sub ae a sub be b
+ret false
+end
+x = uchar 0
+for i ulong sub ae a
+u = get Certbuf add a i
+v = get Certbuf add b i
+x = or x xor u v
+end
+ret eq x 0
+end
+
+note Minimal nonnegative DER INTEGER; zero optionally allowed by caller.
+fn ctint p ulong e ulong to bool
+if ge p e
+ret false
+end
+if ge get Certbuf p 128
+ret false
+end
+if gt sub e p 1
+if eq get Certbuf p 0
+if lt get Certbuf add p 1 128
+ret false
+end
+end
+end
+ret true
+end
+
+note OIDs are canonical base128 subidentifiers; max32 octets in this bounded profile.
+fn ctoid p ulong e ulong to bool
+if or ge p e gt sub e p 32
+ret false
+end
+fresh = true
+for i ulong sub e p
+c = get Certbuf add p i
+if and fresh eq c 128
+ret false
+end
+fresh = eq and c 128 0
+end
+ret fresh
+end
+
+fn ctnum p ulong n ulong to ulong
+v = ulong 0
+for i ulong n
+c = get Certbuf add p i
+if or lt c 48 gt c 57
+ret 10000
+end
+v = add mul v 10 sub ulong c 48
+end
+ret v
+end
+
+fn ctleap y ulong to bool
+ret and eq rem y 4 0 or ne rem y 100 0 eq rem y 400 0
+end
+
+fn ctmonth y ulong m ulong to ulong
+if eq m 2
+if ctleap y
+ret 29
+end
+ret 28
+end
+if or or eq m 4 eq m 6 or eq m 9 eq m 11
+ret 30
+end
+ret 31
+end
+
+note Absolute Gregorian seconds since 0001-01-01 avoids negative Unix conversions.
+fn cttime p ulong e ulong to bool
+if not ctder p e
+ret false
+end
+p = get Cd 1
+n = sub get Cd 2 p
+y = ulong 0
+if eq get Cd 0 23
+if ne n 13
+ret false
+end
+y = ctnum p 2
+if gt y 99
+ret false
+end
+if lt y 50
+y = add y 2000
+else
+y = add y 1900
+end
+p = add p 2
+else
+if ne get Cd 0 24
+ret false
+end
+if ne n 15
+ret false
+end
+y = ctnum p 4
+if or lt y 2050 gt y 9999
+ret false
+end
+p = add p 4
+end
+if ne get Certbuf add p 10 90
+ret false
+end
+put Ctime 0 y
+for i ulong 5
+put Ctime add i 1 ctnum add p mul i 2 2
+end
+ret true
+end
+
+fn ctepoch to ulong
+y = get Ctime 0
+m = get Ctime 1
+d = get Ctime 2
+if or lt m 1 gt m 12
+ret 0
+end
+if or lt d 1 gt d ctmonth y m
+ret 0
+end
+if gt get Ctime 3 23
+ret 0
+end
+if gt get Ctime 4 59
+ret 0
+end
+if gt get Ctime 5 59
+ret 0
+end
+y = sub y 1
+days = add mul y 365 div y 4
+days = sub days div y 100
+days = add days div y 400
+y = add y 1
+for i ulong sub m 1
+days = add days ctmonth y add i 1
+end
+days = add days sub d 1
+v = add mul days 24 get Ctime 3
+v = add mul v 60 get Ctime 4
+ret add mul v 60 get Ctime 5
+end
+
+fn ctvalid b ulong p ulong e ulong to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+e = get Cd 2
+if not cttime p e
+ret false
+end
+p = get Cd 2
+put Cm add b 11 ctepoch
+if eq get Cm add b 11 0
+ret false
+end
+if not cttime p e
+ret false
+end
+if ne get Cd 2 e
+ret false
+end
+put Cm add b 12 ctepoch
+ret ge get Cm add b 12 get Cm add b 11
+end
+
+note Signature AlgorithmIdentifier requires absent parameters (RFC5758 section3.2).
+fn ctalg p ulong e ulong to ulong
+if not cttake p e 48
+ret 0
+end
+p = get Cd 1
+e = get Cd 2
+if not cttake p e 6
+ret 0
+end
+p = get Cd 1
+if or ne get Cd 2 e ne sub e p 8
+ret 0
+end
+if ne get Certbuf p 42
+ret 0
+end
+if or ne get Certbuf add p 1 134 ne get Certbuf add p 2 72
+ret 0
+end
+if or ne get Certbuf add p 3 206 ne get Certbuf add p 4 61
+ret 0
+end
+if or ne get Certbuf add p 5 4 ne get Certbuf add p 6 3
+ret 0
+end
+if eq get Certbuf add p 7 2
+ret 32
+end
+if eq get Certbuf add p 7 3
+ret 48
+end
+ret 0
+end
+
+note Name RDN/ATV syntax is checked; supported directory strings only. Empty subject is handled by SAN.
+fn ctattr p ulong e ulong to bool
+if not cttake p e 6
+ret false
+end
+if not ctoid get Cd 1 get Cd 2
+ret false
+end
+p = get Cd 2
+if not ctder p e
+ret false
+end
+if ne get Cd 2 e
+ret false
+end
+t = get Cd 0
+if not or or eq t 12 eq t 19 or eq t 20 or eq t 22 eq t 30
+ret false
+end
+ret gt get Cd 2 get Cd 1
+end
+
+fn ctname p ulong e ulong to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+e = get Cd 2
+while lt p e bound 4096
+if not cttake p e 49
+ret false
+end
+q = get Cd 1
+r = get Cd 2
+if eq q r
+ret false
+end
+p = r
+while lt q r bound 4096
+if not cttake q r 48
+ret false
+end
+q = get Cd 2
+if not ctattr get Cd 1 q
+ret false
+end
+end
+end
+ret eq p e
+end
+
+note Exact ecPublicKey OID and named curves; no explicit/implicit parameters.
+fn ctcurve p ulong e ulong to ulong
+if not cttake p e 48
+ret 0
+end
+p = get Cd 1
+e = get Cd 2
+if not cttake p e 6
+ret 0
+end
+p = get Cd 1
+if ne sub get Cd 2 p 7
+ret 0
+end
+if or ne get Certbuf p 42 ne get Certbuf add p 1 134
+ret 0
+end
+if or ne get Certbuf add p 2 72 ne get Certbuf add p 3 206
+ret 0
+end
+if or ne get Certbuf add p 4 61 ne get Certbuf add p 5 2
+ret 0
+end
+if ne get Certbuf add p 6 1
+ret 0
+end
+p = get Cd 2
+if not cttake p e 6
+ret 0
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret 0
+end
+if eq sub e p 5
+if or ne get Certbuf p 43 ne get Certbuf add p 1 129
+ret 0
+end
+if or ne get Certbuf add p 2 4 ne get Certbuf add p 3 0
+ret 0
+end
+if eq get Certbuf add p 4 34
+ret 48
+end
+ret 0
+end
+if ne sub e p 8
+ret 0
+end
+if or ne get Certbuf p 42 ne get Certbuf add p 1 134
+ret 0
+end
+if or ne get Certbuf add p 2 72 ne get Certbuf add p 3 206
+ret 0
+end
+if or ne get Certbuf add p 4 61 ne get Certbuf add p 5 3
+ret 0
+end
+if or ne get Certbuf add p 6 1 ne get Certbuf add p 7 7
+ret 0
+end
+ret 32
+end
+
+fn ctspki b ulong p ulong e ulong to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+e = get Cd 2
+k = ctcurve p e
+if eq k 0
+ret false
+end
+p = get Cd 2
+if not cttake p e 3
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+if ne sub e p add mul k 2 2
+ret false
+end
+if ne get Certbuf p 0
+ret false
+end
+p = add p 1
+if ne get Certbuf p 4
+ret false
+end
+put Cm add b 7 p
+put Cm add b 8 sub e p
+put Cm add b 24 k
+ret true
+end
+
+note Canonical BIT STRING with at most9 defined KeyUsage bits, named-bit trailing zeros trimmed.
+fn ctusage b ulong p ulong e ulong to bool
+if not cttake p e 3
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+n = sub e p
+if or lt n 2 gt n 3
+ret false
+end
+u = ulong get Certbuf p
+if gt u 7
+ret false
+end
+last = ulong get Certbuf sub e 1
+if eq last 0
+ret false
+end
+if ne and last sub shl ulong 1 u 1 0
+ret false
+end
+if eq and shr last u 1 0
+ret false
+end
+if eq n 3
+if or ne u 7 ne last 128
+ret false
+end
+end
+put Cm add b 15 ulong get Certbuf add p 1
+put Cm add b 16 1
+ret true
+end
+
+fn ctbasic b ulong p ulong e ulong crit bool to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+put Cm add b 20 1
+if crit
+put Cm add b 21 1
+end
+if eq p e
+ret true
+end
+if not cttake p e 1
+ret false
+end
+if ne sub get Cd 2 get Cd 1 1
+ret false
+end
+if ne get Certbuf get Cd 1 255
+ret false
+end
+put Cm add b 13 1
+p = get Cd 2
+if eq p e
+ret true
+end
+if not cttake p e 2
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+if not ctint p e
+ret false
+end
+if gt sub e p 2
+ret false
+end
+v = ulong 0
+for i ulong sub e p
+v = or shl v 8 ulong get Certbuf add p i
+end
+put Cm add b 14 v
+ret true
+end
+
+fn ctdns p ulong e ulong to bool
+n = sub e p
+if or eq n 0 gt n 253
+ret false
+end
+for i ulong n
+c = get Certbuf add p i
+if or eq c 0 ge c 128
+ret false
+end
+end
+if eq n len Chost
+ok = true
+for j ulong n
+c = get Certbuf add p j
+if and ge c 65 le c 90
+c = add c 32
+end
+if ne c get Chost j
+ok = false
+end
+end
+ret ok
+end
+if eq n len Cwild
+ok = true
+for j ulong n
+c = get Certbuf add p j
+if and ge c 65 le c 90
+c = add c 32
+end
+if ne c get Cwild j
+ok = false
+end
+end
+ret ok
+end
+ret false
+end
+
+note GeneralName CHOICE tags other than dNSName: [0] [1] [3]-[8] (RFC5280 4.2.1.6).
+fn ctgname t ulong to bool
+if or eq t 160 eq t 129
+ret true
+end
+if and ge t 163 le t 165
+ret true
+end
+ret and ge t 134 le t 136
+end
+
+fn ctsan b ulong p ulong e ulong to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+if or ne get Cd 2 e eq p e
+ret false
+end
+put Cm add b 23 1
+while lt p e bound 4096
+if not ctder p e
+ret false
+end
+p = get Cd 2
+t = get Cd 0
+if eq t 130
+if ctdns get Cd 1 p
+put Cm add b 18 1
+end
+else
+note The required identity is DNS. Other legal GeneralName alternatives never match it.
+if not ctgname t
+ret false
+end
+end
+end
+ret eq p e
+end
+
+fn cteku b ulong p ulong e ulong to bool
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+if or ne get Cd 2 e eq p e
+ret false
+end
+put Cm add b 22 1
+put Cm add b 17 0
+while lt p e bound 4096
+if not cttake p e 6
+ret false
+end
+p = get Cd 1
+q = get Cd 2
+if not ctoid p q
+ret false
+end
+if eq sub q p 8
+if and eq get Certbuf p 43 eq get Certbuf add p 1 6
+if and eq get Certbuf add p 2 1 eq get Certbuf add p 3 5
+if and eq get Certbuf add p 4 5 eq get Certbuf add p 5 7
+if and eq get Certbuf add p 6 3 eq get Certbuf add p 7 1
+put Cm add b 17 1
+end
+end
+end
+end
+end
+p = q
+end
+ret eq p e
+end
+
+note Duplicate extension OIDs, including unknown ones, are refused before interpretation.
+fn ctunique p ulong e ulong to bool
+if not ctoid p e
+ret false
+end
+n = get Cen 0
+if ge n 32
+ret false
+end
+for i ulong n
+if ctequal p e get Ce mul i 2 get Ce add mul i 2 1
+ret false
+end
+end
+put Ce mul n 2 p
+put Ce add mul n 2 1 e
+put Cen 0 add n 1
+ret true
+end
+
+fn ctextval b ulong id ulong p ulong e ulong crit bool to bool
+if eq id 19
+ret ctbasic b p e crit
+end
+if eq id 15
+ret ctusage b p e
+end
+if eq id 17
+ret ctsan b p e
+end
+if eq id 37
+ret cteku b p e
+end
+note Constraints needing further path processing cannot be silently ignored even if noncritical.
+if or or eq id 30 eq id 33 or eq id 36 eq id 54
+ret false
+end
+if crit
+ret false
+end
+ret true
+end
+
+fn ctextone b ulong p ulong e ulong to bool
+if not cttake p e 6
+ret false
+end
+p = get Cd 1
+q = get Cd 2
+if not ctunique p q
+ret false
+end
+id = ulong 0
+if eq sub q p 3
+if and eq get Certbuf p 85 eq get Certbuf add p 1 29
+id = ulong get Certbuf add p 2
+end
+end
+p = q
+crit = false
+if not ctder p e
+ret false
+end
+if eq get Cd 0 1
+if ne sub get Cd 2 get Cd 1 1
+ret false
+end
+if ne get Certbuf get Cd 1 255
+ret false
+end
+crit = true
+p = get Cd 2
+end
+if not cttake p e 4
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+ret ctextval b id p e crit
+end
+
+fn ctexts b ulong p ulong e ulong to bool
+if not cttake p e 163
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+if or ne get Cd 2 e eq p e
+ret false
+end
+put Cen 0 0
+while lt p e bound 4096
+if not cttake p e 48
+ret false
+end
+p = get Cd 2
+if not ctextone b get Cd 1 p
+ret false
+end
+end
+ret eq p e
+end
+
+fn ctfront b ulong p ulong e ulong to ulong
+if not cttake p e 160
+ret 0
+end
+q = get Cd 1
+p = get Cd 2
+if not cttake q p 2
+ret 0
+end
+if or ne get Cd 2 p ne sub p get Cd 1 1
+ret 0
+end
+if ne get Certbuf get Cd 1 2
+ret 0
+end
+if not cttake p e 2
+ret 0
+end
+q = get Cd 1
+p = get Cd 2
+if not ctint q p
+ret 0
+end
+if or gt sub p q 21 eq sub p q 0
+ret 0
+end
+if and eq sub p q 21 ne get Certbuf q 0
+ret 0
+end
+v = uchar 0
+for i ulong sub p q
+v = or v get Certbuf add q i
+end
+if eq v 0
+ret 0
+end
+put Cm add b 2 ctalg p e
+if eq get Cm add b 2 0
+ret 0
+end
+ret get Cd 2
+end
+
+fn ctfields b ulong p ulong e ulong to ulong
+put Cm add b 3 p
+if not cttake p e 48
+ret 0
+end
+p = get Cd 2
+put Cm add b 4 p
+if not ctname get Cm add b 3 p
+ret 0
+end
+if not cttake p e 48
+ret 0
+end
+q = get Cd 2
+if not ctvalid b p q
+ret 0
+end
+p = q
+put Cm add b 5 p
+if not cttake p e 48
+ret 0
+end
+p = get Cd 2
+put Cm add b 6 p
+if not ctname get Cm add b 5 p
+ret 0
+end
+if not cttake p e 48
+ret 0
+end
+q = get Cd 2
+if not ctspki b p q
+ret 0
+end
+ret q
+end
+
+fn ctparse idx ulong p ulong e ulong to bool
+b = mul idx 32
+for i ulong 32
+put Cm add b i 0
+end
+put Cm add b 14 8
+put Cm add b 17 1
+if not cttake p e 48
+ret false
+end
+if ne get Cd 2 e
+ret false
+end
+p = get Cd 1
+put Cm b p
+if not cttake p e 48
+ret false
+end
+q = get Cd 2
+put Cm add b 1 q
+p = ctfront b get Cd 1 q
+if eq p 0
+ret false
+end
+p = ctfields b p q
+if eq p 0
+ret false
+end
+if lt p q
+if not ctexts b p q
+ret false
+end
+end
+p = q
+if ne ctalg p e get Cm add b 2
+ret false
+end
+p = get Cd 2
+if not cttake p e 3
+ret false
+end
+p = get Cd 1
+if or ne get Cd 2 e ge p e
+ret false
+end
+if ne get Certbuf p 0
+ret false
+end
+put Cm add b 9 add p 1
+put Cm add b 10 e
+put Cm add b 25 1
+ret true
+end
+
+fn ctrawint p ulong e ulong width ulong off ulong to bool
+if not ctint p e
+ret false
+end
+if eq get Certbuf p 0
+p = add p 1
+end
+n = sub e p
+if or eq n 0 gt n width
+ret false
+end
+for i ulong n
+put Csig add off add sub width n i get Certbuf add p i
+end
+ret true
+end
+
+fn ctrawsig p ulong e ulong width ulong to bool
+for i ulong 96
+put Csig i 0
+end
+if not cttake p e 48
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+if not cttake p e 2
+ret false
+end
+p = get Cd 1
+q = get Cd 2
+if not ctrawint p q width 0
+ret false
+end
+if not cttake q e 2
+ret false
+end
+p = get Cd 1
+if ne get Cd 2 e
+ret false
+end
+ret ctrawint p e width width
+end
+
+fn ctsha256 p ulong e ulong to void
+constants
+hinit
+for i ulong sub e p
+hbyte get Certbuf add p i
+end
+finish
+for j ulong 32
+put Chash j get Hash j
+end
+end
+
+fn ctsha384 p ulong e ulong to void
+m = new uchar 65536 0
+d = new uchar 64 0
+for i ulong sub e p
+put m i get Certbuf add p i
+end
+cs384hash m sub e p d
+for j ulong 48
+put Chash j get d j
+end
+end
+
+fn ctvp256 to bool
+w = new ulong 1024 0
+b = new uchar 4096 0
+for i ulong 65
+put b add 3072 i get Ckey i
+end
+for j ulong 64
+put b add 3200 j get Csig j
+end
+for k ulong 32
+put b add 3296 k get Chash k
+end
+cp2init w
+ret eq cp2vrfy w b 1
+end
+
+fn ctvp384 to bool
+w = new ulong 1536 0
+b = new uchar 4096 0
+for i ulong 97
+put b add 3072 i get Ckey i
+end
+for j ulong 96
+put b add 3200 j get Csig j
+end
+for k ulong 48
+put b add 3296 k get Chash k
+end
+cp3init w
+ret eq cp3vrfy w b 1
+end
+
+fn ctchecksig child ulong issuer ulong to bool
+c = mul child 32
+b = mul issuer 32
+width = get Cm add c 2
+if ne width get Cm add b 24
+ret false
+end
+if not ctrawsig get Cm add c 9 get Cm add c 10 width
+ret false
+end
+ko = get Cm add b 7
+kn = get Cm add b 8
+for i ulong kn
+put Ckey i get Certbuf add ko i
+end
+if eq width 32
+ctsha256 get Cm c get Cm add c 1
+ret ctvp256
+end
+ctsha384 get Cm c get Cm add c 1
+ret ctvp384
+end
+
+fn ctclock idx ulong to bool
+b = mul idx 32
+if gt get Certnow 0 253402300799
+ret false
+end
+now = add get Certnow 0 62135596800
+ret and ge now get Cm add b 11 le now get Cm add b 12
+end
+
+fn ctca idx ulong below ulong to bool
+b = mul idx 32
+if not ctclock idx
+ret false
+end
+if or ne get Cm add b 13 1 ne get Cm add b 21 1
+ret false
+end
+if or ne get Cm add b 16 1 eq and get Cm add b 15 4 0
+ret false
+end
+if gt below get Cm add b 14
+ret false
+end
+ret eq get Cm add b 17 1
+end
+
+fn ctleaf to bool
+if not ctclock 0
+ret false
+end
+if ne get Cm 24 32
+ret false
+end
+if ne get Cm 13 0
+ret false
+end
+if or ne get Cm 16 1 eq and get Cm 15 128 0
+ret false
+end
+if ne and get Cm 15 4 0
+ret false
+end
+if or ne get Cm 22 1 ne get Cm 17 1
+ret false
+end
+if or ne get Cm 23 1 ne get Cm 18 1
+ret false
+end
+w = new ulong 1024 0
+b = new uchar 4096 0
+cp2init w
+for i ulong 65
+put b add 3072 i get Certbuf add get Cm 7 i
+end
+cp2ld w C2X b 3073
+cp2ld w C2Y b 3105
+ret cp2oncv w
+end
+
+fn certreset to void
+put Cready 0 0
+for i ulong 65
+put Certkey i 0
+put Cleaf i 0
+end
+for i ulong 97
+put Ckey i 0
+end
+for i ulong 96
+put Csig i 0
+end
+for i ulong 48
+put Chash i 0
+end
+for i ulong 4096
+put Certmsg i 0
+end
+for i ulong 128
+put Certsig i 0
+end
+for i ulong 288
+put Cm i 0
+end
+for i ulong 64
+put Ce i 0
+end
+for i ulong 8
+put Cchain i 0
+put Ctime i 0
+end
+put Cen 0 0
+put Ccount 0 0
+end
+
+fn ctbe p ulong n ulong to ulong
+v = ulong 0
+for i ulong n
+v = or shl v 8 ulong get Certbuf add p i
+end
+ret v
+end
+
+note Certificate-entry extensions are not negotiated by this client; unsolicited ones fail closed.
+fn ctlist to bool
+e = get Certlen 0
+if or lt e 4 gt e 60000
+ret false
+end
+if ne get Certbuf 0 0
+ret false
+end
+if ne ctbe 1 3 sub e 4
+ret false
+end
+p = ulong 4
+n = ulong 0
+while lt p e bound 9
+if or ge n 8 lt sub e p 5
+ret false
+end
+k = ctbe p 3
+p = add p 3
+if or eq k 0 gt k 8192
+ret false
+end
+if gt k sub e p
+ret false
+end
+q = add p k
+note Unused extra certificates may use unsupported algorithms; only parsed ones can be issuers.
+if not ctparse n p q
+if eq n 0
+ret false
+end
+end
+p = q
+if lt sub e p 2
+ret false
+end
+if ne ctbe p 2 0
+ret false
+end
+p = add p 2
+n = add n 1
+end
+put Ccount 0 n
+ret and eq p e gt n 0
+end
+
+note Path building uses only supplied certificates plus the local root. Anchor is tried first.
+note Child's exact issuer Name DER equals candidate parent's subject Name DER.
+fn ctissued child ulong parent ulong to bool
+c = mul child 32
+q = mul parent 32
+ret ctequal get Cm add c 3 get Cm add c 4 get Cm add q 5 get Cm add q 6
+end
+
+fn ctpath to bool
+if not ctleaf
+ret false
+end
+idx = ulong 0
+below = ulong 0
+for depth ulong 8
+if ne get Cchain idx 0
+ret false
+end
+put Cchain idx 1
+if ctissued idx 8
+if not ctca 8 below
+ret false
+end
+ret ctchecksig idx 8
+end
+next = ulong 8
+for j ulong get Ccount 0
+ok = eq get Cm add mul j 32 25 1
+if and ok ctissued idx j
+if ne next 8
+ret false
+end
+next = j
+end
+end
+if eq next 8
+ret false
+end
+if not ctca next below
+ret false
+end
+if not ctchecksig idx next
+ret false
+end
+idx = next
+below = add below 1
+end
+ret false
+end
+
+fn cthexv c uchar to uchar
+if and ge c 48 le c 57
+ret sub c 48
+end
+if and ge c 97 le c 102
+ret sub c 87
+end
+trap 5
+end
+
+note Decode vendor/cert-root.om Croot to Certbuf 64000..64574, above every accepted peer byte.
+fn ctroot to bool
+if ne len Croot 1148
+ret false
+end
+for i ulong 574
+h = cthexv get Croot mul i 2
+l = cthexv get Croot add mul i 2 1
+put Certbuf add 64000 i or shl h 4 l
+end
+ret true
+end
+
+fn certcheck to bool
+certreset
+if not ctroot
+ret false
+end
+note The DER root is local and already trusted; parsing only exposes its subject, key and limits.
+if not ctparse 8 64000 64574
+ret false
+end
+if not ctlist
+ret false
+end
+if not ctpath
+ret false
+end
+for i ulong 65
+put Certkey i get Certbuf add get Cm 7 i
+put Cleaf i get Certkey i
+end
+put Cready 0 1
+ret true
+end
+
+note TLS CertificateVerify: current validated leaf required, DER signature and SHA256 message.
+fn certsig n ulong siglen ulong to bool
+if ne get Cready 0 1
+ret false
+end
+if or gt n 4096 or eq siglen 0 gt siglen 128
+certreset
+ret false
+end
+for i ulong siglen
+put Certbuf add 60000 i get Certsig i
+end
+if not ctrawsig 60000 add 60000 siglen 32
+certreset
+ret false
+end
+constants
+hinit
+for j ulong n
+hbyte get Certmsg j
+end
+finish
+for k ulong 32
+put Chash k get Hash k
+end
+note Private copy: later caller writes to exported Certkey cannot change the authenticated key.
+for m ulong 65
+put Ckey m get Cleaf m
+end
+ok = ctvp256
+if not ok
+certreset
+end
+ret ok
+end

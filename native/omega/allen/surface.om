@@ -107,25 +107,3 @@ cvblit x y color
 put Cv 7 get Af 5
 ret true
 end
-fn cvspan beg ulong size ulong x long y long color ulong to bool
-if not cvargs x y color
-ret false
-end
-if gt beg len Dtext
-ret false
-end
-if gt size sub len Dtext beg
-ret false
-end
-pen = mul x 256
-origin = pen
-for i ulong size
-if not afglyph get Dtext add beg i
-ret false
-end
-cvblit affloor pen y color
-pen = add pen long get Af 5
-end
-put Cv 7 ulong sub pen origin
-ret true
-end

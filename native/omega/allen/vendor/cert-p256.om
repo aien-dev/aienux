@@ -1,0 +1,447 @@
+note SPDX-License-Identifier: Apache-2.0
+note Modified 2026-10-25: public verification subset of aien-dev/spark-rsi-mv om/p256/p256.om.
+note Source commit bba3877510daeb8a0e070a781a689bcf1952b6f6, SHA256
+note 92da68007af091ccfbe01aa845be779502130e02bf57e9550332d669905db958.
+note Names prefixed cp2/C2, digest supplied by caller; signing, HMAC, nonce and private-key APIs removed.
+note Public ECDSA inputs only. 32-bit-limb Montgomery arithmetic and complete a=-3 point addition.
+note Renes-Costello-Batina 2015 algorithm 4; SEC2 v2 section 2.4.2 parameters.
+note Byte buffer: key3072 (65 bytes), raw signature3200 (64), prehash3296 (32).
+note No secret-key or constant-time compiler claim. Apache license in CERT-APACHE-LICENSE.
+
+const C2MP ulong 0
+const C2MN ulong 48
+const C2ONE1 ulong 96
+const C2BM ulong 104
+const C2GX ulong 120
+const C2W1 ulong 160
+const C2W2 ulong 168
+const C2XX ulong 176
+const C2YY ulong 184
+const C2ZZ ulong 192
+const C2XY ulong 200
+const C2YZ ulong 208
+const C2XZ ulong 216
+const C2U ulong 224
+const C2V ulong 232
+const C2YM ulong 240
+const C2YP ulong 248
+const C2BX3 ulong 256
+const C2XX3 ulong 264
+const C2ZZ3 ulong 272
+const C2RX ulong 280
+const C2ACC ulong 304
+const C2TMP ulong 328
+const C2BASE ulong 352
+const C2ZI ulong 376
+const C2Z ulong 528
+const C2R ulong 536
+const C2S ulong 544
+const C2U1 ulong 552
+const C2U2 ulong 560
+const C2T1 ulong 576
+const C2T2 ulong 584
+const C2T3 ulong 592
+const C2X ulong 608
+const C2Y ulong 616
+const C2Q ulong 640
+const C2P1 ulong 664
+const C2P2 ulong 688
+const C2BPUB ulong 3072
+const C2BSIG ulong 3200
+const C2BDIG ulong 3296
+
+fn cp2cpy w edit ulong 1024 o ulong a ulong to void
+for i ulong 8
+put w add o i get w add a i
+end
+end
+
+fn cp2pcpy w edit ulong 1024 o ulong a ulong to void
+for i ulong 24
+put w add o i get w add a i
+end
+end
+
+fn cp2set w edit ulong 1024 o ulong v ulong to void
+put w o v
+for i ulong 7
+put w add o add i 1 0
+end
+end
+
+fn cp2red w edit ulong 1024 o ulong t view ulong 10 m ulong to void
+u = new ulong 8 0
+bw = ulong 0
+x = ulong 0
+for i ulong 8
+x = sub sub get t i get w add m i bw
+put u i and x 4294967295
+bw = shr x 63
+end
+sel = or get t 8 xor bw 1
+mk = sub 0 sel
+for j ulong 8
+y = and get u j mk
+put w add o j or y and get t j not mk
+end
+end
+
+fn cp2mrow t edit ulong 10 w edit ulong 1024 a ulong bi ulong to void
+c = ulong 0
+x = ulong 0
+for j ulong 8
+x = add add get t j mul get w add a j bi c
+put t j and x 4294967295
+c = shr x 32
+end
+x = add get t 8 c
+put t 8 and x 4294967295
+put t 9 shr x 32
+end
+
+fn cp2mred t edit ulong 10 w edit ulong 1024 m ulong to void
+q = and mul get t 0 get w add m 8 4294967295
+x = add get t 0 mul q get w m
+c = shr x 32
+j1 = ulong 0
+for k ulong 7
+j1 = add k 1
+x = add add get t j1 mul q get w add m j1 c
+put t k and x 4294967295
+c = shr x 32
+end
+x = add get t 8 c
+put t 7 and x 4294967295
+put t 8 add get t 9 shr x 32
+end
+
+fn cp2mul w edit ulong 1024 o ulong a ulong b ulong m ulong to void
+t = new ulong 10 0
+for i ulong 8
+cp2mrow t w a get w add b i
+cp2mred t w m
+end
+cp2red w o t m
+end
+
+fn cp2add w edit ulong 1024 o ulong a ulong b ulong m ulong to void
+t = new ulong 10 0
+c = ulong 0
+x = ulong 0
+for i ulong 8
+x = add add get w add a i get w add b i c
+put t i and x 4294967295
+c = shr x 32
+end
+put t 8 c
+cp2red w o t m
+end
+
+fn cp2sub w edit ulong 1024 o ulong a ulong b ulong m ulong to void
+t = new ulong 8 0
+bw = ulong 0
+x = ulong 0
+for i ulong 8
+x = sub sub get w add a i get w add b i bw
+put t i and x 4294967295
+bw = shr x 63
+end
+mk = sub 0 bw
+c = ulong 0
+for j ulong 8
+x = add add get t j and get w add m j mk c
+put w add o j and x 4294967295
+c = shr x 32
+end
+end
+
+fn cp2modr w edit ulong 1024 o ulong m ulong to void
+t = new ulong 10 0
+for i ulong 8
+put t i get w add o i
+end
+cp2red w o t m
+end
+
+fn cp2lt w edit ulong 1024 a ulong m ulong to bool
+bw = ulong 0
+x = ulong 0
+for i ulong 8
+x = sub sub get w add a i get w add m i bw
+bw = shr x 63
+end
+ret eq bw 1
+end
+
+fn cp2isz w edit ulong 1024 a ulong to bool
+v = ulong 0
+for i ulong 8
+v = or v get w add a i
+end
+ret eq v 0
+end
+
+fn cp2eqv w edit ulong 1024 a ulong b ulong to bool
+v = ulong 0
+for i ulong 8
+v = or v xor get w add a i get w add b i
+end
+ret eq v 0
+end
+
+fn cp2rng w edit ulong 1024 a ulong to bool
+ret and not cp2isz w a cp2lt w a C2MN
+end
+
+fn cp2pow w edit ulong 1024 o ulong a ulong e ulong m ulong to void
+cp2cpy w C2W2 a
+cp2cpy w C2W1 add m 24
+i = ulong 0
+bit = ulong 0
+for j ulong 256
+i = sub 255 j
+cp2mul w C2W1 C2W1 C2W1 m
+bit = and shr get w add e shr i 5 and i 31 1
+if eq bit 1
+cp2mul w C2W1 C2W1 C2W2 m
+end
+end
+cp2cpy w o C2W1
+end
+
+fn cp2inv w edit ulong 1024 o ulong a ulong m ulong to void
+cp2pow w o a add m 32 m
+end
+
+fn cp2tom w edit ulong 1024 o ulong a ulong m ulong to void
+cp2mul w o a add m 16 m
+end
+
+fn cp2frm w edit ulong 1024 o ulong a ulong m ulong to void
+cp2mul w o a C2ONE1 m
+end
+
+fn cp2mod w edit ulong 1024 m ulong to void
+m0 = get w m
+x = m0
+for i ulong 5
+x = mul x sub 2 mul m0 x
+end
+put w add m 8 and sub 0 x 4294967295
+cp2set w add m 16 1
+for j ulong 512
+cp2add w add m 16 add m 16 add m 16 m
+end
+cp2mul w add m 24 C2ONE1 add m 16 m
+cp2cpy w add m 32 m
+put w add m 32 sub get w add m 32 2
+end
+
+fn cp2init w edit ulong 1024 to void
+for i ulong 1024
+put w i 0
+end
+put w 0 4294967295
+put w 1 4294967295
+put w 2 4294967295
+put w 6 1
+put w 7 4294967295
+put w 48 4234356049
+put w 49 4089039554
+put w 50 2803342980
+put w 51 3169254061
+put w 52 4294967295
+put w 53 4294967295
+put w 55 4294967295
+put w C2ONE1 1
+cp2mod w C2MP
+cp2mod w C2MN
+put w C2T1 668098635
+put w 577 1003371582
+put w 578 3428036854
+put w 579 1696401072
+put w 580 1989707452
+put w 581 3018571093
+put w 582 2855965671
+put w 583 1522939352
+cp2tom w C2BM C2T1 C2MP
+put w C2T1 3633889942
+put w 577 4104206661
+put w 578 770388896
+put w 579 1996717441
+put w 580 1671708914
+put w 581 4173129445
+put w 582 3777774151
+put w 583 1796723186
+cp2tom w C2GX C2T1 C2MP
+put w C2T1 935285237
+put w 577 3417718888
+put w 578 1798397646
+put w 579 734933847
+put w 580 2081398294
+put w 581 2397563722
+put w 582 4263149467
+put w 583 1340293858
+cp2tom w add C2GX 8 C2T1 C2MP
+cp2cpy w add C2GX 16 add C2MP 24
+cp2set w C2T1 0
+end
+
+fn cp2padd w edit ulong 1024 o ulong a ulong q ulong to void
+cp2mul w C2XX a q C2MP
+cp2mul w C2YY add a 8 add q 8 C2MP
+cp2mul w C2ZZ add a 16 add q 16 C2MP
+cp2add w C2U a add a 8 C2MP
+cp2add w C2V q add q 8 C2MP
+cp2mul w C2XY C2U C2V C2MP
+cp2add w C2U C2XX C2YY C2MP
+cp2sub w C2XY C2XY C2U C2MP
+cp2add w C2U add a 8 add a 16 C2MP
+cp2add w C2V add q 8 add q 16 C2MP
+cp2mul w C2YZ C2U C2V C2MP
+cp2add w C2U C2YY C2ZZ C2MP
+cp2sub w C2YZ C2YZ C2U C2MP
+cp2add w C2U a add a 16 C2MP
+cp2add w C2V q add q 16 C2MP
+cp2mul w C2XZ C2U C2V C2MP
+cp2add w C2U C2XX C2ZZ C2MP
+cp2sub w C2XZ C2XZ C2U C2MP
+note bzz3 = 3 (xz - b zz); ym = yy - bzz3; yp = yy + bzz3
+cp2mul w C2U C2BM C2ZZ C2MP
+cp2sub w C2U C2XZ C2U C2MP
+cp2add w C2V C2U C2U C2MP
+cp2add w C2U C2V C2U C2MP
+cp2sub w C2YM C2YY C2U C2MP
+cp2add w C2YP C2YY C2U C2MP
+note zz3 = 3 zz; bxz3 = 3 (b xz - (zz3 + xx)); xx3 = 3 xx - zz3
+cp2add w C2ZZ3 C2ZZ C2ZZ C2MP
+cp2add w C2ZZ3 C2ZZ3 C2ZZ C2MP
+cp2mul w C2U C2BM C2XZ C2MP
+cp2add w C2V C2ZZ3 C2XX C2MP
+cp2sub w C2U C2U C2V C2MP
+cp2add w C2V C2U C2U C2MP
+cp2add w C2BX3 C2V C2U C2MP
+cp2add w C2V C2XX C2XX C2MP
+cp2add w C2V C2V C2XX C2MP
+cp2sub w C2XX3 C2V C2ZZ3 C2MP
+note X3 = yp xy - yz bxz3; Y3 = yp ym + xx3 bxz3; Z3 = ym yz + xy xx3
+cp2mul w C2U C2YP C2XY C2MP
+cp2mul w C2V C2YZ C2BX3 C2MP
+cp2sub w C2RX C2U C2V C2MP
+cp2mul w C2U C2YP C2YM C2MP
+cp2mul w C2V C2XX3 C2BX3 C2MP
+cp2add w add C2RX 8 C2U C2V C2MP
+cp2mul w C2U C2YM C2YZ C2MP
+cp2mul w C2V C2XY C2XX3 C2MP
+cp2add w add C2RX 16 C2U C2V C2MP
+cp2pcpy w o C2RX
+end
+
+fn cp2psel w edit ulong 1024 bit ulong to void
+mk = sub 0 bit
+nm = not mk
+for c ulong 24
+y = and get w add C2TMP c mk
+put w add C2ACC c or y and get w add C2ACC c nm
+end
+end
+
+fn cp2smul w edit ulong 1024 o ulong k ulong p ulong to void
+cp2pcpy w C2BASE p
+cp2set w C2ACC 0
+cp2cpy w add C2ACC 8 add C2MP 24
+cp2set w add C2ACC 16 0
+i = ulong 0
+for j ulong 256
+i = sub 255 j
+cp2padd w C2ACC C2ACC C2ACC
+cp2padd w C2TMP C2ACC C2BASE
+cp2psel w and shr get w add k shr i 5 and i 31 1
+end
+cp2pcpy w o C2ACC
+end
+
+fn cp2aff w edit ulong 1024 x ulong y ulong p ulong to void
+cp2inv w C2ZI add p 16 C2MP
+cp2mul w x p C2ZI C2MP
+cp2frm w x x C2MP
+cp2mul w y add p 8 C2ZI C2MP
+cp2frm w y y C2MP
+end
+
+fn cp2ld w edit ulong 1024 o ulong b edit uchar 4096 off ulong to void
+q = ulong 0
+v = ulong 0
+for i ulong 8
+q = add off sub 28 mul i 4
+v = ulong get b q
+v = or shl v 8 ulong get b add q 1
+v = or shl v 8 ulong get b add q 2
+v = or shl v 8 ulong get b add q 3
+put w add o i v
+end
+end
+
+fn cp2oncv w edit ulong 1024 to bool
+if not cp2lt w C2X C2MP
+ret false
+end
+if not cp2lt w C2Y C2MP
+ret false
+end
+cp2tom w C2T1 C2X C2MP
+cp2tom w C2T2 C2Y C2MP
+cp2mul w C2T3 C2T2 C2T2 C2MP
+cp2mul w C2T2 C2T1 C2T1 C2MP
+cp2mul w C2T2 C2T2 C2T1 C2MP
+cp2sub w C2T2 C2T2 C2T1 C2MP
+cp2sub w C2T2 C2T2 C2T1 C2MP
+cp2sub w C2T2 C2T2 C2T1 C2MP
+cp2add w C2T2 C2T2 C2BM C2MP
+ret cp2eqv w C2T2 C2T3
+end
+
+fn cp2vrfy w edit ulong 1024 b edit uchar 4096 to ulong
+if ne get b C2BPUB 4
+ret 0
+end
+cp2ld w C2X b add C2BPUB 1
+cp2ld w C2Y b add C2BPUB 33
+if not cp2oncv w
+ret 0
+end
+cp2ld w C2R b C2BSIG
+cp2ld w C2S b add C2BSIG 32
+if not cp2rng w C2R
+ret 0
+end
+if not cp2rng w C2S
+ret 0
+end
+cp2ld w C2Z b C2BDIG
+cp2modr w C2Z C2MN
+cp2tom w C2T1 C2S C2MN
+cp2inv w C2T1 C2T1 C2MN
+cp2tom w C2T2 C2Z C2MN
+cp2mul w C2U1 C2T2 C2T1 C2MN
+cp2frm w C2U1 C2U1 C2MN
+cp2tom w C2T2 C2R C2MN
+cp2mul w C2U2 C2T2 C2T1 C2MN
+cp2frm w C2U2 C2U2 C2MN
+cp2tom w C2Q C2X C2MP
+cp2tom w add C2Q 8 C2Y C2MP
+cp2cpy w add C2Q 16 add C2MP 24
+cp2smul w C2P1 C2U1 C2GX
+cp2smul w C2P2 C2U2 C2Q
+cp2padd w C2P1 C2P1 C2P2
+if cp2isz w add C2P1 16
+ret 0
+end
+cp2aff w C2X C2Y C2P1
+cp2modr w C2X C2MN
+if cp2eqv w C2X C2R
+ret 1
+end
+ret 0
+end
+

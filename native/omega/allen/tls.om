@@ -1,0 +1,1303 @@
+note RFC8446 bounded TLS1.3 client: api.github.com, X25519, 1303, CV0403.
+note Concatenate tls-crypto.om and tls-cert.om before this file. No platform I/O.
+note tlsinput(n): NEW bytes in Tlsin[0..n); internal residual retained; Tlsinlen becomes0.
+note tlswrite(n)->bool: atomic acceptance, n<=16384; false means retain plaintext.
+note tlssent acknowledges the ENTIRE output queue, then pumps deferred work.
+note Tlsstate:0 lifecycle idle0 handshake1 open2 closed3 error4;1 error;2 peer close_notify.
+note Errors:1 API bounds,2 capacity,3 crypto,4 record overflow,5 unexpected record,
+note 6 bad MAC,7 malformed,8 unsupported,9 transcript cap,10 certificate,11 CV,
+note 12 Finished,13 sequence limit,14 peer alert,15 HRR unsupported,16 key boundary,
+note 17 KeyUpdate unsupported,18 absent time. Fatal/reset discards and wipes all queues.
+note Limits: handshake and transcript65536, ciphertext16640, record plaintext16384,
+note receive residual65536, app262144, epoch2^32-1 records. No tickets used or early data.
+global Tlsin uchar 65536
+global Tlsout uchar 65536
+global Tlsplain uchar 65536
+global Tlsapp uchar 262144
+global Tlsrand uchar 64
+global Tlsinlen ulong 1
+global Tlsoutn ulong 1
+global Tlsappn ulong 1
+global Tlsstate ulong 8
+global Tsrecv uchar 65536
+global Tshand uchar 65536
+global Tstrans uchar 65536
+global Tsmsg uchar 1024
+global Tssec uchar 192
+global Tskey uchar 128
+global Tsiv uchar 48
+global Tshash uchar 32
+global Tslbl uchar 16
+global Tsseen uchar 8192
+global Tsseq ulong 2
+note Tsctl:0 recvlen,1 handlen,2 transcriptlen,3 localclose requested,
+note 4 localclose queued,5 peerclose,6 phase,7 msglen,8 labellen,9 validated epoch time.
+note phase0 SH,1 EE,2 Certificate,3 CV,4 Finished,5 application,6 client Finished pending.
+global Tsctl ulong 10
+text Tshost "api.github.com"
+text Tsalpn "http/1.1"
+text Tsprefix "tls13 "
+text Tsderiv "derived"
+text Tschs "c hs traffic"
+text Tsshs "s hs traffic"
+text Tscap "c ap traffic"
+text Tssap "s ap traffic"
+text Tsklab "key"
+text Tsvlab "iv"
+text Tsflab "finished"
+text Tscvctx "TLS 1.3, server CertificateVerify"
+text Tshrr "cf21ad74e59a6111be1d8c021e65b891c2a211167abb8c5e079e09e2c8a8339c"
+fn tshex c uchar to uchar
+if le c 57
+ret sub c 48
+end
+ret sub c 87
+end
+fn tswipe to void
+for i ulong 192
+put Tssec i 0
+end
+for i ulong 128
+put Tskey i 0
+end
+for i ulong 48
+put Tsiv i 0
+end
+for i ulong 32
+put Tshash i 0
+end
+for i ulong 16
+put Tslbl i 0
+end
+for i ulong 2
+put Tsseq i 0
+end
+tcwipe
+certreset
+end
+fn tsclear to void
+tswipe
+for i ulong 65536
+put Tlsin i 0
+put Tlsout i 0
+put Tlsplain i 0
+put Tsrecv i 0
+put Tshand i 0
+put Tstrans i 0
+end
+for i ulong 262144
+put Tlsapp i 0
+end
+for i ulong 1024
+put Tsmsg i 0
+end
+for i ulong 8192
+put Tsseen i 0
+end
+for i ulong 10
+put Tsctl i 0
+end
+for i ulong 8
+put Tlsstate i 0
+end
+put Tlsinlen 0 0
+put Tlsoutn 0 0
+put Tlsappn 0 0
+end
+fn tsfail code ulong to void
+tsclear
+for i ulong 64
+put Tlsrand i 0
+end
+put Tlsstate 0 4
+put Tlsstate 1 code
+end
+fn tsh16 p ulong to ulong
+ret add shl ulong get Tshand p 8 ulong get Tshand add p 1
+end
+fn tsh24 p ulong to ulong
+ret add shl ulong get Tshand p 16 tsh16 add p 1
+end
+fn tsput c uchar to void
+p = get Tsctl 7
+put Tsmsg p c
+put Tsctl 7 add p 1
+end
+fn tsu16 x ulong to void
+tsput uchar and shr x 8 255
+tsput uchar and x 255
+end
+fn tsu24 x ulong to void
+tsput uchar and shr x 16 255
+tsu16 and x 65535
+end
+fn tshashdo to bool
+n = get Tsctl 2
+for i ulong n
+put Tcbuf i get Tstrans i
+end
+if not tcsha n
+ret false
+end
+for i ulong 32
+put Tshash i get Tcdigest i
+end
+ret true
+end
+fn tsempty to bool
+if not tcsha 0
+ret false
+end
+for i ulong 32
+put Tshash i get Tcdigest i
+end
+ret true
+end
+fn tssave p ulong to void
+for i ulong 32
+put Tssec add p i get Tcdigest i
+end
+end
+fn tslab which ulong to void
+put Tsctl 8 0
+if eq which 0
+for i ulong len Tsderiv
+put Tslbl i get Tsderiv i
+end
+put Tsctl 8 len Tsderiv
+end
+if eq which 1
+for i ulong len Tschs
+put Tslbl i get Tschs i
+end
+put Tsctl 8 len Tschs
+end
+if eq which 2
+for i ulong len Tsshs
+put Tslbl i get Tsshs i
+end
+put Tsctl 8 len Tsshs
+end
+if eq which 3
+for i ulong len Tscap
+put Tslbl i get Tscap i
+end
+put Tsctl 8 len Tscap
+end
+if eq which 4
+for i ulong len Tssap
+put Tslbl i get Tssap i
+end
+put Tsctl 8 len Tssap
+end
+if eq which 5
+for i ulong len Tsklab
+put Tslbl i get Tsklab i
+end
+put Tsctl 8 len Tsklab
+end
+if eq which 6
+for i ulong len Tsvlab
+put Tslbl i get Tsvlab i
+end
+put Tsctl 8 len Tsvlab
+end
+if eq which 7
+for i ulong len Tsflab
+put Tslbl i get Tsflab i
+end
+put Tsctl 8 len Tsflab
+end
+end
+note All expansions <=Hash.length, so RFC5869 has exactly one block T(1).
+fn tsexpand which ulong secat ulong ctx bool olen ulong to bool
+if or eq olen 0 gt olen 32
+ret false
+end
+tslab which
+n = get Tsctl 8
+if eq n 0
+ret false
+end
+for i ulong 32
+put Tckey i get Tssec add secat i
+end
+put Tcbuf 0 0
+put Tcbuf 1 uchar olen
+put Tcbuf 2 uchar add n 6
+for i ulong 6
+put Tcbuf add i 3 get Tsprefix i
+end
+for i ulong n
+put Tcbuf add i 9 get Tslbl i
+end
+p = add n 9
+put Tcbuf p 0
+if ctx
+put Tcbuf p 32
+p = add p 1
+for i ulong 32
+put Tcbuf add p i get Tshash i
+end
+p = add p 32
+else
+p = add p 1
+end
+put Tcbuf p 1
+ret tchmac 32 add p 1
+end
+fn tstraff secat ulong keyat ulong ivat ulong to bool
+if not tsexpand 5 secat false 32
+ret false
+end
+for i ulong 32
+put Tskey add keyat i get Tcdigest i
+end
+if not tsexpand 6 secat false 12
+ret false
+end
+for i ulong 12
+put Tsiv add ivat i get Tcdigest i
+end
+ret true
+end
+fn tshkeys to bool
+note HKDF-Extract(zeros32,zeros32), then Derive-Secret early derived Hash(empty).
+for i ulong 32
+put Tckey i 0
+put Tcbuf i 0
+end
+if not tchmac 32 32
+ret false
+end
+tssave 0
+if not tsempty
+ret false
+end
+if not tsexpand 0 0 true 32
+ret false
+end
+for i ulong 32
+put Tckey i get Tcdigest i
+put Tcbuf i get Tcxshare i
+end
+if not tchmac 32 32
+ret false
+end
+tssave 0
+if not tshashdo
+ret false
+end
+if not tsexpand 1 0 true 32
+ret false
+end
+tssave 32
+if not tsexpand 2 0 true 32
+ret false
+end
+tssave 64
+if not tstraff 32 0 0
+ret false
+end
+if not tstraff 64 32 12
+ret false
+end
+if not tsempty
+ret false
+end
+if not tsexpand 0 0 true 32
+ret false
+end
+for i ulong 32
+put Tckey i get Tcdigest i
+put Tcbuf i 0
+end
+if not tchmac 32 32
+ret false
+end
+tssave 96
+for i ulong 32
+put Tssec i 0
+put Tcxpriv i 0
+put Tcxshare i 0
+end
+put Tsseq 0 0
+put Tsseq 1 0
+ret true
+end
+fn tsakeys to bool
+if not tshashdo
+ret false
+end
+if not tsexpand 3 96 true 32
+ret false
+end
+tssave 128
+if not tsexpand 4 96 true 32
+ret false
+end
+tssave 160
+if not tstraff 128 64 24
+ret false
+end
+if not tstraff 160 96 36
+ret false
+end
+for i ulong 32
+put Tssec add i 96 0
+end
+put Tsseq 1 0
+ret true
+end
+fn tsfinmac secat ulong to bool
+if not tshashdo
+ret false
+end
+if not tsexpand 7 secat false 32
+ret false
+end
+for i ulong 32
+put Tckey i get Tcdigest i
+put Tcbuf i get Tshash i
+end
+ret tchmac 32 32
+end
+fn tsnonce keyat ulong ivat ulong seq ulong to void
+for i ulong 32
+put Tckey i get Tskey add keyat i
+end
+for i ulong 12
+put Tciv i get Tsiv add ivat i
+end
+for i ulong 8
+p = sub ulong 11 i
+b = uchar and shr seq mul i 8 255
+put Tciv p xor get Tciv p b
+end
+end
+note Tcbuf contains plaintext before tsseal; queue is published only after authentication.
+fn tsseal n ulong typ uchar epoch ulong to bool
+if ne get Tlsoutn 0 0
+ret false
+end
+if gt n 16384
+ret false
+end
+s = get Tsseq 0
+if ge s 4294967295
+ret false
+end
+tsnonce mul epoch 64 mul epoch 24 s
+put Tcbuf n typ
+put Tcaad 0 23
+put Tcaad 1 3
+put Tcaad 2 3
+put Tcaad 3 uchar shr add n 17 8
+put Tcaad 4 uchar and add n 17 255
+if not tcseal add n 1 5
+ret false
+end
+for i ulong 5
+put Tlsout i get Tcaad i
+end
+for i ulong add n 1
+put Tlsout add i 5 get Tcbuf i
+end
+for i ulong 16
+put Tlsout add add n 6 i get Tctag i
+end
+put Tlsoutn 0 add n 22
+put Tsseq 0 add s 1
+ret true
+end
+fn tstradd n ulong to bool
+p = get Tsctl 2
+if gt n sub ulong 65536 p
+ret false
+end
+for i ulong n
+put Tstrans add p i get Tshand i
+end
+put Tsctl 2 add p n
+ret true
+end
+fn tsseen0 to void
+for i ulong 8192
+put Tsseen i 0
+end
+end
+fn tsunique typ ulong to bool
+p = div typ 8
+b = uchar shl ulong 1 rem typ 8
+if ne and get Tsseen p b 0
+ret false
+end
+put Tsseen p or get Tsseen p b
+ret true
+end
+fn tsshare p ulong n ulong to bool
+if ne n 36
+ret false
+end
+if or ne tsh16 p 29 ne tsh16 add p 2 32
+ret false
+end
+for i ulong 32
+put Tcxpeer i get Tshand add add p 4 i
+end
+ret true
+end
+fn tssh n ulong to bool
+if lt n 44
+ret false
+end
+if ne tsh16 4 771
+ret false
+end
+note Exact HRR random is refused; never interpreted as an ordinary random.
+d = uchar 0
+for i ulong 32
+b = add shl tshex get Tshrr mul i 2 4 tshex get Tshrr add mul i 2 1
+d = or d xor get Tshand add i 6 b
+end
+if eq d 0
+tsfail 15
+ret false
+end
+if ne get Tshand 38 0
+ret false
+end
+if or ne tsh16 39 4867 ne get Tshand 41 0
+ret false
+end
+if ne tsh16 42 sub n 44
+ret false
+end
+tsseen0
+p = ulong 44
+flags = ulong 0
+while lt p n bound 16384
+if lt sub n p 4
+ret false
+end
+t = tsh16 p
+z = tsh16 add p 2
+p = add p 4
+if gt z sub n p
+ret false
+end
+if not tsunique t
+ret false
+end
+if eq t 43
+if ne z 2
+ret false
+end
+if ne tsh16 p 772
+ret false
+end
+flags = or flags 1
+else
+if eq t 51
+if not tsshare p z
+ret false
+end
+flags = or flags 2
+else
+ret false
+end
+end
+p = add p z
+end
+ret eq flags 3
+end
+fn tsext p ulong z ulong typ ulong to bool
+if eq typ 0
+ret eq z 0
+end
+if eq typ 16
+if ne z 11
+ret false
+end
+if or ne tsh16 p 9 ne get Tshand add p 2 8
+ret false
+end
+for i ulong 8
+if ne get Tshand add add p 3 i get Tsalpn i
+ret false
+end
+end
+ret true
+end
+if eq typ 10
+if lt z 4
+ret false
+end
+if or ne rem z 2 0 ne tsh16 p sub z 2
+ret false
+end
+ret true
+end
+ret false
+end
+fn tsee n ulong to bool
+if lt n 6
+ret false
+end
+if ne tsh16 4 sub n 6
+ret false
+end
+tsseen0
+p = ulong 6
+while lt p n bound 16384
+if lt sub n p 4
+ret false
+end
+t = tsh16 p
+z = tsh16 add p 2
+p = add p 4
+if gt z sub n p
+ret false
+end
+if not tsunique t
+ret false
+end
+if not tsext p z t
+ret false
+end
+p = add p z
+end
+ret true
+end
+fn tscert n ulong to bool
+z = sub n 4
+for i ulong z
+put Certbuf i get Tshand add i 4
+end
+put Certlen 0 z
+note Cert owner may reset its state; supply this session's time immediately before checking.
+put Certnow 0 get Tsctl 9
+ret certcheck
+end
+fn tscv n ulong to bool
+if lt n 8
+ret false
+end
+if ne tsh16 4 1027
+ret false
+end
+z = tsh16 6
+if or gt z 128 ne z sub n 8
+ret false
+end
+if not tshashdo
+ret false
+end
+for i ulong 64
+put Certmsg i 32
+end
+for i ulong len Tscvctx
+put Certmsg add i 64 get Tscvctx i
+end
+p = add ulong 64 len Tscvctx
+put Certmsg p 0
+p = add p 1
+for i ulong 32
+put Certmsg add p i get Tshash i
+end
+for i ulong z
+put Certsig i get Tshand add i 8
+end
+ret certsig add p 32 z
+end
+note NewSessionTicket syntax is checked, including duplicate extensions; nothing is retained.
+fn tsticket n ulong to bool
+if lt n 17
+ret false
+end
+life = add shl tsh16 4 16 tsh16 6
+if gt life 604800
+ret false
+end
+p = add ulong 13 ulong get Tshand 12
+if gt p n
+ret false
+end
+if lt sub n p 2
+ret false
+end
+z = tsh16 p
+p = add p 2
+if or eq z 0 gt z sub n p
+ret false
+end
+p = add p z
+if lt sub n p 2
+ret false
+end
+z = tsh16 p
+p = add p 2
+if ne z sub n p
+ret false
+end
+tsseen0
+while lt p n bound 16384
+if lt sub n p 4
+ret false
+end
+t = tsh16 p
+z = tsh16 add p 2
+p = add p 4
+if gt z sub n p
+ret false
+end
+if not tsunique t
+ret false
+end
+if and eq t 42 ne z 4
+ret false
+end
+p = add p z
+end
+ret true
+end
+fn tsfinish n ulong to bool
+if ne n 36
+ret false
+end
+if not tsfinmac 64
+ret false
+end
+d = uchar 0
+for i ulong 32
+d = or d xor get Tcdigest i get Tshand add i 4
+end
+ret eq d 0
+end
+fn tshmsg n ulong to void
+p = get Tsctl 6
+t = get Tshand 0
+if eq p 5
+if eq t 4
+if not tsticket n
+tsfail 7
+end
+ret
+end
+if eq t 24
+tsfail 17
+ret
+end
+tsfail 8
+ret
+end
+if eq p 0
+if ne t 2
+tsfail 8
+ret
+end
+if not tssh n
+if ne get Tlsstate 0 4
+tsfail 7
+end
+ret
+end
+if not tcx25519
+tsfail 3
+ret
+end
+d = uchar 0
+for i ulong 32
+d = or d get Tcxshare i
+end
+if eq d 0
+tsfail 3
+ret
+end
+else
+if eq p 1
+if ne t 8
+tsfail 8
+ret
+end
+if not tsee n
+tsfail 7
+ret
+end
+else
+if eq p 2
+if ne t 11
+tsfail 8
+ret
+end
+if not tscert n
+tsfail 10
+ret
+end
+else
+if eq p 3
+if ne t 15
+tsfail 8
+ret
+end
+if not tscv n
+tsfail 11
+ret
+end
+else
+if ne t 20
+tsfail 8
+ret
+end
+if not tsfinish n
+tsfail 12
+ret
+end
+end
+end
+end
+end
+if not tstradd n
+tsfail 9
+ret
+end
+if eq p 0
+if not tshkeys
+tsfail 3
+ret
+end
+end
+if eq p 4
+if not tsakeys
+tsfail 3
+ret
+end
+put Tsctl 6 6
+else
+put Tsctl 6 add p 1
+end
+end
+fn tshfeed n ulong to void
+if eq n 0
+tsfail 5
+ret
+end
+p = get Tsctl 1
+if gt n sub ulong 65536 p
+tsfail 2
+ret
+end
+for i ulong n
+put Tshand add p i get Tcbuf i
+end
+put Tsctl 1 add p n
+while ge get Tsctl 1 4 bound 16384
+z = add ulong 4 tsh24 1
+if gt z 65536
+tsfail 2
+ret
+end
+p = get Tsctl 1
+if gt z p
+ret
+end
+t = get Tshand 0
+if or or eq t 2 eq t 20 eq t 24
+if ne z p
+tsfail 16
+ret
+end
+end
+tshmsg z
+if eq get Tlsstate 0 4
+ret
+end
+p = sub p z
+for i ulong p
+put Tshand i get Tshand add i z
+end
+for i ulong z
+put Tshand add p i 0
+end
+put Tsctl 1 p
+end
+end
+fn tsalert n ulong secure bool to void
+if ne n 2
+tsfail 7
+ret
+end
+if ne get Tsctl 1 0
+tsfail 16
+ret
+end
+if or eq get Tcbuf 0 0 gt get Tcbuf 0 2
+tsfail 7
+ret
+end
+if eq get Tcbuf 1 0
+if or not secure ne get Tsctl 6 5
+tsfail 5
+ret
+end
+put Tsctl 5 1
+put Tsctl 3 1
+put Tlsstate 0 3
+put Tlsstate 2 1
+ret
+end
+a = ulong get Tcbuf 1
+tsfail 14
+put Tlsstate 3 a
+end
+fn tsinner n ulong to void
+while gt n 0 bound 16640
+if ne get Tcbuf sub n 1 0
+break
+end
+n = sub n 1
+end
+if eq n 0
+tsfail 5
+ret
+end
+n = sub n 1
+t = get Tcbuf n
+if gt n 16384
+tsfail 4
+ret
+end
+if eq t 22
+tshfeed n
+ret
+end
+if eq t 21
+tsalert n true
+ret
+end
+if ne t 23
+tsfail 5
+ret
+end
+if or ne get Tsctl 6 5 ne get Tsctl 1 0
+tsfail 5
+ret
+end
+if ne get Tsctl 5 0
+tsfail 5
+ret
+end
+p = get Tlsappn 0
+if gt n sub ulong 262144 p
+tsfail 2
+ret
+end
+for i ulong n
+put Tlsapp add p i get Tcbuf i
+end
+put Tlsappn 0 add p n
+end
+fn tsopen n ulong to void
+if lt n 17
+tsfail 7
+ret
+end
+if eq get Tsctl 6 0
+tsfail 5
+ret
+end
+s = get Tsseq 1
+if ge s 4294967295
+tsfail 13
+ret
+end
+epoch = ulong 0
+if eq get Tsctl 6 5
+epoch = 1
+end
+tsnonce add ulong 32 mul epoch 64 add ulong 12 mul epoch 24 s
+for i ulong 5
+put Tcaad i get Tsrecv i
+end
+n = sub n 16
+for i ulong n
+put Tcbuf i get Tsrecv add i 5
+end
+for i ulong 16
+put Tctag i get Tsrecv add add i n 5
+end
+if not tcopen n 5
+tsfail 6
+ret
+end
+put Tsseq 1 add s 1
+tsinner n
+end
+fn tsrecord n ulong to void
+t = get Tsrecv 0
+if eq t 20
+if or ne n 1 ne get Tsrecv 5 1
+tsfail 5
+ret
+end
+if or ne get Tlsstate 0 1 ne get Tsctl 1 0
+tsfail 5
+ret
+end
+if eq get Tsctl 6 6
+tsfail 5
+end
+ret
+end
+if eq t 23
+if or ne get Tsrecv 1 3 ne get Tsrecv 2 3
+tsfail 7
+ret
+end
+tsopen n
+ret
+end
+if ne get Tsctl 6 0
+tsfail 5
+ret
+end
+for i ulong n
+put Tcbuf i get Tsrecv add i 5
+end
+if eq t 22
+tshfeed n
+ret
+end
+if eq t 21
+tsalert n false
+ret
+end
+tsfail 5
+end
+fn tssendf to void
+if not tsfinmac 32
+tsfail 3
+ret
+end
+put Tsmsg 0 20
+put Tsmsg 1 0
+put Tsmsg 2 0
+put Tsmsg 3 32
+for i ulong 32
+put Tsmsg add i 4 get Tcdigest i
+end
+for i ulong 36
+put Tcbuf i get Tsmsg i
+end
+if not tsseal 36 22 0
+tsfail 3
+ret
+end
+note No resumption/exporter: discard transcript and handshake secrets after client Finished.
+for i ulong 192
+put Tssec i 0
+end
+for i ulong 64
+put Tskey i 0
+end
+for i ulong 24
+put Tsiv i 0
+end
+for i ulong 65536
+put Tstrans i 0
+end
+put Tsctl 2 0
+put Tsseq 0 0
+put Tsctl 6 5
+put Tlsstate 0 2
+tcwipe
+certreset
+end
+fn tsclosing to void
+if eq get Tsctl 3 0
+ret
+end
+if ne get Tsctl 4 0
+if ne get Tsctl 5 0
+tswipe
+end
+ret
+end
+if ne get Tlsoutn 0 0
+ret
+end
+put Tcbuf 0 1
+put Tcbuf 1 0
+if not tsseal 2 21 1
+tsfail 3
+ret
+end
+put Tsctl 4 1
+put Tlsstate 0 3
+if ne get Tsctl 5 0
+tswipe
+end
+end
+fn tspump to void
+if or eq get Tlsstate 0 0 eq get Tlsstate 0 4
+ret
+end
+if eq get Tsctl 6 6
+if ne get Tlsoutn 0 0
+ret
+end
+tssendf
+if eq get Tlsstate 0 4
+ret
+end
+end
+while ge get Tsctl 0 5 bound 13108
+if ne get Tsctl 5 0
+break
+end
+n = add shl ulong get Tsrecv 3 8 ulong get Tsrecv 4
+lim = ulong 16384
+if eq get Tsrecv 0 23
+lim = 16640
+end
+if gt n lim
+tsfail 4
+ret
+end
+z = add n 5
+if gt z get Tsctl 0
+break
+end
+tsrecord n
+if eq get Tlsstate 0 4
+ret
+end
+p = sub get Tsctl 0 z
+for i ulong p
+put Tsrecv i get Tsrecv add i z
+end
+for i ulong z
+put Tsrecv add p i 0
+end
+put Tsctl 0 p
+if eq get Tsctl 6 6
+if ne get Tlsoutn 0 0
+ret
+end
+tssendf
+if eq get Tlsstate 0 4
+ret
+end
+end
+end
+if ne get Tsctl 5 0
+for i ulong get Tsctl 0
+put Tsrecv i 0
+end
+put Tsctl 0 0
+end
+if eq get Tsctl 6 5
+tsclosing
+end
+end
+fn tlsinput n ulong to void
+if gt n 65536
+tsfail 1
+ret
+end
+if or eq get Tlsstate 0 0 eq get Tlsstate 0 4
+ret
+end
+if ne get Tsctl 5 0
+for i ulong n
+put Tlsin i 0
+end
+put Tlsinlen 0 0
+ret
+end
+p = get Tsctl 0
+if gt n sub ulong 65536 p
+tsfail 2
+ret
+end
+for i ulong n
+put Tsrecv add p i get Tlsin i
+put Tlsin i 0
+end
+put Tsctl 0 add p n
+put Tlsinlen 0 0
+tspump
+end
+fn tlssent to void
+n = get Tlsoutn 0
+for i ulong n
+put Tlsout i 0
+end
+put Tlsoutn 0 0
+tspump
+end
+fn tlswrite n ulong to bool
+if or ne get Tlsstate 0 2 ne get Tsctl 3 0
+ret false
+end
+if ne get Tlsoutn 0 0
+ret false
+end
+if gt n 16384
+ret false
+end
+if ge get Tsseq 0 4294967295
+tsfail 13
+ret false
+end
+for i ulong n
+put Tcbuf i get Tlsplain i
+end
+if not tsseal n 23 1
+tsfail 3
+ret false
+end
+for i ulong n
+put Tlsplain i 0
+end
+tcwipe
+ret true
+end
+fn tlsconsume n ulong to void
+p = get Tlsappn 0
+if gt n p
+tsfail 1
+ret
+end
+p = sub p n
+for i ulong p
+put Tlsapp i get Tlsapp add i n
+end
+for i ulong n
+put Tlsapp add p i 0
+end
+put Tlsappn 0 p
+end
+fn tlsclose to void
+if or eq get Tlsstate 0 0 eq get Tlsstate 0 4
+ret
+end
+if eq get Tlsstate 0 1
+tsclear
+for i ulong 64
+put Tlsrand i 0
+end
+put Tlsstate 0 3
+ret
+end
+put Tsctl 3 1
+tsclosing
+end
+fn tshello to void
+put Tsctl 7 0
+tsput 1
+tsu24 0
+tsu16 771
+for i ulong 32
+tsput get Tlsrand i
+end
+tsput 0
+tsu16 2
+tsu16 4867
+tsput 1
+tsput 0
+note Extension total patched after serializing exact offered values.
+tsu16 0
+tsu16 0
+tsu16 add ulong 5 len Tshost
+tsu16 add ulong 3 len Tshost
+tsput 0
+tsu16 len Tshost
+for i ulong len Tshost
+tsput get Tshost i
+end
+tsu16 43
+tsu16 3
+tsput 2
+tsu16 772
+tsu16 10
+tsu16 4
+tsu16 2
+tsu16 29
+tsu16 13
+tsu16 4
+tsu16 2
+tsu16 1027
+tsu16 50
+tsu16 6
+tsu16 4
+tsu16 1027
+tsu16 1283
+tsu16 51
+tsu16 38
+tsu16 36
+tsu16 29
+tsu16 32
+for i ulong 32
+tsput get Tcxpub i
+end
+tsu16 16
+tsu16 11
+tsu16 9
+tsput 8
+for i ulong 8
+tsput get Tsalpn i
+end
+n = get Tsctl 7
+put Tsmsg 1 uchar and shr sub n 4 16 255
+put Tsmsg 2 uchar and shr sub n 4 8 255
+put Tsmsg 3 uchar and sub n 4 255
+put Tsmsg 45 uchar shr sub n 47 8
+put Tsmsg 46 uchar and sub n 47 255
+for i ulong n
+put Tstrans i get Tsmsg i
+put Tlsout add i 5 get Tsmsg i
+end
+put Tsctl 2 n
+put Tlsout 0 22
+put Tlsout 1 3
+put Tlsout 2 1
+put Tlsout 3 uchar shr n 8
+put Tlsout 4 uchar and n 255
+put Tlsoutn 0 add n 5
+end
+fn tlsinit now ulong to void
+note Parent supplies FRESH secure Tlsrand before every init; reset preserves only this input.
+tsclear
+if eq now 0
+tsfail 18
+ret
+end
+z1 = true
+z2 = true
+for i ulong 32
+if ne get Tlsrand i 0
+z1 = false
+end
+if ne get Tlsrand add i 32 0
+z2 = false
+end
+end
+if or z1 z2
+tsfail 3
+ret
+end
+put Tsctl 9 now
+for i ulong 32
+put Tcxpriv i get Tlsrand add i 32
+end
+if not tcxpublic
+tsfail 3
+ret
+end
+tshello
+for i ulong 64
+put Tlsrand i 0
+end
+put Tlsstate 0 1
+end

@@ -1,0 +1,136 @@
+note SPDX-License-Identifier: MIT
+note Repository demonstration screen state. Platform independent; no device calls.
+global Dmo ulong 4
+global Dprm uchar 160
+global Dprmn ulong 1
+text Dmotext "Allen\nType a request, then press Enter.\nI recognise requests to open Allen's GitHub repository.\nRequest:\nRecognised as a deterministic repository request; no model was used.\nNative boot: UEFI firmware services remain active.\n"
+fn dmglyphs at ulong n ulong x long y long color ulong to bool
+pen = mul x 256
+for i ulong n
+if not afglyph get Dmotext add at i
+ret false
+end
+cvblit affloor pen y color
+pen = add pen long get Af 5
+end
+ret true
+end
+fn dmline wanted ulong x long y long color ulong to bool
+line = ulong 0
+at = ulong 0
+for i ulong len Dmotext
+if eq get Dmotext i 10
+if eq line wanted
+ret dmglyphs at sub i at x y color
+end
+line = add line 1
+at = add i 1
+end
+end
+ret false
+end
+fn dmprompt x long y long to bool
+pen = mul x 256
+for i ulong get Dprmn 0
+if not afglyph get Dprm i
+ret false
+end
+cvblit affloor pen y 16777215
+pen = add pen long get Af 5
+end
+ret true
+end
+fn dmrender to bool
+if eq get Dmo 0 1
+ret ghrender
+end
+if or lt get Cv 0 320 lt get Cv 1 288
+ret false
+end
+if not cvclip 0 0 get Cv 0 get Cv 1
+ret false
+end
+for i ulong mul get Cv 0 get Cv 1
+at = mul i 3
+put Canvas at 6
+put Canvas add at 1 8
+put Canvas add at 2 18
+end
+if not afinit 22 1300
+ret false
+end
+if not dmline 0 32 52 16777215
+ret false
+end
+if not afinit 11 1000
+ret false
+end
+if not dmline 1 32 92 13161215
+ret false
+end
+if not dmline 2 32 116 13161215
+ret false
+end
+if not dmline 5 32 140 9871556
+ret false
+end
+if not afinit 13 1100
+ret false
+end
+if not dmline 3 32 196 16766102
+ret false
+end
+ret dmprompt 112 196
+end
+fn dmsubmit to bool
+n = get Dprmn 0
+if or eq n 0 gt n 159
+ret false
+end
+for i ulong n
+put In i get Dprm i
+end
+put Inlen 0 n
+if not ghask
+ret false
+end
+put Dmo 0 1
+put Dprmn 0 0
+ret true
+end
+fn dmkey key ulong to bool
+if eq get Dmo 0 1
+if eq key 27
+put Dmo 0 0
+put Dprmn 0 0
+ghinit
+ret true
+end
+ghkey key
+ret true
+end
+if and ge key 32 le key 126
+n = get Dprmn 0
+if ge n len Dprm
+ret false
+end
+put Dprm n uchar key
+put Dprmn 0 add n 1
+ret true
+end
+if or eq key 8 eq key 127
+if gt get Dprmn 0 0
+put Dprmn 0 sub get Dprmn 0 1
+end
+ret true
+end
+if or eq key 10 eq key 13
+ret dmsubmit
+end
+ret false
+end
+fn dminit to void
+ghinit
+put Dmo 0 0
+put Dprmn 0 0
+end

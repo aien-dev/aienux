@@ -1,0 +1,333 @@
+note SPDX-License-Identifier: Apache-2.0
+note Modified 2026-10-25: SHA384 from aien-dev/omnet om/sha512/sha512.om.
+note Source a14ff7efc94ea56530a61e0d91675dc970e7d806; file SHA256
+note 069a54b75484221bc7dbacfbea744ca9002c295f4f34f2c3905b0776450e3ce2.
+note SHA384 IV per FIPS180-4 section 5.3.4; only first48 output bytes are SHA384.
+note Compression/padding reused; names cs384, no signing. CERT-APACHE-LICENSE applies.
+note SPDX-License-Identifier: Apache-2.0
+note sha512.om: SHA-512 (FIPS 180-4 section 6.4) as a library unit: functions only, no main, no
+note globals. Every function name starts with cs384.
+note
+note API (one shot):
+note   fn cs384hash m view uchar 65536 n ulong o edit uchar 64 to void
+note     writes SHA-512(m[0..n)) as 64 bytes to o[0..64); n > 65536 traps 3.
+note   fn cs384pre p view uchar 64 m view uchar 65536 n ulong o edit uchar 64 to void
+note     writes SHA-512(p[0..64) || m[0..n)) to o[0..64); n > 65536 traps 3.
+note
+note Words are ulong (64-bit unsigned, wrapping add is the mod 2^64 addition of FIPS 180-4 section 3.2).
+note Omega has no rotate word, so ROTR^r(x) = (x >> r) | (x << (64 - r)) (FIPS 180-4 section 3.2 item 4).
+note Not constant-time audited.
+
+note K{512}[0..80): first 64 bits of the fractional parts of the cube roots of the first 80 primes
+note (FIPS 180-4 section 4.2.3)
+fn cs384k k edit ulong 80 to void
+put k 0 4794697086780616226
+put k 1 8158064640168781261
+put k 2 13096744586834688815
+put k 3 16840607885511220156
+put k 4 4131703408338449720
+put k 5 6480981068601479193
+put k 6 10538285296894168987
+put k 7 12329834152419229976
+put k 8 15566598209576043074
+put k 9 1334009975649890238
+put k 10 2608012711638119052
+put k 11 6128411473006802146
+put k 12 8268148722764581231
+put k 13 9286055187155687089
+put k 14 11230858885718282805
+put k 15 13951009754708518548
+put k 16 16472876342353939154
+put k 17 17275323862435702243
+put k 18 1135362057144423861
+put k 19 2597628984639134821
+put k 20 3308224258029322869
+put k 21 5365058923640841347
+put k 22 6679025012923562964
+put k 23 8573033837759648693
+put k 24 10970295158949994411
+put k 25 12119686244451234320
+put k 26 12683024718118986047
+put k 27 13788192230050041572
+put k 28 14330467153632333762
+put k 29 15395433587784984357
+put k 30 489312712824947311
+put k 31 1452737877330783856
+put k 32 2861767655752347644
+put k 33 3322285676063803686
+put k 34 5560940570517711597
+put k 35 5996557281743188959
+put k 36 7280758554555802590
+put k 37 8532644243296465576
+put k 38 9350256976987008742
+put k 39 10552545826968843579
+put k 40 11727347734174303076
+put k 41 12113106623233404929
+put k 42 14000437183269869457
+put k 43 14369950271660146224
+put k 44 15101387698204529176
+put k 45 15463397548674623760
+put k 46 17586052441742319658
+put k 47 1182934255886127544
+put k 48 1847814050463011016
+put k 49 2177327727835720531
+put k 50 2830643537854262169
+put k 51 3796741975233480872
+put k 52 4115178125766777443
+put k 53 5681478168544905931
+put k 54 6601373596472566643
+put k 55 7507060721942968483
+put k 56 8399075790359081724
+put k 57 8693463985226723168
+put k 58 9568029438360202098
+put k 59 10144078919501101548
+put k 60 10430055236837252648
+put k 61 11840083180663258601
+put k 62 13761210420658862357
+put k 63 14299343276471374635
+put k 64 14566680578165727644
+put k 65 15097957966210449927
+put k 66 16922976911328602910
+put k 67 17689382322260857208
+put k 68 500013540394364858
+put k 69 748580250866718886
+put k 70 1242879168328830382
+put k 71 1977374033974150939
+put k 72 2944078676154940804
+put k 73 3659926193048069267
+put k 74 4368137639120453308
+put k 75 4836135668995329356
+put k 76 5532061633213252278
+put k 77 6448918945643986474
+put k 78 6902733635092675308
+put k 79 7801388544844847127
+end
+
+note H(0) for SHA-512: first 64 bits of the fractional parts of the square roots of the first 8 primes
+note (FIPS 180-4 section 5.3.5)
+fn cs384iv h edit ulong 8 to void
+put h 0 14680500436340154072
+put h 1 7105036623409894663
+put h 2 10473403895298186519
+put h 3 1526699215303891257
+put h 4 7436329637833083697
+put h 5 10282925794625328401
+put h 6 15784041429090275239
+put h 7 5167115440072839076
+end
+
+note upper-case Sigma0{512}(x) = ROTR^28 ^ ROTR^34 ^ ROTR^39 (FIPS 180-4 section 4.1.3, (4.10))
+fn cs384bs0 x ulong to ulong
+r = or shr x 28 shl x 36
+r = xor r or shr x 34 shl x 30
+r = xor r or shr x 39 shl x 25
+ret r
+end
+
+note upper-case Sigma1{512}(x) = ROTR^14 ^ ROTR^18 ^ ROTR^41 (section 4.1.3, (4.11))
+fn cs384bs1 x ulong to ulong
+r = or shr x 14 shl x 50
+r = xor r or shr x 18 shl x 46
+r = xor r or shr x 41 shl x 23
+ret r
+end
+
+note lower-case sigma0{512}(x) = ROTR^1 ^ ROTR^8 ^ SHR^7 (section 4.1.3, (4.12))
+fn cs384ss0 x ulong to ulong
+r = or shr x 1 shl x 63
+r = xor r or shr x 8 shl x 56
+r = xor r shr x 7
+ret r
+end
+
+note lower-case sigma1{512}(x) = ROTR^19 ^ ROTR^61 ^ SHR^6 (section 4.1.3, (4.13))
+fn cs384ss1 x ulong to ulong
+r = or shr x 19 shl x 45
+r = xor r or shr x 61 shl x 3
+r = xor r shr x 6
+ret r
+end
+
+note Ch(x,y,z) = (x and y) xor (not x and z), written as z xor (x and (y xor z)) (section 4.1.3, (4.8))
+fn cs384ch x ulong y ulong z ulong to ulong
+ret xor z and x xor y z
+end
+
+note Maj(x,y,z) = (x and y) xor (x and z) xor (y and z), written as (x and y) or (z and (x or y))
+note (section 4.1.3, (4.9))
+fn cs384mj x ulong y ulong z ulong to ulong
+ret or and x y and z or x y
+end
+
+note big-endian 64-bit word of the 8 bytes at m[q..q+8) (section 3.1 item 3)
+fn cs384bem m view uchar 65536 q ulong to ulong
+v = ulong 0
+for j ulong 8
+v = or shl v 8 ulong get m add q j
+end
+ret v
+end
+
+note the same for the 256-byte padding buffer
+fn cs384bep p view uchar 256 q ulong to ulong
+v = ulong 0
+for j ulong 8
+v = or shl v 8 ulong get p add q j
+end
+ret v
+end
+
+note the same for the 64-byte prefix
+fn cs384bex p view uchar 64 q ulong to ulong
+v = ulong 0
+for j ulong 8
+v = or shl v 8 ulong get p add q j
+end
+ret v
+end
+
+note message block M(i) at byte o of the stream p[0..pl) || m into w[0..16) (section 6.4.2 step 1,
+note t = 0..15). pl is 0 or 64 and o is a multiple of 128, so every word lies wholly in p or in m.
+fn cs384ldm p view uchar 64 pl ulong m view uchar 65536 o ulong w edit ulong 80 to void
+for i ulong 16
+q = add o mul i 8
+if lt q pl
+put w i cs384bex p q
+else
+put w i cs384bem m sub q pl
+end
+end
+end
+
+note the block at byte o of the padding buffer pb into w[0..16)
+fn cs384ldp pb view uchar 256 o ulong w edit ulong 80 to void
+for i ulong 16
+put w i cs384bep pb add o mul i 8
+end
+end
+
+note one SHA-512 compression (section 6.4.2 steps 1-4); w[0..16) holds the block on entry
+fn cs384blk h edit ulong 8 w edit ulong 80 k view ulong 80 to void
+for i ulong 64
+t = add i 16
+v = cs384ss1 get w sub t 2
+v = add v get w sub t 7
+v = add v cs384ss0 get w sub t 15
+v = add v get w i
+put w t v
+end
+a = get h 0
+b = get h 1
+c = get h 2
+d = get h 3
+e = get h 4
+f = get h 5
+g = get h 6
+x = get h 7
+for i ulong 80
+t = add x cs384bs1 e
+t = add t cs384ch e f g
+t = add t get k i
+t = add t get w i
+u = add cs384bs0 a cs384mj a b c
+x = g
+g = f
+f = e
+e = add d t
+d = c
+c = b
+b = a
+a = add t u
+end
+put h 0 add get h 0 a
+put h 1 add get h 1 b
+put h 2 add get h 2 c
+put h 3 add get h 3 d
+put h 4 add get h 4 e
+put h 5 add get h 5 f
+put h 6 add get h 6 g
+put h 7 add get h 7 x
+end
+
+note Padding (section 5.1.2) of the stream p[0..pl) || m, tot bytes long, whose bytes from off on
+note (fewer than 128) are not yet compressed: they go to pb[0..r), then one 1 bit (byte 128), zero bytes
+note up to 112 mod 128, then l = 8 * tot as a 128-bit big-endian integer. pb must be all zero on entry.
+note Returns the padded length, 128 when r < 112, else 256. The upper 64 bits of l are always 0 here
+note because tot <= 65600.
+fn cs384pad p view uchar 64 pl ulong m view uchar 65536 off ulong tot ulong pb edit uchar 256 to ulong
+r = sub tot off
+for i ulong r
+q = add off i
+if lt q pl
+put pb i get p q
+else
+put pb i get m sub q pl
+end
+end
+put pb r 128
+e = ulong 128
+if ge r 112
+e = 256
+end
+cs384len pb e mul tot 8
+ret e
+end
+
+note the low 64 bits of the 128-bit big-endian length field ending at pb[e-1]
+fn cs384len pb edit uchar 256 e ulong bits ulong to void
+for i ulong 8
+y = sub sub e 1 i
+put pb y uchar and shr bits mul i 8 255
+end
+end
+
+note H(N) as the 64-byte big-endian digest (section 6.4.2, final hash value)
+fn cs384out h view ulong 8 o edit uchar 64 to void
+for i ulong 8
+v = get h i
+for j ulong 8
+put o add mul i 8 j uchar and shr v mul sub 7 j 8 255
+end
+end
+end
+
+note SHA-512 of the stream p[0..pl) || m[0..n), pl 0 or 64 (else trap 3), n <= 65536 (else trap 3),
+note digest to o[0..64).
+fn cs384core p view uchar 64 pl ulong m view uchar 65536 n ulong o edit uchar 64 to void
+if gt n 65536
+trap 3
+end
+if ne pl 0
+if ne pl 64
+trap 3
+end
+end
+h = new ulong 8 0
+w = new ulong 80 0
+k = new ulong 80 0
+pb = new uchar 256 0
+cs384k k
+cs384iv h
+tot = add pl n
+off = ulong 0
+while le add off 128 tot bound 514
+cs384ldm p pl m off w
+cs384blk h w k
+off = add off 128
+end
+e = cs384pad p pl m off tot pb
+cs384ldp pb 0 w
+cs384blk h w k
+if eq e 256
+cs384ldp pb 128 w
+cs384blk h w k
+end
+cs384out h o
+end
+
+note SHA-512(m[0..n)), n <= 65536 (else trap 3), digest to o[0..64)
+fn cs384hash m view uchar 65536 n ulong o edit uchar 64 to void
+z = new uchar 64 0
+cs384core z 0 m n o
+end
+
