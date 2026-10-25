@@ -18,8 +18,8 @@ put Gs 5 code
 put Gdiag 0 code
 put Gdiag 1 get Tcpstate 0
 put Gdiag 2 get Tcpstate 1
-put Gdiag 3 get Tlsstate 0
-put Gdiag 4 get Tlsstate 1
+put Gdiag 3 get Ndropt 0
+put Gdiag 4 get Ndropd 0
 netclose now
 tlsclose
 tcwipe
@@ -53,7 +53,7 @@ for i ulong 8
 put Gs i 0
 end
 put Gs 0 1
-put Gs 1 add now 45000
+put Gs 1 add now 120000
 put Gs 2 kind
 put Gs 3 get Ghreq 2
 ghtime epoch

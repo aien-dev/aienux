@@ -45,6 +45,12 @@ global Nq ulong 8
 note Parsed packet: frameLen,ipHlen,ipLen,src,dst,l4off,l4len,seq,ack,
 note flags,dataOff,dataLen,window,tcpHlen.
 global Npk ulong 16
+note Ndrop: reason code of the last segment refused before the payload path. Diagnosis only.
+global Ndrop ulong 1
+note Ndropt/Ndropd/Ndropw: length, start offset and window of the last accepted segment.
+global Ndropt ulong 1
+global Ndropd ulong 1
+global Ndropw ulong 1
 global Nopt ulong 8
 note DNS decoder base,end,next,nameLen,answerStart,answerCount,rrNext,rrData.
 global Nd ulong 8
@@ -1063,20 +1069,13 @@ if ne get Nct 20 0
 put Nct 8 1
 ret
 end
-if ne and get Npk 9 1 0
-f = nadd get Npk 7 get Npk 11
-if lt ndiff f get Nct 2 nwindow
-if eq get Nct 21 0
-put Nct 21 1
-put Nct 22 f
-end
-end
-end
+note Out-of-order bytes are stored directly in the ring and drained once the gap fills.
+note This deliberately does not borrow Nct 21/22, which hold the peer FIN state: doing so
+note made a retransmitted in-order segment look like a FIN and stalled the stream.
 for i ulong get Npk 11
 s = nadd get Npk 7 i
 d = ndiff s get Nct 2
 if lt d nwindow
-if or eq get Nct 21 0 nlt s get Nct 22
 p = and add get Nct 3 d 65535
 v = get Nrx add get Npk 10 i
 if eq get Nrmap p 0
@@ -1086,7 +1085,6 @@ else
 if ne get Nrbuf p v
 nfail 13
 ret
-end
 end
 end
 end
@@ -1200,8 +1198,12 @@ nfail 13
 ret
 end
 if not ntack
+put Ndrop 0 1
 ret
 end
+put Ndropt 0 get Npk 11
+put Ndropd 0 ndiff get Npk 7 get Nct 2
+put Ndropw 0 nwindow
 put Nct 23 get Ncfg 0
 ntdata
 end
