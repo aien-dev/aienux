@@ -3,14 +3,14 @@
     "generated": {
       "children": [],
       "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "compiled_at": "2026-10-25T23:18:33Z",
+      "compiled_at": "2026-10-25T23:20:57Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:9cd4bee0f6238c77ea60043f2707d0c2db27002b0b51bd6758cd53bb9abad57a",
+      "digest": "sha256:47807b4d88aefedaafd57fc41c556e99170a544223d70cbf9d6c291c35392449",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 3,
-      "generated_at_commit": "fecbb393a52982572c3f90737870ad0bdbd4efae",
-      "source_tree": "sha256:87e81b8d3fa9abb093fc6f7861778dfcfa6dcab0248f21df19531575417454a5"
+      "generated_at_commit": "d715310158ef316961391b1c9eddeb28efafdd58",
+      "source_tree": "sha256:32ea83a81a68c9f64a034a822e0ea65215ac71968cfdbdf63ba023a48fdcfc03"
     }
   },
   "name": "imac-image",

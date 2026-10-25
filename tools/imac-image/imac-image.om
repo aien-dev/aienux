@@ -131,9 +131,20 @@ put Err 0 add get Err 0 1
 end
 end
 
-fn ewr fd long E view uchar 2097152 off ulong to void
-if lt write int fd E off 512 512
+fn datap fi int fo long to void
+note Copy the EFI payload one cluster at a time, zero padding a short final read. No size ceiling.
+C = new uchar 512 0
+i = ulong 0
+while lt i get Nes 0 bound 200000
+zsec edit C
+r = read fi C 0 512
+if lt r 0
 put Err 0 add get Err 0 1
+end
+if lt write int fo C 0 512 512
+put Err 0 add get Err 0 1
+end
+i = add i 1
 end
 end
 
@@ -473,7 +484,6 @@ end
 fn main to void
 Sct = new uchar 512 0
 Gpt = new uchar 16384 0
-Efi = new uchar 2097152 0
 Pth = new uchar 32 0
 
 put Pth 0 uchar 66
@@ -492,14 +502,18 @@ fi = fopen Pth 0 11 0 0
 if lt fi 0
 exit 2
 end
-n = read int fi Efi 0 2097152
+n = fseek int fi 0 2
 if lt n 1
 exit 3
 end
-if lt fclose int fi 0
+q = fseek int fi 0 0
+if lt q 0
 exit 9
 end
 put Nes 0 ulong div add n 511 512
+if gt get Nes 0 sub CLUS 4
+exit 10
+end
 put Tv 2 ulong n
 fspar
 
@@ -565,11 +579,7 @@ swr fo view Sct
 bootd edit Sct
 swr fo view Sct
 
-i = ulong 0
-while lt i get Nes 0 bound 3000
-ewr fo view Efi mul i 512
-i = add i 1
-end
+datap int fi fo
 startn edit Sct
 swr fo view Sct
 
@@ -584,6 +594,9 @@ exit 6
 end
 if lt fclose int fo 0
 exit 7
+end
+if lt fclose int fi 0
+exit 9
 end
 if ne get Err 0 0
 exit 8

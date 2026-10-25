@@ -35,8 +35,13 @@ does not match the one you passed. The twenty sources are **not on main**: they 
 `build-efi.sh` exit status: 0 written, 64 the compiler refused (nothing published), 65 digest
 mismatch, 66 missing sources, 69 no `OMEGA_COMPILER`, 73 `$out` already exists.
 
-`imac-image` exit status: 0 written, 2 input open, 3 input empty, 4 output open, 5 truncate, 9 close
-input, 6 sync, 7 close output, 8 a short write. The geometry is fixed (disk 196608 sectors, ESP
+`imac-image` exit status: 0 written, 2 input open, 3 input empty, 4 output open, 5 truncate,
+**10 the EFI is larger than the ESP data area** (191497 clusters, about 98 MB), 6 sync, 7 close
+output, 8 a short write, 9 input seek/close.
+
+The payload is streamed one 512-byte cluster at a time, copied from the input and written straight
+into the image, so there is no in-memory size ceiling: a 1.5 MiB EFI and a 3 MiB EFI both build, and
+the only limit is the fixed ESP geometry, which is checked before anything is written. The geometry is fixed (disk 196608 sectors, ESP
 2048..196574, FAT32 with 512-byte sectors, 1 sector per cluster, 32 reserved, 2 FATs of 1497 sectors,
 191501 clusters, constant volume serial and constant directory timestamps), so the same EFI bytes
 always give the same image digest.
@@ -66,6 +71,10 @@ Reading tools are used only as independent checkers, never as part of the build:
 - `sgdisk -v imac-boot.img` — `No problems found` (both CRCs, primary and backup headers agree).
 - `fsck.vfat -n <partition>` — clean: 5 files, 2990/191501 clusters, no FSInfo or `..` complaints.
 - `mdir -i imac-boot.img@@1M ::/EFI/BOOT` — `BOOTX64.EFI`, 1528832 bytes.
+- Payload sizes: 1528832 bytes → `f0811738…` (identical to the buffered builder's output, so the
+  streaming refactor changed no byte), 3145728 bytes → rc 0 with `fsck.vfat` clean at 6148 clusters,
+  125829120 bytes → rc 10 before any write. The earlier whole-file read would have trapped at the
+  first byte past 2 MiB.
 - The printed build block, executed verbatim in a clean directory: `build-efi.sh` → `ff17a936…`
   (rc 0), `imac-image` → `f0811738…` (rc 0). Exit paths exercised rather than declared: 65 wrong
   expected digest, 66 missing sources, 69 no `OMEGA_COMPILER`, 64 compiler refusal, 73 existing
