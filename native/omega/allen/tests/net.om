@@ -550,6 +550,15 @@ end
 nvsent
 ret true
 end
+fn nvinj off ulong n ulong fl ulong src ulong ack ulong to ulong
+note Inject a TCP segment at a stream offset with a repeated payload byte; no golden bytes needed.
+nvclr
+nvsetmac 0 170
+for i ulong n
+put Nrx add 54 i uchar and i 255
+end
+ret nvtcp src nadd nvsseq add 1 off ack fl 20 n
+end
 fn nvdata off ulong n ulong fl ulong src ulong ack ulong dat ulong to ulong
 nvclr
 nvsetmac 0 170
@@ -673,5 +682,41 @@ check nvnext 104
 check eq get Ntx 284 4 105
 nvsent
 nvfail 6 106
+note aienux#454: three in-order 1440-byte segments after the app consumed the previous record.
+check nvopen false 200
+ok = netwrite 3 get Vnow 0
+ok = nvnext
+nvsent
+a = nadd nvsseq 4
+b = nadd nvsseq 1
+put Ndrop 0 0
+nvin nvinj 0 1440 24 nvgh a
+nvin nvinj 1440 1440 24 nvgh a
+nvin nvinj 2880 1440 24 nvgh a
+check eq get Tcpn 0 4320 201
+check eq ndiff get Nct 2 b 4320 202
+check eq get Ndrop 0 0 203
+netconsume 4320
+note aienux#454: a long transfer must not die on the mode-3 idle cap while frames keep arriving.
+put Ncfg 1 3
+put Ncfg 9 5000
+t = get Vnow 0
+put Vnow 0 add t 4000
+nvin nvinj 4320 0 16 nvgh a
+put Vnow 0 add t 6000
+netstep get Vnow 0
+check ne get Tcpstate 0 6 204
+put Ncfg 1 2
+note aienux#454: an in-order peer FIN completes the stream instead of being ignored.
+check nvopen false 205
+ok = netwrite 3 get Vnow 0
+ok = nvnext
+nvsent
+c = nadd nvsseq 4
+nvin nvinj 0 3 24 nvgh c
+netconsume 3
+nvin nvinj 3 0 17 nvgh c
+check eq get Tcpstate 0 5 206
+check eq get Tcpn 0 0 207
 ret int get Fails 0
 end

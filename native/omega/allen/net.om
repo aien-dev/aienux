@@ -1211,6 +1211,13 @@ put Ndropd 0 ndiff get Npk 7 get Nct 2
 put Ndropw 0 nwindow
 put Nct 23 get Ncfg 0
 ntdata
+if ne and get Npk 9 1 0
+note FIN occupies one sequence number after the payload. Latch it; ntdrain completes it when
+note the stream reaches it, in order or after the gap fills.
+put Nct 21 1
+put Nct 22 nadd get Npk 7 get Npk 11
+ntdrain
+end
 end
 fn nipin to void
 if lt get Npk 0 34
@@ -1426,6 +1433,9 @@ end
 if nmaceq 6
 ret
 end
+note Any frame for us counts as activity: the mode-3 idle check in netstep must not be a
+note connection-lifetime cap, or a long transfer dies mid-body with failure 14.
+put Ncfg 10 now
 if not nmaceq 0
 for i ulong 6
 if ne get Nrx i 255

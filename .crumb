@@ -22,38 +22,38 @@
       "children": [
         {
           "digest": "0fb7a8ec679e89e34b8906b2c2b62a752fc115a38cd0f24a736188f43f58ad71",
-          "last_commit": "dcc6edf",
+          "last_commit": "dcc6edf9",
           "name": "crates",
           "purpose": "Directory crates. Purpose not yet described by a human."
         },
         {
-          "digest": "014d3ee01dcc2c1e542f4cd22338e600507f97d6e473c31bdc92f9510c967946",
-          "last_commit": "03f493a",
+          "digest": "b459985aaaeaad0729a1f68adeb510b6ebf050901443373d35be4c8ff8a5a3bd",
+          "last_commit": "bd4f7131",
           "name": "docs",
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "b3ad75ac586b845aff82647ba54cf89b1a91c85f6866af40eb72907511cc2c12",
-          "last_commit": "03f493a",
+          "digest": "352070ba3968728d1523eaf53b15db92b641b3da3b8b3fcf4a13a12b6d83b1e4",
+          "last_commit": "52e20bda",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
           "digest": "42b86b480253847caa503665bb86aabf65e05a28faeab2f664912ca5ec7337cb",
-          "last_commit": "35b04a5",
+          "last_commit": "35b04a52",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:1104f00ff264aba6d0f2043a2320cb0c5126e0d1db308ecb41d3e59cca03f1db",
-      "compiled_at": "2026-10-23T10:58:35Z",
+      "children_root": "sha256:9f5f7d2c63ab3e70b42c3cc0ccaa28a5ce38ffbbde684ca6db6738a2581818c9",
+      "compiled_at": "2026-10-25T23:31:49Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:659af5a777b533825b3978c421e68d8932c46ab7a25c71817be4e1e13fa95471",
-      "evidence_files": 329,
-      "evidence_root": "sha256:2f305ce415677b0474ed4fe982f52be56de84cfd6cafef08cfe10417ebce8258",
-      "files": 3856,
-      "generated_at_commit": "35b04a522b97ffd06a0a6ab18e62c6fb4befbe36",
-      "source_tree": "sha256:0631d379b863f22331aaf8b7e5b938ded0046d330eeb427ac445b3eaf0a3d5ed"
+      "digest": "sha256:b5bd59d5826a6efadaf71eeea3eb000aa3f3a54a87bd975d32c659bbfe74951a",
+      "evidence_files": 1411,
+      "evidence_root": "sha256:dd8ef32ba71ffeebde5d9af0e10b7fb3ac4c06c8b0ce7a14ef28fd8ada0c7007",
+      "files": 5044,
+      "generated_at_commit": "52e20bda088a203c1cd21b5d02fbfa81763a5972",
+      "source_tree": "sha256:458e6aec3e1ba5f761e5c1ba9d121afcb1090bbb32fb6562c81e74e97f9194a5"
     },
     "owner_lane": "",
     "provenance": {
