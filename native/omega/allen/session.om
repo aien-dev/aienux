@@ -5,6 +5,8 @@ note random bytes in Gsrand before every gsstart: 64 for TLS, 32 for TCP/DHCP/DN
 global Gsrand uchar 96
 global Gsrandn ulong 1
 global Gs ulong 8
+note Gdiag: last failure code, TCP state, TCP error, TLS state, TLS error. Shown on screen.
+global Gdiag ulong 5
 note Gs: state0 idle,1 connecting,2 TLS,3 HTTP,4 completed,5 failed; deadline; request kind;
 note generation; send offset; failure code; pending close flag.
 fn gsfail now ulong code ulong to void
@@ -13,6 +15,11 @@ kind = get Gs 2
 gen = get Gs 3
 put Gs 0 5
 put Gs 5 code
+put Gdiag 0 code
+put Gdiag 1 get Tcpstate 0
+put Gdiag 2 get Tcpstate 1
+put Gdiag 3 get Tlsstate 0
+put Gdiag 4 get Tlsstate 1
 netclose now
 tlsclose
 tcwipe

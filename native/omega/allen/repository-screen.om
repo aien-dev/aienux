@@ -496,6 +496,14 @@ label = 14
 end
 ghlabel label 16 216
 ghnum get Gh 3 16 240
+if ne get Gdiag 0 0
+note Show the failing stage and the transport states so a photograph identifies the break.
+ghnum get Gdiag 0 96 240
+ghnum get Gdiag 1 176 240
+ghnum get Gdiag 2 256 240
+ghnum get Gdiag 3 336 240
+ghnum get Gdiag 4 416 240
+end
 end
 end
 fn ghfooter to void
