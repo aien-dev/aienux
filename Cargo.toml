@@ -25,7 +25,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["AIENOS Sovereign Contributors"]
 license = "Apache-2.0"
-repository = "https://github.com/aien-spark/aienos"
+repository = "https://github.com/aien-dev/aienux"
 
 [workspace.dependencies]
 aienos-crypto = { path = "crates/aienos-crypto" }

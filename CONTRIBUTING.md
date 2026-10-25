@@ -1,6 +1,6 @@
-# Contributing to AIENOS
+# Contributing to Aienux
 
-Thank you for considering it. AIENOS is experimental and pre-alpha; we welcome
+Thank you for considering it. Aienux (the AienOS kernel) is experimental and pre-alpha; we welcome
 contributions of code, review, design and testing.
 
 ## Find something to work on
@@ -27,7 +27,7 @@ pull request is reviewed.
 
 For boot work, install QEMU for AArch64 and the AAVMF UEFI firmware (on Ubuntu:
 `qemu-system-arm` and `qemu-efi-aarch64`). An automated emulator boot is being
-added in [#18](https://github.com/aien-spark/aienos/issues/18); once it lands it
+added in [#18](https://github.com/aien-dev/aienux/issues/18); once it lands it
 becomes part of `verify_all.sh`.
 
 ## Rules for code
@@ -69,7 +69,7 @@ Report vulnerabilities privately through GitHub's "Report a vulnerability"
 
 ## License
 
-AIENOS is licensed under Apache-2.0. By submitting a
+Aienux is licensed under Apache-2.0. By submitting a
 contribution you agree that it is licensed under the same terms.
 
 ## Crumbs
