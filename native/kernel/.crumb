@@ -87,27 +87,27 @@
           "purpose": "Directory native/kernel/svc. Purpose not yet described by a human."
         },
         {
-          "digest": "8d2fb81be11b693b4924e441d5365371d48d868c78e38ab2d146d68739aade36",
-          "last_commit": "f45d00ad",
+          "digest": "3d8d13940b9e77faa860d813f783060abb1a4664080e76d2d28b0004ab739b5f",
+          "last_commit": "270eb462",
           "name": "tests",
           "purpose": "Directory native/kernel/tests. Purpose not yet described by a human."
         },
         {
-          "digest": "161f0b797ac718a09d619e04330a1b55aced4690cb59727bbd566a9b86aaad77",
-          "last_commit": "f45d00ad",
+          "digest": "6209a1005888714412baca5cd6fd6af8f5540834777f27175621a4d8533b5455",
+          "last_commit": "270eb462",
           "name": "tools",
           "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothin"
         }
       ],
-      "children_root": "sha256:864aeea48738a256559f15de154300386742e590a5d4a48572a438475fa891fd",
-      "compiled_at": "2026-10-24T17:40:38Z",
+      "children_root": "sha256:f033842f698b7a575200bc67040e14e7e2e9ca02870829c52c690f07b8c81cbf",
+      "compiled_at": "2026-10-25T22:00:40Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:77047afc7d4f7c70b090d9b6717eb21cb2f6031ed386a5750a15f0cd88a33425",
+      "digest": "sha256:a49c1c3e2229d6745b4f495b653915c5b3d1290bb73444a7c61d8b3e3f909bad",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 421,
-      "generated_at_commit": "ad77d8134db082bc013cfde92835cef8d43ddc80",
-      "source_tree": "sha256:f53f5939706589c4897125cd09afd46018f0814c6f59f7f3b0e3b6da6bd3a960"
+      "generated_at_commit": "270eb462620d5fe3d7e287024546346719e72a96",
+      "source_tree": "sha256:a978b2797e1c5053c575c21fc413f7aa96dee651c7ae8f609c1985a7e53b4923"
     },
     "owner_lane": "",
     "provenance": {
