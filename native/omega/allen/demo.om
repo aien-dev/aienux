@@ -1,9 +1,7 @@
 note SPDX-License-Identifier: MIT
 note Repository demonstration screen state. Platform independent; no device calls.
-global Dmo ulong 4
-global Dprm uchar 160
-global Dprmn ulong 1
-text Dmotext "Allen\nType a request, then press Enter.\nI recognise requests to open Allen's GitHub repository.\nRequest:\nRecognised as a deterministic repository request; no model was used.\nNative boot: UEFI firmware services remain active.\n"
+note UI state (Dmo, Dprm, Dprmn, Dstat) is declared in platform.om.
+text Dmotext "Allen\nType a request, then press Enter.\nI recognise requests to open Allen's GitHub repository.\nRequest:\nRecognised as a deterministic repository request; no model was used.\nNative boot: UEFI firmware services remain active.\nNetwork is up. Type a request.\nNo firmware network yet, retrying. Code: \n"
 fn dmglyphs at ulong n ulong x long y long color ulong to bool
 pen = mul x 256
 for i ulong n
@@ -36,6 +34,20 @@ if not afglyph get Dprm i
 ret false
 end
 cvblit affloor pen y 16777215
+pen = add pen long get Af 5
+end
+ret true
+end
+fn dmnum v ulong x long y long color ulong to bool
+note Reuse the existing decimal writer, then draw those bytes with the Allen font.
+outreset
+emitn v
+pen = mul x 256
+for i ulong get Outlen 0
+if not afglyph get Outb i
+ret false
+end
+cvblit affloor pen y color
 pen = add pen long get Af 5
 end
 ret true
@@ -80,6 +92,18 @@ end
 if not dmline 3 32 196 16766102
 ret false
 end
+if ne get Es 6 0
+if not dmline 6 32 260 8555696
+ret false
+end
+else
+if not dmline 7 32 260 8555696
+ret false
+end
+if not dmnum get Es 12 364 260 8555696
+ret false
+end
+end
 ret dmprompt 112 196
 end
 fn dmsubmit to bool
@@ -87,6 +111,12 @@ n = get Dprmn 0
 if or eq n 0 gt n 159
 ret false
 end
+if eq get Es 6 0
+note Never show a transport error for a network that was never up: keep the request.
+put Dstat 0 1
+ret false
+end
+put Dstat 0 0
 for i ulong n
 put In i get Dprm i
 end

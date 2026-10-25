@@ -12,9 +12,7 @@ global Erx uchar 1608
 global Etx uchar 2048
 note BGRA staging for GOP Blt bands (16 MiB, the compiler's per-array limit).
 global Escr uchar 16777216
-note Es: width,height,scale,left,top,MAC ready,network ready,dirty,epoch base,ms base,
-note pointer drag rows,status flags,last error.
-global Es ulong 16
+note Es (screen and network state) is declared in platform.om.
 fn efok st ulong to bool
 ret eq st 0
 end
@@ -204,12 +202,12 @@ end
 fn efnetup now ulong to void
 st = efi 8 0 Eb 0 0
 if not efok st
-put Es 12 8
+put Es 12 and st 255
 ret
 end
 st = efi 0 0 Eb 0 64
 if or not efok st eq and ulong get Eb 4 2 0
-put Es 12 9
+put Es 12 and st 255
 ret
 end
 for i ulong 6
@@ -371,6 +369,14 @@ now = efms
 if eq now 18446744073709551615
 ret 4
 end
+if eq get Es 6 0
+note Keep trying to bring the firmware network up; the link may settle after boot.
+if gt now add get Es 13 2000
+put Es 13 now
+efnetup now
+put Es 7 1
+end
+end
 efpackets now
 changed = efkeys
 if efpointer
@@ -393,6 +399,22 @@ put Es 7 0
 end
 st = efi 2 1000 Eb 0 0
 ret 0
+end
+fn efdrain to void
+note Discard keys left in the firmware buffer by the shell before the image started.
+note Four consecutive empty reads prove the queue is quiet; 4096 bounds the loop.
+empty = ulong 0
+for i ulong 4096
+st = efi 1 0 Ek 0 4
+if not efok st
+empty = add empty 1
+if ge empty 4
+break
+end
+else
+empty = 0
+end
+end
 end
 fn efloop to int
 for outer ulong 1000
@@ -444,18 +466,37 @@ st = efi 2 500000 Eb 0 0
 end
 ret int code
 end
+fn efpaint code ulong to void
+note Paint the whole screen a colour derived from code and blit it. Used as a visible
+note progress meter during startup, so a failure is identifiable from a photograph.
+w = get Es 0
+h = get Es 1
+if or eq w 0 eq h 0
+w = ulong 640
+h = ulong 480
+end
+rr = and mul code 37 255
+gg = and mul code 91 255
+bb = and mul code 149 255
+ok = efbpaint rr gg bb w h
+end
 fn main to int
 constants
 if not efscreen
 ret efbanner 1
 end
+efpaint 1
 dminit
-put Es 7 1
+efdrain
+efpaint 2
 now = efms
 if eq now 18446744073709551615
 ret efbanner 2
 end
+efpaint 3
 efnetup now
+efpaint 4
+put Es 7 1
 rc = efloop
 if ne rc 0
 bad = add ulong 10 ulong rc

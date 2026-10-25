@@ -669,7 +669,7 @@ end
 if ne bits 3
 ret false
 end
-ghissue 1
+ghissue 5
 ret true
 end
 note Decode only validated JSON strings, preserving UTF8. No renderer executes text.

@@ -1,0 +1,10 @@
+note SPDX-License-Identifier: MIT
+note State shared between the firmware platform loop and the on-screen workflow.
+note Declared once, before both, because Omega globals must precede their use.
+note Es: width,height,scale,left,top,MAC ready,network ready,dirty,epoch base,ms base,
+note pointer drag rows,last firmware error,last network retry.
+global Es ulong 16
+global Dmo ulong 4
+global Dprm uchar 160
+global Dprmn ulong 1
+global Dstat ulong 1
