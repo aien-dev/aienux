@@ -47,7 +47,7 @@ yubico-piv-tool 2.5.0 or newer and a YubiKey with firmware 5.7 or newer. Drake's
 
 `scripts/pi5-8/install_owner_tools.sh` repeats the whole install and refuses if the tarball sha256 or the OpenPGP signature
 does not match. It installs under `~/.local`. The smart card service on this Spark also needed one small permission rule so a
-non-graphical login may talk to the card reader: `/etc/polkit-1/rules.d/49-aienos-pcsc-drake.rules` (allows user drakestapleton
+non-graphical login may talk to the card reader: `/etc/polkit-1/rules.d/49-aienos-pcsc-drake.rules` (allows the owner's user
 only the two pcsc actions).
 
 ## Signing design: what exact bytes the YubiKey signs

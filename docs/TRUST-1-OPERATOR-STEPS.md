@@ -211,13 +211,13 @@ with nothing in front.
    that is not `AIENOSRECOV`). *Changes:* nothing; everything is read-only.
 
 3. Run the evidence collector with the unlock switched on. Replace
-   `IDENTITY-FILE` with the identity's file name on the key stick and
-   `FINGERPRINT` with the value from Step 3:
+   `IDENTITY-FILE` with the identity's file name on the key stick, `OWNER`
+   with the Spark owner's login name, and `FINGERPRINT` with the value from Step 3:
 
    ```sh
    env AIENOS_ESP_MNT=/mnt/esp \
        AIENOS_UNLOCK_CIPHER=/mnt/root/home/atlas/atlas-runtime-setup-20260905/private-cipher \
-       AIENOS_UNLOCK_SPARE=/mnt/root/home/drakestapleton/.config/atlas/offline-spares/atlas-private-storage.passfile.age \
+       AIENOS_UNLOCK_SPARE=/mnt/root/home/OWNER/.config/atlas/offline-spares/atlas-private-storage.passfile.age \
        AIENOS_UNLOCK_IDENTITY=/mnt/key/IDENTITY-FILE \
        AIENOS_UNLOCK_EXPECT="trust1-roundtrip-test.txt FINGERPRINT" \
      /usr/local/sbin/collect_recovery_boot_evidence /mnt/root

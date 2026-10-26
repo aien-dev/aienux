@@ -27,14 +27,28 @@ use aienos_infer::quant::{dequantize, dot_q4k_f32, dot_q6k_f32, dot_row, QK_K};
 use aienos_infer::*;
 use std::collections::BTreeMap;
 
-const MODEL: &str = "/home/drakestapleton/models/aien-mail/Llama-3.2-1B-Instruct-Q4_K_M.gguf";
-const META: &str = "/home/drakestapleton/models/aien-mail/.cache/huggingface/download/Llama-3.2-1B-Instruct-Q4_K_M.gguf.metadata";
+// The model folder: $AIENOS_INFER_MODEL_DIR, default ~/models/aien-mail.
+fn model_dir() -> std::path::PathBuf {
+    match std::env::var_os("AIENOS_INFER_MODEL_DIR") {
+        Some(d) => d.into(),
+        None => std::path::Path::new(&std::env::var_os("HOME").unwrap_or_default()).join("models/aien-mail"),
+    }
+}
+
+fn model_path() -> std::path::PathBuf {
+    model_dir().join("Llama-3.2-1B-Instruct-Q4_K_M.gguf")
+}
+
+fn meta_path() -> std::path::PathBuf {
+    model_dir().join(".cache/huggingface/download/Llama-3.2-1B-Instruct-Q4_K_M.gguf.metadata")
+}
 
 fn model() -> Option<Vec<u8>> {
-    match std::fs::read(MODEL) {
+    let path = model_path();
+    match std::fs::read(&path) {
         Ok(b) => Some(b),
         Err(e) => {
-            eprintln!("SKIP: model file {MODEL} not readable ({e})");
+            eprintln!("SKIP: model file {} not readable ({e})", path.display());
             None
         }
     }
@@ -94,7 +108,7 @@ fn real_header_matches_known_facts() {
 
 #[test]
 fn real_file_matches_hf_metadata_hash() {
-    let Ok(meta) = std::fs::read_to_string(META) else {
+    let Ok(meta) = std::fs::read_to_string(meta_path()) else {
         eprintln!("SKIP: HF metadata file absent");
         return;
     };
@@ -102,7 +116,7 @@ fn real_file_matches_hf_metadata_hash() {
     // Line 2 of the HF cache metadata is the file's sha256 (etag).
     let want = meta.lines().nth(1).unwrap().trim().to_string();
     assert_eq!(want.len(), 64);
-    let out = std::process::Command::new("sha256sum").arg(MODEL).output();
+    let out = std::process::Command::new("sha256sum").arg(model_path()).output();
     let Ok(out) = out else {
         eprintln!("SKIP: no sha256sum");
         return;

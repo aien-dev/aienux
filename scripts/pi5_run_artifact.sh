@@ -37,6 +37,8 @@
 set -euo pipefail
 efi="${1:?EFI file}"; tag="${2:?tag}"
 hub=hub
+# ping the address ssh connects to for the alias (override with PI5_HUB_ADDR)
+hub_addr="${PI5_HUB_ADDR:-$(ssh -G "${hub}" 2>/dev/null | awk '/^hostname /{print $2; exit}')}"
 runs="$HOME/workspace/pi5-runs/${tag}"
 mkdir -p "${runs}"
 log() { echo "[$(date -u +%H:%M:%SZ)] $*" | tee -a "${runs}/run.log"; }
@@ -216,7 +218,7 @@ hs "sudo reboot '0 tryboot'" >/dev/null 2>&1 || true
 sleep 20
 down=0; back=0
 for i in $(seq 1 30); do
-    if ping -c1 -W3 192.168.1.192 >/dev/null 2>&1; then
+    if ping -c1 -W3 "${hub_addr}" >/dev/null 2>&1; then
         [[ ${down} == 1 ]] && { back=1; break; }
     else
         down=1

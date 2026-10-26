@@ -23,7 +23,7 @@
 # The hub is the house server: one ssh at a time, no fast retries, never `find /` on it.
 set -euo pipefail
 model="${1:?model}"; map="${2:?map}"; efi="${3:?efi}"; tag="${4:?tag}"; nowrite="${5:-}"
-hold=/home/drakestapleton/.claude/jobs/9974574d/tmp/pi-hold
+hold="${PI5_HOLD_FILE:-$HOME/.claude/jobs/9974574d/tmp/pi-hold}"
 hs() { ssh -o BatchMode=yes -o ConnectTimeout=15 hub "$@"; }
 until [[ ! -e "$hold" ]] && [[ -z "$(ps -eo pid,args | grep -E ' bash [^ ]*/pi5-run[^ ]*\.sh' | grep -v grep || true)" ]]; do sleep 30; done
 size=$(stat -c %s "$model"); sha=$(sha256sum "$model" | cut -d' ' -f1)
