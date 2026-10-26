@@ -60,6 +60,23 @@ sbverify --cert "$t/cert.pem" "$t/signed.efi" >/dev/null 2>&1 || fail 'signed PE
 if sbverify --cert "$t/cert.pem" "$t/unsigned.efi" >/dev/null 2>&1; then
     fail 'unsigned PE accepted'
 fi
+
+# Pre-fix trust-boundary control: signing GRUB while it names an external
+# initrd leaves that file entirely outside the signature. This is the old
+# builder's `initrd /aienos-recovery/initrd.img` pattern, not a boot test.
+printf 'initrd /aienos-recovery/initrd.img\n' > "$t/external.cfg"
+grub-mkstandalone -O arm64-efi --fonts='' --locales='' --themes='' \
+    --modules='linux normal' --compress=no --sbat="$t/sbat.csv" \
+    -o "$t/external-unsigned.efi" "/boot/grub/grub.cfg=$t/external.cfg" >/dev/null
+sbsign --key "$t/key.pem" --cert "$t/cert.pem" \
+    --output "$t/external-signed.efi" "$t/external-unsigned.efi" >/dev/null 2>&1
+printf 'original initrd\n' > "$t/external-initrd.img"
+sbverify --cert "$t/cert.pem" "$t/external-signed.efi" >/dev/null 2>&1 ||
+    fail 'external-initrd control PE did not verify'
+printf 'attacker initrd\n' > "$t/external-initrd.img"
+sbverify --cert "$t/cert.pem" "$t/external-signed.efi" >/dev/null 2>&1 ||
+    fail 'external-initrd control unexpectedly bound the external file'
+echo 'PASS  pre-fix external initrd mutation leaves signed GRUB unchanged'
 marker_offset=''
 while read -r offset text; do
     if [[ "$text" == TEST_INITRD_MARKER ]]; then marker_offset="$offset"; break; fi
