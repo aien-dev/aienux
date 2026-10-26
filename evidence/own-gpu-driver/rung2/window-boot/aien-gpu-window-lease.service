@@ -1,0 +1,13 @@
+# Inert on every normal boot. In the window boot (aien.gpuwindow=1) it reboots the box 25 minutes after start, which
+# returns to the default GRUB entry with NVIDIA's driver (L405 caps leases at 20 min; 5 min margin for the restore).
+# window*-post.sh logs and may stop it only to reboot sooner; nobody extends it without the coordinator.
+[Unit]
+Description=AIEN GPU window: lease, reboot to the default (NVIDIA) entry after 25 min
+ConditionKernelCommandLine=aien.gpuwindow=1
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -c 'sleep 1500; logger -t aien-gpu-window "lease expired: rebooting to the default entry"; systemctl reboot'
+
+[Install]
+WantedBy=multi-user.target

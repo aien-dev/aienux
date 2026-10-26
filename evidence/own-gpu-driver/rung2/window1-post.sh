@@ -9,8 +9,10 @@ export PATH=$PATH:/usr/sbin:/sbin   # modinfo, lsmod and friends live in sbin; a
 here=$(cd "$(dirname "$0")" && pwd); repo=$(cd "$here/../../.." && pwd)
 log=$here/$(readlink "$here/window1-current.log")
 ts() { echo "$(date -u +%FT%T.%NZ) $*" | tee -a "$log"; }
-BLK=/etc/modprobe.d/zz-aien-gpu-window1.conf
-sudo rm -f "$BLK"; ts "post start; blacklist removed: $([ -e "$BLK" ] && echo NO || echo yes)"
+# The /run hold-back file stays for the whole window boot (tmpfs: gone at the restore reboot), so nothing can load
+# NVIDIA's driver beside ours.
+grep -q 'aien.gpuwindow=1' /proc/cmdline || { ts "WINDOW1 ABORT: this is not the one-shot window boot (no aien.gpuwindow=1); nothing done"; exit 1; }
+ts "post start; window boot; hold-back file present: $([ -e /run/modprobe.d/zz-aien-gpu-window.conf ] && echo yes || echo NO); lease: $(systemctl is-active aien-gpu-window-lease.service)"
 ts "boot: $(uptime -s) (uptime $(cut -d' ' -f1 /proc/uptime) s)"
 ts "lsmod nvidia: [$(lsmod | grep -cE '^nvidia')] driver in use on the GPU: $(lspci -k -s 000f:01:00.0 | grep -c 'in use')"
 [ "$(lsmod | grep -cE '^nvidia')" = 0 ] || { ts "WINDOW1 ABORT: an NVIDIA module is loaded; two drivers on one GPU must never happen"; exit 1; }
