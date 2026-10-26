@@ -96,39 +96,44 @@ refused). *Changes:* adds one small text file to the private storage. *You shoul
 the date, then a long fingerprint (64 letters and digits). Write the
 fingerprint down or paste it to the orchestrator; Step 6 checks it.
 
-## Step 4. Rebuild the recovery stick with the new image (needs your approval)
+## Step 4. Rebuild the recovery stick with the authenticated image (needs your approval)
 
-Why: the stick in use today was built before the Gate 1 fixes. It lacks the
-tools that open the encrypted storage, read the startup measurements through
-the TPM, and check loader signatures. Rebuilding replaces the recovery files on
-the stick (it is not reformatted); it does not
-touch the Spark's internal drive. (What the stick contains, and how it was
-first proven, is recorded in
-[RECOVERY_MEDIA_MACHINE1.md](RECOVERY_MEDIA_MACHINE1.md).)
+The stick used for the 2026-09-25 read-only boot predates the signed-image
+builder. A newly built recovery image must contain its initrd, kernel and menu
+inside one signed standalone GRUB EFI binary. Secure Boot ON for Ubuntu shim
+and the production kernel alone did not authenticate the old external initrd.
+Do not enter the offline recovery identity or passphrase into the older stick
+on the assumption that its initrd is authenticated.
 
-1. Plug in the recovery stick (label `AIENOSRECOV`). Run `lsblk -f` and find
-   the line with that label. Note its name, for example `sdb1`. If Ubuntu
-   opened it automatically (a folder path shows in the last column), close it
-   first with `udisksctl unmount -b /dev/sdX1` (your name in place of `sdX1`).
-2. Run (replace `sdX1` with the name you found):
+1. Prepare an offline signing environment with the matching signed production
+   kernel, shim, matching kernel modules, recovery tools and `grub-mkstandalone`,
+   `sbsign`, `sbverify`. The owner signing key stays offline, outside the
+   repository; its certificate must be enrolled in shim trust and not revoked.
+   The builder refuses missing key/certificate inputs. See
+   [RECOVERY_MEDIA_MACHINE1.md](RECOVERY_MEDIA_MACHINE1.md#build-and-verify)
+   for the exact inputs and command.
+2. Plug in the dedicated `AIENOSRECOV` stick. Inspect `lsblk -f` to identify
+   its unmounted FAT partition (for example `/dev/sdX1`). Never use the
+   internal NVMe or the key-backup `ATLAS_RECOV` medium. Obtain operator
+   approval for the selected partition before running the builder; it
+   replaces recovery boot files on that partition but does not format it.
+3. Run the recovery security and tools checks, then the signing/build command
+   from the linked procedure on the offline environment. A host-only
+   `sbverify` result is not proof that the real shim trusts the certificate.
+4. Under an attended hardware window, boot the new USB with Secure Boot ON
+   and verify the signed standalone GRUB enters the RAM rescue environment;
+   do not use the offline unlock identity until that boot path is qualified.
+   Replacing a byte in the embedded initrd must cause signature refusal.
+   The offline throwaway-key test is not that physical qualification.
 
-   ```bash
-   bash scripts/verify_recovery_tools.sh
-   sudo -v
-   aien-proof hold --resource machine-1 --job build-recovery-media -- \
-       sudo bash scripts/build_recovery_media.sh /dev/sdX1
-   ```
-
-   *What it does:* checks the new image, then writes it to the stick. The
-   builder refuses the internal drive and the old `ATLAS_RECOV` stick on its
-   own. *Changes:* replaces the recovery files on the stick only. *You should see:*
-   `RECOVERY_TOOLS: PASS`, then the builder copying files and unmounting the
-   stick with no error.
+If the offline signer, enrolled certificate or attended window is unavailable,
+record Gate 1 as BLOCKED_OPERATOR. Do not fall back to the old unsigned-initrd
+builder invocation or claim the 2026-09-25 boot receipt qualifies this image.
 
 ## Step 5. Decide where the recovery key lives (decision for you)
 
-**Where we are.** The stick can now open the encrypted storage on its own. To
-do that it needs two things: the *spare* (a locked copy of the storage
+**Where we are.** After Step 4 builds and qualifies the signed recovery
+image, it can open encrypted storage. It needs the *spare* (a locked copy of the storage
 password, already kept on the Spark at
 `~/.config/atlas/offline-spares/atlas-private-storage.passfile.age`) and the
 *identity* (the private key that unlocks the spare). The identity is **not**

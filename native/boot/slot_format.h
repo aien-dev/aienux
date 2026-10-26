@@ -61,16 +61,16 @@
  *
  * The CONTROL record (one unit, inside the torn-slot region) is NOT signed:
  * it is operational state written by the kernel (stage, promote, abandon) and
- * by the loader for exactly one purpose, decrementing a candidate's remaining
- * tries before it boots that candidate, which is what bounds boot attempts
- * even if the candidate hangs. Its integrity comes from the torn-slot commit
- * digests. A missing or corrupt control record never blocks booting a valid
- * image: the loader then boots the highest valid generation.
+ * by the loader to decrement a candidate's remaining tries before boot.
+ * Torn-slot commit digests detect accidental corruption, not replay or
+ * forgery. A missing or corrupt control record requires recovery; it must
+ * never reset the effective floor to zero.
  *
- * generation_floor is the monotonic security floor (P11: "reconcile rollback
- * policy with monotonic security floors"): a manifest whose generation is
- * below the floor is never booted, even if validly signed. Promotion raises
- * the floor to the promoted image's policy_generation; it never lowers it. */
+ * generation_floor is only a floor relative to the currently read disk
+ * control record. Promotion raises this value, but offline disk replay can
+ * restore an older record and signed image. Hardware-backed, independently
+ * authenticated monotonic persistence is required before treating the
+ * floor as an anti-rollback security boundary. */
 #ifndef AIENOS_CK_SLOT_FORMAT_H
 #define AIENOS_CK_SLOT_FORMAT_H
 #include <stdint.h>
@@ -183,7 +183,7 @@ enum ck_slot_reason {
     CK_SLOT_R_CANDIDATE_EXHAUSTED,    /* candidate had no tries left: booting active */
     CK_SLOT_R_CANDIDATE_INVALID,      /* candidate failed verification: booting active */
     CK_SLOT_R_ACTIVE_INVALID_FALLBACK,/* active failed verification: booting the other valid slot */
-    CK_SLOT_R_NO_CONTROL,             /* no usable control record: booting the highest valid generation */
+    CK_SLOT_R_NO_CONTROL,             /* reserved legacy boot-record reason; never selected */
     CK_SLOT_R_RECOVERY_REQUIRED,      /* no slot may boot */
 };
 
