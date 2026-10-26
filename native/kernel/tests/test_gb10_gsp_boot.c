@@ -192,9 +192,9 @@ static void test_layout(void)
     CHECK(r32(f + 40) == 2 && r64(f + 48) == p.libos_args.pa);
     CHECK(r32(f + 56) == 0 && r64(f + 64) == 0 && r32(f + 72) == 0 && r32(f + 80) == 0 && r32(f + 84) == 0);
 
-    /* SEC2 packet: MCTP SOM|EOM, NVDM 0x7e / 0x10de / COT 0x14, NVDM_PAYLOAD_COT packed */
+    /* SEC2 packet: MCTP dword 1 (GB10B HAL constant), NVDM 0x7e / 0x10de / COT 0x14, NVDM_PAYLOAD_COT packed */
     const uint8_t *k = p.cot_packet;
-    CHECK(r32(k) == 0xC0000000u && r32(k + 4) == 0x1410de7eu);
+    CHECK(r32(k) == 0x00000001u && r32(k + 4) == 0x1410de7eu);
     CHECK(p.cot_packet_len == 868 && p.emem_queue_tail == 864);
     const uint8_t *c = k + 8;
     CHECK(r16(c) == 1 && r16(c + 2) == 860);

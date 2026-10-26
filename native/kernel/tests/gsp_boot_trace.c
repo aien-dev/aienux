@@ -18,7 +18,7 @@ static void nop(void *ctx)
 
 static void scenario(const char *name, struct ck_gspsim_cfg c, uint32_t len, uint32_t budget, uint32_t hdr_ok)
 {
-    static const uint32_t hdr[3] = {0xC0000000u, 0x1410DE7Eu, 1u | (860u << 16)};
+    static const uint32_t hdr[3] = {0x00000001u, 0x1410DE7Eu, 1u | (860u << 16)};
     for (uint32_t i = 0; i < sizeof(pkt); i++)
         pkt[i] = (uint8_t)(i * 13u + 5u);
     if (hdr_ok)

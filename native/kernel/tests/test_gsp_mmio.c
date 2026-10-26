@@ -23,7 +23,7 @@ static void count_pause(void *ctx)
  * NVDM_PAYLOAD_COT (version 1, size 860, ...). Payload bytes past the header are a pattern. */
 static void make_packet(void)
 {
-    static const uint32_t hdr[3] = {0xC0000000u, 0x1410DE7Eu, 1u | (860u << 16)};
+    static const uint32_t hdr[3] = {0x00000001u, 0x1410DE7Eu, 1u | (860u << 16)};
     memcpy(pkt, hdr, sizeof(hdr));
     for (unsigned i = sizeof(hdr); i < sizeof(pkt); i++)
         pkt[i] = (uint8_t)(i * 7u + 3u);
@@ -154,7 +154,7 @@ static void test_odd_length(void)
     in.polls_mask = 1;
     CHECK(run(&c, &in, &o) == CK_GSP_E_MASK); /* the sim refuses a short packet: mask never released */
     CHECK(o.dwords == 2u && sim.qtail == 4u);
-    CHECK(sim.emem[0] == 0xC0000000u);
+    CHECK(sim.emem[0] == 0x00000001u);
     CHECK(sim.emem[1] == (0x1410DE7Eu & 0x00FFFFFFu)); /* bytes 4..6, top byte zero */
     CHECK(sim.violations == 0);
 }

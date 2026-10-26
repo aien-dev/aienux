@@ -34,12 +34,12 @@ void ck_gspsim_init(struct ck_gspsim *s, const struct ck_gspsim_cfg *cfg)
     s->left = cfg->busy_reads;
 }
 
-/* SEC2 checks the packet the driver's way round: MCTP SOM|EOM, NVDM vendor PCI 0x10de type COT, payload
+/* SEC2 checks the packet the driver's way round: MCTP dword 1 (the GB10B HAL constant, ksec2CreateMctpHeader_539ab4), NVDM vendor PCI 0x10de type COT, payload
  * version 1, size 860 (kernel_sec2.c:305-325, fsp_mctp_format.h, kern_fsp_cot_payload.h). Anything else:
  * SIM-CHOICE, SEC2 consumes it and never releases the target mask (a refused chain of trust). */
 static uint32_t packet_ok(const struct ck_gspsim *s)
 {
-    return s->qtail == 864u && s->emem[0] == 0xC0000000u && s->emem[1] == 0x1410DE7Eu &&
+    return s->qtail == 864u && s->emem[0] == 0x00000001u && s->emem[1] == 0x1410DE7Eu &&
            (s->emem[2] & 0xFFFFu) == 1u && (s->emem[2] >> 16) == 860u;
 }
 
