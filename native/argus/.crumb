@@ -22,32 +22,32 @@
       "children": [
         {
           "digest": "d5e0dbb856b190a009a618da34a3a91b9f337c06efb05dc7b895e748ecc46b79",
-          "last_commit": "621c9e6f",
+          "last_commit": "f45d00ad",
           "name": "bridge",
           "purpose": "Directory native/argus/bridge. Purpose not yet described by a human."
         },
         {
-          "digest": "c519b9b561e14e4c8017f79c86093d14b250c72e5c17258d77507130dd420a44",
-          "last_commit": "09e59a82",
+          "digest": "1cffa7f63509d0df96a2366b926726a89481ce2e66f4beba2cf44f589dbc25cc",
+          "last_commit": "d7012755",
           "name": "docs",
           "purpose": "Directory native/argus/docs. Purpose not yet described by a human."
         },
         {
           "digest": "a7593ba5ffb5299efb3d8571a42e70d98de830c36757e82c010dc406682938c4",
-          "last_commit": "621c9e6f",
+          "last_commit": "f45d00ad",
           "name": "tests",
           "purpose": "Directory native/argus/tests. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:5261214761c95238cfa2abb2192b5f74e7f6c91445635d4aca29d2fe8e641286",
-      "compiled_at": "2026-10-24T04:15:32Z",
+      "children_root": "sha256:5985d0b0d0e46c550b5e7128ec0c51e070c06114b1bd08107f392deb911cb779",
+      "compiled_at": "2026-10-26T15:49:35Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:9a550a7209350cc658a55708701504f70b54c461e672243bebf48d50c52c1c70",
+      "digest": "sha256:572990d31c305b2f2bf0e45de60b1380c41f5dd6d24e962c65261bec25028b9a",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 47,
-      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
-      "source_tree": "sha256:7f0e87f3554051c09e9bf0b46e2d2a5bf8a6679f725a922435b1e3a88564aab2"
+      "generated_at_commit": "d70127557fd45192a9f24fc092963f72f15e9e29",
+      "source_tree": "sha256:3b1a2f20d1609507b574bcf97250b8fe198af3cd5d39fa44016d3a81666afd15"
     },
     "owner_lane": "",
     "provenance": {
