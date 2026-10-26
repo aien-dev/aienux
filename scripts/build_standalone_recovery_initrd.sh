@@ -14,14 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# build_standalone_recovery_initrd.sh: Creates a 100% self-contained recovery initrd
-# Does NOT mount or require internal NVMe root. Contains busybox/shell, cryptsetup,
-# gocryptfs, age, tpm2 tools, and diagnostic recovery utilities.
-# Zero Disk Secrets and Unslop compliant.
+# build_standalone_recovery_initrd.sh: Creates a self-contained recovery
+# initrd for embedding inside an owner-signed standalone GRUB EFI image.
+# The initrd by itself is NOT authenticated; never load it from USB as an
+# external GRUB initrd. No internal NVMe root or disk secrets are needed.
 
 set -euo pipefail
 
-OUT_INITRD="${1:-/tmp/aienos-recovery-standalone-initrd.img}"
+if [[ $# != 1 || -z "$1" || -L "$1" || -e "$1" ]]; then
+    echo "Usage: $0 <new-output-initrd> (must not already exist or be a symlink)" >&2
+    exit 1
+fi
+set -C  # O_EXCL-style refusal if the output appears between the check and open.
+OUT_INITRD="$1"
 WORK_DIR=$(mktemp -d /tmp/recovery-initrd-build.XXXXXX)
 
 cleanup() {
@@ -130,7 +135,8 @@ done
 # Kernel drivers the recovery shell needs on Machine 1 that the Ubuntu kernel
 # builds as modules: the ACPI xHCI controllers (NVDA8000), USB and Logitech
 # keyboards, USB sticks, the internal NVMe, dm-crypt and FAT text encodings.
-# Modules must match the kernel the callers copy: the newest /boot/vmlinuz-*.
+# Modules must match the copied kernel. The media builder passes its version;
+# a standalone build defaults to the newest local /boot/vmlinuz-*.
 KVER="${AIENOS_RECOVERY_KVER:-$(basename "$(ls -1t /boot/vmlinuz-* | head -n 1)" | sed 's/^vmlinuz-//')}"
 RECOVERY_MODULES=(
     xhci-plat-hcd
@@ -297,6 +303,6 @@ INIT_EOF
 
 chmod +x "$WORK_DIR/init"
 
-echo "Packaging standalone initrd to $OUT_INITRD..."
+echo "Packaging standalone initrd to $OUT_INITRD (not a signed boot artifact)..."
 (cd "$WORK_DIR" && find . | cpio -H newc -o | gzip -9) > "$OUT_INITRD"
-echo "Standalone recovery initrd build complete: $(du -h "$OUT_INITRD")"
+echo "Standalone initrd build complete: $(du -h "$OUT_INITRD")"

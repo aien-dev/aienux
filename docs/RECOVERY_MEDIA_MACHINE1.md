@@ -18,19 +18,37 @@ and ESP read-only, checked the fallback loader and recovery tools, and
 returned to Ubuntu. It made no filesystem or firmware changes. The evidence
 is in [recovery_boot_machine1.md](../evidence/recovery_boot_machine1.md).
 
+That historical stick loaded an external, unauthenticated initrd. Its
+read-only boot receipt remains valid for that observation, not for
+authenticated recovery userspace or for safely presenting offline secrets.
+The signed replacement described below is implemented in the builder but
+has not been staged, booted or qualified on Machine 1.
+
 **Issue #17 done state:** Machine 1 has booted the USB recovery environment;
 the environment mounted the NVMe root and ESP read-only, confirmed repair and
 boot-entry tools are present, and the boot was recorded. Actual filesystem
 repair and boot-entry mutation are intentionally outside this read-only
 exercise.
 
-## What ships
+## What the new builder ships (not yet hardware-qualified)
 
-- `scripts/build_recovery_media.sh /dev/sdX1` writes a Secure Boot-compatible
-  recovery USB (signed shim + GRUB fallback, signed production kernel, and a
-  standalone RAM initrd). It refuses the internal NVMe and mounted targets.
-- `scripts/build_standalone_recovery_initrd.sh` builds the RAM rescue
-  environment. It contains exactly these programs (the `BINARIES` list in that
+- `scripts/build_recovery_media.sh /dev/sdX1` accepts an existing, unmounted
+  FAT partition only. It refuses the internal NVMe and ATLAS_RECOV, mounts
+  the target with `nodev,nosuid,noexec`, and writes through a private mount
+  point. An ext4/other Unix filesystem is refused before any mount or write;
+  preexisting filesystem symlinks must never be followed as root.
+- The new build carries signed shim plus a single **owner-signed standalone GRUB
+  EFI image**. The GRUB image contains its menu, the signed production
+  kernel and the complete initrd in its embedded memdisk. The menu loads
+  `(memdisk)/boot/vmlinuz` and `(memdisk)/boot/initrd.img`; there is no external
+  `grub.cfg`, kernel or initrd for a USB editor to replace independently.
+  Firmware/shim acceptance of this owner signature requires the exact
+  signing certificate to be enrolled and not revoked; `sbverify` on the build
+  host alone does not establish that enrollment or a successful physical boot.
+- `scripts/build_standalone_recovery_initrd.sh` creates the unsigned RAM
+  rescue payload for embedding; its standalone output is **not** an
+  authenticated boot artifact and must never be loaded directly from USB.
+  It contains these programs (the `BINARIES` list in that
   script, plus gocryptfs):
   - shell and basics: BusyBox (with its built-in commands), `sh`, `bash`,
     `mount`, `umount`, `mkdir`, `cat`, `grep`, `sed`, `sha256sum`;
@@ -48,34 +66,82 @@ exercise.
 - The build copies the attended collector into the image at
   `/usr/local/sbin/collect_recovery_boot_evidence`; it does not depend on a
   repository checkout being present in the rescue shell.
-- `scripts/verify_recovery_tools.sh` extracts the built initrd and checks
-  that the tools and collector are present. It is wired into
-  `scripts/verify_all.sh`.
-- `scripts/qemu_verify_recovery_media.sh` verifies a zero-disk RAM boot in
-  QEMU.
+- `scripts/verify_recovery_tools.sh` extracts a locally built initrd and
+  checks its tools and collector. This proves contents, not boot integrity.
+- `scripts/test_recovery_media_security.sh` checks target-type refusal and
+  signed-image tamper refusal using throwaway keys and scratch files.
+  `AIENOS_RECOVERY_QEMU_EMBED=1` also boots a signed standalone GRUB directly
+  under AAVMF Secure Boot with a published snakeoil test key, checks hostile
+  external `grub.cfg` files do not override its embedded config, and observes
+  firmware refusal after an embedded initrd byte changes. It does **not**
+  exercise Ubuntu shim, owner MOK enrollment or physical hardware.
+- `scripts/qemu_verify_recovery_media.sh` verifies the RAM payload in a
+  zero-disk QEMU kernel boot. It does **not** exercise shim or signed GRUB.
 
-The builder creates a unique initrd temporary path with `mktemp` and removes
-it on exit, including failed builds.
+The builder keeps temporary initrd, unsigned EFI and signing intermediates in
+a private build directory, removes them on exit, and never puts those files
+on the removable medium.
 
 ## Build and verify
 
-On Machine 1 in Linux (an Ubuntu terminal, where `aien-proof` is installed),
-identify the dedicated USB target. Do not target the internal NVMe or EFI
-System Partition; the builder rejects them.
+The owner key must remain on a separate offline signing machine, never on
+Machine 1's everyday Linux. On Machine 1, export **public boot inputs only**:
+the selected `/boot/vmlinuz-<kernel-version>`, the known Ubuntu shim
+`/boot/efi/EFI/boot/BOOTAA64.EFI`, optional MOK manager
+`/boot/efi/EFI/ubuntu/mmaa64.efi`, and the exact matching
+`/lib/modules/<kernel-version>/` tree with `modules.dep*` metadata. Copy
+those files from Machine 1 to a separate **data-only transfer medium** and
+then to the offline signer; do not transfer the owner signing key in this
+direction or run the signing operation on Machine 1. Record each input's
+SHA-256 digest on Machine 1 and compare every transferred copy on the
+offline signer before building; a mismatch or unverified source is a STOP.
+Install the matching module tree at `/lib/modules/<kernel-version>/` on
+the offline signer so `modprobe -S <kernel-version> --show-depends` finds it.
+The signer must also have the recovery `BINARIES`, their shared
+libraries, `gocryptfs`, `libtss2-tcti-device`, `grub-mkstandalone`, `sbsign`,
+`sbverify`, `zstd`, `xz` and a FAT filesystem toolchain. The private signing
+key is never transferred back with the public inputs or copied into the
+recovery image. The signer needs the prepared USB partition attached when
+the script runs.
+
+New temporary foreign build dependencies on this path, measured on the
+development host: `grub-mkstandalone` (GRUB `2.12-1ubuntu7.3`) packages
+kernel, initrd and menu into an ARM64 PE with embedded memdisk;
+`sbsign`/`sbverify` (`0.9.4`) sign and check its Authenticode certificate.
+Record the offline signer's exact versions with the build receipt rather
+than assuming they match. The forward replacement is an Omega-authored
+PE/memdisk builder and signer with independent verification; it is not
+implemented in this change.
+
+The preexisting unattended USB and 2026-09-25 receipt predate this
+authenticated-image builder. They do not establish that the replacement
+boots or that the owner certificate is enrolled. The replacement requires
+an attended Secure Boot ON boot and refusal after initrd-only tampering
+before TRUST-1 Gate 1 may rely on it. The offline AAVMF test uses a different
+trust anchor and does not close that operator/hardware requirement.
 
 ```bash
-cd ~/workspace/aienos-recovery-gate
-git pull --ff-only
+# On the prepared offline signer, after checking transferred input digests:
 lsblk -f
+bash scripts/test_recovery_media_security.sh
+AIENOS_RECOVERY_QEMU_EMBED=1 bash scripts/test_recovery_media_security.sh
 bash scripts/verify_recovery_tools.sh
 bash scripts/qemu_verify_recovery_media.sh
+export AIENOS_RECOVERY_KERNEL=/verified/public/vmlinuz-<kernel-version>
+export AIENOS_RECOVERY_SHIM=/verified/public/BOOTAA64.EFI
+export AIENOS_RECOVERY_MOKMANAGER=/verified/public/mmaa64.efi
+export AIENOS_RECOVERY_SIGNING_KEY=/secure/offline/boot-signer.key
+export AIENOS_RECOVERY_SIGNING_CERT=/secure/offline/boot-signer.crt
 sudo -v
-aien-proof hold --resource machine-1 --job build-recovery-media -- \
-    sudo bash scripts/build_recovery_media.sh /dev/sdX1
+sudo --preserve-env=AIENOS_RECOVERY_KERNEL,AIENOS_RECOVERY_SHIM,AIENOS_RECOVERY_MOKMANAGER,AIENOS_RECOVERY_SIGNING_KEY,AIENOS_RECOVERY_SIGNING_CERT \
+    bash scripts/build_recovery_media.sh /dev/sdX1
 ```
 
-The builder copies the signed shim and GRUB, the current signed production
-kernel, the standalone initrd, and the GRUB menu, then unmounts the USB.
+The builder refuses missing signer inputs and refuses to install an
+unsigned GRUB. Its local `sbverify --cert` checks the built image signature,
+not actual firmware/shim admission. Confirm the selected partition's
+identity and FAT type before invoking it; a mounted or non-FAT target is
+rejected. Do not format it as a side effect of this build.
 
 ## Boot the USB once
 
@@ -141,20 +207,21 @@ For the TRUST-1 Gate 1 round trip (opening the private storage read-only with
 the offline spare), use the longer form with the `AIENOS_UNLOCK_*` settings in
 [TRUST-1-OPERATOR-STEPS.md, Step 6](TRUST-1-OPERATOR-STEPS.md#step-6-boot-the-recovery-stick-with-secure-boot-on-and-prove-the-unlock-gate-1-attended).
 
-The machine-1 test-board record for this boot comes from Ubuntu, not from the
-stick: the `aien-proof hold` around the stick build is the last ledger event
-before the reboot. The 2026-09-25 run had no separate ledger event for the
-attended boot itself (see the evidence record); the collector's printed
-output is the record of the boot.
+For the 2026-09-25 historical boot, the Machine 1 `aien-proof hold`
+around the old stick build was the last ledger event before reboot; that run
+had no separate boot ledger event. For the new offline-signed build, do not
+claim such a Machine 1 build hold exists. Record the offline signer's
+source-input digests, signed EFI digest, signer certificate fingerprint,
+host and AAVMF test outputs, and the distinct attended boot/return evidence.
 
 ## Return to Linux and complete the record
 
 Exit any chroot, unmount `/mnt/esp` and `/mnt/root`, then reboot or power off.
 Confirm Linux returns and record its root/ESP mounts. Record the recovery
-`BootCurrent` and `BootOrder`, the return-to-Linux proof, tool results,
-Secure Boot observations before and after the boot, and the aien-proof events
-taken from Ubuntu (the build hold, and anything recorded after return) in the
-evidence file. If an abbreviated collector or receipt omitted the
+`BootCurrent` and `BootOrder`, the return-to-Linux proof, tool results and
+Secure Boot observations before and after the boot. Record only test-board
+events actually taken from Ubuntu; the old build hold belongs solely to
+the 2026-09-25 run. If an abbreviated collector or receipt omitted the
 Secure Boot byte or post-return state, say so explicitly; do not infer it.
 
 For the 2026-09-25 run, the recovery entry was `Boot0004* UEFI: USB USB Hard
