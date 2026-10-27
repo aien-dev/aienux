@@ -32,10 +32,6 @@ if or eq kind 0 ne get Gs 0 0
 ret false
 end
 if ne get Gsrandn 0 len Gsrand
-note No firmware random source: name it instead of reporting a fake non-200 response.
-put Gdiag 0 15
-put Gdiag 1 get Gsrandn 0
-put Gdiag 2 len Gsrand
 ok = ghreply kind 0 0 get Ghreq 2
 ret false
 end

@@ -89,6 +89,10 @@ fn efentropy to bool
 st = efi 5 0 Gsrand 0 96
 if not efok st
 put Es 12 5
+note No firmware random source (neither EFI_RNG nor RDRAND): name it on the repository
+note screen as stage 15 with the firmware status byte, not as a bare transport error.
+put Gdiag 0 15
+put Gdiag 1 and st 255
 ret false
 end
 put Gsrandn 0 96
@@ -344,6 +348,8 @@ end
 epoch = efepoch
 if eq epoch 0
 put Es 12 4
+note No usable firmware clock for certificate validity: stage 16 on the repository screen.
+put Gdiag 0 16
 ok = ghreply get Ghreq 0 0 0 get Ghreq 2
 ret
 end
