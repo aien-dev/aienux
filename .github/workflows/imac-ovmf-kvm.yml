@@ -1,0 +1,36 @@
+name: imac-ovmf-kvm
+# Throwaway evidence branch for aienux#454: paired OVMF/KVM boots of the iMac USB image
+# before and after the exclusive-SNP fix, against live api.github.com. Not for merge.
+on:
+  push:
+    branches: [imac/kvm-proof]
+permissions:
+  contents: read
+jobs:
+  boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq qemu-system-x86 ovmf ipxe-qemu socat tcpdump netpbm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          grep -o -m1 -w rdrand /proc/cpuinfo || echo no-rdrand
+      - name: Paired boots (fixed, stick, fixed, stick)
+        run: |
+          F=063ec87bee6ba5a43c0fa5291cff552dd10d5ac30897aab2c03b460f6535fac1
+          S=d0d270da509ff1533ecbe7adc125dd1d2fa8aebeea79837422e586cb14a74041
+          sh ci/imac-kvm/run.sh ci/imac-kvm/fixed.img.gz $F out/1-fixed
+          sh ci/imac-kvm/run.sh ci/imac-kvm/stick.img.gz $S out/2-stick
+          sh ci/imac-kvm/run.sh ci/imac-kvm/fixed.img.gz $F out/3-fixed
+          sh ci/imac-kvm/run.sh ci/imac-kvm/stick.img.gz $S out/4-stick
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imac-ovmf-kvm
+          path: out/
