@@ -23,7 +23,7 @@ jobs:
           grep -o -m1 -w rdrand /proc/cpuinfo || echo no-rdrand
       - name: Paired boots (fixed, stick, fixed, stick)
         run: |
-          F=063ec87bee6ba5a43c0fa5291cff552dd10d5ac30897aab2c03b460f6535fac1
+          F=d7672df2d72ccf04bb30ea9ac25dbbe9628e365fa957e3510c929035fdb18653
           S=d0d270da509ff1533ecbe7adc125dd1d2fa8aebeea79837422e586cb14a74041
           sh ci/imac-kvm/run.sh ci/imac-kvm/fixed.img.gz $F out/1-fixed
           sh ci/imac-kvm/run.sh ci/imac-kvm/stick.img.gz $S out/2-stick
