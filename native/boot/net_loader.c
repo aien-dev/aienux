@@ -458,9 +458,7 @@ static void new_nonce(uint8_t nonce[16])
 static void done(const uint8_t nonce[16], uint8_t status, const char *text)
 {
     struct nb_msg m = {0};
-    size_t n = 0;
-    while (text[n] && n < NB_TEXT_MAX)
-        n++;
+    size_t n = nb_text_len(text);
     m.type = NB_DONE;
     memcpy(m.nonce, nonce, 16);
     m.status = status;

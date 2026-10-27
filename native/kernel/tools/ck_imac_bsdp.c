@@ -65,7 +65,9 @@ static void logf_(const char *fmt, ...)
 {
     char ts[32];
     time_t t = time(0);
-    strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", gmtime(&t));
+    struct tm tm;
+    if (!gmtime_r(&t, &tm) || !strftime(ts, sizeof ts, "%Y-%m-%dT%H:%M:%SZ", &tm))
+        snprintf(ts, sizeof ts, "t=%lld", (long long)t); /* a clock gmtime cannot convert */
     va_list ap;
     va_start(ap, fmt);
     printf("%s ", ts);
@@ -266,6 +268,19 @@ static int tftp_xfer(int s, const struct sockaddr_in *peer, const uint8_t *b, si
     return -1;
 }
 
+/* Appends name NUL val NUL to the option answer buf[0..*at) when both fit in
+ * cap bytes. Returns 0 and advances *at, or -1 and leaves *at unchanged. */
+static int oack_put(uint8_t *buf, size_t cap, size_t *at, const char *name, const char *val)
+{
+    size_t a = strlen(name) + 1, b = strlen(val) + 1;
+    if (*at > cap || a > cap - *at || b > cap - *at - a)
+        return -1;
+    memcpy(buf + *at, name, a);
+    memcpy(buf + *at + a, val, b);
+    *at += a + b;
+    return 0;
+}
+
 static void tftp_request(const uint8_t *in, size_t n, const struct sockaddr_in *peer)
 {
     int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -297,21 +312,27 @@ static void tftp_request(const uint8_t *in, size_t n, const struct sockaddr_in *
     size_t blk = 512;
     uint8_t oack[128];
     size_t on = 2;
+    int have_blk = 0, have_tsize = 0;
     oack[0] = 0, oack[1] = 6;
     for (const char *o = mode + strlen(mode) + 1; o < end && memchr(o, 0, (size_t)(end - o));) {
         const char *val = o + strlen(o) + 1;
         if (val >= end || !memchr(val, 0, (size_t)(end - val)))
             break;
         char num[24];
-        if (strcasecmp(o, "blksize") == 0) {
+        /* Each option is answered at most once (RFC 2347 options do not repeat); a
+         * repeated one is ignored, and blksize takes effect only when acknowledged. */
+        if (!have_blk && strcasecmp(o, "blksize") == 0) {
             long b = strtol(val, 0, 10);
             if (b >= 8) {
-                blk = (size_t)(b > BLK_MAX ? BLK_MAX : b);
-                on += (size_t)snprintf((char *)oack + on, sizeof oack - on, "blksize%c%zu", 0, blk) + 1;
+                size_t want = (size_t)(b > BLK_MAX ? BLK_MAX : b);
+                snprintf(num, sizeof num, "%zu", want);
+                if (oack_put(oack, sizeof oack, &on, "blksize", num) == 0)
+                    blk = want, have_blk = 1;
             }
-        } else if (strcasecmp(o, "tsize") == 0) {
+        } else if (!have_tsize && strcasecmp(o, "tsize") == 0) {
             snprintf(num, sizeof num, "%zu", booter_len);
-            on += (size_t)snprintf((char *)oack + on, sizeof oack - on, "tsize%c%s", 0, num) + 1;
+            if (oack_put(oack, sizeof oack, &on, "tsize", num) == 0)
+                have_tsize = 1;
         }
         o = val + strlen(val) + 1;
     }
