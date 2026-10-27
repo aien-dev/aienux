@@ -348,57 +348,43 @@ global Ghslen ulong 1
 text Ghext "/repos/"
 text Ghghu "https://github.com/"
 text Ghown "aien-dev/"
-text Ghlst "/orgs/aien-dev/repos?sort=created&direction=desc&per_page=10"
-text Ghkeys "full_name\ndefault_branch\ndescription\nprivate\nhtml_url\nsha\ncommit\ncommitter\ndate\npath\ntype\nsize\n"
+text Ghlst "/orgs/aien-dev/repos?sort=created&direction=desc&per_page=1"
+text Ghkeys "full_name\ndefault_branch\ndescription\nprivate\nhtml_url\nsha\ncommit\ncommitter\ndate\npath\ntype\nsize\ncreated_at\n"
 text Ghsuf "/commits//readme?ref=/contents"
 text Ghhex "0123456789ABCDEF"
 text Ghvoc "repo\nrepository\nrepositories\ngit\ngithub\nfind\nshow\nopen\nbrowse\nwhere\nwhat\ncurrent\nyour\nallen\nsource\ncode\ncreate\ndelete\npush\nother\n"
 note Select the first repository in the live listing, then prove its identity before use.
 note Ordering is the server's (sort=created, direction=desc); we do not re-sort, we verify.
+note The listing is a JSON array; token 0 is the array and token 1 its first object.
 fn ghdiscover to bool
-if not ghdecode ghfield 0 9
+if or lt get jcnt 0 2 ne get jtyp 0 2
 ret false
 end
-id = ghfield 0 9
-if eq id 4096
+if or ne get jtyp 1 1 ne get jpar 1 0
 ret false
 end
-if ne get jtyp id 2
-ret false
-end
-if eq ghnext id get jcnt 0
-put Gh 2 0
-ret false
-end
-entry = add id 1
-if ne get jtyp entry 1
-ret false
-end
-if not ghcopy ghfield entry 1 32 64 5
+if not ghcopy ghfield 1 1 720 64 5
 ret false
 end
 n = get Ghlen 5
-if or lt n 13 gt n 64
+if le n len Ghown
 ret false
 end
 for i ulong len Ghown
-if ne get Ghmeta add 64 i get Ghown i
+if ne get Ghmeta add 720 i get Ghown i
 ret false
 end
 end
-name = sub n len Ghown
-for i ulong name
-put Ghmeta add 720 i get Ghmeta add 64 add i len Ghown
-end
-put Ghlen 5 name
-if or eq get Ghmeta 720 46 eq get Ghmeta 720 45
+first = add 720 len Ghown
+last = add 719 n
+if or eq get Ghmeta first 46 eq get Ghmeta first 45
 ret false
 end
-if or eq get Ghmeta add 719 name 46 eq get Ghmeta add 719 name 45
+if or eq get Ghmeta last 46 eq get Ghmeta last 45
 ret false
 end
-for i ulong name
-c = get Ghmeta add 720 i
+for i ulong sub n len Ghown
+c = get Ghmeta add first i
 ok = and ge c 48 le c 57
 ok = or ok and ge c 65 le c 90
 ok = or ok and ge c 97 le c 122
@@ -408,7 +394,7 @@ if not ok
 ret false
 end
 end
-if not ghcopy ghfield entry 2 48 784 6
+if not ghcopy ghfield 1 13 784 48 6
 ret false
 end
 if ne get Ghlen 6 20
@@ -439,7 +425,6 @@ ret false
 end
 end
 end
-put Gh 2 1
 ret eq get Ghbad 0 0
 end
 fn gherror code ulong to void
@@ -1234,13 +1219,25 @@ end
 if eq kind 4
 ok = ghlisting
 end
+if eq kind 5
+ok = ghdiscover
+end
 end
 if not ok
+if eq kind 5
+note A rejected listing leaves no repository name behind for the header to draw.
+put Ghlen 5 0
+put Ghlen 6 0
+end
 gherror 3
 ret true
 end
-put Ghat sub kind 1 get Gh 11
 put Gh 12 gen
+if eq kind 5
+ghissue 1
+ret true
+end
+put Ghat sub kind 1 get Gh 11
 if lt kind 4
 ghissue add kind 1
 else
