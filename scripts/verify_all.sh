@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # AIENOS End-to-End Build and Evidence Verification Harness
 # Enforces sequential integration gates on the host DGX Spark environment.
 # Last line: VERIFY_ALL: PASS only when every step ran; VERIFY_ALL: NOT_RUN if any step
@@ -215,6 +230,18 @@ if command -v gzip >/dev/null && command -v cpio >/dev/null; then
     run_or_skip "recovery tool manifest" ./scripts/verify_recovery_tools.sh
 else
     skipped "gzip or cpio not present on host."
+fi
+
+# Offline recovery media trust boundary (scratch files and throwaway keys).
+# The host-only test does not qualify shim enrollment or physical media.
+echo ""
+echo "--- [Recovery Media Security Regression] ---"
+if command -v mkfs.ext4 >/dev/null && command -v mkfs.vfat >/dev/null &&
+   command -v grub-mkstandalone >/dev/null && command -v sbsign >/dev/null &&
+   command -v sbverify >/dev/null && command -v openssl >/dev/null; then
+    run_or_skip "recovery media security" ./scripts/test_recovery_media_security.sh
+else
+    skipped "mkfs, GRUB standalone builder, OpenSSL or sbsigntool not present on host."
 fi
 
 # Step 10: TRUST-1 Gate 0/2 measurement tools (software TPM, no hardware).

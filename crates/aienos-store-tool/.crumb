@@ -13,21 +13,21 @@
     "generated": {
       "children": [
         {
-          "digest": "37a250c16fcf1ee0351e5ef165ee010fd987c23958b5582b4fd86b212e966573",
-          "last_commit": "761e63d",
+          "digest": "925b0ba65979f6c4b417f5848e6cbb83386b9623eea8dce4ab32d86fdbe09887",
+          "last_commit": "621c9e6f",
           "name": "src",
           "purpose": "Directory crates/aienos-store-tool/src. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:0213c8f331c9520c68ce679b8e1104c04aa862cfa3dedbad3f88410b2a11b380",
-      "compiled_at": "2026-10-04T13:47:18Z",
+      "children_root": "sha256:597d13110ad2706f6be31069817dff7906baefac6e7d936055c203314322a652",
+      "compiled_at": "2026-10-24T04:15:32Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:716d679da128e7aab8efb6e9cf836ee22a62fe9fe6993e2d0a20c3016d78b3a0",
+      "digest": "sha256:7a80efb2b807ebdc8d8189de8a7b268d404aaa2188ec25e1ceaf53ee26fc5674",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 2,
-      "generated_at_commit": "a863d5c1f5bd89c88c5f6671eecfd27b599ee512",
-      "source_tree": "sha256:b7c2b35b4232b998b5a2ba1ef98ce05fc4e6353d0c3a45bc5abb56baa9137100"
+      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
+      "source_tree": "sha256:336061bd146d09c39c1795d48b0320a10ec060bd5cf4ebb9b108013980296bec"
     },
     "owner_lane": "",
     "provenance": {

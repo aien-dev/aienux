@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* x86.h -- x86_64 machine access for the AIENOS-IMAC-KERNEL-0 kernel
  * (native/kernel/x86): port and MSR I/O, CPUID, TSC, control registers,
  * the trap frame trap.S builds, and the entry points between the files.
@@ -83,7 +99,7 @@ int ck_x86_console_fb_on(volatile void *base, uint32_t width, uint32_t height, u
                          uint32_t format, uint32_t *scale, uint32_t *cols, uint32_t *rows);
 
 /* console_x86.c: the RAM copy of everything written so far (the first
- * 16 KiB), for the network report. */
+ * 16 KiB); in the lab image, the input the network report filters. */
 const char *ck_x86_console_log(size_t *len);
 
 /* pci_x86.c: PCI walk over the MCFG ECAM window; every AHCI and NVMe disk
@@ -109,11 +125,16 @@ int ck_x86_tg3_start(volatile uint8_t *regs, volatile uint8_t *cfg, struct ck_fr
 int ck_x86_tg3_ready(void);
 int ck_x86_tg3_link(void);
 void ck_x86_tg3_mac(uint8_t mac[6]);
+#if defined(CK_X86_REPORT) && CK_X86_REPORT
+/* Lab image only (make imac-kernel CK_X86_REPORT=1); absent from the default
+ * and any resident or service build. */
 int ck_x86_tg3_send(const uint8_t *frame, size_t len);
 int ck_x86_tg3_drain(unsigned ms);
-/* report_x86.c: holds `seconds`, sending the console's RAM copy over the
- * network every 2 s while the link is up; returns the rounds sent. */
+/* report_x86.c (lab only): holds `seconds`, sending the allowlisted console
+ * lines as unauthenticated UDP broadcasts every 2 s while the link is up;
+ * returns the rounds sent. */
 unsigned ck_x86_report_hold(uint64_t tsc_hz, unsigned seconds);
+#endif
 
 /* smp_x86.S: the secondary-core trampoline, copied below 1 MiB and patched. */
 extern char ck_x86_tramp_start[], ck_x86_tramp_end[], ck_x86_tramp_gdt[], ck_x86_tramp_pm32[],
