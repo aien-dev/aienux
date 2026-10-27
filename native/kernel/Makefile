@@ -2341,13 +2341,6 @@ $(IMACKERN_EFI): $(IMACKERN_ELF)
 	@[ "$$(od -An -tx1 -j68 -N2 $@ | tr -d ' ')" = "6486" ] || { echo "PE Machine is not x86_64 (0x8664)"; rm -f $@; exit 1; }
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-kernel: $(IMACKERN_EFI)
-# Negative test builds for W^X (#409), QEMU only and never deployed: CK_X86_WX_MUTATE=1 leaves RAM
-# executable, =2 leaves the kernel's code writable, and the kernel's W^X probes must then panic
-# (scripts/qemu_ck_imac_kernel_test.sh). Build them into their own OUT directory.
-CK_X86_WX_MUTATE ?= 0
-ifneq ($(CK_X86_WX_MUTATE),0)
-IMACKERN_CFLAGS += -DCK_X86_WX_MUTATE=$(CK_X86_WX_MUTATE)
-endif
 
 # ---- NETLDR.EFI: the lab network loader for the 2017 iMac (x86_64) ----
 # native/boot/net_loader.c + netboot_proto.c (wire spec netboot_proto.h). Stays on the stick as
