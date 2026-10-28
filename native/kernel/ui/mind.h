@@ -2,12 +2,12 @@
  *
  * About a hundred sharp points sit on and inside a sphere, joined by fine
  * threads into a network, turning slowly in three dimensions round a compact
- * heart. Points and heart are filled discs with coverage AA, never bloom.
+ * heart. Cool points and heart have native-pixel-bounded coverage, never bloom.
  * Small sparks run along the threads from point to point; each one that
  * arrives lights its point for a moment. How it moves is how Allen is:
  *   idle       it breathes (a slow swell) and turns slowly; a few sparks.
  *   listening  each key typed sends a soft wave of light up through it.
- *   thinking   it draws in a little, turns faster, the heart brightens and
+ *   thinking   it draws in a little, turns faster, the cool heart pulses and
  *              sparks cascade through the whole network.
  *   speaking   every word sends a pulse out from the heart, and the heart
  *              follows the voice.
@@ -17,7 +17,7 @@
  * Integer only, freestanding. ck_mind_at moves it to a time (one caller);
  * ck_mind_draw then only reads, so several processor cores can draw
  * different parts of the screen at once. Host tested in
- * ui/tests/allen_ui_test.c. */
+ * ui/tests/allen_ui_test.c and ui/tests/mind_phases_test.c. */
 #ifndef AIENOS_MIND_H
 #define AIENOS_MIND_H
 #include <stddef.h>
@@ -70,7 +70,7 @@ void ck_mind_word(ck_mind *m, uint32_t t); /* a word was spoken */
 void ck_mind_key(ck_mind *m, uint32_t t);  /* a key was typed */
 void ck_mind_voice(ck_mind *m, uint32_t level); /* 0..256 */
 void ck_mind_at(ck_mind *m, uint32_t t);
-/* The figure into the part r of out (light added). */
+/* The figure into the part r of out (cool threads and coverage-mixed points). */
 void ck_mind_draw(const ck_mind *m, ck_canvas *out, const ck_rect *r);
 /* What needs redrawing for this frame: where it was and where it is. */
 ck_rect ck_mind_dirty(const ck_mind *m);

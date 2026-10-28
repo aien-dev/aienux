@@ -1,11 +1,10 @@
 /* night.c -- the night sky and the merging black holes; see night.h.
  *
- * The sky is the real one (ui/sky_real.c, from ui/sky_data.c): the
- * Milky Way from a photograph of the whole sky, worked out at a quarter of
- * the screen's resolution (it is smooth anyway; the photograph's own
- * stars are taken out), scaled up with a 4 x 4 ordered dither so the faint
- * gradients show no bands; then the catalogue's stars, at full resolution,
- * on top.
+ * The sky is the real one (ui/sky_real.c, from ui/sky_data.c): Gaia DR3
+ * integrated Milky Way light inverse-projected at every native pixel,
+ * then the catalogue's sharp native-pixel stars on top. The finite
+ * celestial source map limits actual diffuse detail; there is no
+ * intermediate quarter-resolution screen grid or runtime blur.
  *
  * Bent light: a point mass moves the image of a star seen at angle theta
  * from it to where the star really is, beta = theta - E^2 / theta (E the
@@ -55,29 +54,6 @@ static uint32_t gauss(int64_t v, int64_t width) /* exp(-(v/width)^2), Q16 */
     return ck_exp_neg((uint32_t)(q * q >> 8));
 }
 
-/* ---- the soft layer (the Milky Way): a quarter-resolution linear-light Q15 grid ---- */
-
-static void scale_up(ck_night *n, const uint16_t *q, int32_t qw)
-{
-    static const uint8_t bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
-    for (int32_t y = 0; y < n->h; y++) {
-        int32_t qy = y >> 2, fy = y & 3;
-        const uint16_t *r0 = q + (size_t)qy * (size_t)qw * 3, *r1 = r0 + (size_t)qw * 3;
-        uint32_t *row = n->sky + (size_t)y * (size_t)n->w;
-        for (int32_t x = 0; x < n->w; x++) {
-            int32_t qx = x >> 2, fx = x & 3;
-            uint32_t d = bayer[(y & 3) * 4 + (x & 3)], c = 0;
-            for (int k = 0; k < 3; k++) {
-                uint32_t a = r0[qx * 3 + k] * (uint32_t)(4 - fx) + r0[qx * 3 + 3 + k] * (uint32_t)fx;
-                uint32_t b = r1[qx * 3 + k] * (uint32_t)(4 - fx) + r1[qx * 3 + 3 + k] * (uint32_t)fx;
-                uint32_t light = (a * (uint32_t)(4 - fy) + b * (uint32_t)fy) / 16;
-                uint32_t v = (ck_sky_srgb16[light >= 32767u ? 4095u : light >> 3] + d) >> 4;
-                c = c << 8 | v;
-            }
-            row[x] = c;
-        }
-    }
-}
 
 /* ---- coming out of the dark ---- */
 
@@ -117,10 +93,9 @@ static uint32_t fade_px(const ck_night *n, uint32_t c, int32_t x, int32_t y)
     return f >= 256 ? c : ck_scale(c, f);
 }
 
-int ck_night_init(ck_night *n, uint32_t w, uint32_t h, uint32_t k, int32_t cx, int32_t cy, void *mem, size_t len,
-                  void *scratch)
+int ck_night_init(ck_night *n, uint32_t w, uint32_t h, uint32_t k, int32_t cx, int32_t cy, void *mem, size_t len)
 {
-    if (!mem || !scratch || w < 64 || h < 64 || w > CK_NIGHT_W_MAX || len < ck_night_mem_bytes(w, h, k))
+    if (!mem || w < 64 || h < 64 || w > CK_NIGHT_W_MAX || len < ck_night_mem_bytes(w, h, k))
         return -1;
     (void)ck_sin(0); /* the tables, before anything else could ask for them */
     for (unsigned i = 0; i < 256; i++) {
@@ -142,12 +117,10 @@ int ck_night_init(ck_night *n, uint32_t w, uint32_t h, uint32_t k, int32_t cx, i
     n->appear = p;
     n->aw = (int32_t)(w / 4 + 1);
     p += (size_t)(w / 4 + 1) * (h / 4 + 1);
-    int32_t qw = (int32_t)(w / 4 + 2), qh = (int32_t)(h / 4 + 2);
     n->view = ck_sky_the_view; /* default view: GW150914 region */
-    ck_sky_milkyway_q(scratch, qw, qh, n->w, cx, cy, &n->view);
-    scale_up(n, scratch, qw);
     ck_canvas cv = {n->sky, n->w, n->h};
-    ck_sky_draw_stars(&cv, k, cx, cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
+    ck_sky_draw_milkyway(&cv, cx, cy, &n->view);
+    ck_sky_draw_stars(&cv, cx, cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
     for (unsigned i = 0; i < CK_NIGHT_GALAXIES; i++) {
         ck_night_galaxy *g = &n->gal[i];
         g->box = ck_sky_galaxy_box(w, h, cx, cy, &n->view, i);
@@ -706,7 +679,7 @@ void ck_night_base_from(const ck_night *n, const ck_night_picture *kept, ck_canv
 ck_rect ck_night_star_box(const ck_night *n, unsigned i)
 {
     const ck_night_star *s = &n->tw[i];
-    return (ck_rect){(s->x - s->r) >> 4, (s->y - s->r) >> 4, (2 * s->r >> 4) + 2, (2 * s->r >> 4) + 2};
+    return (ck_rect){(s->x - 8) >> 4, (s->y - 8) >> 4, 2, 2};
 }
 
 void ck_night_lights(const ck_night *n, ck_canvas *out, const ck_rect *r, uint32_t shimmer, uint32_t voice)
@@ -719,7 +692,7 @@ void ck_night_lights(const ck_night *n, ck_canvas *out, const ck_rect *r, uint32
         uint32_t tw = (uint32_t)(16384 + ck_sin((n->t + s->phase) % s->period * 65536u / s->period)) >> 7;
         uint32_t a = (tw * tw >> 8) * 120 >> 8;
         a = a * ck_night_faded(n, s->x >> 4, s->y >> 4, 255) >> 8;
-        ck_glow(out, r, s->x, s->y, s->r, s->color, a);
+        ck_sky_twinkle(out, r, s, a);
     }
     if (!shimmer && !voice)
         return;
@@ -747,24 +720,15 @@ void ck_night_lights(const ck_night *n, ck_canvas *out, const ck_rect *r, uint32
 }
 /* ---- rebuilding the sky for a new view ---- */
 
-/* Resets the sky background and redraws it with the new view v. The sky's
- * glow (dark sky background) is written first, then the Milky Way and the
- * catalogue stars on top of it. Galaxy bounds and maps are updated too.
- * scratch: at least n->w * n->h * 4 bytes of temporary workspace. */
-void ck_night_view(ck_night *n, const ck_sky_view *v, void *scratch)
+/* Rebuild the diffuse sky and catalogue directly at native resolution. */
+void ck_night_view(ck_night *n, const ck_sky_view *v)
 {
     n->view = *v;
-    int32_t qw = (int32_t)(n->w / 4 + 2), qh = (int32_t)(n->h / 4 + 2);
-    /* clear the sky to the dark-sky glow (the same glow set in the original
-     * sky grid; bilinear_u8 of the empty dark grid gives the glow level) */
     ck_canvas cv = {n->sky, n->w, n->h};
-    ck_sky_milkyway_q(scratch, qw, qh, n->w, n->cx, n->cy, &n->view);
-    scale_up(n, scratch, qw);
+    ck_sky_draw_milkyway(&cv, n->cx, n->cy, &n->view);
     /* redraw stars over the new Milky Way */
-    ck_sky_draw_stars(&cv, n->k, n->cx, n->cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
+    ck_sky_draw_stars(&cv, n->cx, n->cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
     /* recompute galaxy boxes (some may enter or leave the view) */
-    uint8_t *p = (uint8_t *)n->sky + (size_t)n->w * n->h * 4;
-    p += (size_t)(n->w / 4 + 1) * (n->h / 4 + 1);
     for (unsigned i = 0; i < CK_NIGHT_GALAXIES; i++) {
         ck_night_galaxy *g = &n->gal[i];
         g->box = ck_sky_galaxy_box((uint32_t)n->w, (uint32_t)n->h, n->cx, n->cy, &n->view, i);

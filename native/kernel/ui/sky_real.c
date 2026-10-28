@@ -143,79 +143,67 @@ static void milkyway_at(const ck_sky_view *v, int32_t x2, int32_t y2, int32_t w,
     }
 }
 
-void ck_sky_milkyway_q(uint16_t *q, int32_t qw, int32_t qh, int32_t w, int32_t cx, int32_t cy,
-                       const ck_sky_view *v)
+/* One inverse projection per native pixel; the only interpolation is in
+ * the sourced celestial map, never an intermediate screen-sized grid. */
+void ck_sky_draw_milkyway(ck_canvas *cv, int32_t cx, int32_t cy, const ck_sky_view *v)
 {
-    for (int32_t j = 0; j < qh; j++)
-        for (int32_t i = 0; i < qw; i++) {
+    static const uint8_t bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+    for (int32_t y = 0; y < cv->h; y++)
+        for (int32_t x = 0; x < cv->w; x++) {
             int32_t rgb[3];
-            milkyway_at(v, 8 * i + 1, 8 * j + 1, w, cx, cy, rgb);
-            uint16_t *c = q + ((size_t)j * (size_t)qw + (size_t)i) * 3;
-            c[0] = (uint16_t)rgb[0], c[1] = (uint16_t)rgb[1], c[2] = (uint16_t)rgb[2];
+            milkyway_at(v, 2 * x + 1, 2 * y + 1, cv->w, cx, cy, rgb);
+            uint32_t c = 0, d = bayer[(y & 3) * 4 + (x & 3)];
+            for (int k = 0; k < 3; k++) {
+                uint32_t l = (uint32_t)rgb[k];
+                c = c << 8 | ((ck_sky_srgb16[l >= 32767u ? 4095u : l >> 3] + d) >> 4);
+            }
+            cv->px[(size_t)y * (size_t)cv->w + (size_t)x] = c;
         }
 }
 
 /* ---- stars ---- */
 
-/* adds light round (x16, y16): radius r16, centre light peak (linear, Q16), colour col (linear, 4096 the
- * brightest channel); the light falls off as (1 - d^2 / r^2)^3 */
-static void light_add(ck_canvas *cv, int32_t x16, int32_t y16, int32_t r16, uint64_t peak, const uint16_t col[3])
+/* A point source deposits light in the neighbouring native pixel centres.
+ * The separable weights sum to 256; support is at most 2 x 2 pixels,
+ * independent of UI scale, magnitude, twinkle phase and voice. No lobes. */
+static void point_add(ck_canvas *cv, const ck_rect *clip, int32_t x16, int32_t y16,
+                      uint64_t peak, const uint16_t col[3])
 {
-    if (r16 < 4 || peak < 4)
-        return;
-    int32_t x0 = ck_max(0, (x16 - r16) >> 4), x1 = ck_min(cv->w - 1, (x16 + r16) >> 4);
-    int32_t y0 = ck_max(0, (y16 - r16) >> 4), y1 = ck_min(cv->h - 1, (y16 + r16) >> 4);
-    int64_t r2 = (int64_t)r16 * r16;
-    uint64_t inv = (1ull << 40) / (uint64_t)r2;
-    uint64_t pc[3];
-    for (int k = 0; k < 3; k++)
-        pc[k] = peak * col[k] >> 13; /* Q15 linear at the centre, per channel */
-    for (int32_t y = y0; y <= y1; y++) {
-        int64_t dy = (int64_t)y * 16 + 8 - y16;
-        uint32_t *row = cv->px + (size_t)y * (size_t)cv->w;
-        for (int32_t x = x0; x <= x1; x++) {
-            int64_t dx = (int64_t)x * 16 + 8 - x16, d2 = dx * dx + dy * dy;
-            if (d2 >= r2)
+    int32_t x0 = (x16 - 8) >> 4, y0 = (y16 - 8) >> 4;
+    uint32_t fx = (uint32_t)(x16 - 8) & 15u, fy = (uint32_t)(y16 - 8) & 15u;
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+            int32_t x = x0 + i, y = y0 + j;
+            if (x < 0 || y < 0 || x >= cv->w || y >= cv->h ||
+                x < clip->x || y < clip->y || x >= clip->x + clip->w || y >= clip->y + clip->h)
                 continue;
-            uint64_t f = 65536u - ((uint64_t)d2 * inv >> 24);   /* Q16 */
-            uint64_t f3 = ((f * f >> 16) * f) >> 16;              /* Q16 */
-            uint32_t c = row[x], out = 0;
-            int any = 0;
+            uint32_t weight = (i ? fx : 16 - fx) * (j ? fy : 16 - fy);
+            if (!weight)
+                continue;
+            uint32_t c = cv->px[(size_t)y * (size_t)cv->w + (size_t)x], out = 0;
             for (int k = 0; k < 3; k++) {
                 uint32_t lv = c >> (16 - 8 * k) & 255u;
-                uint64_t add = pc[k] * f3 >> 16;
+                uint64_t add = ((peak * col[k] >> 13) * weight) >> 8;
                 if (add) {
                     uint64_t l = ck_sky_lin[lv] + add;
                     lv = (ck_sky_srgb16[l >= 32767 ? 4095 : l >> 3] + 8) >> 4;
                     lv = lv > 255 ? 255 : lv;
-                    any = 1;
                 }
                 out = out << 8 | lv;
             }
-            if (any)
-                row[x] = (c & 0xff000000u) | out;
+            cv->px[(size_t)y * (size_t)cv->w + (size_t)x] = (c & 0xff000000u) | out;
         }
-    }
 }
 
-static uint32_t srgb_of(const uint16_t col[3])
+void ck_sky_twinkle(ck_canvas *cv, const ck_rect *clip, const ck_night_star *s, uint32_t amount)
 {
-    uint32_t c = 0;
-    for (int k = 0; k < 3; k++) {
-        uint32_t i = col[k] >= 4096 ? 4095 : col[k];
-        c = c << 8 | ((ck_sky_srgb16[i] + 8) >> 4);
-    }
-    return c;
+    point_add(cv, clip, s->x, s->y, (uint64_t)s->peak * amount >> 8, s->col);
 }
 
-void ck_sky_draw_stars(ck_canvas *cv, uint32_t k, int32_t cx, int32_t cy, const ck_sky_view *v,
+void ck_sky_draw_stars(ck_canvas *cv, int32_t cx, int32_t cy, const ck_sky_view *v,
                        ck_night_star *tw, unsigned max, unsigned *ntw)
 {
-    int32_t r0 = (int32_t)(k * 3 / 40); /* 16ths of a pixel: 1.2 design px */
-    if (r0 < 12)
-        r0 = 12;
-    /* the core grows with the scale and its middle keeps its light, so a star's total light grows as the
-     * square of the scale and it looks the same on any screen */
+    ck_rect all = {0, 0, cv->w, cv->h};
     *ntw = 0;
     for (unsigned i = 0; i < ck_sky_nstars; i++) {
         const ck_sky_star *s = &ck_sky_stars[i];
@@ -223,17 +211,17 @@ void ck_sky_draw_stars(ck_canvas *cv, uint32_t k, int32_t cx, int32_t cy, const 
         int32_t x16, y16;
         if (!ck_sky_project(v, d, cv->w, cx, cy, &x16, &y16))
             continue;
-        int32_t reach = r0 * 12;
+        int32_t reach = 32;
         if (x16 < -reach || y16 < -reach || x16 > cv->w * 16 + reach || y16 > cv->h * 16 + reach)
             continue;
         const uint16_t *col = ck_sky_palette[s->bv < 128 ? s->bv : 127];
-        uint64_t core = ck_sky_flux[s->mag]; /* the light at the middle of the core */
-        light_add(cv, x16, y16, r0, core, col);
-        light_add(cv, x16, y16, r0 * 4, (core * 15) >> 7, col);
-        light_add(cv, x16, y16, r0 * 12, (core * 5) >> 7, col);
+        uint64_t core = ck_sky_flux[s->mag];
+        point_add(cv, &all, x16, y16, core, col);
         if (s->mag <= 59 && *ntw < max) { /* V <= 1.0: bright enough to twinkle */
-            tw[*ntw].x = x16, tw[*ntw].y = y16, tw[*ntw].r = r0 * 4;
-            tw[*ntw].color = srgb_of(col);
+            tw[*ntw].x = x16, tw[*ntw].y = y16;
+            tw[*ntw].peak = (uint32_t)core;
+            for (int c = 0; c < 3; c++)
+                tw[*ntw].col[c] = col[c];
             tw[*ntw].period = (uint16_t)(1200 + (i * 137) % 2400);
             tw[*ntw].phase = (uint16_t)((i * 919) % 65536);
             (*ntw)++;

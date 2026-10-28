@@ -28,20 +28,22 @@
 int ck_sky_project(const ck_sky_view *v, const int16_t d[3], int32_t w, int32_t cx, int32_t cy, int32_t *x16,
                    int32_t *y16);
 
-/* The Milky Way's light at a quarter of the resolution: q holds qw x qh
- * cells of three linear-light Q15 channels, cell (i, j) for the pixel
- * (4 i, 4 j) of a w-wide screen with its view centre at (cx, cy).
- * v: the current sky view (inverse-projects each screen point to RA/Dec).
- * The caller interpolates this light, then encodes sRGB at native pixels. */
-void ck_sky_milkyway_q(uint16_t *q, int32_t qw, int32_t qh, int32_t w, int32_t cx, int32_t cy,
-                       const ck_sky_view *v);
+/* Inverse-project and sample the sourced Milky Way at every native pixel
+ * centre, then encode sRGB with ordered quantization. No screen-grid
+ * intermediate, runtime blur or enlargement. The Gaia-derived map has
+ * 360 x 180 angular luma cells (stored 361 x 180 with a wrap column) and
+ * 181 x 90 stored chroma samples. Native pixels cannot invent source detail. */
+void ck_sky_draw_milkyway(ck_canvas *cv, int32_t cx, int32_t cy, const ck_sky_view *v);
 
 /* Draws every catalogue star in the view into cv (a w x h sky whose view
- * centre is at (cx, cy); k: 1/256 px per design px of a 1920-wide design),
- * using view v, adding its light to what is there. The brightest few (V 2.0
- * and brighter) are also listed in tw, up to max, to twinkle; *ntw: count. */
-void ck_sky_draw_stars(ck_canvas *cv, uint32_t k, int32_t cx, int32_t cy, const ck_sky_view *v,
+ * centre is at (cx, cy)). UI scale does not affect a point source.
+ * Adds linear light with at most 2 x 2 native-pixel support. The brightest
+ * few (V <= 1.0) are also listed in tw, up to max, to twinkle; *ntw: count. */
+void ck_sky_draw_stars(ck_canvas *cv, int32_t cx, int32_t cy, const ck_sky_view *v,
                        ck_night_star *tw, unsigned max, unsigned *ntw);
+/* Dynamic light uses exactly the static point source's native footprint.
+ * amount is additional linear light in 1/256 of its catalogue flux. */
+void ck_sky_twinkle(ck_canvas *cv, const ck_rect *clip, const ck_night_star *s, uint32_t amount);
 
 /* The largest box galaxy i can need on a w-wide screen (for memory). */
 ck_rect ck_sky_galaxy_bound(uint32_t w, unsigned i);

@@ -1166,7 +1166,7 @@ static void advance(uint32_t t)
             int16_t zenith[3];
             ck_sky_zenith(unix_now, ui.sky_lat_udeg, ui.sky_lon_udeg, zenith, &ra_udeg, &dec_udeg);
             ck_sky_view_at(&new_view, ra_udeg, dec_udeg, SKY_FOV_MDEG, 0);
-            ck_night_view(&ui.night, &new_view, ui.back);
+            ck_night_view(&ui.night, &new_view);
         } else if (ui.sky_mode == 2) {
             /* somewhere new: region centre + slow drift in RA */
             int r = ui.sky_region % SKY_NREGIONS;
@@ -1174,7 +1174,7 @@ static void advance(uint32_t t)
             ra_udeg  = sky_region_ra_udeg[r]  + (int32_t)(((int64_t)SKY_DRIFT_URA_PER_S * (int64_t)secs) % 360000000);
             dec_udeg = sky_region_dec_udeg[r];
             ck_sky_view_at(&new_view, ra_udeg, dec_udeg, SKY_FOV_MDEG, 0);
-            ck_night_view(&ui.night, &new_view, ui.back);
+            ck_night_view(&ui.night, &new_view);
         }
         ui.sky_view_tsc = ui.tsc_now;
         mark_all();
@@ -1418,7 +1418,7 @@ int ck_allen_ui_start(volatile uint32_t *fb, uint32_t w, uint32_t h, uint32_t pi
     ui.cv = (ck_canvas){ui.back, ui.w, ui.h};
     ui.cx = ui.w / 2, ui.cy = ui.h * 40 / 100;
     size_t nb = ck_night_mem_bytes(w, h, ui.k);
-    if (ck_night_init(&ui.night, w, h, ui.k, ui.cx, ui.cy, p, nb, ui.back))
+    if (ck_night_init(&ui.night, w, h, ui.k, ui.cx, ui.cy, p, nb))
         return -1;
     p += nb;
     ui.keep = p;

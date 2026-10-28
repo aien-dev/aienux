@@ -212,8 +212,8 @@ host.
 is printed, `ui/allen_ui.c` takes the screen and starts the night
 (`ui/night.c`): a dark sky fades in over about seven seconds, the brightest
 stars first. The sky is the real one (`ui/sky_real.c`, from tables the generator
-`tools/ck_sky_gen.c` makes out of the Yale Bright Star Catalogue, ESO's Milky Way
-photograph, OpenNGC and the GW150914 sky map, by `scripts/ck_sky_gen.sh`): 8404
+`tools/ck_sky_gen.c` makes out of the Yale Bright Star Catalogue, Gaia DR3
+integrated stellar flux/extinction, OpenNGC and the GW150914 sky map, by `scripts/ck_sky_gen.sh`): 8404
 stars to the naked-eye limit at their true places, brightness and colour, the
 Milky Way, and the Large and Small Magellanic Clouds, seen as a pinhole camera
 would from the point the first black-hole merger heard (GW150914) most probably
@@ -236,25 +236,41 @@ made in ...` and `screen: night: N frames ..., average ... ms, slowest ...
 ms` (when Allen wakes, 20 s later, and at goodbye).
 
 The canvas uses the GOP mode's native width and height (including 3840x2160),
-with a one-to-one framebuffer copy that respects GOP pitch; there is no
-whole-screen low-resolution upscale. Only the smooth diffuse Milky Way uses
-a quarter-resolution cache, stored and interpolated as linear light before
-encoding each native output pixel. Paint coverage, fades and AA likewise
-weigh linear light through the existing fixed transfer tables, rather than
-darkening encoded sRGB bytes. Allen's thread widths scale with the canvas,
-and dusk resolves native destination pixels with mips only for minification,
-not because the light is faint. These changes retain opaque colors,
-catalogue exposure, composition, timing and the exact final-black endpoint.
+with a one-to-one framebuffer copy that respects GOP pitch. The Milky Way is
+now inverse-projected at every native pixel: no quarter-resolution screen
+cache, enlargement or runtime blur pass remains. Its Gaia-derived source is
+still a finite angular map, not a native-4K photograph; native evaluation
+cannot invent source detail. Catalogue stars and their dynamic twinkles use
+the same point-deposition path with at most two native pixels across,
+independent of UI scale. Extended soft lobes and twinkle bloom are removed.
+Catalogue direction, magnitude and colour inputs remain, but the compact
+profile does not conserve the retired broad profile's integrated display
+light; bright-channel clipping can change apparent colour. See
+`docs/ALLEN_SKY_SCIENCE.md` for the source and display limits.
+
+Paint coverage, fades and AA weigh linear light through fixed transfer
+tables, rather than darkening encoded sRGB bytes. Allen's thread widths
+scale with the canvas. His points, spark heads/tails and heart stay small
+native-pixel cool points; local coverage mixing, rather than additive
+accumulation, prevents warm/white interior hot spots at crossings or on
+background stars. Placement, connectivity, cadence, spark routing and voice
+response remain. Dusk resolves native destination pixels with mips only for
+minification, preserving choreography and the exact final-black endpoint.
 The fluid layer paints only its published snapshots and anchors its grid
 coordinates independently of dirty clips; all changing star-twinkle footprints
 are invalidated. Full-frame and incremental draws must therefore remain
-byte-identical, including at native 4K and through scene transitions.
-Allen's points, sparks and heart use bounded antialiased geometry, not a
-blurred glow or a whole-being halo. The galaxy and catalogue stars keep
-their own light rendering. A native-4K pixel regression compares the being
-with the identical background: outside his bounded geometry, the annulus
-must remain byte-identical to the background rather than hiding a rim
-behind a permissive brightness threshold.
+byte-identical, including through sustained thinking and speaking transitions.
+
+`scripts/ck_allen_ui_test.sh` also runs `ck_mind_phases_test.sh` and
+`ck_sky_sharpness_test.sh`. The mind fixture checks interior warm/white light,
+point footprints and visibility on black and the identical galaxy across
+replayed activity histories, as well as the unchanged outside annulus.
+Warm/white, enlarged-point, hidden-being and exterior-halo controls must fail.
+The sky fixture compares every native pixel against direct celestial-map
+samples and measures real catalogue-star/twinkle support, rejecting
+quarter-grid, static-bloom, dynamic-bloom and invisible-star controls.
+Finite host histories and emulator frames are not physical visual acceptance
+or proof of every arbitrary runtime history.
 
 `ui/chirp.c` is the matching sound: a quick "blirp", the last 0.6 s of the
 gravitational-wave chirp of the same inspiral, raised into hearing (200 Hz

@@ -221,12 +221,12 @@ int main(int argc, char **argv)
     /* 5. the sky at 3840 x 2160 */
     uint32_t W = 3840, H = 2160, k = W * 256 / 1920;
     size_t nb = ck_night_mem_bytes(W, H, k);
-    void *mem = malloc(nb), *scratch = malloc((size_t)W * H * 4);
+    void *mem = malloc(nb);
     ck_night n;
     double best = 1e9;
     for (int r = 0; r < 3; r++) {
         double t0 = now_ms();
-        int rc = ck_night_init(&n, W, H, k, (int32_t)W / 2, (int32_t)(H * 40 / 100), mem, nb, scratch);
+        int rc = ck_night_init(&n, W, H, k, (int32_t)W / 2, (int32_t)(H * 40 / 100), mem, nb);
         double t1 = now_ms() - t0;
         best = t1 < best ? t1 : best;
         CHECK(rc == 0, "the sky is made (%.1f ms)", t1);

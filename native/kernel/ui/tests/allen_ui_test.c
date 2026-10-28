@@ -160,7 +160,7 @@ static void rgb(const struct pic *p, uint32_t x, uint32_t y, int *r, int *g, int
         *b = t;
     }
 }
-enum { BRIGHT, BLACK, VIOLET, LIT };
+enum { BRIGHT, BLACK, LIT };
 static unsigned count(const struct pic *p, uint32_t x0, uint32_t y0, uint32_t w, uint32_t h, int kind)
 {
     unsigned n = 0;
@@ -172,8 +172,6 @@ static unsigned count(const struct pic *p, uint32_t x0, uint32_t y0, uint32_t w,
                 n += r > 150 && g > 150 && b > 150;
             else if (kind == BLACK)
                 n += r == 0 && g == 0 && b == 0;
-            else if (kind == VIOLET)
-                n += b > 120 && b > r + 30;
             else
                 n += r > 60 || g > 60 || b > 90;
         }
@@ -249,11 +247,11 @@ static unsigned stale(uint32_t *fb, uint32_t *copy, uint32_t pitch, uint32_t w, 
  * nothing in front of it, and the pixels in a rectangle of the screen that
  * differ from it at the moment of the last frame: only what the screen added. */
 static ck_night bare_night;
-static int bare_init(uint32_t w, uint32_t h, void *scratch)
+static int bare_init(uint32_t w, uint32_t h)
 {
     uint32_t k = w * 256u / 1920u;
     size_t nb = ck_night_mem_bytes(w, h, k);
-    return ck_night_init(&bare_night, w, h, k, (int32_t)w / 2, (int32_t)(h * 40 / 100), malloc(nb), nb, scratch);
+    return ck_night_init(&bare_night, w, h, k, (int32_t)w / 2, (int32_t)(h * 40 / 100), malloc(nb), nb);
 }
 static unsigned added(const struct pic *p, uint32_t *sky, uint32_t x0, uint32_t y0, uint32_t w, uint32_t h)
 {
@@ -263,6 +261,25 @@ static unsigned added(const struct pic *p, uint32_t *sky, uint32_t x0, uint32_t 
     ck_night_base(&bare_night, &cv, &r);
     ck_night_lights(&bare_night, &cv, &r, 0, 0);
     return differ(p->px + (size_t)y0 * p->pitch + x0, sky + (size_t)y0 * p->pitch + x0, p->pitch, w, h, 24);
+}
+/* Visibility must come from the being, not unrelated stars or the retired
+ * warm/white broad discs. Use the same current native-sky baseline as added. */
+static unsigned cool_added(const struct pic *p, uint32_t *sky, uint32_t x0, uint32_t y0, uint32_t w, uint32_t h)
+{
+    ck_canvas cv = {sky, (int32_t)p->pitch, bare_night.h};
+    ck_rect area = {(int32_t)x0, (int32_t)y0, (int32_t)w, (int32_t)h};
+    ck_night_at(&bare_night, (uint32_t)((now_us - 16000) / 1000));
+    ck_night_base(&bare_night, &cv, &area);
+    ck_night_lights(&bare_night, &cv, &area, 0, 0);
+    unsigned visible = 0;
+    for (uint32_t y = y0; y < y0 + h; y++)
+        for (uint32_t x = x0; x < x0 + w; x++) {
+            int r, g, b;
+            rgb(p, x, y, &r, &g, &b);
+            unsigned base_blue = sky[(size_t)y * p->pitch + x] & 255u;
+            visible += b > g && g > r && b > (int)base_blue + 24;
+        }
+    return visible;
 }
 
 static volatile int helpers_run;
@@ -431,7 +448,7 @@ static void mind_no_halo(const char *dir)
         free(background), free(image), free(storage);
         return;
     }
-    CHECK(!ck_night_init(&night, W, H, K, CX, CY, storage, nb, image), "mind: native galaxy init");
+    CHECK(!ck_night_init(&night, W, H, K, CX, CY, storage, nb), "mind: native galaxy init");
     ck_canvas bg = {background, W, H}, cv = {image, W, H};
     ck_rect clip = {0, 0, W, H};
     ck_night_at(&night, 30000);
@@ -497,7 +514,7 @@ static void mind_no_halo(const char *dir)
                mode, CX, CY, (long long)radius, (long long)outer, annulus, being, control,
                mind.box.x, mind.box.y, mind.box.w, mind.box.h);
     }
-    /* Isolate an actual drawn point: a filled interior, not a smaller glow.
+    /* Isolate an actual native-sized cool point, not a broad flat disc.
      * All other geometry is dark; this still calls the production renderer. */
     ck_mind point;
     ck_mind_init(&point, CX, CY, K, 0);
@@ -515,10 +532,15 @@ static void mind_no_halo(const char *dir)
     ck_mind_draw(&point, &cv, &clip);
     uint32_t centre = image[(size_t)CY * W + CX];
     CHECK(centre != 0, "mind: isolated point is present");
-    CHECK(image[(size_t)CY * W + CX + 1] == centre &&
-              image[(size_t)CY * W + CX + 2] == centre,
-          "mind: point has flat filled interior, not radial blur");
-    CHECK(!image[(size_t)CY * W + CX + 5], "mind: no point bloom beyond geometric edge");
+    CHECK(centre == CK_RGB(32, 72, 144), "mind: unactivated point retains its full cool core");
+    unsigned footprint = 0;
+    for (size_t i = 0; i < (size_t)W * H; i++)
+        footprint += image[i] != 0;
+    CHECK(footprint > 0 && footprint <= 25, "mind: isolated point has bounded native support");
+    CHECK(image[(size_t)CY * W + CX + 1] == image[(size_t)CY * W + CX - 1] &&
+              image[(size_t)CY * W + CX + 1] == image[(size_t)(CY + 1) * W + CX],
+          "mind: native point edge coverage is symmetric");
+    CHECK(!image[(size_t)CY * W + CX + 2], "mind: no point light outside the native edge");
     free(background), free(image), free(storage);
 }
 
@@ -864,7 +886,7 @@ int main(int argc, char **argv)
     struct pic P = {fb, W, 1};
     CHECK(ck_allen_ui_start(fb, W, H, W, 1, mem, need - 1, 1000000, 0, real_us) == -1, "ui: short memory refused");
     CHECK(ck_allen_ui_start(fb, W, H, W, 2, mem, need, 1000000, 0, real_us) == -1, "ui: unknown pixel format refused");
-    CHECK(bare_init(W, H, sky) == 0, "night: the bare sky for the checks");
+    CHECK(bare_init(W, H) == 0, "night: the bare sky for the checks");
     {
         /* No pull and no shading must be the native kept picture, including
          * single-pixel contrast and its final row/column. Dimming must not
@@ -962,8 +984,8 @@ int main(int argc, char **argv)
     }
     run_to(16500);
     CHECK(count(&P, 0, 0, W, H, BLACK) == 0, "night: the last black hole has dissolved");
-    CHECK(count(&P, cx - R, cy - R, 2 * R, 2 * R, BRIGHT) > 1000 && count(&P, cx - R, cy - R, 2 * R, 2 * R, VIOLET) > 5000,
-          "allen: formed, a bright violet mind in the middle");
+    CHECK(cool_added(&P, sky, cx - R, cy - R, 2 * R, 2 * R) > 5000,
+          "allen: formed, a visible cool network over the actual sky");
     uint32_t bx = W / 2 - 720, by = H - 300, bw = 1440, bh = 108;
     CHECK(added(&P, sky, 0, by - 40, W, H - by + 40) < 400, "allen: no bar before he is awake");
     CHECK(stale(fb, copy, W, W, H) < 40, "allen: drawn whole as he turns");
@@ -1029,12 +1051,29 @@ int main(int argc, char **argv)
         snprintf(path, sizeof path, "%s/allen-4-answer-detail.png", dir);
         png(path, fb, W, 1, W / 4, cy - 400, W / 2, 1300, 1);
     }
+    /* Remote work keeps THINK active rather than immediately scheduling an
+     * answer. Exercise repeated dirty frames and the residual activity at the
+     * transition to SPEAK; isolated fresh-frame fixtures cannot catch trails. */
+    ck_allen_ui_think("why do stars shine", now_us);
+    {
+        uint32_t pending = (uint32_t)(now_us / 1000);
+        static const uint32_t checkpoints[] = {500, 900, 1500, 2700, 4500};
+        for (unsigned i = 0; i < sizeof checkpoints / sizeof checkpoints[0]; i++) {
+            run_to(pending + checkpoints[i]);
+            CHECKF(stale(fb, copy, W, W, H) < 40,
+                  "talk: sustained thinking leaves no stale light at checkpoint %u", checkpoints[i]);
+        }
+    }
+    ck_allen_ui_said(0, "The rendering fixture is answering.", now_us);
+    said = (uint32_t)(now_us / 1000);
+    run_to(said + 1300);
+    CHECK(stale(fb, copy, W, W, H) < 40, "talk: thinking-to-speaking leaves no stale interior light");
     /* left alone: his words fade once read, then the bar; only Allen is left, waiting */
     run_to(said + 24000);
     CHECK(added(&P, sky, W / 4, wy, W / 2, wh) < 400, "rest: his words fade once read");
     CHECK(added(&P, sky, 0, by - 40, W, H - by + 40) < 400, "rest: the bar fades when nothing is in use");
-    CHECK(count(&P, cx - R, cy - R, 2 * R, 2 * R, BRIGHT) > 1000 && count(&P, cx - R, cy - R, 2 * R, 2 * R, VIOLET) > 5000,
-          "rest: Allen stays, waiting");
+    CHECK(cool_added(&P, sky, cx - R, cy - R, 2 * R, 2 * R) > 5000,
+          "rest: Allen stays visible as a cool network, not a bright lamp");
     CHECK(stale(fb, copy, W, W, H) < 40, "rest: nothing is left behind on the screen");
     if (dir) {
         snprintf(path, sizeof path, "%s/allen-5-waiting.png", dir);
@@ -1189,7 +1228,7 @@ int main(int argc, char **argv)
         uint64_t full = light(&P, 0, 0, W, H);
         CHECK(full > part * 3 / 2, "dawn: the sky is back, brighter than a third of the way in");
         CHECK(stale(fb, copy, W, W, H) < 40, "dawn: nothing of the dusk is left behind on the screen");
-        CHECK(count(&P, cx - R, cy - R, 2 * R, 2 * R, VIOLET) > 5000, "dawn: Allen is back where he was");
+        CHECK(cool_added(&P, sky, cx - R, cy - R, 2 * R, 2 * R) > 5000, "dawn: the visible cool network returns");
     }
     uint32_t frames, slowest, average;
     ck_allen_ui_stats(&frames, &slowest, &average);

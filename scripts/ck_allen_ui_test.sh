@@ -19,6 +19,11 @@
 #     frame is pure black; then the dawn brings the sky back. The dusk's own
 #     frame times are printed next to the whole run's.
 #  5. Coordinates typed to Allen become his place (allen_place_test.c).
+#  6. Every mind mode and replayed activity phase: no newly introduced warm or
+#     white interior hot spots, bounded geometry, and meaningful visibility;
+#     adversarial warm/white, enlarged-disc and missing-being controls.
+#  7. Native Milky Way samples and compact catalogue/twinkle point footprints;
+#     coarse-grid, static-bloom and dynamic-bloom controls must be rejected.
 # Pictures of each state land in target/native-kernel-allen-ui/ for a person
 # to look at. Hosted only. Ends with "AIENOS_ALLEN_UI: PASS" or
 # "AIENOS_ALLEN_UI: FAIL <why>".
@@ -42,4 +47,6 @@ echo "pictures: $OUT"
 $CC -std=gnu11 -O2 -Wall -Wextra -Werror -I $K/svc -o "$W/place" $K/svc/tests/allen_place_test.c $K/svc/allen_reply.c \
     $K/svc/allen_notes.c $K/svc/allen_intent.c || fail "place test does not build"
 "$W/place" || fail "place checks"
+sh scripts/ck_mind_phases_test.sh || fail "mind phase checks"
+sh scripts/ck_sky_sharpness_test.sh || fail "native sky sharpness checks"
 echo "AIENOS_ALLEN_UI: PASS"

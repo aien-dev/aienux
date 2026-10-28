@@ -118,20 +118,34 @@ and are drawn at 0.6, close to the Sun's. On a 3840 x 2160 screen the view holds
 Limits, stated plainly:
 - No star fainter than V 6.5 is drawn one by one. The faint ones are inside the
   Milky Way light (below).
-- Stars are points drawn with a small core (1.2 design pixel). A real star is
-  smaller than any screen can show; a bright one looks bigger only because of
-  the eye or the camera. The drawn size is a display choice, not a measurement.
-- A screen cannot show the real brightness range (a magnitude 0 star is about
-  250 times brighter than V 6.0). The display level for V 6.5 is a chosen
-  constant (0.06 linear, sRGB level 69) and everything else follows from the
-  magnitude law. Bright stars therefore clip at the top.
+- Stars occupy only the neighbouring native pixel centres of a compact point:
+  at most two pixels across, independent of UI scale. Static catalogue stars
+  and their animated twinkles use the same bounded footprint, without soft
+  lobes. A real star is smaller than a screen can resolve; this display profile
+  is a rendering choice, not a measurement.
+- Catalogue directions, magnitude lookup and colour inputs are retained.
+  Linear-light point deposition still quantizes and clips. The compact profile
+  does not conserve the retired broad profile's integrated display light, and
+  clipping can change a bright star's apparent colour. Historical generator
+  peak/energy descriptions are not new per-pixel calibration measurements.
 - No atmosphere: no extinction near the horizon, no airglow colour, no moon.
   (The faint sky glow of an extremely dark site is added, section below.)
 
 **Milky Way.** The light is Gaia DR3's own: for each of the 196608 HEALPix level-7 cells
 (about 0.46 degree across), the summed G-band flux of the stars in it (stars with G > 7).
 That is light, not a photograph. The cells are splatted onto a full-sphere 360 x 180 grid
-(1 degree, north up) within 1.5 degrees of each cell's centre and averaged.
+(1 degree, north up) within 0.75 degrees of each level-7 cell's centre and
+averaged (`SPLAT_DEG` in `native/kernel/tools/ck_sky_gen.c`; level 6 used
+1.5 degrees).
+
+The runtime now evaluates this source map independently at every native output
+pixel. It no longer makes a quarter-resolution screen image and interpolates
+that image back up, nor adds a runtime blur pass. This removes screen-space
+reconstruction loss; it cannot manufacture angular detail absent from the
+source grid. The stored map includes a longitude wrap column; its lower-rate
+chroma plane is likewise finite-resolution. The diffuse band is therefore not
+claimed to contain native-4K photographic detail. Crisp catalogue-star points
+are a separate layer.
 
 Colour and luminance are kept apart. A cell's light is split between the red, green and blue
 channels by a tint from its BP-RP colour (reddened by the mean G-band extinction,
