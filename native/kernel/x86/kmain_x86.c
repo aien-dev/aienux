@@ -20,11 +20,11 @@
  * memory lives in its own partition of the approved hard disk (memory_x86.c,
  * the only disk writes). Goodbye, a tap of the power button (PM1 status,
  * polled) or CK_X86_IDLE_S without a key rests the computer: the picture goes
- * to black (ui/allen_ui.c), then the display panel is switched off for real
- * where the display chip is known (panel_x86.c), then the cores rest; any key
- * or another tap switches the panel on and brings the picture back. Nothing
- * restarts: only the chipset's 4 s power-button hold, or unplugging, ends
- * AIENOS. Without a keyboard it holds the screen CK_X86_HOLD_S seconds and
+ * to black (ui/allen_ui.c), then the known display controller is asked to
+ * switch the panel off (panel_x86.c). Only a register-confirmed off permits
+ * reversible rest with any-key wake. Unsupported or failed panel control
+ * uses the existing ACPI S5 power-off instead, with no automatic restart.
+ * Without a keyboard it holds the screen CK_X86_HOLD_S seconds and
  * powers off through ACPI S5 (FADT PM1 control + the DSDT's \_S5 package); the lab image
  * (CK_X86_REPORT=1) without a keyboard restarts through the FADT reset register instead, back
  * into its network loader (native/boot/net_loader.c).
@@ -278,18 +278,19 @@ static void acpi_reset(void)
  * ("allen: ..."); when a keyboard is ready and the RAM for drawing is there,
  * the screen switches from the boot report to Allen's window, which stays
  * up (no countdown to power-off). "goodbye", a tap of the power button or
- * CK_X86_IDLE_S without a key rests the computer: the picture goes to black
- * (ck_allen_ui_sleep), then, once it is black (ck_allen_ui_asleep), the panel
- * is switched off (panel_x86.c) and the cores rest; a key or another tap
- * switches the panel on first and then brings the picture back. Holding the
- * button 4 s is the hardware power-off. Without either, the text screen and its timed hold stay as they were. */
+ * CK_X86_IDLE_S without a key fades the picture to black, then tries the
+ * existing guarded AMD panel-off sequence. Confirmed off rests the cores;
+ * any key or another tap restores the panel before the picture. If the
+ * controller cannot confirm off (or restore it), ACPI S5 is the fallback,
+ * not black pixels with a lit backlight. No keyboard keeps the timed hold. */
 static int allen_on;
 static uint64_t allen_bye; /* TSC when Allen said goodbye; 0 = still talking */
 static uint64_t allen_woke; /* TSC when Allen's window took the screen */
 static uint64_t allen_key;  /* TSC of the last key, or of waking; the idle timer counts from it */
-static int allen_asleep;  /* the screen is dark; a key or the power button wakes him */
+static int allen_asleep;  /* rest requested: fade pending, then confirmed panel off or S5 */
 static uint64_t panel_due; /* TSC when the rest began: the panel goes off once the picture is black (0: not waiting) */
 #define PANEL_WAIT_S 10u   /* the picture gets this long to go black before the panel goes off anyway */
+static int panel_dark;     /* panel_off succeeded; waking must restore it */
 static uint16_t pm1_sts;  /* PM1a status port (FADT), 0 = no power-button watch */
 static uint64_t pwr_last; /* TSC of the last power-button tap taken */
 
@@ -446,6 +447,25 @@ static void meter_line(const char *when)
     meter.t0 = now;
 }
 
+static void draw_stop(void);
+
+/* A black GOP framebuffer proves nothing about the backlight. Never guess
+ * Intel/AMD registers when the existing AMD path is unsupported or fails.
+ * ACPI S5 is already hardware-documented for this iMac in
+ * evidence/imac_kernel0_2026-10-16/README.md. Deliberately bypass the REPORT
+ * build's no-key reboot policy: this is a requested display-off transition. */
+static __attribute__((noreturn)) void panel_poweroff(const char *why)
+{
+    ck_printf("power: %s; ACPI S5 fallback (power button to start; no any-key wake)\n", why);
+    ck_cli();
+    draw_stop();
+    ck_x86_kbd_done();
+    acpi_poweroff();
+    ck_puts("power: ACPI S5 failed; display-off not confirmed; halted (no restart); hold the power button to turn off\n");
+    for (;;)
+        __asm__ volatile("hlt");
+}
+
 static void allen_sleep(int on)
 {
     if (allen_asleep == on)
@@ -455,11 +475,13 @@ static void allen_sleep(int on)
         __atomic_store_n(&allen_asleep, 1, __ATOMIC_RELEASE);
         ck_allen_ui_sleep(1, ck_rdtsc()); /* the picture goes to black first */
         panel_due = ck_rdtsc() | 1;       /* then the panel (panel_step), then the cores rest */
-        ck_puts("power: Allen asleep (any key or a tap of the power button wakes him)\n");
+        ck_puts("power: preparing display off; unconfirmed panel off uses ACPI S5\n");
         return;
     }
-    panel_due = 0;          /* a wake before the panel went off: nothing to switch back */
-    ck_x86_panel_on();      /* panel first (a no-op unless it was switched off) */
+    panel_due = 0; /* waking during the fade needs no panel restore */
+    if (panel_dark && ck_x86_panel_on())
+        panel_poweroff("panel restore failed");
+    panel_dark = 0;
     __atomic_store_n(&allen_asleep, 0, __ATOMIC_RELEASE);
     ck_allen_ui_sleep(0, ck_rdtsc()); /* then the picture comes back */
     rest_wake(); /* after the UI has the news: a woken core draws the sky again */
@@ -468,9 +490,9 @@ static void allen_sleep(int on)
     ck_puts("power: Allen awake\n");
 }
 
-/* While the rest begins: once the picture is black (or PANEL_WAIT_S have
- * passed without it), the panel is switched off. Nothing waits here: the
- * hold loop calls this every step. */
+/* Once the picture is black (or PANEL_WAIT_S has passed), require a confirmed
+ * panel-off result. The old !ready return silently kept the backlight lit,
+ * and the ignored off result did the same on a failed sequence. */
 static void panel_step(void)
 {
     if (!panel_due || !allen_asleep)
@@ -481,12 +503,15 @@ static void panel_step(void)
         return;
     panel_due = 0;
     if (!black)
-        ck_printf("screen: the picture did not go black within %u s; the panel goes off anyway\n", (unsigned)PANEL_WAIT_S);
+        ck_printf("screen: the picture did not go black within %u s; proceeding with display off\n", (unsigned)PANEL_WAIT_S);
     if (!ck_x86_panel_ready())
-        return; /* no panel to switch: painted black is the rest */
-    ck_printf("screen: the picture is black %llu ms after the rest began; switching the panel off\n",
+        panel_poweroff("panel off unsupported");
+    ck_printf("screen: display-off transition %llu ms after the rest began; switching the panel off\n",
               (unsigned long long)((now - began) / (tsc_hz / 1000)));
-    ck_x86_panel_off();
+    if (ck_x86_panel_off())
+        panel_poweroff("panel off not confirmed");
+    panel_dark = 1;
+    ck_puts("power: Allen asleep (panel registers confirm off; any key or a tap of the power button wakes him)\n");
 }
 
 #define STEP_MAX 16
@@ -981,7 +1006,9 @@ static void allen_window(void)
         }
         night_mib = (uint32_t)(need >> 20);
     }
-    ck_snprintf(footer, sizeof footer, "Type goodbye and this computer rests; any key wakes it");
+    ck_snprintf(footer, sizeof footer, ck_x86_panel_ready() ?
+                "Goodbye: screen off; power off if panel control fails" :
+                "Goodbye powers off; power button starts this computer");
     ck_printf("screen: Allen's window (%ux%u, %u MiB drawing memory)\n", w, h, night_mib);
     ck_x86_console_fb_off();
     ck_allen_ui_refresh(); /* whatever else was on the screen goes */
@@ -1195,9 +1222,8 @@ void ck_x86_hold_step(uint64_t *end)
         told = 1;
         night_stats("by 20 s after Allen woke");
     }
-    /* No countdown to power-off while Allen's window is up. After goodbye, 4 s
-     * for the answer to appear, then the computer rests; CK_X86_IDLE_S without a
-     * key rests it too; a power-button tap rests or wakes it. */
+    /* After goodbye, allow the existing answer delay, then fade to black.
+     * Idle and a power-button tap use the same confirmed-off/S5 policy. */
     if (allen_bye && ck_rdtsc() - allen_bye > 4 * tsc_hz) {
         allen_bye = 0;
         allen_sleep(1);
@@ -1230,7 +1256,7 @@ static __attribute__((noreturn)) void finish(void)
     if (CK_X86_HOLD_S && ck_x86_kbd_ready()) {
         allen_window();
         if (allen_on)
-            ck_puts("keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off\n");
+            ck_puts("keyboard: type a line and press Enter; goodbye switches the display off; any-key wake only after confirmed panel off, otherwise ACPI S5 (power button to start)\n");
         else
             ck_printf("keyboard: type a line and press Enter; the screen stays on until %u s after the last key\n",
                       ck_x86_kbd_idle_s());
@@ -1240,14 +1266,13 @@ static __attribute__((noreturn)) void finish(void)
         ck_x86_console_fb_show();
     }
     if (CK_X86_HOLD_S) {
-        /* With Allen's window up the hold never ends (ck_x86_hold_step moves
-         * the end out for good): goodbye, the idle time and the power-button
-         * tap rest the computer and a key wakes it, in the lab build too. */
+        /* With Allen's window up the hold does not expire. Rest either
+         * confirms panel off and permits wake, or powers off through S5. */
 #if CK_X86_REPORT
         /* Lab build only (make imac-kernel CK_X86_REPORT=1): sends the
          * allowlisted, unauthenticated report if the network is up. */
         if (allen_on)
-            ck_puts("power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off\n");
+            ck_puts("power: Allen's window stays on; goodbye, idle or a power-button tap switches the display off; confirmed panel off permits any-key wake, otherwise ACPI S5\n");
         else
             ck_printf("power: holding the screen %u s, then restart\n", (unsigned)CK_X86_HOLD_S);
         ck_x86_report_hold(tsc_hz, CK_X86_HOLD_S);
@@ -1255,7 +1280,7 @@ static __attribute__((noreturn)) void finish(void)
 #else
         /* Default and resident builds: no report code is linked; nothing is sent. */
         if (allen_on)
-            ck_puts("power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off\n");
+            ck_puts("power: Allen's window stays on; goodbye, idle or a power-button tap switches the display off; confirmed panel off permits any-key wake, otherwise ACPI S5\n");
         else
             ck_printf("power: holding the screen %u s, then ACPI S5\n", (unsigned)CK_X86_HOLD_S);
         uint64_t end = ck_rdtsc() + (uint64_t)CK_X86_HOLD_S * tsc_hz; /* typing moves it out */

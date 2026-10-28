@@ -234,10 +234,8 @@ void ck_mind_draw(const ck_mind *m, ck_canvas *out, const ck_rect *r)
             unsigned a = m->ea[i], b = m->eb[i];
             uint32_t a0 = (m->lum[a] * (16u + m->near[a] * 60u / 256u) >> 8) * ta >> 8,
                      a1 = (m->lum[b] * (16u + m->near[b] * 60u / 256u) >> 8) * ta >> 8;
-            ck_thread(out, r, m->px[a], m->py[a], m->px[b], m->py[b], CK_RGB(120, 140, 255), a0, a1);
-            if (m->k > 320) /* a second strand on big screens, so the thread keeps its weight */
-                ck_thread(out, r, m->px[a], m->py[a] + 16, m->px[b], m->py[b] + 16, CK_RGB(120, 140, 255), a0 / 2,
-                          a1 / 2);
+            ck_thread(out, r, m->px[a], m->py[a], m->px[b], m->py[b], (int32_t)m->k / 16,
+                      CK_RGB(120, 140, 255), a0, a1);
         }
     /* the points: pale blue-white, warming as they light */
     for (unsigned i = 0; i < CK_MIND_NODES; i++) {

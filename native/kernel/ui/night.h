@@ -75,7 +75,6 @@ typedef struct {
     uint32_t keep;   /* how much of the picture's light is kept, 0..256; the horizon closing takes it to 0 */
     int32_t near, far; /* the edges of the screen go dark first: the light falls off from near out to far ... */
     uint32_t shade;    /* ... by this much at far, 0..256 */
-    int32_t fine;      /* inside this distance every pixel is worked out; beyond it two at a time each way */
 } ck_night_dusk;
 
 typedef struct {
@@ -131,7 +130,7 @@ typedef struct {
 /* Memory for a w x h picture kept this way. */
 size_t ck_night_picture_bytes(uint32_t w, uint32_t h);
 /* Copies the w x h picture `from` (rows w apart) into mem (ck_night_picture_bytes) and makes the smaller
- * copies of it and of n's sky, each a quarter of the one before by averaging 2 x 2 pixels. */
+ * copies of it and of n's sky, each a quarter of the one before by averaging 2 x 2 pixels' linear light. */
 void ck_night_picture_take(const ck_night *n, const uint32_t *from, void *mem, ck_night_picture *kept);
 
 /* Memory for a w x h night at scale k. */

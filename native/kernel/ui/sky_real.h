@@ -29,9 +29,10 @@ int ck_sky_project(const ck_sky_view *v, const int16_t d[3], int32_t w, int32_t 
                    int32_t *y16);
 
 /* The Milky Way's light at a quarter of the resolution: q holds qw x qh
- * cells of three channels in 16ths of a level, cell (i, j) for the pixel
+ * cells of three linear-light Q15 channels, cell (i, j) for the pixel
  * (4 i, 4 j) of a w-wide screen with its view centre at (cx, cy).
- * v: the current sky view (inverse-projects each screen point to RA/Dec). */
+ * v: the current sky view (inverse-projects each screen point to RA/Dec).
+ * The caller interpolates this light, then encodes sRGB at native pixels. */
 void ck_sky_milkyway_q(uint16_t *q, int32_t qw, int32_t qh, int32_t w, int32_t cx, int32_t cy,
                        const ck_sky_view *v);
 

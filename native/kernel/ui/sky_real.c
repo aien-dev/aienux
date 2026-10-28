@@ -32,16 +32,6 @@ int ck_sky_project(const ck_sky_view *v, const int16_t d[3], int32_t w, int32_t 
 
 /* ---- Milky Way: equirectangular full-sphere grid, bilinear sampling ---- */
 
-static int32_t bilinear_u8(const uint8_t *p, int32_t cols, int32_t rows, int64_t c, int64_t r) /* x 256 */
-{
-    c = c < 0 ? 0 : c > (int64_t)(cols - 1) << 16 ? (int64_t)(cols - 1) << 16 : c;
-    r = r < 0 ? 0 : r > (int64_t)(rows - 1) << 16 ? (int64_t)(rows - 1) << 16 : r;
-    int32_t i = (int32_t)(c >> 16), j = (int32_t)(r >> 16), i1 = ck_min(i + 1, cols - 1), j1 = ck_min(j + 1, rows - 1);
-    int32_t fx = (int32_t)(c >> 8 & 255), fy = (int32_t)(r >> 8 & 255);
-    int32_t a = p[j * cols + i] * (256 - fx) + p[j * cols + i1] * fx;
-    int32_t b = p[j1 * cols + i] * (256 - fx) + p[j1 * cols + i1] * fx;
-    return (a * (256 - fy) + b * fy) >> 8;
-}
 
 static int32_t bilinear_s8(const int8_t (*p)[2], int k, int32_t cols, int32_t rows, int64_t c, int64_t r) /* x 256 */
 {
@@ -56,7 +46,7 @@ static int32_t bilinear_s8(const int8_t (*p)[2], int k, int32_t cols, int32_t ro
 
 /* Inverse-project a half-pixel screen point to equirectangular grid coords.
  * (x2, y2) in half-pixels; screen centre at (2*cx, 2*cy).
- * Returns (col_q16, row_q16) for bilinear_u8/s8. The map covers the full
+ * Returns (col_q16, row_q16) for grid sampling. The map covers the full
  * sphere: col 0 = RA 0 deg, col cols-1 = RA ~360 deg; row 0 = Dec +90,
  * row rows-1 = Dec -90.  col wraps; row is clamped.
  * Returns 0 if the point is behind the camera. */
@@ -99,8 +89,30 @@ static int grid_at_eq(const ck_sky_view *v, int32_t x2, int32_t y2, int32_t w, i
     return 1;
 }
 
+/* Decode one luma-grid texel, reconstructing its half-resolution chroma
+ * first. The generated map is encoded sRGB; interpolate its light, not
+ * its display levels. Retain the chroma's fractional levels on decoding. */
+static void milkyway_texel(int32_t i, int32_t j, uint32_t light[3])
+{
+    const ck_sky_map *m = &ck_sky_milkyway;
+    int32_t hc = (m->cols + 1) / 2, hr = (m->rows + 1) / 2;
+    int64_t cc = ((int64_t)i * 65536 - 32768) / 2, cr = ((int64_t)j * 65536 - 32768) / 2;
+    if (cc < 0)
+        cc += (int64_t)hc * 65536;
+    int32_t y = ck_sky_luma[(size_t)j * m->cols + i] * 16;
+    int32_t co = bilinear_s8(ck_sky_chroma, 0, hc, hr, cc, cr) >> 5;
+    int32_t cg = bilinear_s8(ck_sky_chroma, 1, hc, hr, cc, cr) >> 5;
+    int32_t rgb[3] = {ck_clamp(y + co - cg, 0, 4080), ck_clamp(y + cg, 0, 4080),
+                      ck_clamp(y - co - cg, 0, 4080)};
+    for (int k = 0; k < 3; k++) {
+        uint32_t lo = (uint32_t)rgb[k] >> 4, f = (uint32_t)rgb[k] & 15u;
+        uint32_t hi = lo < 255 ? lo + 1 : lo;
+        light[k] = ck_sky_lin[lo] + ((ck_sky_lin[hi] - ck_sky_lin[lo]) * f >> 4);
+    }
+}
+
 /* The equirectangular Milky Way at half-pixel (x2, y2) through view v:
- * three channels in 16ths of a level */
+ * three channels of linear light, Q15. */
 static void milkyway_at(const ck_sky_view *v, int32_t x2, int32_t y2, int32_t w, int32_t cx, int32_t cy,
                         int32_t rgb[3])
 {
@@ -114,16 +126,21 @@ static void milkyway_at(const ck_sky_view *v, int32_t x2, int32_t y2, int32_t w,
     int64_t maxcol = (int64_t)m->cols * 65536;
     while (col < 0) col += maxcol;
     while (col >= maxcol) col -= maxcol;
-    /* Colour grid is at half resolution */
-    int32_t hc = (m->cols + 1) / 2, hr = (m->rows + 1) / 2;
-    int32_t y = bilinear_u8(ck_sky_luma, m->cols, m->rows, col, row) >> 4;      /* 16ths */
-    int64_t cc = (col - 32768) / 2, cr = (row - 32768) / 2;                     /* colour: half spacing */
-    if (cc < 0) cc += (int64_t)hc * 65536;
-    int32_t co = bilinear_s8(ck_sky_chroma, 0, hc, hr, cc, cr) >> 5;            /* 16ths */
-    int32_t cg = bilinear_s8(ck_sky_chroma, 1, hc, hr, cc, cr) >> 5;
-    rgb[0] = ck_clamp(y + co - cg, 0, 4080);
-    rgb[1] = ck_clamp(y + cg, 0, 4080);
-    rgb[2] = ck_clamp(y - co - cg, 0, 4080);
+    col = col > (int64_t)(m->cols - 1) << 16 ? (int64_t)(m->cols - 1) << 16 : col;
+    row = row < 0 ? 0 : row > (int64_t)(m->rows - 1) << 16 ? (int64_t)(m->rows - 1) << 16 : row;
+    int32_t i = (int32_t)(col >> 16), j = (int32_t)(row >> 16);
+    int32_t i1 = ck_min(i + 1, m->cols - 1), j1 = ck_min(j + 1, m->rows - 1);
+    uint32_t fx = (uint32_t)(col >> 8) & 255u, fy = (uint32_t)(row >> 8) & 255u;
+    uint32_t taps[4][3];
+    milkyway_texel(i, j, taps[0]);
+    milkyway_texel(i1, j, taps[1]);
+    milkyway_texel(i, j1, taps[2]);
+    milkyway_texel(i1, j1, taps[3]);
+    for (int k = 0; k < 3; k++) {
+        uint32_t a = taps[0][k] * (256 - fx) + taps[1][k] * fx;
+        uint32_t b = taps[2][k] * (256 - fx) + taps[3][k] * fx;
+        rgb[k] = (int32_t)((a * (256 - fy) + b * fy) >> 16);
+    }
 }
 
 void ck_sky_milkyway_q(uint16_t *q, int32_t qw, int32_t qh, int32_t w, int32_t cx, int32_t cy,

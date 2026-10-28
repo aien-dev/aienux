@@ -193,13 +193,14 @@ static void plot(ck_canvas *cv, const ck_rect *clip, int32_t x, int32_t y, uint3
     *p = ck_add(*p, color, a);
 }
 
-void ck_thread(ck_canvas *cv, const ck_rect *clip, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color,
-               uint32_t a0, uint32_t a1)
+void ck_thread(ck_canvas *cv, const ck_rect *clip, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t width,
+               uint32_t color, uint32_t a0, uint32_t a1)
 {
-    ck_rect box = {(ck_min(x0, x1) >> 4) - 1, (ck_min(y0, y1) >> 4) - 1, 0, 0};
-    box.w = (ck_max(x0, x1) >> 4) - box.x + 3;
-    box.h = (ck_max(y0, y1) >> 4) - box.y + 3;
-    if (!ck_meets(box, clip) || (!a0 && !a1))
+    int32_t pad = (width >> 4) + 1;
+    ck_rect box = {(ck_min(x0, x1) >> 4) - pad, (ck_min(y0, y1) >> 4) - pad, 0, 0};
+    box.w = (ck_max(x0, x1) >> 4) - box.x + pad + 1;
+    box.h = (ck_max(y0, y1) >> 4) - box.y + pad + 1;
+    if (width <= 0 || !ck_meets(box, clip) || (!a0 && !a1))
         return;
     int steep = ck_abs(y1 - y0) > ck_abs(x1 - x0);
     if (steep) {
@@ -220,20 +221,23 @@ void ck_thread(ck_canvas *cv, const ck_rect *clip, int32_t x0, int32_t y0, int32
     if (len < 1)
         len = 1;
     int64_t grad = (int64_t)(y1 - y0) * 65536 / len;
-    /* a slanted thread covers more ground per column: weigh it by its length per column */
+    /* Project the native-scaled width onto the minor axis, not its alpha.
+     * This keeps horizontal and vertical threads equally weighted at 4K. */
     uint32_t slant = (uint32_t)(ck_isqrt((uint64_t)(65536ll * 65536ll + grad * grad)) >> 8); /* 256 = flat */
+    int32_t radius = (int32_t)((int64_t)width * slant >> 9);
     int32_t first = (x0 + 7) >> 4, last = (x1 - 8) >> 4;
+    first = ck_max(first, steep ? clip->y : clip->x);
+    last = ck_min(last, (steep ? clip->y + clip->h : clip->x + clip->w) - 1);
     for (int32_t X = first; X <= last; X++) {
         int32_t along = X * 16 + 8 - x0;
-        int32_t yc = y0 + (int32_t)(along * grad >> 16) - 8;
-        int32_t Y = yc >> 4, f = yc & 15;
-        uint32_t a = (uint32_t)((int32_t)a0 + ((int32_t)a1 - (int32_t)a0) * along / len) * slant >> 8;
-        if (steep) {
-            plot(cv, clip, Y, X, color, a * (uint32_t)(16 - f) >> 4);
-            plot(cv, clip, Y + 1, X, color, a * (uint32_t)f >> 4);
-        } else {
-            plot(cv, clip, X, Y, color, a * (uint32_t)(16 - f) >> 4);
-            plot(cv, clip, X, Y + 1, color, a * (uint32_t)f >> 4);
+        int32_t yc = y0 + (int32_t)(along * grad >> 16);
+        uint32_t a = (uint32_t)((int32_t)a0 + ((int32_t)a1 - (int32_t)a0) * along / len);
+        for (int32_t Y = (yc - radius - 8) >> 4; Y <= (yc + radius + 8) >> 4; Y++) {
+            uint32_t coverage = ck_cover(ck_abs(Y * 16 + 8 - yc) - radius);
+            if (steep)
+                plot(cv, clip, Y, X, color, a * coverage >> 8);
+            else
+                plot(cv, clip, X, Y, color, a * coverage >> 8);
         }
     }
 }

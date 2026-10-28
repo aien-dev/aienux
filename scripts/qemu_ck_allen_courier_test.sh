@@ -139,7 +139,7 @@ if wait_for 300 '^keyboard: type a line and press Enter'; then
     sleep 1
     [[ -s "${work}/one.png" ]] && cp "${work}/one.png" "${out}/allen-far-side.png"
     say "goodbye"
-    wait_for 30 '^power: Allen asleep' || true
+    wait_for 30 '^power: off via ACPI S5 ' || true
     exec 3>&-
 fi
 txt >"${work}/one.txt"

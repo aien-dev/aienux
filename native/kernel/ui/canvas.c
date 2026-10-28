@@ -553,7 +553,6 @@ static void shade(ck_canvas *cv, const ck_rect *r, ck_rect a, uint32_t amt)
     int64_t hx = a.w / 2, hy = a.h / 2, cx = a.x + hx, cy = a.y + hy;
     int64_t ix = ((int64_t)1 << 32) / (hx * hx), iy = ((int64_t)1 << 32) / (hy * hy);
     const int64_t inner = 30000, inv = (256 << 16) / (65536 - inner); /* the rim eases over the last part */
-    uint32_t keep_in = 256 - amt, night_in = ck_scale(C_NIGHT, amt);
     for (int32_t y = d.y; y < d.y + d.h; y++) {
         int64_t dy = y - cy, qy = dy * dy * iy >> 16;
         if (qy >= 65536)
@@ -567,7 +566,7 @@ static void shade(ck_canvas *cv, const ck_rect *r, ck_rect a, uint32_t amt)
             if (q >= 65536)
                 continue;
             if (q <= inner) {
-                px[x] = ck_scale(px[x], keep_in) + night_in;
+                px[x] = ck_mix(px[x], C_NIGHT, amt);
                 continue;
             }
             uint32_t k = (256 - ck_smooth((int32_t)((q - inner) * inv >> 16))) * amt >> 8;
@@ -703,11 +702,12 @@ static void draw_item(const ck_allen_canvas *c, const ck_canvas_item *it, ck_can
             if (it->nrows > 1) {
                 const ck_canvas_row *w = &it->row[it->nrows - 1];
                 int32_t wy = (y + w->dy - cap_of(c->body) / 3) * 16;
-                ck_thread(cv, r, (x + S(26)) * 16, wy, (x + S(48)) * 16, wy, C_HINT, 150 * D >> 8, 150 * D >> 8);
+                ck_thread(cv, r, (x + S(26)) * 16, wy, (x + S(48)) * 16, wy, (int32_t)c->k / 16,
+                          C_HINT, 150 * D >> 8, 150 * D >> 8);
             }
         }
-        ck_thread(cv, r, tx, y0, tx, y1, edge, 0, a);
-        ck_thread(cv, r, tx, y1, tx, y2, edge, a, 0);
+        ck_thread(cv, r, tx, y0, tx, y1, (int32_t)c->k / 16, edge, 0, a);
+        ck_thread(cv, r, tx, y1, tx, y2, (int32_t)c->k / 16, edge, a, 0);
         ck_glow(cv, r, tx, y1, S(5) * 16, edge, 120 * D >> 8);
         break;
     }
@@ -760,9 +760,9 @@ static void draw_item(const ck_allen_canvas *c, const ck_canvas_item *it, ck_can
             ring(cv, r, mx, my, S(40), S(1) * 16 / 2 + 6, C_GLOW, C_MIST, 150 * D >> 8, 0, 65536u);
             int32_t ax = (mx - s3 * 2 / 3) * 16, bx = (mx + s3) * 16, ty = (my - s3) * 16, by = (my + s3) * 16;
             uint32_t a = 210 * D >> 8;
-            ck_thread(cv, r, ax, ty, ax, by, C_MIST, a, a);
-            ck_thread(cv, r, ax, ty, bx, my * 16, C_MIST, a, a);
-            ck_thread(cv, r, ax, by, bx, my * 16, C_MIST, a, a);
+            ck_thread(cv, r, ax, ty, ax, by, (int32_t)c->k / 16, C_MIST, a, a);
+            ck_thread(cv, r, ax, ty, bx, my * 16, (int32_t)c->k / 16, C_MIST, a, a);
+            ck_thread(cv, r, ax, by, bx, my * 16, (int32_t)c->k / 16, C_MIST, a, a);
         }
         static const char wait[] = "not here yet";
         int32_t ww = (int32_t)ck_af_measure(c->small, wait, sizeof wait - 1);

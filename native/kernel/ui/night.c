@@ -55,7 +55,7 @@ static uint32_t gauss(int64_t v, int64_t width) /* exp(-(v/width)^2), Q16 */
     return ck_exp_neg((uint32_t)(q * q >> 8));
 }
 
-/* ---- the soft layer (the Milky Way): a quarter of the resolution, 16ths of a level ---- */
+/* ---- the soft layer (the Milky Way): a quarter-resolution linear-light Q15 grid ---- */
 
 static void scale_up(ck_night *n, const uint16_t *q, int32_t qw)
 {
@@ -70,8 +70,9 @@ static void scale_up(ck_night *n, const uint16_t *q, int32_t qw)
             for (int k = 0; k < 3; k++) {
                 uint32_t a = r0[qx * 3 + k] * (uint32_t)(4 - fx) + r0[qx * 3 + 3 + k] * (uint32_t)fx;
                 uint32_t b = r1[qx * 3 + k] * (uint32_t)(4 - fx) + r1[qx * 3 + 3 + k] * (uint32_t)fx;
-                uint32_t v = ((a * (uint32_t)(4 - fy) + b * (uint32_t)fy) / 16 + d) >> 4;
-                c = c << 8 | (v > 255 ? 255u : v);
+                uint32_t light = (a * (uint32_t)(4 - fy) + b * (uint32_t)fy) / 16;
+                uint32_t v = (ck_sky_srgb16[light >= 32767u ? 4095u : light >> 3] + d) >> 4;
+                c = c << 8 | v;
             }
             row[x] = c;
         }
@@ -263,8 +264,7 @@ void ck_night_at(ck_night *n, uint32_t t)
 
 static uint32_t lerp16(uint32_t a, uint32_t b, uint32_t f) /* f: 0..16 */
 {
-    return ((((a & 0xff00ffu) * (16 - f) + (b & 0xff00ffu) * f) >> 4) & 0xff00ffu) |
-           ((((a & 0x00ff00u) * (16 - f) + (b & 0x00ff00u) * f) >> 4) & 0x00ff00u);
+    return ck_mix(a, b, f * 16);
 }
 
 /* the sky at (sx, sy), 16ths of a pixel (pixel i's centre at 16 i + 8) */
@@ -445,10 +445,13 @@ static void halve(const uint32_t *from, uint32_t sw, uint32_t sh, uint32_t *to)
         uint32_t *d = to + (size_t)y * dw;
         for (uint32_t x = 0; x < dw; x++) {
             uint32_t a = r0[2 * x], b = r0[2 * x + 1], c = r1[2 * x], e = r1[2 * x + 1];
-            /* red and blue summed together, green on its own: the sums do not run into each other */
-            uint32_t rb = (((a & 0xff00ffu) + (b & 0xff00ffu) + (c & 0xff00ffu) + (e & 0xff00ffu)) >> 2) & 0xff00ffu;
-            uint32_t g = (((a & 0xff00u) + (b & 0xff00u) + (c & 0xff00u) + (e & 0xff00u)) >> 2) & 0xff00u;
-            d[x] = rb | g;
+            uint32_t color = 0;
+            for (int s = 0; s <= 16; s += 8) {
+                uint32_t light = ck_sky_lin[ck_ch(a, s)] + ck_sky_lin[ck_ch(b, s)] +
+                                 ck_sky_lin[ck_ch(c, s)] + ck_sky_lin[ck_ch(e, s)];
+                color |= ck_light_encode(light >> 2) << s;
+            }
+            d[x] = color;
         }
     }
 }
@@ -565,17 +568,17 @@ static uint32_t sample_kept(const ck_night_picture *kept, unsigned l, int32_t w,
     const uint32_t *px = kept->level[l];
     int32_t W = (w - 1) * 16, H = (h - 1) * 16;
     sx -= 8, sy -= 8;
-    if (sx < 0 || sy < 0 || sx >= W || sy >= H) {
-        sx = sx < 0 ? -sx : sx >= W ? 2 * W - sx : sx;
-        sy = sy < 0 ? -sy : sy >= H ? 2 * H - sy : sy;
-        if (sx < 0 || sy < 0 || sx >= W || sy >= H)
+    if (sx < 0 || sy < 0 || sx > W || sy > H) {
+        sx = sx < 0 ? -sx : sx > W ? 2 * W - sx : sx;
+        sy = sy < 0 ? -sy : sy > H ? 2 * H - sy : sy;
+        if (sx < 0 || sy < 0 || sx > W || sy > H)
             return 0;
         px = kept->sky[l];
     }
-    int32_t ix = sx >> 4, iy = sy >> 4;
-    const uint32_t *r0 = px + (size_t)iy * (size_t)w, *r1 = r0 + w;
+    int32_t ix = sx >> 4, iy = sy >> 4, ix1 = ck_min(ix + 1, w - 1), iy1 = ck_min(iy + 1, h - 1);
+    const uint32_t *r0 = px + (size_t)iy * (size_t)w, *r1 = px + (size_t)iy1 * (size_t)w;
     uint32_t fx = (uint32_t)sx & 15u, fy = (uint32_t)sy & 15u;
-    return lerp16(lerp16(r0[ix], r0[ix + 1], fx), lerp16(r1[ix], r1[ix + 1], fx), fy);
+    return lerp16(lerp16(r0[ix], r0[ix1], fx), lerp16(r1[ix], r1[ix1], fx), fy);
 }
 
 /* c brightened g/256 times (g above 256), the excess warmer than the light itself */
@@ -584,13 +587,14 @@ static uint32_t brighten(uint32_t c, uint32_t g)
     if (g <= 256 || !c)
         return c;
     uint32_t x = g - 256;
-    uint32_t r = ck_ch(c, 16) * (256 + x) >> 8, gg = ck_ch(c, 8) * (256 + x * 7 / 8) >> 8, b = ck_ch(c, 0) * (256 + x * 5 / 8) >> 8;
-    return (r > 255 ? 255u : r) << 16 | (gg > 255 ? 255u : gg) << 8 | (b > 255 ? 255u : b);
+    uint32_t r = ck_light_encode(ck_sky_lin[ck_ch(c, 16)] * (256 + x) >> 8);
+    uint32_t gg = ck_light_encode(ck_sky_lin[ck_ch(c, 8)] * (256 + x * 7 / 8) >> 8);
+    uint32_t b = ck_light_encode(ck_sky_lin[ck_ch(c, 0)] * (256 + x * 5 / 8) >> 8);
+    return r << 16 | gg << 8 | b;
 }
 
-/* One 8 x 8 block of the dusk, clipped to d, from its four corners. Near the hole every pixel is worked out;
- * further out, where the picture is streaming past, the block is worked out two pixels at a time each way
- * (the screen does not show the difference there and the frame costs a third as much). */
+/* One 8 x 8 block of the dusk, clipped to d. Share the smooth warp's four
+ * corners while resolving the kept picture, shadow and light at native pixels. */
 static void fall_block(const ck_night *n, const ck_night_picture *kept, ck_canvas *out, const ck_rect *d, int32_t bx,
                        int32_t by, const struct corner *c00, const struct corner *c10, const struct corner *c01,
                        const struct corner *c11)
@@ -608,7 +612,7 @@ static void fall_block(const ck_night *n, const ck_night_picture *kept, ck_canva
                  (c00->sy < Y16 && c10->sy < Y16 && c01->sy < Y16 && c11->sy < Y16) ||
                  (c00->sx > W16 && c10->sx > W16 && c01->sx > W16 && c11->sx > W16) ||
                  (c00->sy > H16 && c10->sy > H16 && c01->sy > H16 && c11->sy > H16);
-    int disk = k->disk && rmin < n->disk_far, edge = rmin < rs + 16, fine = rmin < k->fine;
+    int disk = k->disk && rmin < n->disk_far, edge = rmin < rs + 16;
     /* the light kept here: the closing of the horizon, and the edges of the screen going dark first */
     uint32_t keep = k->keep * ((c00->vig + c10->vig + c01->vig + c11->vig) >> 2) >> 8;
     if ((!keep && !disk) || rmax < rs - 16 || (beyond && !disk)) { /* only the dark: inside the shadow, or past the edge */
@@ -617,30 +621,21 @@ static void fall_block(const ck_night *n, const ck_night_picture *kept, ck_canva
                 out->px[(size_t)y * (size_t)out->w + (size_t)x] = 0;
         return;
     }
-    /* which copy of the picture: the one whose pixels are about as big as the crowding here, leaning to the
-     * smaller copy (the picture is streaming, and the smaller copies are read far faster); once the light is
-     * nearly gone, the copies at an eighth and below, which no eye can tell apart at that brightness */
-    uint32_t hm = (c00->h >> 2) + (c10->h >> 2) + (c01->h >> 2) + (c11->h >> 2), lvl = (hm + 98304u) >> 17;
-    lvl = keep < 16 && lvl < 3 ? 3 : lvl;
+    /* Use smaller copies only when the warp actually minifies the source.
+     * Dimming is not minification: faint stars and text still need their detail. */
+    uint32_t hm = (c00->h >> 2) + (c10->h >> 2) + (c01->h >> 2) + (c11->h >> 2), lvl = hm >> 17;
     lvl = lvl >= CK_NIGHT_LEVELS ? CK_NIGHT_LEVELS - 1 : lvl;
     int32_t lw = n->w >> lvl, lh = n->h >> lvl;
     int crowded = c00->crowd > 256 || c10->crowd > 256 || c01->crowd > 256 || c11->crowd > 256;
     int64_t cb = ck_cos(k->beam), sb = ck_sin(k->beam);
     uint32_t inv_far = (uint32_t)((1u << 30) / (uint32_t)(n->disk_far > 0 ? n->disk_far : 1));
-    if (!fine) { /* pairs start on even pixels, so a block cut by the clip still draws the same pixels */
-        ck_rect e = {b.x & ~1, b.y & ~1, 0, 0};
-        e.w = ((b.x + b.w + 1) & ~1) - e.x, e.h = ((b.y + b.h + 1) & ~1) - e.y;
-        if (e.x >= d->x && e.y >= d->y && e.x + e.w <= d->x + d->w && e.y + e.h <= d->y + d->h)
-            b = e;
-        else
-            fine = 1; /* an odd clip: every pixel, so nothing is written outside it */
-    }
-    int32_t step = fine ? 1 : 2;
-    for (int32_t y = b.y; y < b.y + b.h; y += step) {
-        int32_t wy = 2 * (y - by) + step;
+    /* Resolve every native destination pixel, even far from the hole. The
+     * shared corner grid accelerates the warp without upscaling 2 x 2 samples. */
+    for (int32_t y = b.y; y < b.y + b.h; y++) {
+        int32_t wy = 2 * (y - by) + 1;
         uint32_t *row = out->px + (size_t)y * (size_t)out->w;
-        for (int32_t x = b.x; x < b.x + b.w; x += step) {
-            int32_t wx = 2 * (x - bx) + step;
+        for (int32_t x = b.x; x < b.x + b.w; x++) {
+            int32_t wx = 2 * (x - bx) + 1;
             int32_t w00 = (16 - wx) * (16 - wy), w10 = wx * (16 - wy), w01 = (16 - wx) * wy, w11 = wx * wy;
             uint32_t c = 0;
             if (!beyond) {
@@ -673,8 +668,6 @@ static void fall_block(const ck_night *n, const ck_night_picture *kept, ck_canva
                     c = ck_mix(c, 0, ck_cover(r - rs));
             }
             row[x] = c;
-            if (!fine)
-                row[x + 1] = c, row[x + out->w] = c, row[x + out->w + 1] = c;
         }
     }
 }

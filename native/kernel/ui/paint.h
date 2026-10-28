@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "allen_font.h"
+#include "sky_data.h"
 
 typedef struct {
     int32_t x, y, w, h;
@@ -61,26 +62,58 @@ static inline ck_rect ck_union(ck_rect a, ck_rect b)
 
 static inline uint32_t ck_ch(uint32_t c, int s) { return c >> s & 255u; }
 
-/* c scaled by f/256 (f <= 256), all three channels at once */
+/* Canvas and palette values are sRGB, but coverage and fading weigh light,
+ * not encoded bytes. Reuse the sky's fixed Q15 transfer tables; no pow,
+ * allocation or per-pixel search. Keep the unweighted endpoints exact. */
+static inline uint32_t ck_light_encode(uint32_t light)
+{
+    return (ck_sky_srgb16[light >= 32767u ? 4095u : light >> 3] + 8u) >> 4;
+}
+
 static inline uint32_t ck_scale(uint32_t c, uint32_t f)
 {
-    return ((c & 0xff00ffu) * f >> 8 & 0xff00ffu) | ((c & 0x00ff00u) * f >> 8 & 0x00ff00u);
+    if (!f)
+        return 0;
+    if (f >= 256)
+        return c;
+    return ck_light_encode(ck_sky_lin[ck_ch(c, 16)] * f >> 8) << 16 |
+           ck_light_encode(ck_sky_lin[ck_ch(c, 8)] * f >> 8) << 8 |
+           ck_light_encode(ck_sky_lin[ck_ch(c, 0)] * f >> 8);
 }
 
-/* d + c * a / 256 per channel, held at 255 */
+static inline uint32_t ck_light_add_channel(uint32_t d, uint32_t c, uint32_t a)
+{
+    uint32_t added = ck_sky_lin[c] * a >> 8;
+    return added ? ck_light_encode(ck_sky_lin[d] + added) : d;
+}
+
+static inline uint32_t ck_light_mix_channel(uint32_t d, uint32_t c, uint32_t a)
+{
+    return d == c ? d : ck_light_encode((ck_sky_lin[d] * (256 - a) + ck_sky_lin[c] * a) >> 8);
+}
+
+/* Add c's light with weight a/256, saturating at display white. */
 static inline uint32_t ck_add(uint32_t d, uint32_t c, uint32_t a)
 {
-    uint32_t r = ck_ch(d, 16) + (ck_ch(c, 16) * a >> 8), g = ck_ch(d, 8) + (ck_ch(c, 8) * a >> 8),
-             b = ck_ch(d, 0) + (ck_ch(c, 0) * a >> 8);
-    return (r > 255 ? 255u : r) << 16 | (g > 255 ? 255u : g) << 8 | (b > 255 ? 255u : b);
+    if (!a || !c)
+        return d;
+    if (!d && a == 256)
+        return c;
+    return ck_light_add_channel(ck_ch(d, 16), ck_ch(c, 16), a) << 16 |
+           ck_light_add_channel(ck_ch(d, 8), ck_ch(c, 8), a) << 8 |
+           ck_light_add_channel(ck_ch(d, 0), ck_ch(c, 0), a);
 }
 
-/* d toward c by a/256 */
+/* d toward c by light coverage a/256; combine before rounding. */
 static inline uint32_t ck_mix(uint32_t d, uint32_t c, uint32_t a)
 {
+    if (!a || d == c)
+        return d;
     if (a >= 256)
         return c;
-    return ck_scale(d, 256 - a) + ck_scale(c, a);
+    return ck_light_mix_channel(ck_ch(d, 16), ck_ch(c, 16), a) << 16 |
+           ck_light_mix_channel(ck_ch(d, 8), ck_ch(c, 8), a) << 8 |
+           ck_light_mix_channel(ck_ch(d, 0), ck_ch(c, 0), a);
 }
 
 /* ---- easing: t and the result in 0..256 ---- */
@@ -124,10 +157,10 @@ uint32_t ck_fbm(int32_t x256, int32_t y256, uint32_t seed, int octaves); /* 0..6
 /* A soft round light at (cx, cy) with radius r (16ths of a pixel): colour
  * added with weight a * (1 - d^2/r^2)^3. */
 void ck_glow(ck_canvas *cv, const ck_rect *clip, int32_t cx, int32_t cy, int32_t r, uint32_t color, uint32_t a);
-/* A thread one pixel wide from (x0, y0) to (x1, y1) (16ths of a pixel),
- * anti-aliased, added as light whose weight runs from a0 to a1 along it. */
-void ck_thread(ck_canvas *cv, const ck_rect *clip, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color,
-               uint32_t a0, uint32_t a1);
+/* A thread from (x0, y0) to (x1, y1), width and positions in 16ths of
+ * a pixel; anti-aliased light whose weight runs from a0 to a1 along it. */
+void ck_thread(ck_canvas *cv, const ck_rect *clip, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t width,
+               uint32_t color, uint32_t a0, uint32_t a1);
 /* Signed distance from a pixel's centre to a rounded rectangle, 16ths of a
  * pixel, negative inside; and the coverage of a pixel at such a distance. */
 int32_t ck_sd_rrect(int32_t x, int32_t y, const ck_rect *r, int32_t radius);

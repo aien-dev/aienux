@@ -15,7 +15,13 @@
  * 0x1002, class 0x0300) whose device id is a Polaris part (DCE 11.2, the
  * 2017 iMac's Radeon Pro 570/575/580 among them), whose VRAM aperture (BAR0)
  * holds the firmware's framebuffer, and whose 256 KiB register aperture
- * (BAR5) answers. Register indices and bit masks are from Linux
+ * (BAR5) answers.
+ * The captured iMac inventory has both AMD 1002:67df at 01:00.0 and Intel
+ * 8086:5912, with GOP at 0xc0300000 (evidence/imac_boot0_2026-10-16).
+ * PCI presence alone does not identify the panel owner: pci_x86.c selects
+ * the controller whose BAR0 contains the GOP allocation; recheck it here.
+ * Never use the Intel CPU or the mere presence of its GPU as that proof.
+ * Register indices and bit masks are from Linux
  * drivers/gpu/drm/amd/include/asic_reg/dce/dce_11_2_d.h and
  * dce_11_2_sh_mask.h (MIT licensed, Copyright (C) 2016 Advanced Micro Devices,
  * Inc.), the MMIO byte offset being the index times 4 (amdgpu_device.c,
@@ -27,13 +33,13 @@
  * wait for the update to land). Linux also keeps the panel off at least 500 ms
  * (eDP T12) before powering it on again; so does this file.
  *
- * Every write is read back and logged (`screen: panel off: PWRSEQ_CNTL
- * 0x... -> 0x...`); a readback that differs from what was written, or a wait
- * that runs out (every wait is TSC-bounded) stops the sequence, says so, and
- * from then on the panel is left alone: a black screen is the fallback. A wake
- * after a failed off still tries to put the panel back on. Built in with
- * CK_X86_PANEL_OFF=1 (the default of `make imac-kernel`); without it, or when
- * there is no such chip (QEMU), everything here says so once and does nothing.
+ * Every write is read back and logged; bounded waits require the sequencer's
+ * reported BLON/DIGON state to match, including firmware override mode.
+ * Off returns 0 only after these checks, not merely after painting black.
+ * A failed off remains eligible for a restore attempt, but further off
+ * attempts are disabled. The rest policy in kmain_x86.c uses ACPI S5 when
+ * off cannot be confirmed. These register checks are not optical evidence.
+ * Built with CK_X86_PANEL_OFF=1; disabled or unknown hardware returns -1.
  * QEMU runs of this file qualify nothing physical. */
 #include "../core/ck_internal.h"
 #include "x86.h"
@@ -175,7 +181,7 @@ void ck_x86_panel_start(volatile uint8_t *cfg, unsigned bus, unsigned dev, unsig
     p.hz = tsc_hz;
     p.why = "no display chip on the PCI bus owns the framebuffer";
     if (!cfg) {
-        ck_printf("screen: panel: %s; asleep the screen is painted black and stays lit\n", p.why);
+        ck_printf("screen: panel: %s; reversible panel off unavailable (rest uses ACPI S5)\n", p.why);
         return;
     }
     uint32_t lo0 = cr32(cfg, 0x10), hi0 = (lo0 & 6) == 4 ? cr32(cfg, 0x14) : 0;
@@ -202,7 +208,7 @@ void ck_x86_panel_start(volatile uint8_t *cfg, unsigned bus, unsigned dev, unsig
         why = "the register aperture could not be mapped";
     if (why) {
         p.why = why;
-        ck_printf("screen: panel: %s; asleep the screen is painted black and stays lit\n", p.why);
+        ck_printf("screen: panel: %s; reversible panel off unavailable (rest uses ACPI S5)\n", p.why);
         return;
     }
     p.regs = (volatile uint32_t *)(uintptr_t)bar5;
@@ -213,19 +219,21 @@ void ck_x86_panel_start(volatile uint8_t *cfg, unsigned bus, unsigned dev, unsig
               rd(mmLVTMA_PWRSEQ_DELAY2), bl, rd(mmBL_PWM_PERIOD_CNTL), rd(mmBL_PWM_GRP1_REG_LOCK));
     if (cntl == 0xffffffffu || state == 0xffffffffu) {
         p.why = "the panel registers answer all ones (the chip is not awake, or not this register map)";
-    } else if ((cntl & PWRSEQ_EN) && (cntl & PWRSEQ_TARGET_STATE) && (state & STATE_TARGET_R)) {
+    } else if ((cntl & PWRSEQ_EN) && (cntl & PWRSEQ_TARGET_STATE) &&
+               (state & (STATE_TARGET_R | STATE_DONE | STATE_BLON | STATE_DIGON)) ==
+               (STATE_TARGET_R | STATE_DONE | STATE_BLON | STATE_DIGON)) {
         p.ovrd = 0;
         p.ready = 1;
     } else if ((cntl & (PWRSEQ_DIGON | PWRSEQ_DIGON_OVRD | PWRSEQ_BLON | PWRSEQ_BLON_OVRD)) ==
-               (PWRSEQ_DIGON | PWRSEQ_DIGON_OVRD | PWRSEQ_BLON | PWRSEQ_BLON_OVRD)) {
+               (PWRSEQ_DIGON | PWRSEQ_DIGON_OVRD | PWRSEQ_BLON | PWRSEQ_BLON_OVRD) &&
+               (state & (STATE_BLON | STATE_DIGON)) == (STATE_BLON | STATE_DIGON)) {
         p.ovrd = 1; /* the firmware drives the pins directly: so will this kernel */
         p.ready = 1;
     } else {
-        p.why = "the panel power sequencer is not driving the panel (neither its target state nor the override bits "
-                "say it is on)";
+        p.why = "the panel power sequencer/override state does not confirm an awake panel";
     }
     if (!p.ready) {
-        ck_printf("screen: panel: %s; asleep the screen is painted black and stays lit\n", p.why);
+        ck_printf("screen: panel: %s; reversible panel off unavailable (rest uses ACPI S5)\n", p.why);
         return;
     }
     p.blpwm = (bl & BL_PWM_EN) != 0;
@@ -261,8 +269,13 @@ int ck_x86_panel_off(void)
         wait_ms(T_BL_OFF_MS);
         if (wr("off", "PWRSEQ_CNTL", mmLVTMA_PWRSEQ_CNTL, rd(mmLVTMA_PWRSEQ_CNTL) & ~PWRSEQ_DIGON, PWRSEQ_DIGON))
             return -1;
+        /* Control readback alone does not establish that the output pins
+         * followed the firmware override. Check the same existing state
+         * register used by the sequencer path; do not invent another path. */
+        if (wait_reg("off", "PWRSEQ_STATE", mmLVTMA_PWRSEQ_STATE, STATE_BLON | STATE_DIGON, 0, SEQ_MS))
+            return -1;
     }
-    ck_puts("screen: panel off\n");
+    ck_puts("screen: panel off (register state confirmed; physical darkness not measured)\n");
     return 0;
 }
 
@@ -270,7 +283,6 @@ int ck_x86_panel_on(void)
 {
     if (!p.ready || !p.off)
         return -1;
-    p.off = 0;
     /* the panel stays off at least T12 before it is powered again */
     uint64_t since = (ck_rdtsc() - p.off_t) * 1000 / p.hz;
     if (since < T12_MS)
@@ -286,11 +298,15 @@ int ck_x86_panel_on(void)
         rc |= wr("on", "PWRSEQ_CNTL", mmLVTMA_PWRSEQ_CNTL, cntl | PWRSEQ_DIGON, PWRSEQ_DIGON);
         wait_ms(T_ON_MS);
         rc |= wr("on", "PWRSEQ_CNTL", mmLVTMA_PWRSEQ_CNTL, rd(mmLVTMA_PWRSEQ_CNTL) | PWRSEQ_BLON, PWRSEQ_BLON);
+        rc |= wait_reg("on", "PWRSEQ_STATE", mmLVTMA_PWRSEQ_STATE, STATE_BLON | STATE_DIGON,
+                       STATE_BLON | STATE_DIGON, SEQ_MS);
     }
     /* then the backlight duty as it was */
     if (p.blpwm)
         rc |= bl_duty("on", p.bl0);
-    ck_puts(rc ? "screen: panel on, but not every step took (see above)\n" : "screen: panel on\n");
+    if (!rc)
+        p.off = 0; /* a failed restore must not be reported as already awake */
+    ck_puts(rc ? "screen: panel on not confirmed (see above)\n" : "screen: panel on (register state confirmed)\n");
     return rc ? -1 : 0;
 }
 #else
@@ -303,9 +319,9 @@ void ck_x86_panel_start(volatile uint8_t *cfg, unsigned bus, unsigned dev, unsig
         return;
     if (cfg)
         ck_printf("screen: panel: display chip %04x:%04x seen; this build (CK_X86_PANEL_OFF=0) never switches the "
-                  "panel; asleep the screen is painted black and stays lit\n", vendor, device);
+                  "panel; reversible panel off unavailable (rest uses ACPI S5)\n", vendor, device);
     else
-        ck_puts("screen: panel: no display chip on the PCI bus owns the framebuffer; asleep the screen is painted black and stays lit\n");
+        ck_puts("screen: panel: no display chip on the PCI bus owns the framebuffer; reversible panel off unavailable (rest uses ACPI S5)\n");
 }
 int ck_x86_panel_ready(void) { return 0; }
 int ck_x86_panel_off(void) { return -1; }

@@ -22,10 +22,20 @@
 #include "../../svc/allen_reply.h"
 #include "../allen_font.h"
 #include "../allen_ui.h"
+#include "../flow.h"
 #include "../night.h"
 #include "../setup_view.h"
 
 static int checks, fails;
+static const char help_reply[] =
+    "I remember what you teach me and keep notes. Goodbye turns the display off, "
+    "or powers off if display sleep is unavailable.";
+static unsigned flow_marks;
+static void flow_mark(ck_rect r)
+{
+    if (r.w > 0 && r.h > 0)
+        flow_marks++;
+}
 #define CHECK(cond, what)                                                                                     \
     do {                                                                                                     \
         checks++;                                                                                            \
@@ -444,7 +454,7 @@ int main(int argc, char **argv)
             {"tell me a joke", "", 3663},
             {"thank you", "You're welcome, Drake.", 3664},
             {"can you remember things", "Teach me like this: remember my favorite color is blue.", 3665},
-            {"help", "I learn what you teach me (remember my car is red) and keep notes", 3666},
+            {"help", help_reply, 3666},
             {"i'm fine", "Glad to hear it.", 3667},
             {"blorp", "I don't know that yet.", 3668},
         };
@@ -488,8 +498,7 @@ int main(int argc, char **argv)
               "self: forgetting what he was taught keeps his name");
         ck_allen_mind_init(&m, 0);
         ck_allen_welcome(&m);
-        CHECK(!strncmp(ck_allen_answer(&m, "what can you do", 1), "I learn what you teach me", 25) && !m.naming &&
-                  !m.mem.self[0],
+        CHECK(!strcmp(ck_allen_answer(&m, "what can you do", 1), help_reply) && !m.naming && !m.mem.self[0],
               "self: any other line drops the question, he stays Allen");
         CHECK(!strcmp(ck_allen_answer(&m, "what's your name", 2),
                       "My name is Allen. You can give me another: call yourself, then a name."),
@@ -568,6 +577,96 @@ int main(int argc, char **argv)
               "intent: a long answer is cut to the buffer");
     }
 
+    {
+        /* A fluid strip must sample the same global grid as a full frame,
+         * and a refresh cannot expose solver changes that were not marked. */
+        const int32_t w = 1920, h = 1080;
+        size_t bytes = (size_t)w * h * sizeof(uint32_t);
+        uint32_t *whole = calloc(1, bytes), *parts = calloc(1, bytes);
+        static ck_flow water;
+        ck_flow_init(&water, w, h, w / 2, h / 2, 118, w / 2, h, 0);
+        for (unsigned i = 0; i < CK_FLOW_CELLS; i++) {
+            water.d[i] = 65536 / 2 + 255;
+            water.warm[i] = i & 1 ? 256 : 0;
+        }
+        flow_marks = 0;
+        ck_flow_mark(&water, flow_mark);
+        CHECK(flow_marks > 0, "flow: changed solver cells publish their rendered snapshot");
+        ck_canvas full = {whole, w, h}, tiled = {parts, w, h};
+        ck_rect all = {0, 0, w, h};
+        ck_flow_draw(&water, &full, &all, 256);
+        for (int32_t y = 0; y < h; y += CK_FLOW_H)
+            for (int32_t x = 0; x < w; x += CK_FLOW_W) {
+                ck_rect r = {x, y, (int32_t)CK_FLOW_W, (int32_t)CK_FLOW_H};
+                ck_flow_draw(&water, &tiled, &r, 256);
+            }
+        CHECK(!memcmp(whole, parts, bytes),
+              "flow: exact grid remainder makes full and clipped draws byte-identical");
+        unsigned marks = flow_marks;
+        for (unsigned i = 0; i < CK_FLOW_CELLS; i++)
+            water.d[i]++;
+        ck_flow_mark(&water, flow_mark);
+        memset(parts, 0, bytes);
+        ck_flow_draw(&water, &tiled, &all, 256);
+        CHECK(flow_marks == marks && !memcmp(whole, parts, bytes),
+              "flow: below-threshold changes cannot leak into full refreshes");
+        for (unsigned i = 0; i < CK_FLOW_CELLS; i++)
+            water.d[i] = 0;
+        ck_flow_mark(&water, flow_mark);
+        memset(parts, 0, bytes);
+        ck_flow_draw(&water, &tiled, &all, 256);
+        int black = 1;
+        for (size_t i = 0; i < (size_t)w * h; i++)
+            black &= parts[i] == 0;
+        CHECK(flow_marks > marks && black, "flow: a published disappearance leaves no stale ink");
+        free(whole);
+        free(parts);
+    }
+
+    /* Display bytes are sRGB; coverage must weigh decoded light. These
+     * checks distinguish the transfer-table path from encoded-byte scaling. */
+    {
+        uint32_t ink = CK_RGB(234, 238, 252), white = CK_RGB(255, 255, 255);
+        uint32_t half = (ck_sky_srgb16[ck_sky_lin[255] * 128u >> 11] + 8u) >> 4;
+        uint32_t expected = CK_RGB(half, half, half);
+        CHECK(ck_scale(white, 128) == expected && ck_mix(0, white, 128) == expected &&
+                  ck_add(0, white, 128) == expected && half > 128,
+              "paint: half light is encoded after weighting, not half an sRGB byte");
+        int endpoints = 1, stable = 1, monotone = 1;
+        uint32_t previous = 0;
+        for (uint32_t c = 0; c <= 255; c++) {
+            uint32_t color = CK_RGB(c, c, c);
+            endpoints &= ck_scale(color, 0) == 0 && ck_scale(color, 256) == color &&
+                         ck_mix(ink, color, 0) == ink && ck_mix(ink, color, 256) == color &&
+                         ck_add(0, color, 256) == color && ck_add(color, ink, 0) == color;
+            for (uint32_t a = 0; a <= 256; a++)
+                stable &= ck_mix(color, color, a) == color &&
+                          ck_ch(ck_add(color, CK_RGB(0, 0, 255), a), 16) == c;
+        }
+        for (uint32_t a = 0; a <= 256; a++) {
+            uint32_t value = ck_scale(white, a);
+            monotone &= value >= previous;
+            previous = value;
+        }
+        CHECK(endpoints && stable, "paint: opaque/black endpoints and untouched channels remain exact");
+        CHECK(monotone, "paint: light fades monotonically all the way to pure black");
+
+        uint32_t hpx[64 * 64] = {0}, vpx[64 * 64] = {0}, thin[64 * 64] = {0};
+        ck_canvas hc = {hpx, 64, 64}, vc = {vpx, 64, 64}, tc = {thin, 64, 64};
+        ck_rect clip = {0, 0, 64, 64};
+        ck_thread(&hc, &clip, 4 * 16, 16 * 16 + 8, 48 * 16, 16 * 16 + 8, 32, white, 256, 256);
+        ck_thread(&vc, &clip, 16 * 16 + 8, 4 * 16, 16 * 16 + 8, 48 * 16, 32, white, 256, 256);
+        ck_thread(&tc, &clip, 4 * 16, 16 * 16 + 8, 48 * 16, 16 * 16 + 8, 16, white, 256, 256);
+        int transpose = 1;
+        for (unsigned y = 0; y < 64; y++)
+            for (unsigned x = 0; x < 64; x++)
+                transpose &= hpx[y * 64 + x] == vpx[x * 64 + y];
+        CHECK(transpose && hpx[16 * 64 + 20] == white && hpx[15 * 64 + 20] == expected &&
+                  hpx[17 * 64 + 20] == expected && thin[16 * 64 + 20] == white &&
+                  thin[15 * 64 + 20] == 0 && thin[17 * 64 + 20] == 0,
+              "paint: native-scaled threads widen symmetrically, including vertical edges");
+    }
+
     /* ---- typeface ---- */
     CHECK(ck_af_isqrt(0) == 0 && ck_af_isqrt(15) == 3 && ck_af_isqrt(16) == 4 &&
               ck_af_isqrt(1000000007ull * 1000000007ull) == 1000000007ull,
@@ -607,6 +706,33 @@ int main(int argc, char **argv)
     ck_af_face_init(&small, 30, 1250, tiny, sizeof tiny);
     CHECK(ck_af_glyph_get(&small, 'W') == 0, "font: a full pool refuses instead of overrunning");
 
+    {
+        uint32_t pixels[64 * 64] = {0};
+        ck_canvas cv = {pixels, 64, 64};
+        ck_rect clip = {0, 0, 64, 64};
+        ck_letter(&cv, &clip, &face, 16 * 256, 48, 'o', CK_RGB(255, 255, 255), 128, 0);
+        int exact = 1;
+        unsigned fractional = 0;
+        for (int y = 0; o && y < o->h; y++)
+            for (int x = 0; x < o->w; x++) {
+                int px = 16 + o->ox + x, py = 48 + o->oy + y;
+                uint32_t cov = o->alpha[y * o->w + x], weight = (cov + (cov >> 7)) * 128 >> 8;
+                uint32_t level = (ck_sky_srgb16[ck_sky_lin[255] * weight >> 11] + 8u) >> 4;
+                if (px >= 0 && py >= 0 && px < 64 && py < 64)
+                    exact &= pixels[py * 64 + px] == CK_RGB(level, level, level);
+                fractional += cov > 0 && cov < 255;
+            }
+        CHECK(exact && fractional, "font: real glyph AA coverage is composed as light");
+        uint32_t ink = CK_RGB(234, 238, 252);
+        for (unsigned i = 0; i < 64 * 64; i++)
+            pixels[i] = ink;
+        ck_letter(&cv, &clip, &face, 16 * 256, 48, 'o', ink, 256, 0);
+        exact = 1;
+        for (unsigned i = 0; i < 64 * 64; i++)
+            exact &= pixels[i] == ink;
+        CHECK(exact, "font: matching ink/background does not darken at AA edges");
+    }
+
     /* ---- Allen's home at 3840 x 2160, BGRX ---- */
     uint32_t W = 3840, H = 2160;
     uint32_t *fb = calloc((size_t)W * H, 4), *copy = malloc((size_t)W * H * 4), *sky = malloc((size_t)W * H * 4);
@@ -616,6 +742,63 @@ int main(int argc, char **argv)
     CHECK(ck_allen_ui_start(fb, W, H, W, 1, mem, need - 1, 1000000, 0, real_us) == -1, "ui: short memory refused");
     CHECK(ck_allen_ui_start(fb, W, H, W, 2, mem, need, 1000000, 0, real_us) == -1, "ui: unknown pixel format refused");
     CHECK(bare_init(W, H, sky) == 0, "night: the bare sky for the checks");
+    {
+        /* No pull and no shading must be the native kept picture, including
+         * single-pixel contrast and its final row/column. Dimming must not
+         * select a lower-resolution copy either. */
+        static ck_night n;
+        uint32_t source[64 * 64], background[64 * 64] = {0}, resolved[64 * 64], previous[64 * 64];
+        n.w = n.h = 64;
+        n.k = 256;
+        n.cx = n.cy = -64;
+        n.sky = background;
+        for (unsigned y = 0; y < 64; y++)
+            for (unsigned x = 0; x < 64; x++)
+                source[y * 64 + x] = (x + y) & 1 ? CK_RGB(255, 255, 255) : 0;
+        void *storage = malloc(ck_night_picture_bytes(64, 64));
+        ck_night_picture kept;
+        ck_night_picture_take(&n, source, storage, &kept);
+        ck_canvas cv = {resolved, 64, 64};
+        ck_rect clip = {0, 0, 64, 64};
+        ck_night_dusk d = {.crowd = 256, .keep = 256};
+        ck_night_fall(&n, &d);
+        ck_night_base_from(&n, &kept, &cv, &clip);
+        CHECK(!memcmp(source, resolved, sizeof source), "dusk: unwarped picture resolves every native pixel and edge");
+        uint32_t half = (ck_sky_srgb16[ck_sky_lin[255] * 128u >> 11] + 8u) >> 4;
+        CHECK(kept.level[1][0] == CK_RGB(half, half, half),
+              "dusk: minification averages light instead of darkening encoded contrast");
+        memcpy(previous, resolved, sizeof previous);
+        int monotone = 1, detail = 1;
+        for (uint32_t keep = 128; keep; keep >>= 1) {
+            d.keep = keep;
+            ck_night_fall(&n, &d);
+            ck_night_base_from(&n, &kept, &cv, &clip);
+            for (unsigned i = 0; i < 64 * 64; i++) {
+                monotone &= resolved[i] <= previous[i];
+                detail &= resolved[i] == ck_scale(source[i], keep);
+            }
+            memcpy(previous, resolved, sizeof previous);
+        }
+        CHECK(monotone && detail && resolved[1] != 0 && resolved[0] == 0,
+              "dusk: faint picture stays pixel-resolved, nonblack and monotonically dimming");
+        d.keep = 0;
+        ck_night_fall(&n, &d);
+        ck_night_base_from(&n, &kept, &cv, &clip);
+        int black = 1;
+        for (unsigned i = 0; i < 64 * 64; i++)
+            black &= resolved[i] == 0;
+        CHECK(black, "dusk: zero light resolves to pure black at every native pixel");
+        free(storage);
+
+        ck_night_at(&bare_night, CK_NIGHT_MERGE_MS + CK_NIGHT_RIPPLE_MS);
+        ck_canvas native = {copy, (int32_t)W, (int32_t)H};
+        ck_rect whole = {0, 0, (int32_t)W, (int32_t)H};
+        ck_night_base(&bare_night, &native, &whole);
+        CHECK(!memcmp(copy, bare_night.sky, (size_t)W * H * 4) &&
+                  ck_night_faded(&bare_night, 0, 0, 0) == 256 &&
+                  ck_night_faded(&bare_night, (int32_t)W - 1, (int32_t)H - 1, 255) == 256,
+              "night: settled 4K stars and diffuse sky are native, unscaled and fully unfaded");
+    }
     uint64_t t_init = real_us();
     CHECK(ck_allen_ui_start(fb, W, H, W, 1, mem, need, 1000000, 0, real_us) == 0, "ui: starts at 3840x2160");
     printf("note: the night made in %llu ms (this host)\n", (unsigned long long)((real_us() - t_init) / 1000));
@@ -668,19 +851,36 @@ int main(int argc, char **argv)
         png(path, fb, W, 1, cx - 600, cy - 500, 1200, 1000, 1);
     }
     /* awake: the bar comes up */
-    ck_allen_ui_wake("Type goodbye and this computer rests; any key wakes it", now_us);
+    const char *footer = "Type goodbye to turn the display off";
+    ck_allen_ui_wake(footer, now_us);
     run_to(17800);
     CHECK(ck_allen_ui_on(), "ui: on");
     unsigned bar0 = added(&P, sky, bx, by, bw, bh);
     CHECK(bar0 > 2500, "bar: up once he is awake, with its hint");
-    CHECK(added(&P, sky, 0, by + bh + 10, W, H - by - bh - 10) > 1000, "bar: the footer under the empty bar");
+    memcpy(copy, fb, (size_t)W * H * 4);
+    ck_allen_ui_wake(0, now_us);
+    ck_allen_ui_refresh();
+    ck_allen_ui_tick(now_us - 16000);
+    CHECK(memcmp(copy, fb, (size_t)W * H * 4) != 0, "bar: removing the footer changes the empty bar's picture");
+    ck_allen_ui_wake(footer, now_us);
+    ck_allen_ui_refresh();
+    ck_allen_ui_tick(now_us - 16000);
+    CHECK(!memcmp(copy, fb, (size_t)W * H * 4), "bar: restoring the footer restores exactly the empty bar's picture");
     const char *typed = "Hello Allen";
     for (unsigned i = 1; i <= 11; i++) {
         ck_allen_ui_input(typed, i, now_us);
         run_to((uint32_t)(now_us / 1000) + 120);
     }
     CHECK(count(&P, bx, by, bw, bh, BRIGHT) > 500, "bar: what is typed appears in it");
-    CHECK(added(&P, sky, 0, by + bh + 10, W, H - by - bh - 10) < 400, "bar: the footer goes while typing");
+    memcpy(copy, fb, (size_t)W * H * 4);
+    ck_allen_ui_wake(0, now_us);
+    ck_allen_ui_refresh();
+    ck_allen_ui_tick(now_us - 16000);
+    CHECK(!memcmp(copy, fb, (size_t)W * H * 4), "bar: removing the footer changes no pixel while typing");
+    ck_allen_ui_wake(footer, now_us);
+    ck_allen_ui_refresh();
+    ck_allen_ui_tick(now_us - 16000);
+    CHECK(!memcmp(copy, fb, (size_t)W * H * 4), "bar: restoring the footer changes no pixel while typing");
     if (dir) {
         snprintf(path, sizeof path, "%s/allen-2-typing.png", dir);
         png(path, fb, W, 1, 0, 0, W, H, 2);

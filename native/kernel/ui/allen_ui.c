@@ -214,7 +214,6 @@ static struct {
     ck_rect jobs[JOBS_MAX];
     volatile uint64_t ticket; /* count << 16 | next; claimed with compare-and-swap */
     volatile uint32_t done;
-    unsigned twinkle_turn;
     ck_rect flash_was, lens_was;
     int32_t ripple_was;
     uint32_t frames, slowest, total_ticks;
@@ -694,7 +693,7 @@ static void draw_map(const ck_rect *r, uint32_t t)
         int32_t x0, y0, x1, y1;
         map_point(ui.ea[i], &x0, &y0);
         map_point(ui.eb[i], &x1, &y1);
-        ck_thread(&ui.cv, r, x0, y0, x1, y1, CK_RGB(130, 150, 255), 70 * A >> 8, 70 * A >> 8);
+        ck_thread(&ui.cv, r, x0, y0, x1, y1, (int32_t)ui.k / 16, CK_RGB(130, 150, 255), 70 * A >> 8, 70 * A >> 8);
     }
     for (unsigned j = 0; j < ui.n; j++) {
         int32_t x, y;
@@ -853,7 +852,6 @@ static void horizon_at(uint32_t d)
     k.keep = 256 - ck_ease_out(ck_prog(d, 2800, 4000));
     k.near = S(260) * 16, k.far = ui.far16;
     k.shade = 230 * ck_smooth(ck_prog(d, 400, 2600)) >> 8;
-    k.fine = S(300) * 16;
     ck_night_fall(&ui.night, &k);
 }
 
@@ -1199,9 +1197,10 @@ static void advance(uint32_t t)
     mark(ui.flash_was);
     mark(fb);
     ui.flash_was = fb;
-    for (unsigned i = ui.twinkle_turn % 3; i < ui.night.ntw; i += 3)
+    /* Every twinkle is evaluated at this frame's time when a strip is
+     * drawn, so invalidate every twinkle's footprint at the same time. */
+    for (unsigned i = 0; i < ui.night.ntw; i++)
         mark(ck_night_star_box(&ui.night, i));
-    ui.twinkle_turn++;
 
     /* the conversation: speaking starts, words reach the mind and the galaxies */
     if (ui.speak_t && t >= ui.speak_t) {

@@ -20,7 +20,7 @@
 #           first ("Welcome back, Drake. I still remember 1 thing you taught me,
 #           and your 1 note."), answers "what is my favorite color", "what is
 #           the gate code" and "how many times have you restarted" from the
-#           disk, then goodbye (Allen sleeps; QEMU is then stopped).
+#           disk, then goodbye (the unsupported QEMU display selects ACPI S5).
 #   other   a copy of the disk after boot 1 on another machine, under a model
 #           on no list ("WDC WD10EZEX"): the section alone makes it Allen's,
 #           memory and the note load (booting anywhere).
@@ -136,9 +136,9 @@ say() {
     echo "sendkey ret" >&3
     exec 3>&-
 }
-off() { # name: after goodbye Allen sleeps (the kernel says so within a few seconds); then QEMU is stopped
+off() { # name: QEMU has no supported panel, so goodbye selects ACPI S5 after the black frame
     local r=1
-    wait_for "$1" 60 '^power: Allen asleep' && r=0
+    wait_for "$1" 60 '^power: off via ACPI S5 ' && r=0
     stop "$1"
     return $r
 }
@@ -186,8 +186,8 @@ else
     fail "1: the note was not written first"
 fi
 chk "1: goodbye saves the line count" "${work}/one.txt" '^allen_memory: saved generation 5 to copy [AB] \(1 fact, 1 note\)'
-chk "1: Allen asleep after goodbye" "${work}/one.txt" '^power: Allen asleep'
-[[ ${b1_off} == 1 ]] && pass "1: sleep seen before QEMU was stopped" || fail "1: no sleep after goodbye"
+chk "1: ACPI S5 after goodbye" "${work}/one.txt" '^power: off via ACPI S5 '
+[[ ${b1_off} == 1 ]] && pass "1: S5 requested before QEMU cleanup" || fail "1: no S5 after goodbye"
 nochk "1: no write refused by the fence" "${work}/one.txt" 'ahci_write: .*refused'
 nochk "1: no failed save" "${work}/one.txt" 'save FAILED'
 
@@ -262,8 +262,8 @@ chk "2: Allen welcomes Drake back first" "${work}/two.txt" '^allen: Welcome back
 chk "2: the fact remembered across the power off" "${work}/two.txt" '^allen: Your favorite color is blue\.$'
 chk "2: the note handed back across the power off" "${work}/two.txt" '^allen: From your notes: the gate code is 4471\.$'
 chk "2: the start count remembered" "${work}/two.txt" "^allen: This is start number 2 for me, and I've answered [0-9]+ lines in all\.\$"
-chk "2: Allen asleep after goodbye" "${work}/two.txt" '^power: Allen asleep'
-[[ ${b2_off} == 1 ]] && pass "2: sleep seen before QEMU was stopped" || fail "2: no sleep after goodbye"
+chk "2: ACPI S5 after goodbye" "${work}/two.txt" '^power: off via ACPI S5 '
+[[ ${b2_off} == 1 ]] && pass "2: S5 requested before QEMU cleanup" || fail "2: no S5 after goodbye"
 nochk "2: no write refused by the fence" "${work}/two.txt" 'ahci_write: .*refused'
 
 echo "== other: the same section on another machine, under a model on no list =="

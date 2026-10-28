@@ -366,20 +366,29 @@ void ck_flow_draw(const ck_flow *f, ck_canvas *out, const ck_rect *r, uint32_t g
     if (!ck_clip(&c, &all))
         return;
     const uint32_t cool = CK_RGB(64, 86, 196), warm = CK_RGB(255, 228, 196);
-    int64_t dgx = ((int64_t)1 << 24) / f->cw, dgy = ((int64_t)1 << 24) / f->ch; /* grid per pixel, 16.16 */
-    int64_t gy = cell_y(f, c.y);
-    for (int32_t y = c.y; y < c.y + c.h; y++, gy += dgy) {
+    /* Render the snapshot published by ck_flow_mark, not sub-threshold
+     * solver changes that did not invalidate their tiles. A full refresh
+     * must see exactly the same ink as an incremental redraw. */
+    int64_t dgx = ((int64_t)1 << 24) / f->cw, rgx = ((int64_t)1 << 24) % f->cw;
+    int64_t numerator = ((int64_t)c.x << 24) + f->cw / 2;
+    int64_t gx0 = numerator / f->cw + Q, rx0 = numerator % f->cw;
+    for (int32_t y = c.y; y < c.y + c.h; y++) {
+        int32_t gy = cell_y(f, y);
         uint32_t *px = out->px + (size_t)y * (size_t)out->w;
-        int64_t gx = cell_x(f, c.x);
-        for (int32_t x = c.x; x < c.x + c.w; x++, gx += dgx) {
-            int32_t ink = sample(f->d, (int32_t)gx, (int32_t)gy);
+        int64_t gx = gx0, rx = rx0;
+        for (int32_t x = c.x; x < c.x + c.w; x++, gx += dgx, rx += rgx) {
+            /* Carry the division remainder: sampling is independent of
+             * where a clipped strip starts, without per-pixel division. */
+            if (rx >= f->cw)
+                rx -= f->cw, gx++;
+            int32_t ink = sample(f->shown, (int32_t)gx, gy);
             if (ink < Q / 512)
                 continue;
             uint32_t a = (uint32_t)(((int64_t)ink * gain) >> 16);
             a = a > 230 ? 230 : a;
             /* the colour: still water deep blue, moving water lit from within */
-            int32_t gxx = ck_clamp((int32_t)gx - HALF, 0, (W + 1) * Q - 1), gyy = ck_clamp((int32_t)gy - HALF, 0, (H + 1) * Q - 1);
-            uint32_t w = f->warm[IX(gxx >> 16, gyy >> 16)];
+            int32_t gxx = ck_clamp((int32_t)gx - HALF, 0, (W + 1) * Q - 1), gyy = ck_clamp(gy - HALF, 0, (H + 1) * Q - 1);
+            uint32_t w = f->shown_warm[IX(gxx >> 16, gyy >> 16)];
             uint32_t col = ck_mix(cool, warm, w);
             px[x] = ck_add(px[x], col, a);
         }

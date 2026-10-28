@@ -67,9 +67,11 @@ void ck_flow_touch(ck_flow *f, int32_t px, int32_t py, int32_t vx, int32_t vy, i
 void ck_flow_at(ck_flow *f, uint32_t t);
 /* The water's velocity at a point, px per second (for things that float on it). */
 void ck_flow_velocity(const ck_flow *f, int32_t px, int32_t py, int32_t *vx, int32_t *vy);
-/* Calls mark(rect) for every cell whose ink changed enough to redraw since the last call. */
+/* Publishes each cell whose ink changed enough to redraw, calling mark(rect)
+ * for its interpolation footprint. Call after ck_flow_at, before drawing. */
 void ck_flow_mark(ck_flow *f, void (*mark)(ck_rect));
-/* The ink into the part r of out (light added). gain scales the brightness (256 = as is). */
+/* The published ink snapshot into r of out (light added). gain scales
+ * brightness (256 = as is); full and incremental draws see the same state. */
 void ck_flow_draw(const ck_flow *f, ck_canvas *out, const ck_rect *r, uint32_t gain);
 /* Total ink in the tank, 16.16 (for tests: it rises when touched and fades when left). */
 int64_t ck_flow_ink(const ck_flow *f);
