@@ -34,6 +34,17 @@ Toolchain: gcc, binutils (ld, objcopy, nm, readelf), make, shell. On a
 non-aarch64 host the Makefile uses the `aarch64-linux-gnu-` prefix.
 Output lands in `<repo>/target/native-kernel` (ignored by git).
 
+The attended Spark input image is `make full CK_SPARK_INPUT=1` (output
+`target/native-kernel-spark-input/spark-input/BOOTAA64.EFI`): PCI discovery,
+confined xHCI/HID bounded boot shell, then RTL8127 UDP snapshot and release,
+with no NVMe, Store or Allen stage linked. For hardware staging add
+`CK_HARDWARE_STAGING=1 CK_OWNER_PUBKEYS=... CK_MACHINE_ID=...`; the existing
+owner-material refusals are unchanged and the subdirectory is
+`spark-input-hardware-staging`. Do not use the storage-bearing
+`full CK_RTL8127=1` image instead. Sustained `CK_CONSOLE_SESSION` stays
+QEMU-only. Procedure and physical NOT_RUN boundary:
+`docs/campaigns/SPARK-BOOT-INPUT-20261028.md` from the repository root.
+
 ## Owner provisioning (hardware staging image)
 
 The default and QEMU images use the labelled TEST Store keys

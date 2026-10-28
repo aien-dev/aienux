@@ -71,8 +71,8 @@ Aienux leaves out, on purpose: MAC MCU patch code (hw_mac_mcu_config), PCIe EPHY
 |---|---|---|
 | Driver core (polled, one DMA region, TX no-close, RX type 1, IRQs masked) | `native/net/aienos_rtl8127.{h,c}` | `native/net/tests/rtl8127_test.c` (chip model, `make -C native/net test`, also under ASan/UBSan in `make sanitize`) |
 | Boot report frames, tag `AIENUX-SPARK-REPORT`, UDP 47031 broadcast, iMac wire format | `native/net/aienos_report.{h,c}` | `rtl8127_test.c` (report sent through the driver and rebuilt from the model's wire), `scripts/ck_spark_report_test.sh` (loopback to the receiver) |
-| Receiver (now accepts the Spark tag, writes `spark-<run>.txt`) | `native/kernel/tools/ck_imac_report_listen.c` | `scripts/ck_spark_report_test.sh`, `scripts/ck_imac_report_test.sh` |
-| Kernel binding: find 10ec:8127 in the multi-segment discovery, SMMU window first, BAR 2, init, link wait (10 s), report every 2 s for 20 s, receive count, release | `native/kernel/dev/rtl8127_bind.{h,c}`, called from `dev/devices.c` only in a `CK_RTL8127=1` build | `stage_test` case `test_rtl8127_bind` (absent, no SMMU: denied with memory decode and bus master off, bad BAR) |
+| Receiver (accepts the Spark tag, writes `spark-<run>.unauthenticated.txt`; separate iMac/Spark run namespaces) | `native/kernel/tools/ck_imac_report_listen.c` | `scripts/ck_spark_report_test.sh`, `scripts/ck_imac_report_test.sh` |
+| Kernel binding: find 10ec:8127 in the multi-segment discovery, SMMU window first, BAR 2, init, link wait (10 s), report every 2 s for 20 s, receive count, release | `native/kernel/dev/rtl8127_bind.{h,c}`, called from `dev/devices.c` only in a `CK_RTL8127=1` build | `stage_test` case `test_rtl8127_bind` (absent, denied before bus master, bad BAR, refused unconfine retains grant and refuses rebind, later release succeeds) |
 
 The chip model is written from the same vendor source as the driver. It proves the driver does what the
 reference does, stays inside its DMA region, survives hostile completions, and moves frames intact
@@ -113,8 +113,8 @@ interrupt mask, RX repost) was killed by the test every time.
 
 ## How attended boot #2 uses it
 
-Build the full image with `make -C native/kernel full CK_RTL8127=1` (output `$(OUT)/full/BOOTAA64.EFI`; the binding call and the RAM console copy are added there; the core-only `make` image has no devices stage, so it never binds the NIC). On another machine
-on the same LAN, run `ck_imac_report_listen 47031 OUTDIR 120`
-(`make -C native/kernel imac-report-listen`); the Spark's log arrives as `OUTDIR/spark-<run>.txt`.
-The image never takes the chip out of the devices stage with DMA live: every path ends in
-`rtl8127: chip stop`, `dma_gate: rtl8127 bus master revoked`, `smmu: rtl8127 stream ... returned to abort`.
+The storage-free input candidate is `make -C native/kernel full CK_SPARK_INPUT=1 CK_HARDWARE_STAGING=1 CK_OWNER_PUBKEYS=<existing-public-file> CK_MACHINE_ID=<existing-id-file>`. It links only PCI discovery, xHCI/HID/keyboard and RTL8127/report stages, not NVMe, Store or Allen. The existing owner provisioning refusal remains in force. See `campaigns/SPARK-BOOT-INPUT-20261028.md` for the attended procedure and artifact boundaries. The old `full CK_RTL8127=1` target also includes storage and is **not** the candidate.
+
+On the iMac or MacBook on the same isolated Ethernet LAN, run `ck_imac_report_listen 47031 OUTDIR 300` (build with `make -C native/kernel imac-report-listen` or the procedure's standalone C command). The Spark log arrives as `OUTDIR/spark-<run>.unauthenticated.txt`. These broadcasts are readable and forgeable by LAN peers; they are observations, not signed receipts or authority. The snapshot is taken after the bounded keyboard phase/revoke, before RTL initialization/transmit; it cannot attest its own successful NIC release or the later final report. Capture those on the display.
+
+Release attempts stop an identified chip, revoke bus master and return its stream to abort. If abort fails, the binding keeps the grant live and refuses a new report with `CK_RTL_E_RELEASE` until a retry releases it. A failed release is a failed qualification, never a successful revoke.

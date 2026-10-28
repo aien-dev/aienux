@@ -1778,6 +1778,28 @@ static void test_rtl8127_bind(void)
     CHECK(ck_rtl8127_report(&rf, log, 0, 1) == CK_RTL_E_ARG);
     rf.bar[2].size = 0x100u; /* the vendor minimum, below the registers this driver uses */
     CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_ARG);
+
+    /* A wrong-chip MMIO fixture fails identification without chip writes.
+     * A refused unconfine must retain the old grant and forbid a new grant. */
+    static uint8_t mmio[0x40000];
+    rf.bar[2].addr = (uintptr_t)mmio;
+    rf.bar[2].size = sizeof mmio;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_INIT);
+    CHECK(ck_rtl8127_live() == 1);
+    CHECK((pci_r16(rf.cfg, 4) & 0x4u) == 0); /* BM revoked even when abort fails */
+    unsigned grants = ck_host_confine_calls;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_RELEASE);
+    CHECK(ck_host_confine_calls == grants);
+    CHECK(ck_rtl8127_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_rtl8127_release();
+    CHECK(ck_rtl8127_live() == 0);
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_INIT);
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(ck_rtl8127_live() == 0);
+    ck_host_confine_rc = CK_SMMU_ABSENT;
 }
 
 /* ---------------- post-exit bus-master sweep + xHCI DMA fence ---------------- */

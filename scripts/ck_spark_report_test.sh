@@ -3,7 +3,7 @@
 # built by native/net/aienos_report.c (tag AIENUX-SPARK-REPORT) for a 40 KiB
 # report, sent out of order and twice over loopback to the shared receiver
 # tools/ck_imac_report_listen.c, which must rebuild it byte for byte as
-# spark-<run>.txt and still accept the iMac's parts (scripts/ck_imac_report_test.sh).
+# spark-<run>.unauthenticated.txt and still accept the iMac's parts (scripts/ck_imac_report_test.sh).
 # Hosted only; the RTL8127 itself is covered by native/net tests/rtl8127_test.c.
 # Ends with "AIENUX_SPARK_REPORT: PASS" or "AIENUX_SPARK_REPORT: FAIL <why>".
 set -u
@@ -35,7 +35,7 @@ until grep -q "^complete run=fedcba9876543210 " "$W/out/listen.log"; do
     i=$((i + 1)); [ $i -gt 50 ] && fail "report not completed: $(cat "$W/out/listen.log")"
     sleep 0.1
 done
-cmp -s "$W/sent.txt" "$W/out/spark-fedcba9876543210.txt" || fail "rebuilt report differs"
+cmp -s "$W/sent.txt" "$W/out/spark-fedcba9876543210.unauthenticated.txt" || fail "rebuilt report differs"
 [ "$(grep -c '^complete ' "$W/out/listen.log")" = 1 ] || fail "report written more than once"
 grep -q '^ignored' "$W/out/listen.log" && fail "listener ignored a valid part"
 echo "AIENUX_SPARK_REPORT: PASS"

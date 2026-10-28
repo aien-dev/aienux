@@ -28,6 +28,7 @@ enum {
     CK_RTL_E_INIT = -605,   /* rtl_init failed */
     CK_RTL_E_LINK = -606,   /* no link within the wait */
     CK_RTL_E_TX = -607,     /* a report frame could not be built, sent or closed */
+    CK_RTL_E_RELEASE = -608, /* previous DMA grant could not be returned to abort */
 };
 #define CK_RTL_LINK_WAIT_US 10000000u /* autonegotiation at 10G can take seconds (not measured) */
 /* First 10ec:8127 function of the multi-segment discovery, read as an
@@ -35,8 +36,9 @@ enum {
 int ck_rtl8127_find(const pci_found *found, uint32_t n, pci_func *out);
 /* Gate, map BAR 2, rtl_init, wait for link, then send the report (log, len)
  * every 2 s for `seconds` (at least one round), counting received frames.
- * Always releases the chip (stop, bus master off, stream to abort) before it
- * returns. Prints rtl8127:/dma_gate:/smmu: lines. */
+ * Attempts release (stop, bus master off, stream to abort) before returning.
+ * A failed release remains live; a later report refuses until release succeeds.
+ * Prints rtl8127:/dma_gate:/smmu: lines. */
 int ck_rtl8127_report(const pci_func *f, const char *log, size_t len, uint32_t seconds);
 /* Stop the chip, revoke bus mastering, return the stream to abort, if live.
  * Idempotent. */

@@ -353,6 +353,22 @@ OUT ?= $(REPO)/target/native-kernel-pi5
 CK_EXTRA_CFLAGS += -DCK_PI5=1 -DCK_KLOG=1
 endif
 
+# Storage-free attended Spark input image. Compose the existing device stage,
+# never NVMe/Store/Allen. The bounded boot shell is used; the sustained
+# CK_CONSOLE_SESSION image remains QEMU-only.
+CK_SPARK_INPUT ?=
+ifneq ($(strip $(CK_SPARK_INPUT)),)
+ifneq ($(strip $(CK_SPARK_INPUT)),1)
+$(error CK_SPARK_INPUT must be empty or 1)
+endif
+ifneq ($(strip $(CK_PI5)$(CK_SERVICE)$(CK_CONSOLE_SESSION)$(CK_B7B_PROBE)$(CK_INFER_LIB)$(CK_RUST_LIBS)$(CK_QEMU_UNSAFE_DMA)$(CK_TEST_XHCI_MUTATION)$(CK_TEST_CONSOLE_MUTATION)$(CK_TEST_FWCFG_ARTIFACTS)$(CK_TEST_STORE_CRASH)$(CK_TEST_CONTINUITY)$(CK_ARTIFACT_CARD)),)
+$(error CK_SPARK_INPUT is storage-free and cannot be combined with another image variant)
+endif
+CK_RTL8127 := 1
+OUT ?= $(REPO)/target/native-kernel-spark-input
+CK_EXTRA_CFLAGS += -DCK_SPARK_INPUT=1
+endif
+
 # Spark attended boot #2 (L198): `make full CK_RTL8127=1` ($(OUT)/full/BOOTAA64.EFI)
 # binds the Realtek RTL8127 10 GbE (dev/rtl8127_bind.c) in the devices stage and sends the console log as UDP
 # broadcasts (tag AIENUX-SPARK-REPORT, port 47031). Empty (default) in every
@@ -1053,6 +1069,12 @@ ifneq ($(strip $(CK_PI5_LIFECYCLE)),)
 # The NVMe image-slot service is not part of the Pi image: its four hooks are answered by svc/slot_service_pi5.c.
 STAGE_SRCS += $(filter-out $(KDIR)/svc/slot_service.c $(BOOT)/slot_select.c $(BOOT)/slot_control.c $(BOOT)/slot_update.c,$(SVC_STAGE_ADDED)) $(KDIR)/svc/slot_service_pi5.c
 endif
+endif
+ifeq ($(strip $(CK_SPARK_INPUT)),1)
+FULL_NAME := spark-input$(if $(strip $(CK_HARDWARE_STAGING)),-hardware-staging,)
+FULL_STAGE_SYMS := ck_stage_devices ck_stage_quiesce
+STAGE_SRCS := $(foreach m,pci devices xhci_fence usb_hid usb_kbd rtl8127_bind,$(KDIR)/dev/$(m).c) \
+  $(NATIVE)/net/aienos_rtl8127.c $(NATIVE)/net/aienos_report.c $(NATIVE)/net/aienos_net.c
 endif
 FULL_OUT := $(OUT)/$(FULL_NAME)
 STAGE_KOBJ := $(OUT)/obj/stage-$(FULL_NAME)

@@ -54,8 +54,9 @@
 #define LEGACY "AIENOS-IMAC-REPORT v=1 "
 #define SPARK_MAGIC "AIENUX-SPARK-REPORT v=1 "
 #define UNAUTH_NOTE \
-    "note: iMac and Spark reports are UNAUTHENTICATED UDP broadcasts; anyone on the LAN can read or " \
-    "forge one; never treat a report as a receipt, evidence or a command\n"
+    "note: iMac reports are UNAUTHENTICATED UDP broadcasts (auth=none); anyone on the LAN can read or " \
+    "forge one; never treat a report as a receipt, evidence or a command\n" \
+    "note: Spark v=1 reports are also UNAUTHENTICATED UDP broadcasts; the same warning applies\n"
 #define CHUNK 1024u
 #define MAX_PARTS 64u
 #define MAX_RUNS 16u

@@ -61,7 +61,7 @@ void ck_rtl8127_release(void)
     }
     if (g_rtl.confined) {
         int urc = ck_dma_unconfine(g_rtl.stream_id);
-        g_rtl.confined = 0;
+        if (urc == 0) g_rtl.confined = 0;
         ck_printf("smmu: rtl8127 stream 0x%x %s (rc=%d)\n", g_rtl.stream_id, urc == 0 ? "returned to abort" : "abort FAILED",
                   urc);
     }
@@ -113,6 +113,10 @@ int ck_rtl8127_report(const pci_func *f, const char *log, size_t len, uint32_t s
 {
     if (!f || !log || !net_report_parts(len)) return CK_RTL_E_ARG;
     if (ck_rtl8127_live()) ck_rtl8127_release();
+    if (ck_rtl8127_live()) {
+        ck_printf("rtl8127: release incomplete; retaining confined stream, refusing rebind\n");
+        return CK_RTL_E_RELEASE;
+    }
     memset(&g_rtl, 0, sizeof g_rtl);
     g_rtl.fn = *f;
     const pci_func *pf = g_rtl.pf = &g_rtl.fn;
