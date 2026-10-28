@@ -1,0 +1,7 @@
+target x86efi
+note PROPOSED extension slot; expected compiler refusal 25, NOT a runnable driver.
+note At omega-mv d9144676 only efi operations 0 through 10 exist.
+global packet uchar 64
+fn main to ulong
+ret efi 11 0 packet 0 64
+end

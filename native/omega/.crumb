@@ -1,0 +1,27 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [
+        {
+          "digest": "7231bb7234fb6a234e12c3d791ef5fb6208277f1937eac9e2fcc5954140ce28e",
+          "last_commit": "",
+          "name": "smc",
+          "purpose": "Transport-independent Apple SMC readback protocol, native fixtures, physical executor unavailabl"
+        }
+      ],
+      "children_root": "sha256:b510dd3328702498026035475174f969a4a6dc3e7f8b6a4428f2c56d936cdbb5",
+      "compiled_at": "2026-10-28T12:05:40Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:00070bab5731f71aa8f07d32ce980e1916399ed63d5fca6528e43693c21da9af",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 102,
+      "generated_at_commit": "4a6bcf2580d6f8918a762daea384a3fc176d8bd9",
+      "source_tree": "sha256:44581f9948bb75bd101d3a9ee1e596817983328e1e00ad64734cb81fad03f319"
+    }
+  },
+  "layer": "native",
+  "name": "omega",
+  "purpose": "Native Omega components, composed directly by the seeded compiler",
+  "schema_version": "1.0.0"
+}

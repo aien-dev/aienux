@@ -1,0 +1,467 @@
+note SPDX-License-Identifier: Apache-2.0
+note Native fixture diagnostic. No hardware executor, Linux device file or firmware call.
+note Concatenate protocol.om then this file. target x86linux selects native x86 Linux.
+note Every expected action is independently spelled out; fixtures may reset their private memory only.
+global Fkey uchar 4
+global Fdata uchar 6
+global Ftime ulong 1
+global Fcount ulong 1
+global Fseq ulong 1
+global Fbad ulong 1
+text Ftemp "TC0P"
+text Ffan "F0Ac"
+text Fnum "FNum"
+text Fdeny "FS! "
+text Fpass "SMC protocol fixtures PASS; physical NOT_RUN\n"
+text Ffail "SMC protocol fixtures FAIL\n"
+
+fn check ok bool to void
+if not ok
+put Fbad 0 add get Fbad 0 1
+end
+end
+
+fn fresh to void
+for i ulong 22
+put Sm i 0
+end
+for i ulong 8
+put Smen i 0
+put Smbase i 0
+put Smlen i 0
+end
+for i ulong 56
+put Smhid i 0
+end
+for i ulong 7
+put Smhid i get Smname i
+end
+put Smbase 0 768
+put Smlen 0 32
+put Smen 0 1
+put Ftime 0 0
+put Fcount 0 0
+put Fseq 0 0
+for i ulong 4
+put Fkey i get Ftemp i
+end
+rc = smdiscover 1
+check eq rc SMOK
+end
+
+fn startcase owner ulong now ulong permit bool to uint
+key = new uchar 4 0
+for i ulong 4
+put key i get Fkey i
+end
+ret smstart owner key now permit
+end
+
+fn begin to void
+rc = startcase 7 0 true
+check eq rc SMPEND
+end
+
+fn step kind ulong arg ulong answer long to uint
+check eq get Sm 2 kind
+check eq get Sm 4 arg
+check eq get Sm 20 1
+check gt get Sm 3 get Fseq 0
+put Fseq 0 get Sm 3
+put Fcount 0 add get Fcount 0 1
+put Ftime 0 add get Ftime 0 1
+ret smack 7 get Sm 3 kind answer get Ftime 0
+end
+
+fn pending kind ulong arg ulong answer long to void
+rc = step kind arg answer
+check eq rc SMPEND
+end
+
+fn header cmd ulong size ulong to void
+pending 1 0 0
+pending 1 0 0
+pending 3 cmd 0
+for i ulong 4
+pending 1 0 4
+pending 1 0 4
+pending 4 ulong get Fkey i 0
+end
+pending 1 0 4
+pending 1 0 4
+pending 4 size 0
+end
+
+fn body count ulong to void
+for i ulong count
+pending 1 0 5
+pending 2 0 long get Fdata i
+end
+end
+
+fn metadata role ulong to void
+put Fdata 0 2
+if eq role 3
+put Fdata 0 1
+end
+for i ulong 4
+put Fdata add i 1 get Smtypes add mul sub role 1 4 i
+end
+put Fdata 5 128
+end
+
+fn goodmeta role ulong to void
+metadata role
+header 19 6
+body 6
+pending 1 0 0
+check eq get Sm 0 7
+check eq get Sm 15 0
+end
+
+fn cleanfail rc uint expected uint poison bool to void
+check eq rc expected
+check eq get Sm 0 0
+check eq get Sm 20 0
+check eq get Sm 2 0
+check eq get Sm 15 0
+check eq get Smval 0 0
+check eq ne get Sm 12 0 poison
+for i ulong 6
+check eq get Smbuf i 0
+check eq get Smmeta i 0
+end
+end
+
+fn positives to void
+fresh
+begin
+goodmeta 1
+put Fdata 0 254
+put Fdata 1 128
+header 16 2
+body 2
+rc = step 1 0 0
+check eq rc SMOK
+check eq get Smval 0 -384
+check eq get Sm 15 1
+check eq get Smmeta 0 2
+check eq get Sm 12 0
+check eq get Sm 0 0
+check eq get Fcount 0 54
+note Successful channel is reusable with a different generation, not a leaked lease.
+rc = startcase 8 get Ftime 0 true
+check eq rc SMPEND
+rc = smcancel 8 get Sm 18
+cleanfail rc SMREF false
+fresh
+for i ulong 4
+put Fkey i get Ffan i
+end
+begin
+goodmeta 2
+put Fdata 0 25
+put Fdata 1 0
+header 16 2
+body 2
+rc = step 1 0 0
+check eq rc SMOK
+check eq div get Smval 0 4 1600
+fresh
+for i ulong 4
+put Fkey i get Fnum i
+end
+begin
+goodmeta 3
+put Fdata 0 1
+header 16 1
+body 1
+rc = step 1 0 0
+check eq rc SMOK
+check eq get Smval 0 1
+end
+
+fn discovery to void
+fresh
+rc = smdiscover 0
+check eq rc SMABS
+rc = startcase 7 0 true
+check eq rc SMABS
+check eq get Sm 2 0
+rc = smdiscover 9
+check eq rc SMMAL
+put Smbase 0 769
+rc = smdiscover 1
+check eq rc SMUNSUP
+put Smbase 0 768
+put Smlen 0 31
+rc = smdiscover 1
+check eq rc SMUNSUP
+put Smlen 0 32
+put Smen 0 0
+rc = smdiscover 1
+check eq rc SMREF
+fresh
+for i ulong 7
+put Smhid add i 7 get Smname i
+end
+put Smbase 1 768
+put Smlen 1 32
+put Smen 1 1
+rc = smdiscover 2
+check eq rc SMREF
+check eq get Sm 13 0
+end
+
+fn refusals to void
+fresh
+rc = startcase 7 0 false
+check eq rc SMREF
+check eq get Sm 2 0
+for i ulong 4
+put Fkey i get Fdeny i
+end
+rc = startcase 7 0 true
+check eq rc SMKEY
+check eq get Sm 2 0
+fresh
+begin
+oldseq = get Sm 3
+rc = startcase 8 0 true
+check eq rc SMBUSY
+rc = smack 8 oldseq 1 0 1
+check eq rc SMREF
+check eq get Sm 0 7
+check eq get Sm 3 oldseq
+rc = smdiscover 1
+check eq rc SMBUSY
+pending 1 0 0
+rc = smack 7 oldseq 1 0 2
+cleanfail rc SMREF false
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+rc = smack 7 get Sm 3 4 0 3
+cleanfail rc SMREF true
+rc = startcase 7 4 true
+check eq rc SMQUAR
+rc = smdiscover 1
+check eq rc SMQUAR
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+rc = smcancel 7 get Sm 18
+cleanfail rc SMREF true
+end
+
+fn invalidmeta to void
+for mode ulong 4
+fresh
+begin
+metadata 1
+if eq mode 0
+put Fdata 0 0
+end
+if eq mode 1
+put Fdata 0 3
+end
+if eq mode 2
+put Fdata 1 120
+end
+if eq mode 3
+put Fdata 5 64
+end
+header 19 6
+body 6
+rc = step 1 0 0
+expected = SMUNSUP
+if eq mode 1
+expected = SMMAL
+end
+if eq mode 3
+expected = SMREF
+end
+cleanfail rc expected true
+end
+end
+
+fn waits to void
+fresh
+begin
+rc = step 1 0 255
+cleanfail rc SMABS false
+fresh
+begin
+for i ulong 31
+pending 1 0 4
+end
+rc = step 1 0 4
+cleanfail rc SMBUSY true
+fresh
+begin
+pending 1 0 0
+for i ulong 31
+pending 1 0 2
+end
+rc = step 1 0 2
+cleanfail rc SMTIME false
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+pending 3 19 0
+for i ulong 31
+pending 1 0 6
+end
+rc = step 1 0 6
+cleanfail rc SMTIME true
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+pending 3 19 0
+pending 1 0 4
+for i ulong 31
+pending 1 0 0
+end
+rc = step 1 0 0
+cleanfail rc SMTIME true
+fresh
+begin
+header 19 6
+note Data-ready without busy must not permit a data read.
+for i ulong 31
+pending 1 0 1
+end
+rc = step 1 0 1
+cleanfail rc SMTIME true
+fresh
+begin
+header 19 6
+pending 1 0 5
+pending 2 0 2
+for i ulong 31
+pending 1 0 4
+end
+rc = step 1 0 4
+cleanfail rc SMTRUNC true
+fresh
+begin
+metadata 1
+header 19 6
+body 6
+for i ulong 31
+pending 1 0 4
+end
+rc = step 1 0 4
+cleanfail rc SMTIME true
+fresh
+begin
+metadata 1
+header 19 6
+body 6
+rc = step 1 0 5
+cleanfail rc SMMAL true
+end
+
+fn errors to void
+fresh
+begin
+rc = step 1 0 -1
+cleanfail rc SMIO false
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+rc = step 3 19 -1
+cleanfail rc SMIO true
+fresh
+begin
+rc = step 1 0 256
+cleanfail rc SMMAL false
+fresh
+begin
+pending 1 0 0
+rc = smack 7 get Sm 3 1 0 0
+cleanfail rc SMCLOCK false
+fresh
+begin
+rc = smack 7 get Sm 3 1 0 1000
+cleanfail rc SMTIME false
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+rc = smtick 8 get Sm 18 999
+check eq rc SMREF
+check eq get Sm 20 1
+rc = smtick 7 get Sm 18 999
+check eq rc SMPEND
+rc = smtick 7 get Sm 18 1000
+cleanfail rc SMTIME true
+fresh
+begin
+pending 1 0 0
+pending 1 0 0
+pending 3 19 0
+note Oscillating open/busy cannot evade the global action cap by changing phase.
+rc = SMPEND
+for i ulong 256
+if eq rc SMPEND
+rc = step 1 0 0
+end
+if eq rc SMPEND
+rc = step 1 0 2
+end
+end
+cleanfail rc SMTIME true
+check eq get Sm 21 512
+check eq smphysical SMUNSUP
+end
+
+fn reuse to void
+fresh
+begin
+oldgen = get Sm 18
+oldseq = get Sm 3
+rc = smcancel 7 oldgen
+cleanfail rc SMREF false
+begin
+pending 1 0 0
+pending 1 0 0
+current = get Sm 3
+rc = smcancel 7 oldgen
+check eq rc SMREF
+rc = smtick 7 oldgen 1000
+check eq rc SMREF
+rc = smack 7 oldseq 1 0 1000
+check eq rc SMREF
+check eq get Sm 3 current
+check eq get Sm 2 3
+check eq get Sm 20 1
+check eq get Sm 12 0
+pending 3 19 0
+rc = smcancel 7 get Sm 18
+cleanfail rc SMREF true
+end
+
+fn main to int
+positives
+discovery
+refusals
+invalidmeta
+waits
+errors
+reuse
+if ne get Fbad 0 0
+w = write 1 Ffail 0 len Ffail
+ret 1
+end
+w = write 1 Fpass 0 len Fpass
+if ne w long len Fpass
+ret 2
+end
+ret 0
+end

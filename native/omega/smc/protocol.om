@@ -1,0 +1,429 @@
+note SPDX-License-Identifier: Apache-2.0
+note Original Omega implementation of the public applesmc protocol facts, not translated Linux code.
+note Reference: Linux v6.17 drivers/hwmon/applesmc.c (GPL-2.0-only), Nicolas Boichat, Henrik Rydberg.
+note No physical executor is supplied: action acknowledgements require a separately qualified transport.
+note Single executor only. Cooperative lease is NOT an atomic lock or firmware exclusion.
+const SMOK uint 0
+const SMABS uint 1
+const SMBUSY uint 2
+const SMTIME uint 3
+const SMUNSUP uint 4
+const SMMAL uint 5
+const SMREF uint 6
+const SMTRUNC uint 7
+const SMIO uint 8
+const SMKEY uint 9
+const SMQUAR uint 10
+const SMPEND uint 11
+const SMCLOCK uint 12
+note Actions: 1 status read, 2 data read, 3 command write, 4 argument write. Completion write value is 0.
+note Resource descriptors are supplied by trusted discovery, never inferred by probing ports.
+global Smhid uchar 56
+global Smbase ulong 8
+global Smlen ulong 8
+global Smen uchar 8
+text Smname "APP0001"
+text Smtemps "TC0PTG0PTH0P"
+text Smtypes "sp78fpe2ui8 "
+text Smfan "FNum"
+global Smkey uchar 4
+global Smbuf uchar 6
+global Smmeta uchar 6
+global Smval long 1
+note State: owner,phase,action,sequence,argument,index,command,length,start,last,polls,issued,
+note quarantine,present,result,valid,unused,exchange,generation,role,pending,total-actions.
+global Sm ulong 22
+
+fn smfinish code uint to uint
+if ne code SMOK
+if and ne get Sm 20 0 or eq get Sm 2 3 eq get Sm 2 4
+put Sm 11 1
+end
+end
+put Sm 14 ulong code
+put Sm 15 0
+put Smval 0 0
+put Sm 20 0
+put Sm 2 0
+put Sm 0 0
+if ne code SMOK
+if ne get Sm 11 0
+put Sm 12 1
+end
+for i ulong 6
+put Smbuf i 0
+put Smmeta i 0
+end
+end
+ret code
+end
+
+fn smdiscover count ulong to uint
+if or ne get Sm 0 0 ne get Sm 20 0
+ret SMBUSY
+end
+if ne get Sm 12 0
+ret SMQUAR
+end
+put Sm 13 0
+if gt count 8
+ret SMMAL
+end
+found = ulong 0
+for i ulong count
+same = true
+for j ulong 7
+if ne get Smhid add mul i 7 j get Smname j
+same = false
+end
+end
+if same
+if ne get Smen i 1
+ret SMREF
+end
+if or ne get Smbase i 768 ne get Smlen i 32
+ret SMUNSUP
+end
+found = add found 1
+end
+end
+if eq found 0
+ret SMABS
+end
+if ne found 1
+ret SMREF
+end
+put Sm 13 1
+ret SMOK
+end
+
+fn smrole key view uchar 4 to ulong
+for t ulong 3
+same = true
+for i ulong 4
+if ne get key i get Smtemps add mul t 4 i
+same = false
+end
+end
+if same
+ret 1
+end
+end
+if and eq get key 0 70 eq get key 2 65
+if and eq get key 3 99 and ge get key 1 48 le get key 1 57
+ret 2
+end
+end
+same = true
+for i ulong 4
+if ne get key i get Smfan i
+same = false
+end
+end
+if same
+ret 3
+end
+ret 0
+end
+
+fn smemit kind ulong phase ulong value ulong to uint
+if ge get Sm 21 512
+ret smfinish SMTIME
+end
+put Sm 21 add get Sm 21 1
+put Sm 3 add get Sm 3 1
+put Sm 2 kind
+put Sm 1 phase
+put Sm 4 value
+put Sm 20 1
+ret SMPEND
+end
+
+fn smstart owner ulong key view uchar 4 now ulong permit bool to uint
+if not permit
+ret SMREF
+end
+if eq owner 0
+ret SMREF
+end
+if ne get Sm 12 0
+ret SMQUAR
+end
+if eq get Sm 13 0
+ret SMABS
+end
+if or ne get Sm 0 0 ne get Sm 20 0
+ret SMBUSY
+end
+role = smrole key
+if eq role 0
+ret SMKEY
+end
+note Generation never wraps; the caller must retain owner and returned sequence.
+if ge get Sm 18 1000000
+ret SMREF
+end
+put Sm 18 add get Sm 18 1
+put Sm 3 mul get Sm 18 1024
+put Sm 0 owner
+put Sm 8 now
+put Sm 9 now
+put Sm 10 0
+put Sm 11 0
+put Sm 14 ulong SMPEND
+put Sm 15 0
+put Sm 17 0
+put Sm 19 role
+put Sm 21 0
+put Sm 5 0
+put Sm 6 19
+put Sm 7 6
+put Smval 0 0
+for i ulong 4
+put Smkey i get key i
+end
+for i ulong 6
+put Smbuf i 0
+put Smmeta i 0
+end
+ret smemit 1 0 0
+end
+
+fn smwait phase ulong to uint
+put Sm 10 add get Sm 10 1
+if ge get Sm 10 32
+if eq phase 0
+put Sm 12 1
+ret smfinish SMBUSY
+end
+if eq phase 6
+if ne get Sm 5 0
+ret smfinish SMTRUNC
+end
+end
+ret smfinish SMTIME
+end
+ret smemit 1 phase 0
+end
+
+fn smadvance kind ulong phase ulong value ulong to uint
+put Sm 10 0
+ret smemit kind phase value
+end
+
+fn smmetadata to uint
+if eq get Smbuf 0 0
+ret smfinish SMUNSUP
+end
+role = get Sm 19
+size = uchar 2
+if eq role 3
+size = 1
+end
+if ne get Smbuf 0 size
+ret smfinish SMMAL
+end
+for i ulong 4
+if ne get Smbuf add i 1 get Smtypes add mul sub role 1 4 i
+ret smfinish SMUNSUP
+end
+end
+flags = get Smbuf 5
+if or eq and flags 128 0 ne and flags 63 0
+ret smfinish SMREF
+end
+for i ulong 6
+put Smmeta i get Smbuf i
+put Smbuf i 0
+end
+put Sm 17 1
+put Sm 6 16
+put Sm 7 ulong size
+put Sm 5 0
+ret smadvance 1 0 0
+end
+
+fn smcommit to uint
+if eq get Sm 17 0
+ret smmetadata
+end
+value = long get Smbuf 0
+if ne get Sm 19 3
+value = add mul value 256 long get Smbuf 1
+if eq get Sm 19 1
+if ge value 32768
+value = sub value 65536
+end
+end
+end
+rc = smfinish SMOK
+put Smval 0 value
+put Sm 15 1
+ret rc
+end
+
+fn smstatus status ulong to uint
+phase = get Sm 1
+if eq status 255
+ret smfinish SMABS
+end
+note Reserved status bits are not interpreted; only documented handshake bits are used.
+if eq phase 0
+if ne and status 1 0
+ret smfinish SMMAL
+end
+if eq and status 4 0
+ret smadvance 1 1 0
+end
+end
+if eq phase 1
+if eq and status 2 0
+ret smadvance 3 2 get Sm 6
+end
+end
+if eq phase 3
+if eq and status 2 0
+note A separate observation of BUSY is mandatory even if this status already has it set.
+ret smadvance 1 4 0
+end
+end
+if eq phase 4
+if ne and status 2 0
+ret smadvance 1 3 0
+end
+if ne and status 4 0
+value = get Sm 7
+if lt get Sm 5 4
+value = ulong get Smkey get Sm 5
+end
+ret smadvance 4 5 value
+end
+end
+if eq phase 6
+if eq and status 5 5
+ret smadvance 2 7 0
+end
+end
+if eq phase 8
+if ne and status 1 0
+note No blind draining or reset: excess response quarantines the channel.
+ret smfinish SMMAL
+end
+if eq and status 4 0
+ret smcommit
+end
+end
+ret smwait phase
+end
+
+fn smack owner ulong seq ulong kind ulong value long now ulong to uint
+if eq get Sm 0 0
+ret SMREF
+end
+if ne owner get Sm 0
+ret SMREF
+end
+if ne div seq 1024 get Sm 18
+ret SMREF
+end
+if ne get Sm 20 1
+ret smfinish SMREF
+end
+if ne seq get Sm 3
+ret smfinish SMREF
+end
+if ne kind get Sm 2
+ret smfinish SMREF
+end
+note Completing an offered write can mean it reached the controller even if transport reports failure.
+if or eq kind 3 eq kind 4
+put Sm 11 1
+end
+put Sm 20 0
+if lt now get Sm 9
+ret smfinish SMCLOCK
+end
+put Sm 9 now
+note MODELED policy: one second per complete metadata+value operation, plus action/poll caps.
+if ge sub now get Sm 8 1000
+if and eq get Sm 1 6 ne get Sm 5 0
+ret smfinish SMTRUNC
+end
+ret smfinish SMTIME
+end
+if lt value 0
+ret smfinish SMIO
+end
+if or eq kind 1 eq kind 2
+if gt value 255
+ret smfinish SMMAL
+end
+else
+if ne value 0
+ret smfinish SMMAL
+end
+end
+if eq kind 1
+ret smstatus ulong value
+end
+if eq kind 3
+put Sm 5 0
+ret smadvance 1 3 0
+end
+if eq kind 4
+put Sm 5 add get Sm 5 1
+if eq get Sm 5 5
+put Sm 5 0
+ret smadvance 1 6 0
+end
+ret smadvance 1 3 0
+end
+if eq kind 2
+put Smbuf get Sm 5 uchar value
+put Sm 5 add get Sm 5 1
+if eq get Sm 5 get Sm 7
+ret smadvance 1 8 0
+end
+ret smadvance 1 6 0
+end
+ret smfinish SMREF
+end
+
+fn smtick owner ulong gen ulong now ulong to uint
+if or eq owner 0 ne owner get Sm 0
+ret SMREF
+end
+if ne gen get Sm 18
+ret SMREF
+end
+if lt now get Sm 9
+ret smfinish SMCLOCK
+end
+put Sm 9 now
+if ge sub now get Sm 8 1000
+if and eq get Sm 1 6 ne get Sm 5 0
+ret smfinish SMTRUNC
+end
+ret smfinish SMTIME
+end
+ret SMPEND
+end
+
+fn smcancel owner ulong gen ulong to uint
+if or eq owner 0 ne owner get Sm 0
+ret SMREF
+end
+if ne gen get Sm 18
+ret SMREF
+end
+note Outstanding writes have uncertain completion, so cancellation quarantines them too.
+if or eq get Sm 2 3 eq get Sm 2 4
+put Sm 11 1
+end
+ret smfinish SMREF
+end
+
+fn smphysical to uint
+note No native authorized transport exists at the pinned compiler: no synthetic success.
+ret SMUNSUP
+end

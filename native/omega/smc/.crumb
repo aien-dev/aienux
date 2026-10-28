@@ -1,0 +1,20 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-28T12:05:40Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:7231bb7234fb6a234e12c3d791ef5fb6208277f1937eac9e2fcc5954140ce28e",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 0,
+      "generated_at_commit": "4a6bcf2580d6f8918a762daea384a3fc176d8bd9",
+      "source_tree": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "layer": "native",
+  "name": "smc",
+  "purpose": "Transport-independent Apple SMC readback protocol, native fixtures, physical executor unavailable",
+  "schema_version": "1.0.0"
+}
