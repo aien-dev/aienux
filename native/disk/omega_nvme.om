@@ -1,0 +1,345 @@
+note SPDX-License-Identifier: Apache-2.0
+note Copyright 2026 Drake Stapleton
+note Bounded read-only NVMe protocol engine. Host transport is separately composed.
+note Queue depth 16, one outstanding command, two aligned PRP pages maximum.
+note st: 0 failed, 1 DMA retained, 2 CID, 3 stride, 4 NSID, 5 block bytes,
+note 6 namespace blocks, 7 max transfer, 8 approved extent start, 9 extent count.
+const PAGE ulong 4096
+const BAR ulong 268435456
+const DEPTH ulong 16
+global st ulong 11
+global tail ulong 2
+global head ulong 2
+global phase ulong 2
+global sqe uint 16
+global ident uchar 4096
+global bounce uchar 8192
+global caller uchar 8192
+global manifest uchar 80
+fn id32 off ulong to ulong
+v = ulong 0
+for i ulong 4
+v = or v shl ulong get ident add off i mul i 8
+end
+ret v
+end
+fn id64 off ulong to ulong
+ret or id32 off shl id32 add off 4 32
+end
+fn man32 off ulong to ulong
+v = ulong 0
+for i ulong 4
+v = or v shl ulong get manifest add off i mul i 8
+end
+ret v
+end
+fn man64 off ulong to ulong
+ret or man32 off shl man32 add off 4 32
+end
+fn fatal code int to int
+put st 0 1
+ret code
+end
+fn clearcmd to void
+for i ulong 16
+put sqe i 0
+end
+end
+fn ready want ulong to int
+note Fixed bounded transport polls, not a calibrated hardware time budget.
+for i ulong 256
+v = load32 add BAR 28
+if ne and v 2 0
+ret fatal 11
+end
+if eq and v 1 want
+ret 0
+end
+end
+ret fatal 12
+end
+fn dma off ulong to ulong
+ret add get st 10 off
+end
+fn cmdptr word ulong off ulong to void
+addr = dma off
+put sqe word uint and addr 4294967295
+put sqe add word 1 uint shr addr 32
+end
+fn ring q ulong which ulong value ulong to void
+idx = add mul q 2 which
+off = add 4096 mul idx get st 3
+store32 add BAR off value
+end
+fn enqueue q ulong cid ulong to void
+put sqe 0 uint or and ulong get sqe 0 65535 shl cid 16
+slot = add add dma 0 mul q 12288 mul get tail q 64
+put st 1 1
+for i ulong 16
+store32 add slot mul i 4 ulong get sqe i
+end
+put tail q rem add get tail q 1 DEPTH
+ring q 0 get tail q
+end
+fn submit q ulong to int
+if ne get st 0 0
+ret 10
+end
+op = and ulong get sqe 0 255
+ok = eq op 2
+if eq q 0
+ok = or eq op 6 or eq op 5 eq op 1
+end
+if not ok
+ret 13
+end
+note GUARD opcode is the preceding three-line refusal block.
+cid = get st 2
+put st 2 and add cid 1 65535
+enqueue q cid
+slot = add add dma PAGE mul q 12288 mul get head q 16
+seen = false
+dw3 = ulong 0
+for i ulong 256
+dw3 = load32 add slot 12
+if eq and shr dw3 16 1 get phase q
+seen = true
+break
+end
+v = load32 add BAR 28
+if ne and v 2 0
+ret fatal 11
+end
+end
+if not seen
+ret fatal 12
+end
+if ne and dw3 65535 cid
+ret fatal 14
+end
+dw2 = load32 add slot 8
+if ne shr dw2 16 q
+ret fatal 15
+end
+if ne and dw2 65535 get tail q
+ret fatal 16
+end
+put head q add get head q 1
+if eq get head q DEPTH
+put head q 0
+put phase q xor get phase q 1
+end
+ring q 1 get head q
+put st 1 0
+if ne and shr dw3 17 2047 0
+ret 17
+end
+ret 0
+end
+fn identify cns ulong nsid ulong to int
+clearcmd
+put sqe 0 6
+put sqe 1 uint nsid
+cmdptr 6 8192
+put sqe 10 uint cns
+r = submit 0
+if ne r 0
+ret r
+end
+fetchid dma 8192
+ret 0
+end
+fn identity to int
+serialok = false
+firmok = false
+for i ulong 20
+v = get manifest i
+serialok = or serialok and ne v 0 ne v 32
+if ne get ident add i 4 get manifest i
+ret fatal 21
+end
+end
+for i ulong 8
+v = get manifest add i 20
+firmok = or firmok and ne v 0 ne v 32
+if ne get ident add i 64 get manifest add i 20
+ret fatal 22
+end
+end
+if not and serialok firmok
+ret fatal 20
+end
+sqes = get ident 512
+cqes = get ident 513
+if or gt and sqes 15 6 lt shr sqes 4 6
+ret fatal 23
+end
+if or gt and cqes 15 4 lt shr cqes 4 4
+ret fatal 23
+end
+put st 4 man32 28
+if or eq get st 4 0 gt get st 4 id32 516
+ret fatal 24
+end
+put st 7 8192
+note MPSMIN=0 was required. MDTS=0 is unlimited; every nonzero MDTS allows
+note at least 8192 bytes (4096 shifted by MDTS). Our fixed two-page limit
+note is never larger, so no device-advertised MDTS can enlarge the bound.
+ret 0
+end
+fn geometry to int
+put st 6 id64 0
+if eq get st 6 0
+ret fatal 25
+end
+fmt = get ident 26
+if or ne and fmt 240 0 gt fmt get ident 25
+ret fatal 26
+end
+lbaf = id32 add 128 mul ulong fmt 4
+if ne and lbaf 65535 0
+ret fatal 26
+end
+if ne and get ident 29 7 0
+ret fatal 26
+end
+bits = and shr lbaf 16 255
+if not or eq bits 9 eq bits 12
+ret fatal 26
+end
+put st 5 shl ulong 1 bits
+put st 8 man64 32
+put st 9 man64 40
+if or eq get st 9 0 ge get st 8 get st 6
+ret fatal 27
+end
+if gt get st 9 sub get st 6 get st 8
+ret fatal 27
+end
+if lt id64 8 add get st 8 get st 9
+ret fatal 27
+end
+ret 0
+end
+fn initialize to int
+if gt get st 0 0
+ret 10
+end
+if ne man32 64 1
+ret fatal 20
+end
+put st 10 man64 72
+if or ne and get st 10 4095 0 gt get st 10 18446744073709518847
+ret fatal 28
+end
+put phase 0 1
+put phase 1 1
+put st 2 1
+cap = load64 BAR
+ver = shr load32 add BAR 8 16
+if not or eq ver 1 eq ver 2
+ret fatal 28
+end
+if ne and shr cap 48 15 0
+ret fatal 28
+end
+if lt and cap 65535 sub DEPTH 1
+ret fatal 28
+end
+if eq and shr cap 37 1 0
+ret fatal 28
+end
+if gt and shr cap 32 15 12
+ret fatal 28
+end
+put st 3 shl ulong 4 and shr cap 32 15
+store32 add BAR 20 0
+r = ready 0
+if ne r 0
+ret r
+end
+zero_dma dma 0 32768
+store32 add BAR 36 983055
+store64 add BAR 40 dma 0
+store64 add BAR 48 dma PAGE
+put st 1 ulong 1
+store32 add BAR 20 4587521
+r = ready 1
+if ne r 0
+ret r
+end
+put st 1 0
+r = identify 1 0
+if ne r 0
+ret r
+end
+r = identity
+if ne r 0
+ret r
+end
+r = identify 0 get st 4
+if ne r 0
+ret r
+end
+r = geometry
+if ne r 0
+ret r
+end
+clearcmd
+put sqe 0 5
+cmdptr 6 16384
+put sqe 10 983041
+put sqe 11 1
+r = submit 0
+if ne r 0
+ret r
+end
+clearcmd
+put sqe 0 1
+cmdptr 6 12288
+put sqe 10 983041
+put sqe 11 65537
+ret submit 0
+end
+fn readblocks lba ulong count ulong to int
+if ne get st 0 0
+ret 10
+end
+if or eq count 0 gt count div get st 7 get st 5
+ret 30
+end
+if lt lba get st 8
+ret 31
+end
+off = sub lba get st 8
+if ge off get st 9
+ret 31
+end
+if gt count sub get st 9 off
+ret 31
+end
+bytes = mul count get st 5
+if gt bytes 8192
+ret 32
+end
+clearcmd
+put sqe 0 2
+put sqe 1 uint get st 4
+cmdptr 6 24576
+if gt bytes PAGE
+cmdptr 8 28672
+end
+put sqe 10 uint and lba 4294967295
+put sqe 11 uint shr lba 32
+put sqe 12 uint sub count 1
+r = submit 1
+if ne r 0
+ret r
+end
+fetchdata dma 24576 bytes
+for i ulong bytes
+put caller i get bounce i
+end
+publish bytes
+ret 0
+end

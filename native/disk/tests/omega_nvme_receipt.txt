@@ -1,0 +1,84 @@
+IMPLEMENTED + EXERCISED: bounded seeded Omega NVMe read protocol
+PHYSICAL: NOT_RUN
+NATIVE VFIO/KERNEL ADAPTER: NOT_RUN (not part of hosted transport)
+Source base: aienux 832bcbd98fc5 (parent confinement retention fix)
+Compiler source: omega-mv 397e67040fb74853c6814097fe02ae4e1ebd6f66
+Command: AIEN_OMC=/home/drakestapleton/work/OwnDriver/omega-gpu-driver/build/omc OMEGA_NVME_EVIDENCE=/home/drakestapleton/handoffs/spark-five-20261028/QualNvmeOm/acceptance-ready-retention sh native/disk/tests/omega_nvme_test.sh
+C oracle compiler: cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+C oracle disk_nvme.c sha256 c4735e7472f9084eef48aa41feb90aacb741e0fcd848dc0d6aee9c5f320f0e34
+C model nvme_test.c sha256 c61b820bbd4861f3b6b2dee7c6ef12408a21c0a51ccb4d2c3c79419caa0547bc
+
+--- qemu-version.txt ---
+QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+
+--- host.log ---
+PASS case=healthy transport=C-model result=0 copies=40 retained=0 RPC=973 physical=NOT_RUN
+PASS case=singlepage transport=C-model result=0 copies=40 retained=0 RPC=973 physical=NOT_RUN
+PASS case=lba4k transport=C-model result=0 copies=40 retained=0 RPC=973 physical=NOT_RUN
+PASS case=dstrd transport=C-model result=0 copies=40 retained=0 RPC=973 physical=NOT_RUN
+PASS case=serial transport=C-model result=21 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=firmware transport=C-model result=22 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=approval transport=C-model result=20 copies=0 retained=0 RPC=1 physical=NOT_RUN
+PASS case=nsid transport=C-model result=24 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=extent transport=C-model result=27 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=range transport=C-model result=31 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=before transport=C-model result=31 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=prp transport=C-model result=30 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=zero transport=C-model result=30 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=metadata transport=C-model result=26 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=format transport=C-model result=26 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=nsze transport=C-model result=25 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=sqes transport=C-model result=23 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=cqes transport=C-model result=23 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=cap transport=C-model result=28 copies=0 retained=0 RPC=3 physical=NOT_RUN
+PASS case=stride transport=C-model result=28 copies=0 retained=0 RPC=3 physical=NOT_RUN
+PASS case=readytimeout transport=C-model result=12 copies=0 retained=1 RPC=266 physical=NOT_RUN
+PASS case=readycfs transport=C-model result=11 copies=0 retained=1 RPC=11 physical=NOT_RUN
+PASS case=status transport=C-model result=17 copies=0 retained=0 RPC=113 physical=NOT_RUN
+PASS case=adminwrap transport=C-model result=0 copies=40 retained=0 RPC=1813 physical=NOT_RUN
+PASS case=cid transport=C-model result=14 copies=0 retained=1 RPC=111 physical=NOT_RUN
+PASS case=sqid transport=C-model result=15 copies=0 retained=1 RPC=112 physical=NOT_RUN
+PASS case=sqhead transport=C-model result=16 copies=0 retained=1 RPC=112 physical=NOT_RUN
+PASS case=phase transport=C-model result=12 copies=0 retained=1 RPC=622 physical=NOT_RUN
+PASS case=timeout transport=C-model result=12 copies=0 retained=1 RPC=622 physical=NOT_RUN
+PASS case=cfs transport=C-model result=11 copies=0 retained=1 RPC=112 physical=NOT_RUN
+PASS case=opcode0 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=opcode1 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=opcode8 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=opcode9 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=opcode128 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=opcode132 transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=adminformat transport=C-model result=13 copies=0 retained=0 RPC=93 physical=NOT_RUN
+
+--- mutants.log ---
+PASS killed guard-removal mutant cid (baseline case passed)
+PASS killed guard-removal mutant sqid (baseline case passed)
+PASS killed guard-removal mutant status (baseline case passed)
+PASS killed guard-removal mutant sqhead (baseline case passed)
+PASS killed guard-removal mutant reopen (baseline case passed)
+PASS killed guard-removal mutant opcode (baseline case passed)
+PASS killed retention guard-removal mutant
+
+--- qemu.log ---
+PASS case=healthy transport=QEMU result=0 copies=40 retained=0 RPC=1077 physical=NOT_RUN
+PASS case=serial transport=QEMU result=21 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=firmware transport=QEMU result=22 copies=0 retained=0 RPC=32 physical=NOT_RUN
+PASS case=approval transport=QEMU result=20 copies=0 retained=0 RPC=1 physical=NOT_RUN
+PASS case=nsid transport=QEMU result=25 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=extent transport=QEMU result=27 copies=0 retained=0 RPC=53 physical=NOT_RUN
+PASS case=range transport=QEMU result=31 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=before transport=QEMU result=31 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=prp transport=QEMU result=30 copies=0 retained=0 RPC=93 physical=NOT_RUN
+PASS case=zero transport=QEMU result=30 copies=0 retained=0 RPC=93 physical=NOT_RUN
+
+--- sha256.txt ---
+bcfa582892afca8f65e551fe56867d918d86e84540c7381be8fa9ef18d0cf0f6  /home/drakestapleton/work/OwnDriver/omega-gpu-driver/build/omc
+baf88d2db7666be18359eb1a577dac4f183b10f6454e286f1df48e01d1a4c7ab  native/disk/omega_nvme.om
+59f5d97f8127e3d14cbf56e6e036fe43271c4b9afb92df310946b7387b3101c4  native/disk/omega_nvme_transport.om
+fb7f70a0080ae4b4891303849e08bc86b32c1a2bca1b3952b7b1622e1114f4f6  native/disk/omega_nvme_main.om
+99ead236036b663c42f901c999fb0652ba80bf2427b18ba40ac41d0896c57287  native/disk/tests/omega_nvme_runner.c
+966239df1ea3da1651a76bd32d6f36935773f568dc02d04def50d586bf8fa98c  /home/drakestapleton/handoffs/spark-five-20261028/QualNvmeOm/acceptance-ready-retention/read
+
+--- result.txt ---
+PASS Omega NVMe host + QEMU + guard mutants; physical NOT_RUN

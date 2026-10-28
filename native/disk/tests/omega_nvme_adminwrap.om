@@ -1,0 +1,26 @@
+note SPDX-License-Identifier: Apache-2.0
+note Verification-only repeated read-only Identify commands force admin CQ/SQ wrap.
+fn main to int
+getmanifest
+r = initialize
+if ne r 0
+report r
+ret r
+end
+for i ulong 40
+r = identify 1 0
+if ne r 0
+report r
+ret r
+end
+end
+for i ulong 40
+r = readblocks man64 48 man32 56
+if ne r 0
+report r
+ret r
+end
+end
+report 0
+ret 0
+end
