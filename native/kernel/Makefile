@@ -353,6 +353,20 @@ OUT ?= $(REPO)/target/native-kernel-pi5
 CK_EXTRA_CFLAGS += -DCK_PI5=1 -DCK_KLOG=1
 endif
 
+# Spark attended boot #2 (L198): `make full CK_RTL8127=1` ($(OUT)/full/BOOTAA64.EFI)
+# binds the Realtek RTL8127 10 GbE (dev/rtl8127_bind.c) in the devices stage and sends the console log as UDP
+# broadcasts (tag AIENUX-SPARK-REPORT, port 47031). Empty (default) in every
+# QEMU gate: the binding is compiled but never called.
+ifneq ($(strip $(CK_RTL8127)),)
+ifneq ($(strip $(CK_RTL8127)),1)
+$(error CK_RTL8127 must be empty or 1)
+endif
+ifneq ($(strip $(CK_PI5)),)
+$(error CK_RTL8127 cannot be combined with CK_PI5)
+endif
+CK_EXTRA_CFLAGS += -DCK_RTL8127=1 -DCK_KLOG=1
+endif
+
 # TEST-ONLY artifact source: CK_TEST_FWCFG_ARTIFACTS=1 compiles the QEMU fw_cfg
 # side channel (opt/aienos/artifacts) into the loader instead of the boot disk
 # Store. Every image built without it is checked to contain no fw_cfg artifact
@@ -883,6 +897,9 @@ CORE_C := $(BOOT)/efi_main.c $(BOOT)/efi_model.c $(BOOT)/efi_gop.c \
 ifeq ($(strip $(CK_PI5)),1)
 CORE_C += $(BOOT)/efi_klog.c $(KDIR)/core/pi5.c $(KDIR)/core/pi5_marker.c $(KDIR)/dev/disk_part.c $(KDIR)/core/klog.c $(KDIR)/core/klog_slot.c \
 	$(KDIR)/dev/pi5_wdt.c $(KDIR)/dev/pi5_rng.c $(NATIVE)/disk/disk.c $(NATIVE)/disk/disk_sdhci.c
+endif
+ifeq ($(strip $(CK_RTL8127)),1)
+CORE_C += $(KDIR)/core/klog.c
 endif
 ifeq ($(strip $(CK_PI5_PCIE)),1)
 CORE_C += $(KDIR)/dev/pi5_pcie.c $(KDIR)/dev/dma_window.c

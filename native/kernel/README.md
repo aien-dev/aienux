@@ -213,6 +213,17 @@ VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.
 
+The Spark's Realtek RTL8127 10 GbE (10ec:8127, segment 7) has a driver core in
+`native/net/aienos_rtl8127.c` and a binding in `dev/rtl8127_bind.c` (L198): SMMU
+window first (no SMMU, no DMA), BAR 2, reset and bring-up from Realtek's Linux r8127
+v11.014.00 (no public datasheet: DOCS SILENT), link wait, then the console log
+(`core/klog.c` RAM copy) sent every 2 s for 20 s as UDP broadcasts in the iMac
+format with the tag `AIENUX-SPARK-REPORT`; the same `ck_imac_report_listen`
+writes it to `spark-<run>.txt`. Only a `make full CK_RTL8127=1` image calls it; every QEMU
+gate image is unchanged. Tested against a chip model and on the host only;
+nothing has run on the chip. What attended boot #2 must confirm is listed in
+`docs/SPARK_RTL8127.md`.
+
 ## Raspberry Pi 5 image (AIENOS-PI5 step 1)
 
     make -C native/kernel pi5            # target/native-kernel-pi5/BOOTAA64.EFI (-DCK_PI5=1 -DCK_KLOG=1)

@@ -41,6 +41,7 @@
 #include "cortex_journal.h"
 #include "sha256.h"
 #include "net_bind.h"
+#include "rtl8127_bind.h"
 #include "net_udp.h"
 #include "xhci_fence.h"
 #include "usb_hid.h"
@@ -1737,6 +1738,48 @@ static void test_net_udp(void)
 }
 
 
+/* RTL8127 binding (L198): absent device, and no SMMU in the host shim, both
+ * fail closed before the function gets memory decode or bus master. */
+static void test_rtl8127_bind(void)
+{
+    printf("  [rtl8127 bind without SMMU, host, not hardware]\n");
+    static pci_func rf;
+    static pci_found fd[2];
+    memset(fd, 0, sizeof fd);
+    fd[0].vendor = 0x1af4;
+    fd[0].device = 0x1041;
+    CHECK(ck_rtl8127_find(fd, 1, &rf) == CK_RTL_ABSENT);
+    CHECK(ck_rtl8127_find(NULL, 0, &rf) == CK_RTL_ABSENT);
+    CHECK(ck_rtl8127_find(fd, 1, NULL) == CK_RTL_E_ARG);
+    fd[1].vendor = 0x10ec;
+    fd[1].device = 0x8127;
+    fd[1].segment = 7;
+    fd[1].bus = 1;
+    CHECK(ck_rtl8127_find(fd, 2, &rf) == CK_RTL_E_ARG); /* no mapped ECAM for segment 7 in the host shim */
+
+    static uint8_t cfg[4096];
+    memset(cfg, 0, sizeof cfg);
+    memset(&rf, 0, sizeof rf);
+    rf.vendor = 0x10ec;
+    rf.device = 0x8127;
+    rf.segment = 7;
+    rf.bus = 1;
+    rf.cfg = cfg;
+    const char log[] = "boot report line\n";
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_ARG); /* BAR 2 missing */
+    rf.bar[2].addr = 0x6e900000u;
+    rf.bar[2].size = 0x40000u;
+    rf.bar[2].is64 = 1;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_DENIED);
+    CHECK((pci_r16(rf.cfg, 4) & 0x6u) == 0); /* no MEM, no BM */
+    CHECK(ck_rtl8127_live() == 0);
+    ck_rtl8127_release(); /* idempotent */
+    CHECK(ck_rtl8127_report(NULL, log, 1, 1) == CK_RTL_E_ARG);
+    CHECK(ck_rtl8127_report(&rf, log, 0, 1) == CK_RTL_E_ARG);
+    rf.bar[2].size = 0x100u; /* the vendor minimum, below the registers this driver uses */
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_ARG);
+}
+
 /* ---------------- post-exit bus-master sweep + xHCI DMA fence ---------------- */
 
 static void test_xhci_fence(void)
@@ -2668,6 +2711,7 @@ int main(void)
     test_security();
     test_nvme_shutdown();
     test_net_udp();
+    test_rtl8127_bind();
     test_xhci_fence();
     test_usb_hid();
     printf("CK_STAGE_HOST: %s checks=%d failures=%d\n", failures ? "FAIL" : "PASS", checks, failures);
