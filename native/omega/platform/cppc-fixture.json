@@ -1,0 +1,3046 @@
+{
+  "source_sha256": "2871cbcb8992f7bd3915d6f19e7cfab577e068dcad58b6f00317a9f2d4e1b28e",
+  "cpu_order": "CLU0.CPU0..CPU9 then CLU1.CPU0..CPU9",
+  "cpus": [
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC404",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC408",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC40C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC410",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC414",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC418",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150480",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150500",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC424",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC428",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC42C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC430",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC44C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC450",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC454",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC458",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC45C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC460",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC464",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC4EC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC4F0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC4F4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC4F8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC4FC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC500",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150484",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150504",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC50C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC510",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC514",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC518",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC534",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC538",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC53C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC540",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC544",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC548",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC54C",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5D4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5D8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5DC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5E0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5E4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5E8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150488",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150508",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5F4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5F8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC5FC",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC600",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC61C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC620",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC624",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC628",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC62C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC630",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC634",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6BC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6C0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6C4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6CC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6D0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515048C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515050C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6DC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6E0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6E4",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC6E8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC704",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC708",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC70C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC710",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC714",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC718",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC71C",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7A8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7AC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7B0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7B4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7B8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150490",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150510",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7C4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7CC",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7D0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7EC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7F0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7F4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7F8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC7FC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC800",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC804",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "PCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC88C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC890",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC894",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC898",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC89C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158480",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158500",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8AC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8B0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8B4",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8B8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8D4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8D8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8DC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8E0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8E4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8E8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC8EC",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "PCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC974",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC978",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC97C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC980",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC984",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC988",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158484",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158504",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC994",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC998",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC99C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9BC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9C0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9C4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9CC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9D0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CC9D4",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "PCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA5C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA60",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA64",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA68",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA6C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA70",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158488",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158508",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA7C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA80",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA84",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCA88",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAA4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAA8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAAC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAB0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAB4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCAB8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCABC",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "PCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB44",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB48",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB4C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB50",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB54",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB58",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515848C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515850C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB64",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB68",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB6C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB70",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB8C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB90",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB94",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB98",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCB9C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCBA0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCBA4",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "PCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC2C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC30",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC34",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC38",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC3C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC40",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158490",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158510",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC4C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC50",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC54",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC58",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC74",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC78",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC7C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC80",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC84",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC88",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCC8C",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD14",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD18",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD1C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD20",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD24",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD28",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150494",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150514",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD34",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD38",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD3C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD40",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD5C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD60",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD64",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD68",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD6C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD70",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCD74",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCDFC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE00",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE04",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE08",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE0C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE10",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150498",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150518",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE1C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE20",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE24",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE28",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE44",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE48",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE4C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE50",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE54",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE58",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCE5C",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEE4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEE8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEEC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEF0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEF4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCEF8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515049C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515051C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF04",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF08",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF0C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF10",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF2C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF30",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF34",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF38",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF3C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF40",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCF44",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFCC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFD0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFD4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFD8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFDC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFE0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051504A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150520",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFEC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFF0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFF4",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CCFF8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD014",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD018",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD01C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD020",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD024",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD028",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD02C",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "ECPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0B4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0B8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0BC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0C0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0C4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051504A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005150524",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0D4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0D8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0DC",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0E0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD0FC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD100",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD104",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD108",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD10C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD110",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD114",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "TCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD19C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1A8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1AC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1B0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158494",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158514",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1BC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1C0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1C4",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1E4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1E8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1EC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1F0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1F4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1F8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD1FC",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "TCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD284",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD288",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD28C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD290",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD294",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD298",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158498",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158518",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2A8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2AC",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2B0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2CC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2D0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2D4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2D8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2DC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2E0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD2E4",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "TCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD36C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD370",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD374",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD378",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD37C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD380",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515849C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x000000000515851C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD38C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD390",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD394",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD398",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3B4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3B8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3BC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3C0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3C4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3C8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD3CC",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "TCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD454",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD458",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD45C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD460",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD464",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD468",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051584A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158520",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD474",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD478",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD47C",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD480",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD49C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4A0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4A8",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4AC",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4B0",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD4B4",
+          "access": "0x03"
+        }
+      ]
+    },
+    {
+      "kind": "TCPC",
+      "registers": [
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD53C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD540",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD544",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD548",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD54C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD550",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051584A4",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x0000000005158524",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD55C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD560",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD564",
+          "access": "0x03"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000001",
+          "access": "0x00"
+        },
+        {
+          "space": "FFixedHW",
+          "bits": "0x40",
+          "offset": "0x00",
+          "address": "0x0000000000000000",
+          "access": "0x00"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD568",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD584",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD588",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD58C",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD590",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD594",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD598",
+          "access": "0x03"
+        },
+        {
+          "space": "SystemMemory",
+          "bits": "0x20",
+          "offset": "0x00",
+          "address": "0x00000000051CD59C",
+          "access": "0x03"
+        }
+      ]
+    }
+  ]
+}
