@@ -249,6 +249,12 @@ The fluid layer paints only its published snapshots and anchors its grid
 coordinates independently of dirty clips; all changing star-twinkle footprints
 are invalidated. Full-frame and incremental draws must therefore remain
 byte-identical, including at native 4K and through scene transitions.
+Allen's points, sparks and heart use bounded antialiased geometry, not a
+blurred glow or a whole-being halo. The galaxy and catalogue stars keep
+their own light rendering. A native-4K pixel regression compares the being
+with the identical background: outside his bounded geometry, the annulus
+must remain byte-identical to the background rather than hiding a rim
+behind a permissive brightness threshold.
 
 `ui/chirp.c` is the matching sound: a quick "blirp", the last 0.6 s of the
 gravitational-wave chirp of the same inspiral, raised into hearing (200 Hz
@@ -459,6 +465,20 @@ and a delayed reply. Its model fixture is compiled with `rustc` from
 `ALLEN_MODEL=127.0.0.1:18091` to add a real-model exchange after those cases.
 These host tests exercise the protocol, not the physical Broadcom card or
 authenticated networking.
+
+The addressless kernel sends to limited broadcast (`255.255.255.255`), not
+the LAN's directed broadcast; Linux can reject source-zero directed
+broadcast before UDP input. The relay may answer on the LAN's directed
+broadcast, which Linux also loops back to its own bound UDP socket. Before
+creating or updating a session, the relay accepts only kernel-origin
+`HELLO`, `JOB` and `GOT` messages. Its own `HI`, `ACK` and `LINE` packets must
+not replace that session's answer destination with the relay's address.
+`scripts/ck_courier_udp_frame_test.sh` additionally runs the real kernel
+Ethernet producer/parser against the relay in an isolated Linux network
+namespace, with source-zero requests and directed-broadcast answers. It
+checks actual checksummed LINE/GOT frames, duplicate acknowledgement and
+malformed/wrong-run refusal; withholding GOT must provoke retransmission.
+This host-frame check does not emulate or qualify the Broadcom hardware.
 
 For conversational recall, the relay sends complete `asked: ... / said: ...`
 exchange notes as earlier user and assistant turns, oldest first. These remain

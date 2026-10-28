@@ -23,6 +23,7 @@
 #include "../allen_font.h"
 #include "../allen_ui.h"
 #include "../flow.h"
+#include "../mind.h"
 #include "../night.h"
 #include "../setup_view.h"
 
@@ -414,11 +415,124 @@ static void wizard_screens(const char *dir)
     free(fb), free(copy), free(mem);
 }
 
+/* Compare the exact same native galaxy pixels, not an unrelated star patch.
+ * The annulus starts beyond every projected node plus the largest sharp
+ * primitive and its AA edge. Threads and travelling sparks stay between nodes. */
+static void mind_no_halo(const char *dir)
+{
+    enum { W = 3840, H = 2160, K = 512, CX = W / 2, CY = H * 40 / 100 };
+    size_t bytes = (size_t)W * H * sizeof(uint32_t);
+    uint32_t *background = malloc(bytes), *image = malloc(bytes);
+    size_t nb = ck_night_mem_bytes(W, H, K);
+    void *storage = malloc(nb);
+    static ck_night night;
+    CHECK(background && image && storage, "mind: native frame allocation");
+    if (!background || !image || !storage) {
+        free(background), free(image), free(storage);
+        return;
+    }
+    CHECK(!ck_night_init(&night, W, H, K, CX, CY, storage, nb, image), "mind: native galaxy init");
+    ck_canvas bg = {background, W, H}, cv = {image, W, H};
+    ck_rect clip = {0, 0, W, H};
+    ck_night_at(&night, 30000);
+    ck_night_base(&night, &bg, &clip);
+    ck_night_lights(&night, &bg, &clip, 0, 0);
+    for (int mode = CK_MIND_IDLE; mode <= CK_MIND_SPEAK; mode++) {
+        ck_mind mind;
+        ck_mind_init(&mind, CX, CY, K, 0);
+        ck_mind_mode(&mind, mode, 0);
+        ck_mind_voice(&mind, 256);
+        for (uint32_t t = 0; t <= 6000; t += 100)
+            ck_mind_at(&mind, t);
+        ck_mind_word(&mind, 6000);
+        ck_mind_key(&mind, 6000);
+        ck_mind_at(&mind, 6100);
+        int64_t radius = 0;
+        for (unsigned i = 0; i < CK_MIND_NODES; i++) {
+            int64_t dx = mind.px[i] - mind.hx, dy = mind.py[i] - mind.hy;
+            int64_t d = (int64_t)ck_isqrt((uint64_t)(dx * dx + dy * dy));
+            if (d > radius)
+                radius = d;
+        }
+        /* S(5) is the largest spark radius; two pixels cover rounding/AA. */
+        radius += 5 * K / 256 * 16 + 32;
+        int64_t outer = (int64_t)mind.R * 16 * 2;
+        memcpy(image, background, bytes);
+        ck_mind_draw(&mind, &cv, &clip);
+        unsigned annulus = 0, being = 0, control = 0;
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++) {
+                int64_t dx = x * 16 + 8 - mind.hx, dy = y * 16 + 8 - mind.hy;
+                int64_t d2 = dx * dx + dy * dy;
+                size_t p = (size_t)y * W + x;
+                int positive = 0;
+                for (int s = 0; s < 24; s += 8)
+                    positive |= (image[p] >> s & 255) > (background[p] >> s & 255);
+                if (d2 > radius * radius && d2 < outer * outer)
+                    annulus += positive;
+                if (d2 <= radius * radius)
+                    being += positive;
+            }
+        CHECK(!annulus, "mind: no positive difference outside true being on identical galaxy");
+        CHECK(being > 0, "mind: sharp being still present");
+        if (dir) {
+            char path[512];
+            snprintf(path, sizeof path, "%s/mind-no-halo-%d.png", dir, mode);
+            png(path, image, W, 1, 0, 0, W, H, 1);
+        }
+        /* Historical whole-mind glow, kept only as a detector control. */
+        memcpy(image, background, bytes);
+        ck_glow(&cv, &clip, mind.hx, mind.hy, mind.R * 16 * 17 / 10,
+                CK_RGB(60, 74, 210), (52 + mind.heart / 8) * mind.alpha >> 8);
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++) {
+                int64_t dx = x * 16 + 8 - mind.hx, dy = y * 16 + 8 - mind.hy;
+                int64_t d2 = dx * dx + dy * dy;
+                size_t p = (size_t)y * W + x;
+                if (d2 > radius * radius && d2 < outer * outer)
+                    control += image[p] != background[p];
+            }
+        CHECK(control > 0, "mind: historical glow positive control lights the annulus");
+        printf("MIND_NO_HALO mode=%d center=%d,%d inner16=%lld outer16=%lld annulus_added=%u being_added=%u old_glow_added=%u box=%d,%d,%d,%d\n",
+               mode, CX, CY, (long long)radius, (long long)outer, annulus, being, control,
+               mind.box.x, mind.box.y, mind.box.w, mind.box.h);
+    }
+    /* Isolate an actual drawn point: a filled interior, not a smaller glow.
+     * All other geometry is dark; this still calls the production renderer. */
+    ck_mind point;
+    ck_mind_init(&point, CX, CY, K, 0);
+    ck_mind_at(&point, 6000);
+    point.ne = point.nspark = 0;
+    point.hr = 0;
+    memset(point.lum, 0, sizeof point.lum);
+    point.px[0] = CX * 16 + 8;
+    point.py[0] = CY * 16 + 8;
+    point.near[0] = 0;
+    point.lum[0] = 256;
+    point.act[0] = 0;
+    point.box = clip;
+    memset(image, 0, bytes);
+    ck_mind_draw(&point, &cv, &clip);
+    uint32_t centre = image[(size_t)CY * W + CX];
+    CHECK(centre != 0, "mind: isolated point is present");
+    CHECK(image[(size_t)CY * W + CX + 1] == centre &&
+              image[(size_t)CY * W + CX + 2] == centre,
+          "mind: point has flat filled interior, not radial blur");
+    CHECK(!image[(size_t)CY * W + CX + 5], "mind: no point bloom beyond geometric edge");
+    free(background), free(image), free(storage);
+}
+
 int main(int argc, char **argv)
 {
     const char *dir = argc > 1 ? argv[1] : 0;
     char path[512];
     crc_init();
+    if (argc > 1 && !strcmp(argv[1], "--mind-no-halo")) {
+        mind_no_halo(argc > 2 ? argv[2] : 0);
+        printf("MIND_NO_HALO: %s (%d checks)\n", fails ? "FAIL" : "PASS", checks);
+        return fails ? 1 : 0;
+    }
+    mind_no_halo(0);
     cpu_clock = getenv("ALLEN_UI_CLOCK") && !strcmp(getenv("ALLEN_UI_CLOCK"), "cpu");
 
     /* ---- answers ---- */
@@ -1083,17 +1197,18 @@ int main(int argc, char **argv)
            average, slowest, cpu_clock ? "CPU time of this thread" : "wall clock");
     CHECK(frames > 1000, "ui: frames counted");
 
-    /* ---- 1280 x 800 RGBX with a padded pitch (QEMU's usual mode); then the same with three helper cores ---- */
+    /* Padded RGBX alone/with helpers, then the identical timeline in BGRX. */
     uint32_t w2 = 1280, h2 = 800, pitch2 = 1344;
-    uint32_t *fb2[2];
+    uint32_t *fb2[3];
     size_t need2 = ck_allen_ui_mem_bytes(w2, h2);
     void *mem2 = malloc(need2);
-    for (int run = 0; run < 2; run++) {
+    for (int run = 0; run < 3; run++) {
         fb2[run] = calloc((size_t)pitch2 * h2, 4);
-        CHECK(ck_allen_ui_start(fb2[run], w2, h2, pitch2, 0, mem2, need2, 1000000, 0, 0) == 0, "ui: starts at 1280x800");
+        CHECK(ck_allen_ui_start(fb2[run], w2, h2, pitch2, run == 2, mem2, need2, 1000000, 0, 0) == 0,
+              "ui: starts at 1280x800");
         pthread_t th[3];
-        helpers_run = run;
-        for (int i = 0; run && i < 3; i++)
+        helpers_run = run == 1;
+        for (int i = 0; run == 1 && i < 3; i++)
             pthread_create(&th[i], 0, helper, 0);
         now_us = 0;
         run_to(15000);
@@ -1101,7 +1216,7 @@ int main(int argc, char **argv)
         ck_allen_ui_said("Hello Allen", "Hello Humanity.", now_us);
         run_to(18000);
         helpers_run = 0;
-        for (int i = 0; run && i < 3; i++)
+        for (int i = 0; run == 1 && i < 3; i++)
             pthread_join(th[i], 0);
     }
     struct pic P2 = {fb2[0], pitch2, 0};
@@ -1109,8 +1224,17 @@ int main(int argc, char **argv)
     for (uint32_t y = 0; y < h2; y++)
         for (uint32_t x = w2; x < pitch2; x++)
             padding_clean &= fb2[0][(size_t)y * pitch2 + x] == 0;
-    uint32_t c2x = w2 / 2, c2y = h2 * 40 / 100;
-    CHECK(count(&P2, c2x - 60, c2y - 60, 120, 120, VIOLET) > 2000, "ui: RGBX screens get red and blue swapped");
+    unsigned format_exact = 1, colored = 0;
+    for (uint32_t y = 0; y < h2; y++)
+        for (uint32_t x = 0; x < w2; x++) {
+            size_t p = (size_t)y * pitch2 + x;
+            uint32_t bgr = fb2[2][p];
+            uint32_t rgb = (bgr & 0xff00ff00u) | ((bgr & 0xffu) << 16) | ((bgr >> 16) & 0xffu);
+            format_exact &= fb2[0][p] == rgb;
+            colored |= (bgr & 0xffu) != ((bgr >> 16) & 0xffu);
+        }
+    CHECK(format_exact && colored, "ui: RGBX swaps red/blue exactly against an asymmetric BGRX frame");
+    uint32_t c2y = h2 * 40 / 100;
     CHECK(count(&P2, w2 / 4, c2y + 120, w2 / 2, 200, BRIGHT) > 100, "ui: Allen answers at 1280x800");
     CHECK(padding_clean, "ui: nothing written past the visible width");
     CHECK(memcmp(fb2[0], fb2[1], (size_t)pitch2 * h2 * 4) == 0, "ui: three helper cores draw exactly the same frames");
@@ -1122,7 +1246,7 @@ int main(int argc, char **argv)
         png(path, tmp, w2, 0, 0, 0, w2, h2, 1);
         free(tmp);
     }
-    free(fb), free(copy), free(sky), free(mem), free(fb2[0]), free(fb2[1]), free(mem2);
+    free(fb), free(copy), free(sky), free(mem), free(fb2[0]), free(fb2[1]), free(fb2[2]), free(mem2);
     wizard_screens(dir);
     printf("ALLEN_UI_TEST: %s (%d checks%s)\n", fails ? "FAIL" : "PASS", checks, fails ? ", some failed" : "");
     return fails ? 1 : 0;

@@ -1,9 +1,10 @@
-/* mind.h -- Allen's presence: no face and no body, a mind drawn as light.
+/* mind.h -- Allen's presence: no face and no body, a crisp network.
  *
- * About a hundred points of light sit on and inside a sphere, joined by fine
- * threads into a network, turning slowly in three dimensions round a warm
- * heart. Small sparks run along the threads from point to point; each one
- * that arrives lights its point for a moment. How it moves is how Allen is:
+ * About a hundred sharp points sit on and inside a sphere, joined by fine
+ * threads into a network, turning slowly in three dimensions round a compact
+ * heart. Points and heart are filled discs with coverage AA, never bloom.
+ * Small sparks run along the threads from point to point; each one that
+ * arrives lights its point for a moment. How it moves is how Allen is:
  *   idle       it breathes (a slow swell) and turns slowly; a few sparks.
  *   listening  each key typed sends a soft wave of light up through it.
  *   thinking   it draws in a little, turns faster, the heart brightens and
@@ -57,7 +58,7 @@ typedef struct {
     int32_t px[CK_MIND_NODES], py[CK_MIND_NODES]; /* 16ths of a pixel */
     uint16_t lum[CK_MIND_NODES], near[CK_MIND_NODES]; /* brightness 0..256; nearness 0..256 */
     uint32_t alpha; /* the whole figure, 0..256 */
-    int32_t hx, hy, hr; /* the heart: 16ths of a pixel */
+    int32_t hx, hy, hr; /* compact heart centre and radius: 16ths of a pixel */
     ck_rect box, was;   /* where it is now, and was the frame before */
 } ck_mind;
 

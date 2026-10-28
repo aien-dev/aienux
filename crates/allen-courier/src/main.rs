@@ -1375,6 +1375,17 @@ fn field(head: &str, key: &str) -> u32 {
         .unwrap_or(0)
 }
 
+/// Only kernel-to-relay datagrams may create or update a peer session.
+fn kernel_kind(head: &str) -> Option<&str> {
+    let kind = head.split(' ').find_map(|f| f.strip_prefix("kind="))?;
+    // Linux loops our broadcast HI/ACK/LINE back to this bound socket.
+    // Taking their source as answer_to would redirect the session to ourselves.
+    if !matches!(kind, "HELLO" | "JOB" | "GOT") {
+        return None;
+    }
+    Some(kind)
+}
+
 fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
     let sock = UdpSocket::bind(("0.0.0.0", port)).unwrap_or_else(|e| {
         eprintln!("allen-courier: UDP port {}: {}", port, e);
@@ -1473,10 +1484,9 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
         if run.len() != 16 || !run.bytes().all(|b| b.is_ascii_hexdigit()) {
             continue;
         }
-        let kind = head
-            .split(' ')
-            .find_map(|f| f.strip_prefix("kind="))
-            .unwrap_or("");
+        let Some(kind) = kernel_kind(head) else {
+            continue;
+        };
         let seq = field(head, "seq=");
         let part = field(head, "part=");
         let total = head
@@ -1618,6 +1628,23 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn udp_kernel_direction_excludes_our_broadcast_replies() {
+        for kind in ["HI", "ACK", "LINE", "HELLOextra", "UNKNOWN"] {
+            let wire = datagram("0123456789abcdef", kind, 1, 1, 0, "SAY 1 1/1 hi");
+            let text = std::str::from_utf8(&wire).unwrap();
+            let (head, _) = text.split_once('\n').unwrap();
+            assert_eq!(kernel_kind(head), None, "{kind} must not update answer_to");
+        }
+        for kind in ["HELLO", "JOB", "GOT"] {
+            let wire = datagram("0123456789abcdef", kind, 1, 1, 0, "");
+            let text = std::str::from_utf8(&wire).unwrap();
+            let (head, _) = text.split_once('\n').unwrap();
+            assert_eq!(kernel_kind(head), Some(kind));
+        }
+        assert_eq!(kernel_kind("ALLEN-COURIER v=1 run=0123456789abcdef"), None);
+    }
 
     #[test]
     fn words_on_the_wire() {

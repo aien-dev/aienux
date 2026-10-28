@@ -208,25 +208,52 @@ void ck_mind_at(ck_mind *m, uint32_t t)
         y0 = ck_min(y0, m->py[i]), y1 = ck_max(y1, m->py[i]);
     }
     m->hx = m->cx * 16 + 8, m->hy = m->cy * 16 + 8;
-    m->hr = (int32_t)(R16 * 52 / 100 * scale / 65536);
-    int32_t halo = (int32_t)(R16 * 17 / 10 * ck_min((int32_t)(scale >> 8), 256) / 256);
-    int32_t pad = S(8) * 16;
-    x0 = ck_min(x0 - pad, m->hx - halo), x1 = ck_max(x1 + pad, m->hx + halo);
-    y0 = ck_min(y0 - pad, m->hy - halo), y1 = ck_max(y1 + pad, m->hy + halo);
+    /* Only the compact heart is geometry; no surrounding light field. */
+    m->hr = (int32_t)(R16 * 52 / 100 * scale / 65536) / 8;
+    int32_t pad = S(5) * 16 + 16; /* largest spark plus its AA edge */
+    x0 = ck_min(x0 - pad, m->hx - m->hr - 16), x1 = ck_max(x1 + pad, m->hx + m->hr + 16);
+    y0 = ck_min(y0 - pad, m->hy - m->hr - 16), y1 = ck_max(y1 + pad, m->hy + m->hr + 16);
     m->box = (ck_rect){(x0 >> 4) - 1, (y0 >> 4) - 1, ((x1 - x0) >> 4) + 3, ((y1 - y0) >> 4) + 3};
 }
 
 ck_rect ck_mind_dirty(const ck_mind *m) { return ck_union(m->was, m->box); }
+
+/* A filled geometric point, constant light inside and one-pixel coverage
+ * at its boundary. No radial falloff, bloom, or extra light outside the edge. */
+static void point(ck_canvas *out, const ck_rect *clip, int32_t cx, int32_t cy,
+                  int32_t radius, uint32_t color, uint32_t alpha)
+{
+    if (radius <= 0 || !alpha)
+        return;
+    ck_rect box = {(cx - radius - 8) >> 4, (cy - radius - 8) >> 4, 0, 0};
+    box.w = ((cx + radius + 8) >> 4) - box.x + 1;
+    box.h = ((cy + radius + 8) >> 4) - box.y + 1;
+    ck_rect canvas = {0, 0, out->w, out->h};
+    if (!ck_clip(&box, clip) || !ck_clip(&box, &canvas))
+        return;
+    int64_t inner = ck_max(radius - 8, 0), outer = (int64_t)radius + 8;
+    int64_t inner2 = inner * inner, outer2 = outer * outer;
+    for (int32_t y = box.y; y < box.y + box.h; y++) {
+        int64_t dy = (int64_t)y * 16 + 8 - cy, dy2 = dy * dy;
+        uint32_t *row = out->px + (size_t)y * (size_t)out->w;
+        for (int32_t x = box.x; x < box.x + box.w; x++) {
+            int64_t dx = (int64_t)x * 16 + 8 - cx;
+            int64_t d2 = dx * dx + dy2;
+            if (d2 >= outer2)
+                continue;
+            uint32_t coverage = radius >= 8 && d2 <= inner2 ? 256u :
+                ck_cover((int32_t)ck_isqrt((uint64_t)d2) - radius);
+            if (coverage)
+                row[x] = ck_add(row[x], color, coverage * alpha >> 8);
+        }
+    }
+}
 
 void ck_mind_draw(const ck_mind *m, ck_canvas *out, const ck_rect *r)
 {
     if (!m->alpha || !ck_meets(m->box, r))
         return;
     uint32_t A = m->alpha, form = (uint32_t)ck_prog(m->t, m->born, m->born + CK_MIND_FORM_MS);
-    int64_t R16 = (int64_t)m->R * 16;
-    /* the halo: a faint blue light round the whole mind, swelling a little with the heart */
-    ck_glow(out, r, m->hx, m->hy, (int32_t)(R16 * 17 / 10), CK_RGB(60, 74, 210), (52 + m->heart / 8) * A >> 8);
-    ck_glow(out, r, m->hx, m->hy, (int32_t)R16, CK_RGB(112, 92, 255), (30 + m->heart / 8) * A >> 8);
     /* the threads, fading in once the points have mostly gathered */
     uint32_t ta = ck_smooth(((int32_t)form - 128) * 2) * A >> 8;
     if (ta)
@@ -241,8 +268,7 @@ void ck_mind_draw(const ck_mind *m, ck_canvas *out, const ck_rect *r)
     for (unsigned i = 0; i < CK_MIND_NODES; i++) {
         int32_t rad = (int32_t)((int64_t)S(3) * 16 * (160 + m->near[i] * 120 / 256) >> 8);
         uint32_t c = ck_mix(CK_RGB(206, 222, 255), CK_RGB(255, 214, 160), m->act[i]);
-        ck_glow(out, r, m->px[i], m->py[i], rad * 3, c, (m->lum[i] * 50 >> 8) * A >> 8);
-        ck_glow(out, r, m->px[i], m->py[i], rad, c, m->lum[i] * A >> 8);
+        point(out, r, m->px[i], m->py[i], rad, c, m->lum[i] * A >> 8);
     }
     /* the sparks, each with a short fading tail */
     for (unsigned i = 0; i < m->nspark; i++) {
@@ -254,11 +280,11 @@ void ck_mind_draw(const ck_mind *m, ck_canvas *out, const ck_rect *r)
             int32_t g = ck_clamp(f - k * 22, 0, 256);
             int32_t x = m->px[a] + (int32_t)((int64_t)(m->px[b] - m->px[a]) * g >> 8);
             int32_t y = m->py[a] + (int32_t)((int64_t)(m->py[b] - m->py[a]) * g >> 8);
-            ck_glow(out, r, x, y, S(5) * 16 - k * S(1) * 16, CK_RGB(255, 222, 176), (200 >> k) * A >> 8);
+            point(out, r, x, y, S(5) * 16 - k * S(1) * 16, CK_RGB(255, 222, 176), (200 >> k) * A >> 8);
         }
     }
-    /* the heart: a warm light at the centre, and a small bright core */
-    ck_glow(out, r, m->hx, m->hy, m->hr, CK_RGB(255, 210, 170), m->heart * 7 / 10 * A >> 8);
-    ck_glow(out, r, m->hx, m->hy, m->hr * 2 / 5, CK_RGB(255, 236, 214), (90 + m->heart) * A >> 8);
-    ck_glow(out, r, m->hx, m->hy, m->hr / 8, CK_RGB(255, 250, 240), 230 * A >> 8);
+    /* One compact, warm heart; its colour and brightness follow the voice. */
+    point(out, r, m->hx, m->hy, m->hr,
+          ck_mix(CK_RGB(255, 210, 170), CK_RGB(255, 250, 240), m->heart),
+          ck_min(90 + (int32_t)m->heart, 256) * A >> 8);
 }

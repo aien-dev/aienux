@@ -66,98 +66,98 @@
       "children": [
         {
           "digest": "0a8510e7fedafbf6b5d1ea15307da3a1eb6e8d6bd6ffa7caabf193fabaa464b5",
-          "last_commit": "3e71759",
+          "last_commit": "3e71759f",
           "name": "aienos-accel",
           "purpose": "Directory crates/aienos-accel. Purpose not yet described by a human."
         },
         {
           "digest": "68682a56017aef2e95b4101731a5bc023e0d297127e6b07af7d3be9f3d8afaeb",
-          "last_commit": "15d5f3d",
+          "last_commit": "15d5f3d2",
           "name": "aienos-aegis",
           "purpose": "Directory crates/aienos-aegis. Purpose not yet described by a human."
         },
         {
           "digest": "d5ad195a8f38c6bd0e1cc00feb8c5040f0fc8eabe47a9a69d961c73d6901d61e",
-          "last_commit": "39e246a",
+          "last_commit": "39e246aa",
           "name": "aienos-agent-state",
           "purpose": "Directory crates/aienos-agent-state. Purpose not yet described by a human."
         },
         {
           "digest": "ffb6a9a637e1eca1408280c4522ea52b283d740a90b8efad30350082900cbcdc",
-          "last_commit": "e12e6f6",
+          "last_commit": "e12e6f62",
           "name": "aienos-artifact",
           "purpose": "Directory crates/aienos-artifact. Purpose not yet described by a human."
         },
         {
           "digest": "ff4260f8fede1182f834d89589eb4d5a6c6160032dfc570003d506411fe93aa4",
-          "last_commit": "e9d39a9",
+          "last_commit": "e9d39a96",
           "name": "aienos-artifact-tool",
           "purpose": "Directory crates/aienos-artifact-tool. Purpose not yet described by a human."
         },
         {
           "digest": "223e3399133c766986b1044a16c8367b51b78158d3070c0ec63c7ed3e639d644",
-          "last_commit": "49ff776",
+          "last_commit": "49ff7767",
           "name": "aienos-boot",
           "purpose": "Directory crates/aienos-boot. Purpose not yet described by a human."
         },
         {
           "digest": "01d4fe4a0bd556f338ac4615b7ed1c9141e4f8035c07e0082f2894a57fa071d0",
-          "last_commit": "bc25e73",
+          "last_commit": "bc25e736",
           "name": "aienos-c1-tree",
           "purpose": "Directory crates/aienos-c1-tree. Purpose not yet described by a human."
         },
         {
           "digest": "ca15c2b9ae570b0aa2c7859672de2c976d6ce046188c09b7c74b5ccbee350136",
-          "last_commit": "51c05da",
+          "last_commit": "51c05daf",
           "name": "aienos-capability",
           "purpose": "Directory crates/aienos-capability. Purpose not yet described by a human."
         },
         {
           "digest": "c63ab3d5643ac3c0974eee276273a0ab80584c54926cbb62c637294b5b857718",
-          "last_commit": "51c05da",
+          "last_commit": "51c05daf",
           "name": "aienos-capability-ffi",
           "purpose": "Directory crates/aienos-capability-ffi. Purpose not yet described by a human."
         },
         {
           "digest": "f062e2e58faa2950ce8adeb2e4c16234dacce6672d560ed4fdeb7224c5093a77",
-          "last_commit": "bc25e73",
+          "last_commit": "bc25e736",
           "name": "aienos-cortex",
           "purpose": "Directory crates/aienos-cortex. Purpose not yet described by a human."
         },
         {
           "digest": "feccaaf349b9e88bc116db18951ffbd0145176b40ce702bc6320338c35b2e85e",
-          "last_commit": "f0facc7",
+          "last_commit": "f0facc7d",
           "name": "aienos-crypto",
           "purpose": "Directory crates/aienos-crypto. Purpose not yet described by a human."
         },
         {
           "digest": "e88324eb9a32d23d8358413c7404038ee4095fcf8c4889ac9c221b97aef80b8e",
-          "last_commit": "e960272",
+          "last_commit": "e9602721",
           "name": "aienos-evidence",
           "purpose": "Directory crates/aienos-evidence. Purpose not yet described by a human."
         },
         {
           "digest": "a0d0036c90e3d64d6e1caa67b77bf2b8deb898c597e9f0b797df4a144468e061",
-          "last_commit": "2951ea1",
+          "last_commit": "2951ea15",
           "name": "aienos-kernel",
           "purpose": "Directory crates/aienos-kernel. Purpose not yet described by a human."
         },
         {
           "digest": "716d679da128e7aab8efb6e9cf836ee22a62fe9fe6993e2d0a20c3016d78b3a0",
-          "last_commit": "761e63d",
+          "last_commit": "761e63d9",
           "name": "aienos-store-tool",
           "purpose": "Directory crates/aienos-store-tool. Purpose not yet described by a human."
         }
       ],
       "children_root": "sha256:ca16d018c0c02840ba1f87e2a7b64ed259a36253ed29230f274ebcabb43c8a7e",
-      "compiled_at": "2026-10-23T10:35:45Z",
+      "compiled_at": "2026-10-28T17:17:58Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:0fb7a8ec679e89e34b8906b2c2b62a752fc115a38cd0f24a736188f43f58ad71",
+      "digest": "sha256:fd9c09f242600984623125d7c3c531f2091076217c612269f054b6697a86d103",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 278,
-      "generated_at_commit": "03f493a3bae88478ea702330253f6a6f45dd7d1d",
-      "source_tree": "sha256:5b2210006d43c2d646ffff4f4e80b39da605dc693376bef72ef655dca9a14f7e"
+      "generated_at_commit": "4149646f2b8dae47b251733c955e3ea5a77ebd9e",
+      "source_tree": "sha256:8a56be5ba7a5cc84e9874f1bb9903aa0402c8d4a7c9c5d826fcc27b50bccf126"
     },
     "owner_lane": "",
     "provenance": {
