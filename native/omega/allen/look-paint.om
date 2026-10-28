@@ -1,0 +1,420 @@
+note SPDX-License-Identifier: MIT
+note Allen's look, part 1: the drawing kit. Handwritten Omega port of native/kernel/ui/paint.h and
+note paint.c (aienux da55660e): integer sine, arctangent, exp(-x), hash noise, colour blending, and the
+note glow, thread and rounded-rectangle shapes. Every function gives the same numbers as the C kit;
+note look-paint tests compare them value for value.
+note Lg: 0 screen width, 1 height, 2 k (1/256 px per design px of a 1920x1080 design), 3 sky centre x,
+note 4 sky centre y, 5..8 the clip rectangle x,y,w,h every shape is held inside.
+note Nfrm: the frame being drawn, one packed RGB word per screen pixel, rows Lg[0] apart.
+note Nsky: the sky as it was made at startup, the same layout.
+const LOOKPX ulong 8294400
+global Lg long 16
+global Nfrm uint 8294400
+global Nsky uint 8294400
+global Psin long 4097
+global Pexp ulong 4096
+global Plog ulong 257
+global Patan ulong 14
+fn pkmin a long b long to long
+if lt a b
+ret a
+end
+ret b
+end
+fn pkmax a long b long to long
+if gt a b
+ret a
+end
+ret b
+end
+fn pkabs a long to long
+if lt a 0
+ret neg a
+end
+ret a
+end
+fn pkclamp v long lo long hi long to long
+if lt v lo
+ret lo
+end
+if gt v hi
+ret hi
+end
+ret v
+end
+fn pkinit to void
+note sine: a rotation by a 4096th of a turn, applied over and over (Q30)
+c = long 1073741824
+s = long 0
+for k ulong 1025
+v = shr add s 32768 16
+if eq k 1024
+v = 16384
+end
+put Psin k v
+put Psin sub 2048 k v
+put Psin and add 2048 k 4095 neg v
+put Psin and sub 4096 k 4095 neg v
+nc = shr sub mul c 1073740561 mul s 1647099 30
+ns = shr add mul s 1073740561 mul c 1647099 30
+c = nc
+s = ns
+end
+put Psin 4096 get Psin 0
+note exp(-k/256): one factor of exp(-1/256) (Q30) per step
+e = ulong 1073741824
+for k ulong 4096
+put Pexp k shr add e 8192 14
+e = shr mul e 1069555701 30
+end
+note log2(1 + k/256): square the value 16 times, taking a bit each time it passes 2
+for k ulong 257
+if eq k 256
+put Plog k 65536
+else
+y = shl add ulong 256 k 8
+r = ulong 0
+for i ulong 16
+b = sub ulong 15 i
+y = shr mul y y 16
+if ge y 131072
+y = shr y 1
+r = or r shl ulong 1 b
+end
+end
+put Plog k r
+end
+end
+put Patan 0 8192
+put Patan 1 4836
+put Patan 2 2555
+put Patan 3 1297
+put Patan 4 651
+put Patan 5 326
+put Patan 6 163
+put Patan 7 81
+put Patan 8 41
+put Patan 9 20
+put Patan 10 10
+put Patan 11 5
+put Patan 12 3
+put Patan 13 1
+end
+fn pksin a ulong to long
+a = and a 65535
+i = shr a 4
+f = long and a 15
+s0 = get Psin i
+ret add s0 shr mul sub get Psin add i 1 s0 f 4
+end
+fn pkcos a ulong to long
+ret pksin add a 16384
+end
+fn pkatan2 y long x long to ulong
+if and eq x 0 eq y 0
+ret 0
+end
+xx = x
+yy = y
+ang = ulong 0
+if lt xx 0
+xx = neg xx
+yy = neg yy
+ang = 32768
+end
+m = pkmax xx pkabs yy
+while lt m 1048576
+xx = mul xx 2
+yy = mul yy 2
+m = mul m 2
+end
+while ge m 4194304
+xx = shr xx 1
+yy = shr yy 1
+m = shr m 1
+end
+z = long 0
+for i ulong 14
+st = long get Patan i
+nx = xx
+if gt yy 0
+nx = add xx shr yy i
+yy = sub yy shr xx i
+z = add z st
+else
+nx = sub xx shr yy i
+yy = add yy shr xx i
+z = sub z st
+end
+xx = nx
+end
+ret and add ang bitcast ulong z 65535
+end
+fn pkexpneg x ulong to ulong
+if lt x 4096
+ret get Pexp x
+end
+ret 0
+end
+fn pkisqrt v ulong to ulong
+ret afsqrt v
+end
+fn pkbits32 v long to ulong
+ret and bitcast ulong v 4294967295
+end
+fn pkhash x long y long seed ulong to ulong
+m = ulong 4294967295
+a = and mul pkbits32 x 2376512323 m
+b = and mul pkbits32 y 3625334849 m
+c = and mul and seed m 3407524639 m
+h = xor xor a b c
+h = xor h shr h 13
+h = and mul h 1540483477 m
+h = xor h shr h 15
+h = and mul h 668265261 m
+h = xor h shr h 16
+ret h
+end
+fn pksmooth t long to ulong
+t = pkclamp t 0 256
+ret ulong shr mul mul t t sub 768 mul 2 t 16
+end
+fn pkeaseout t long to ulong
+u = sub 256 pkclamp t 0 256
+ret sub ulong 256 ulong shr mul mul u u u 16
+end
+fn pkprog now ulong from ulong upto ulong to long
+if le now from
+ret 0
+end
+if ge now upto
+ret 256
+end
+ret long div mul sub now from 256 sub upto from
+end
+fn pknrow ix long iy long seed ulong fx ulong to ulong
+a = mul shr pkhash ix iy seed 16 sub 256 fx
+ret add a mul shr pkhash add ix 1 iy seed 16 fx
+end
+fn pknoise x long y long seed ulong to ulong
+fx = pksmooth long and pkbits32 x 255
+fy = pksmooth long and pkbits32 y 255
+ix = shr x 8
+iy = shr y 8
+a = pknrow ix iy seed fx
+b = pknrow ix add iy 1 seed fx
+ret shr add mul a sub 256 fy mul b fy 16
+end
+fn pkfbm x long y long seed ulong octaves ulong to ulong
+sum = ulong 0
+total = ulong 0
+for o ulong octaves
+w = shl ulong 1 sub sub octaves 1 o
+sd = and add seed mul o 7919 4294967295
+sum = add sum mul pknoise shl x o shl y o sd w
+total = add total w
+end
+ret div sum total
+end
+fn pkscale c ulong f ulong to ulong
+m = ulong 4294967295
+lo = and shr and mul and c 16711935 f m 8 16711935
+hi = and shr and mul and c 65280 f m 8 65280
+ret or lo hi
+end
+fn pkch c ulong s ulong to ulong
+ret and shr c s 255
+end
+fn pkadd d ulong c ulong a ulong to ulong
+r = add pkch d 16 shr mul pkch c 16 a 8
+g = add pkch d 8 shr mul pkch c 8 a 8
+b = add pkch d 0 shr mul pkch c 0 a 8
+if gt r 255
+r = 255
+end
+if gt g 255
+g = 255
+end
+if gt b 255
+b = 255
+end
+ret or or shl r 16 shl g 8 b
+end
+fn pkmix d ulong c ulong a ulong to ulong
+if ge a 256
+ret c
+end
+ret and add pkscale d sub 256 a pkscale c a 4294967295
+end
+fn pkcover d16 long to ulong
+v = sub 8 d16
+if le v 0
+ret 0
+end
+if ge v 16
+ret 256
+end
+ret ulong mul v 16
+end
+fn pkrgb r ulong g ulong b ulong to ulong
+ret or or shl r 16 shl g 8 b
+end
+fn pkclip x long y long w long h long to void
+put Lg 5 x
+put Lg 6 y
+put Lg 7 w
+put Lg 8 h
+end
+fn pkpx x long y long to ulong
+ret ulong get Nfrm add mul ulong y ulong get Lg 0 ulong x
+end
+fn pkput x long y long c ulong to void
+put Nfrm add mul ulong y ulong get Lg 0 ulong x uint c
+end
+fn pkplot x long y long color ulong a ulong to void
+if eq a 0
+ret
+end
+lx = get Lg 5
+ly = get Lg 6
+if or lt x lx lt y ly
+ret
+end
+if ge x add lx get Lg 7
+ret
+end
+if ge y add ly get Lg 8
+ret
+end
+if or lt x 0 lt y 0
+ret
+end
+if ge x get Lg 0
+ret
+end
+if ge y get Lg 1
+ret
+end
+pkput x y pkadd pkpx x y color a
+end
+fn pkglow cx long cy long r long color ulong a ulong to void
+if or le r 0 eq a 0
+ret
+end
+note d: the box the glow can reach, held inside the clip and the screen
+x0 = shr sub cx r 4
+y0 = shr sub cy r 4
+x1 = add shr add cx r 4 1
+y1 = add shr add cy r 4 1
+x0 = pkmax x0 pkmax get Lg 5 0
+y0 = pkmax y0 pkmax get Lg 6 0
+x1 = pkmin x1 pkmin add get Lg 5 get Lg 7 get Lg 0
+y1 = pkmin y1 pkmin add get Lg 6 get Lg 8 get Lg 1
+if or le x1 x0 le y1 y0
+ret
+end
+r2 = mul r r
+inv = div ulong 1099511627776 ulong r2
+for j ulong ulong sub y1 y0
+y = add y0 long j
+dy = sub add mul y 16 8 cy
+dy2 = mul dy dy
+if lt dy2 r2
+half = long pkisqrt ulong sub r2 dy2
+xa = pkmax x0 shr sub cx half 4
+xb = pkmin sub x1 1 shr add cx half 4
+if le xa xb
+for i ulong ulong add sub xb xa 1
+x = add xa long i
+dx = sub add mul x 16 8 cx
+d2 = add mul dx dx dy2
+if lt d2 r2
+f = sub ulong 256 shr mul ulong d2 inv 32
+w = shr mul shr mul f f 8 f 8
+pkput x y pkadd pkpx x y color shr mul w a 8
+end
+end
+end
+end
+end
+end
+fn pkthread x0 long y0 long x1 long y1 long color ulong a01 ulong to void
+note a01 packs the two ends' strength: a0 in bits 0..15, a1 in bits 16..31 (Omega takes at most six values).
+a0 = long and a01 65535
+a1 = long and shr a01 16 65535
+bx = sub shr pkmin x0 x1 4 1
+by = sub shr pkmin y0 y1 4 1
+bw = add sub shr pkmax x0 x1 4 bx 3
+bh = add sub shr pkmax y0 y1 4 by 3
+cx0 = pkmax bx get Lg 5
+cy0 = pkmax by get Lg 6
+cx1 = pkmin add bx bw add get Lg 5 get Lg 7
+cy1 = pkmin add by bh add get Lg 6 get Lg 8
+if or le cx1 cx0 le cy1 cy0
+ret
+end
+if and eq a0 0 eq a1 0
+ret
+end
+steep = gt pkabs sub y1 y0 pkabs sub x1 x0
+if steep
+t = x0
+x0 = y0
+y0 = t
+t = x1
+x1 = y1
+y1 = t
+end
+if gt x0 x1
+t = x0
+x0 = x1
+x1 = t
+t = y0
+y0 = y1
+y1 = t
+t = a0
+a0 = a1
+a1 = t
+end
+len = sub x1 x0
+if lt len 1
+len = 1
+end
+grad = div mul sub y1 y0 65536 len
+slant = shr pkisqrt ulong add 4294967296 mul grad grad 8
+first = shr add x0 7 4
+last = shr sub x1 8 4
+if gt first last
+ret
+end
+for i ulong ulong add sub last first 1
+xc = add first long i
+along = sub add mul xc 16 8 x0
+yc = sub add y0 shr mul along grad 16 8
+yy = shr yc 4
+f = ulong and yc 15
+a = shr mul ulong add a0 div mul sub a1 a0 along len slant 8
+if steep
+pkplot yy xc color shr mul a sub 16 f 4
+pkplot add yy 1 xc color shr mul a f 4
+else
+pkplot xc yy color shr mul a sub 16 f 4
+pkplot xc add yy 1 color shr mul a f 4
+end
+end
+end
+fn pksdrrect x long y long rx long ry long rw long rh long to long
+note The rounded rectangle's radius rides in Lg[9] (Omega takes at most six values).
+rad = get Lg 9
+px = add mul x 16 8
+py = add mul y 16 8
+cx = add mul rx 16 mul rw 8
+cy = add mul ry 16 mul rh 8
+qx = sub pkabs sub px cx sub mul rw 8 mul rad 16
+qy = sub pkabs sub py cy sub mul rh 8 mul rad 16
+out = pkmax qx qy
+if and gt qx 0 gt qy 0
+out = long pkisqrt ulong add mul qx qx mul qy qy
+end
+ret sub out mul rad 16
+end
