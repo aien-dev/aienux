@@ -2,6 +2,29 @@
 
 Status: IMPLEMENTED host candidate composition; physical boot, platform xHCI DMA/HID, RTL8127 DMA/link/TX and hardware handoff are NOT_RUN. Nothing here authorizes a write, firmware change, model stop or reboot. Main obtains Drake's explicit current authorization at each consequential step. Receipts live at `/home/drakestapleton/handoffs/spark-five-20261028/QualBootInput/`; `commands.jsonl` records executed commands and exits, not physical qualification.
 
+## Prerequisite 0: owner ceremony and admissibility
+
+TRUST-1 owner key ceremony is **NOT DONE**. It is Drake's trust decision,
+not a build inconvenience. Main must obtain the actual provisioned public
+`CK_OWNER_PUBKEYS` and `CK_MACHINE_ID` files before the staging build.
+Do not create replacement keys, supply fabricated identities, make the
+global gate conditional on this selector or use the host-only image below
+for an attended hardware boot. The host image is **NOT boot-admissible**.
+
+For this storage-free selection, the staging delta is build/process
+enforcement, not an added Store stage: Makefile validates both public file
+paths, runs `ck_owner_gen` to reject malformed/TEST identities and generate
+the owner header, adds `-DCK_HARDWARE_STAGING=1` and the generated-header
+include path to the stage compilation, uses the
+`spark-input-hardware-staging` output subdirectory, rejects incompatible
+TEST/QEMU variants and applies `owner_check` to the linked ELF. The chosen
+device/NIC stages do not consume the owner header; xHCI uses the macro to
+refuse test mutations/console-session combinations, not to grant DMA.
+The core compilation is unchanged for these selected flags. No Store
+keys/uuid, owner capability or write path becomes linked by staging.
+These are source-derived deltas, not a claim of an unbuilt staging
+binary's byte identity. The trust ceremony and staging gate remain mandatory.
+
 ## Artifact and scope
 
 Base: aienux `fix/dma-unconfine-retain-20261028` at `832bcbd98fc59a6f7695aefa68223caa7e08df05`, plus RTL8127/UDP PR #450 and the unchanged seeded Omega GPT writer from #461. Build the dedicated `full CK_SPARK_INPUT=1` variant. It includes PCI discovery and post-exit bus-master sweep, SMMU-confined xHCI/USB boot HID keyboard and bounded command shell, then RTL8127/UDP snapshot and release. It excludes NVMe driver/probe, Store, security, Allen and sustained console-session stages. `CK_CONSOLE_SESSION=1` remains QEMU-only; do not weaken that gate to obtain hardware input.
@@ -53,16 +76,32 @@ actual SMMU registers and confined hardware execution remain NOT_RUN.
 
 ## Media and rollback prerequisites
 
-Keep the existing recovery USB **read-only and untouched**: Generic Flash Disk serial `5D0344B4`, LABEL `AIENOSRECOV`, GPT disk GUID `308d8c7d-103e-402b-be02-619a8669fe7f`, partition GUID `f227357c-1e80-4fd0-a55e-2efbef1dd25c`. It is Boot0002 today, not the historical Boot0004. Parent's read-only inspection is `/home/drakestapleton/handoffs/spark-five-20261028/parent/recovery-stick-readonly-20261028.md`. Its on-stick attended receipt records `RECOVERY_BOOT_GATE: PASS` on this Spark on 2026-09-25, not a fresh boot today. Partition SHA-256 `b595376e5acb75c725321c950b4f89ef5b2cb19607a5e6609db8e35255007c31` is the parent-recorded measurement.
+The original recovery identity is Generic Flash Disk serial `5D0344B4`,
+LABEL `AIENOSRECOV`, GPT disk GUID
+`308d8c7d-103e-402b-be02-619a8669fe7f`, partition GUID
+`f227357c-1e80-4fd0-a55e-2efbef1dd25c`. It was Boot0002 in the parent's
+read-only inspection, not the historical Boot0004. The inspection is
+`/home/drakestapleton/handoffs/spark-five-20261028/parent/recovery-stick-readonly-20261028.md`;
+its on-stick receipt records historical Spark recovery PASS on 2026-09-25,
+not a fresh boot today. Parent-recorded partition SHA-256:
+`b595376e5acb75c725321c950b4f89ef5b2cb19607a5e6609db8e35255007c31`.
 
-Drake must supply a **separate blank candidate medium**. It has not yet been identified, so no device path is authorized. Main first records its serial, size, partition identities and current mount state (`lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,FSTYPE,LABEL,PARTUUID,MOUNTPOINTS`, `/dev/disk/by-id`), shows Drake that exact whole-device target and candidate hash, and obtains explicit overwrite authorization. Refuse the recovery serial and every internal NVMe disk. Only after authorization, unmount the candidate's own partitions and write through that verified whole-device `/dev/disk/by-id/...` path, not an assumed `/dev/sdX`. Example command after binding `$CANDIDATE_BY_ID` to the freshly approved serial (not a command executed by this work):
+Drake has approved **Main backing up that recovery stick and then reusing
+it**. Main owns every medium action, including all `/dev/sda` operations.
+This lane supplies only the admissible staging image file and its hash
+after prerequisite 0, with no device path or write command. Main must
+first retain and independently verify the complete recovery backup,
+record how it can be restored from another host if the Spark will not
+boot, and bind the exact staging image/hash to the freshly reidentified
+medium before reuse. Until those receipts exist the recovery remains
+untouched. The host-only artifact above is not that candidate.
 
-```
-sudo dd if="$RECEIPTS/spark-boot.img" of="$CANDIDATE_BY_ID" bs=4M conv=fsync status=progress
-sudo cmp -n "$(stat -c %s "$RECEIPTS/spark-boot.img")" "$RECEIPTS/spark-boot.img" "$CANDIDATE_BY_ID"
-```
-
-Record write and readback exits. A changed target or hash requires fresh approval. No internal ESP writes, no partition edits to the recovery disk. Boot0000 ALLEN.EFI is a write probe and prohibited; Boot0005 CORE.EFI and `/boot/efi` remain untouched. Capture current `efibootmgr -v` and BootOrder before the window. Do not delete or reorder existing entries.
+Main records backup/write/readback/restore results and the current
+medium identity. Once reused, the old label, GUIDs and Boot0002 no longer
+prove it is a recovery medium. Do not select an old entry by number.
+Boot0000 ALLEN.EFI is a write probe and prohibited; Boot0005 CORE.EFI and
+`/boot/efi` remain untouched. Capture fresh `efibootmgr -v` and BootOrder
+before the window; do not delete or reorder existing entries.
 
 ## Receiver: iMac or MacBook
 
@@ -108,6 +147,6 @@ Connect the monitor before power-on, a simple wired USB boot-protocol keyboard, 
 
 ## Abort and restore
 
-A bounded keyboard timeout should release the grant and continue, not be called input PASS. Stop the window for an unexpected DMA state, panic/fault, absent display, recovery halt or hang. If hung, use the documented chassis power button **until off**, wait ten seconds, remove the candidate medium, then power on. No vendor-qualified numeric hold duration is asserted. Boot the unchanged normal OS; Esc/Del Boot Override can select it. If normal OS does not boot, select the protected recovery USB by its freshly verified identity (today Boot0002), follow its proven read-only recovery procedure, and do not repair internal disks blindly. Do not select ALLEN.EFI.
+A bounded keyboard timeout should release the grant and continue, not be called input PASS. Stop the window for an unexpected DMA state, panic/fault, absent display, recovery halt or hang. If hung, use the documented chassis power button **until off**, wait ten seconds, remove the candidate medium, then power on. No vendor-qualified numeric hold duration is asserted. Boot the unchanged normal OS; Esc/Del Boot Override can select it. If normal OS does not boot, Main must restore and verify the recovery backup using the prearranged alternate host, then select the restored recovery by its freshly verified identity and follow its proven read-only procedure. Do not assume a reused stick or the old Boot0002 entry still contains recovery. Do not repair internal disks blindly or select ALLEN.EFI.
 
 After normal OS returns Main verifies OS/disk health, fresh NVIDIA state and no surviving unexpected lock owner, restores the exact saved model configuration through its actual supervisor (recipe above only if still current), checks `/health` and `/v1/models` on `127.0.0.1:18091`, and confirms the original served model before resuming lanes. Record each stop/restore observation, not merely command launch. Keep any failed boot receipt unchanged. Physical result remains NOT_RUN until this attended procedure is explicitly authorized and performed.
