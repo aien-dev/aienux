@@ -27,20 +27,20 @@
           "purpose": "Directory crates. Purpose not yet described by a human."
         },
         {
-          "digest": "bcb001342cddb7ffd5ee8ec4f82981931881231b8c0632dd03b290d086e8a6f7",
-          "last_commit": "b50dc78",
+          "digest": "17497e5362abdbd604194bace7bd5443780a210b8a3869fc80942bd2f5a54724",
+          "last_commit": "c29c849",
           "name": "docs",
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
           "digest": "4aef78bcffebcd6dd601b5cb6f0b1407a5dbf249074192e97d492838a45d5952",
-          "last_commit": "b50dc78",
+          "last_commit": "697af71",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
           "digest": "1a86df6b3895affd02e0ab968914d2bb18f174bebec8206195c996fa75c71563",
-          "last_commit": "b50dc78",
+          "last_commit": "697af71",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         },
@@ -51,15 +51,15 @@
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:47885b77f9b4108537dd167df7ac8cee60298e0f682e1f6122549f2d0d1acff7",
-      "compiled_at": "2026-10-28T23:14:49Z",
+      "children_root": "sha256:9155153a9a9f40297a44b913b521b24720594d44afd412c2cffea450e20b8007",
+      "compiled_at": "2026-10-28T23:22:07Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:cf1fcfc33434a7a3634b27e7dd6ef6adad285a47f3fbfb765a5a94e768919990",
+      "digest": "sha256:d38d3b643d31097ecca3e41e8c88d75565e65f9b07593ae9a797aad69d896215",
       "evidence_files": 216,
       "evidence_root": "sha256:88ba864f439c06750b936b281f5958c12cbfb47f3c0cc8024c2f58e442dfeb24",
       "files": 3510,
-      "generated_at_commit": "b50dc7834e43ef8fbed1d8941467580b1395877a",
-      "source_tree": "sha256:70e111ed5aaae5609c8a6efcf1c4b17e16366b2d26e48441e65f4beef3ac4834"
+      "generated_at_commit": "c29c849c96a9b9f13afc4e4d00f358a950f34747",
+      "source_tree": "sha256:aadd6d5b45f307aeebde4835ce5654ad8a5735d9f77de85e6fddbf43a781f4d1"
     },
     "owner_lane": "",
     "provenance": {

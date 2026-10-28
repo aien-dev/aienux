@@ -18,6 +18,39 @@ nice -n 19 ionice -c3 make -j2 -C native/kernel full CROSS= \
 
 The existing provisioning refusal remains mandatory. Missing owner material means hardware-staging artifact NOT_RUN; a non-staging host/QEMU artifact is not an authorized substitute. No private owner key is needed. Use `tools/spark-image/spark-image.om` exactly as its README specifies: compiler Omega `c3fb7969727131a0df9332bfd7dedc5ee8b357d2`, compiler SHA-256 `c99eda2465036c0637a444689a65dd7fc736e4fa8a8b4cf3456b0ce1b57f8996`, compile success before execution, dedicated receipts working directory with `BOOTAA64.EFI`. The writer creates only `spark-boot.img` there. Retain ELF, linked source/object list, symbols, disassembly, complete image and hashes; reader checks must extract an identical EFI and find a valid GPT/FAT. No MODEL.MAP is included. Kernel and GCC/binutils remain existing legacy C/assembly dependencies; packaging is Omega, not a kernel migration.
 
+### Artifacts exercised in this preparation
+
+Source revision `697af71e84b9284a5d2e14bed53337a321252991` was built with
+`CK_SPARK_INPUT=1 CK_FB_HOLD_S=120` **without** `CK_HARDWARE_STAGING`.
+The staging gate refused missing real public provisioning files (exit 2).
+Consequently these receipts are host/emulator artifacts, **not the hardware
+medium to write**. Resolve that prerequisite and repeat the staging build,
+inventory, package checks and exact-image QEMU before binding a candidate
+hash to an attended medium.
+
+- Host EFI: `host-input/spark-input/BOOTAA64.EFI`,
+  SHA-256 `bdffbbda4ae66bd89e21db99c2cfd2b9319cb47a61b9b0e5be8737c757018e01`.
+- Host GPT: `host-input-package/spark-boot.img`,
+  SHA-256 `0e06f8b833860f014035be3f5cd595cf9f862f5be2f719558f4c80dab9b2a7a8`.
+- GPT/FAT readers accepted the image; extracted EFI matched byte for byte,
+  and repeated seeded-Omega packaging produced the same hash.
+- `image-inventory.json` records only devices/quiesce stage hooks, required
+  input/NIC symbols and no linked disk writer/NVMe command composer.
+  PCI's `pci_nvme_disc_report` inventories PCI class data; it performs no
+  NVMe I/O. `efi_write` emits console text through UEFI OutputString.
+- The exact GPT booted read-only in QEMU with a separate read-only NVMe,
+  confined xHCI/HID, the commands below, successful revoke, final report
+  and exit 0. The NVMe trace contains ten firmware read commands (opcode
+  0x2), no write or write-zeroes commands. RTL8127 is absent in QEMU; no
+  device/network qualification is inferred.
+
+The named boot/keyboard/console/net gates, stage fixture, net tests and
+sanitizers, and both UDP receiver loopbacks exited 0. Stage fixture:
+`CK_STAGE_HOST: PASS checks=870 failures=0`; substituting the pre-fix RTL
+binding yields exit 1 with five failed checks. The measured IORT fixture
+now accepts all three instances and predicts six conditional USB routes;
+actual SMMU registers and confined hardware execution remain NOT_RUN.
+
 ## Media and rollback prerequisites
 
 Keep the existing recovery USB **read-only and untouched**: Generic Flash Disk serial `5D0344B4`, LABEL `AIENOSRECOV`, GPT disk GUID `308d8c7d-103e-402b-be02-619a8669fe7f`, partition GUID `f227357c-1e80-4fd0-a55e-2efbef1dd25c`. It is Boot0002 today, not the historical Boot0004. Parent's read-only inspection is `/home/drakestapleton/handoffs/spark-five-20261028/parent/recovery-stick-readonly-20261028.md`. Its on-stick attended receipt records `RECOVERY_BOOT_GATE: PASS` on this Spark on 2026-09-25, not a fresh boot today. Partition SHA-256 `b595376e5acb75c725321c950b4f89ef5b2cb19607a5e6609db8e35255007c31` is the parent-recorded measurement.
