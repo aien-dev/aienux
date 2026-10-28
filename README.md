@@ -53,6 +53,12 @@ bash scripts/ck_pi5_build_check.sh  # builds the Raspberry Pi 5 image and checks
 
 The legacy Rust workspace is still checked by `bash scripts/verify_all.sh` (needs a Rust toolchain with the `aarch64-unknown-uefi` and `aarch64-unknown-none` targets) until it is retired. Anything that needs the real DGX Spark is labelled `needs-hardware` and is run by maintainers.
 
+## Human-Directed Agentic Engineering
+
+Development follows Human-Directed Agentic Engineering (HDAE): humans define goals, architecture, constraints, acceptance criteria, and stopping points; agents implement, execute checks, diagnose failures, and revise within those boundaries. Human review retains responsibility for claims, acceptance, and release decisions.
+
+For the documented method and a systems-software case study, see Gregory M. Kurtzer, [*Ginux: Building an Independent Kernel That Runs Linux Userspace through Human-Directed Agentic Engineering* (2026)](https://doi.org/10.5281/zenodo.23682548). This concerns the development method, not kernel control-plane behavior or retrospective qualification of earlier experiments.
+
 ## Contributing
 
 Start with [issues labelled `good first issue`](https://github.com/aien-dev/aienux/labels/good%20first%20issue) or [`emulator-ok`](https://github.com/aien-dev/aienux/labels/emulator-ok): they need no special hardware. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Open pull requests against `main` (protected; five checks must pass: `Analyze (c-cpp)`, `Analyze (actions)`, `crumb`, `AIEN Verification` and `workflow files accepted`) and lead with the commands you ran and their output. Questions go in [Discussions](https://github.com/aien-dev/aienux/discussions). Report vulnerabilities privately through GitHub security advisories.
