@@ -1,0 +1,1394 @@
+{
+  "scope": "HOST_SYNTHETIC and QEMU user-mode; physical NOT_RUN",
+  "compiler_sha256": "7d5b824f0c854063b851b7f1002ea9cb735c9f9e3ce96e3393ca6f4a46f5bfb9",
+  "platform": "Linux-7.0.0-1019-nvidia-aarch64-with-glibc2.39",
+  "compiler_source_revision": "d9144676c5938f877a1d89f0e246842a760c62a7",
+  "checker_sha256": "49587f7936b2314ecf3c3d4bbc786012df7aa69106f3f9c55f201f9888f3e181",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "qemu": "qemu-x86_64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)\nCopyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers\n",
+  "command": [
+    "python3",
+    "native/omega/smc/check-discovery.py",
+    "--omc",
+    "<pinned-compiler>",
+    "--out",
+    "<fresh-output-directory>",
+    "--captured-acpi",
+    "evidence/imac_boot0_2026-10-16/ACPI"
+  ],
+  "units": {
+    "protocol.om": "cf7f708c303aa9ff8178412d12f6a38cc641f2ff6ecce6b5d5ea7e9d57ce54c7",
+    "resource.om": "506ad0960969ff197e217d3ee6e2ee47b6449aabda9c880cee529c3723f7f022",
+    "discovery.om": "2dff8dcb423367aa4b2d7497578f78025b87c5d5f8c93c50b967fa9da68c3e40",
+    "discovery-fixture.om": "be702a8746abf3565edffff84018699f2ec4444beed2f54a67d3b3d3b6434367",
+    "diagnostic.om": "fd2099f914bd5bd9081d45df27d4a25430912eeb8ed9dcf7111843ff1e193872"
+  },
+  "builds": [
+    {
+      "target": "arm",
+      "variant": "original",
+      "compile_status": 0,
+      "source_sha256": "8673ec596497a185edaf5fec6be8bbbaae2a2bcec62799734f73131aad8c01c3",
+      "stderr": "",
+      "binary_sha256": "6628e19785861ed1c2620fd9fb48082fb4f835b42ea46120489a2c03bd54f1c6",
+      "scenario_mismatches": []
+    },
+    {
+      "target": "arm",
+      "variant": "table-checksum",
+      "compile_status": 0,
+      "source_sha256": "772affa208a4a5ec1f77f41d58cd511104cb131f0719741c927561c2d1bd7e66",
+      "stderr": "",
+      "binary_sha256": "5a3d2c30ce7ec6be279fea98224f945f09e7ef962fa3f7aaa3a5e9137ecc237a",
+      "scenario_mismatches": [
+        "table-checksum"
+      ],
+      "controls": [
+        {
+          "case": "table-checksum",
+          "expected": 2,
+          "status": 0,
+          "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "arm",
+      "variant": "candidate-duplicates",
+      "compile_status": 0,
+      "source_sha256": "d7a540df5c895ab3bfb2c5ee4d3619ec449b00d59bb85c4849380d1750ff13a6",
+      "stderr": "",
+      "binary_sha256": "0a97279c35936e2b76d85b78089cf2b20d2c70eada62c340d35dacb33170d4fa",
+      "scenario_mismatches": [
+        "duplicate-same-table",
+        "duplicate-other-ssdt",
+        "disabled-duplicate"
+      ],
+      "controls": [
+        {
+          "case": "duplicate-same-table",
+          "expected": 4,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000100000000000000530000000000000078000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "duplicate-other-ssdt",
+          "expected": 4,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000200000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "disabled-duplicate",
+          "expected": 4,
+          "status": 5,
+          "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "arm",
+      "variant": "template-terminal",
+      "compile_status": 0,
+      "source_sha256": "0a4d986f62e7676ad9c79de4cd81f32a053691dc447773e40d81047854ed0a8e",
+      "stderr": "",
+      "binary_sha256": "a80a9a3794b0f2331d524f05d70f81a6e6da5958a0ab87d01a10eeac7cf50874",
+      "scenario_mismatches": [
+        "trailing-template-bytes"
+      ],
+      "controls": [
+        {
+          "case": "trailing-template-bytes",
+          "expected": 2,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "arm",
+      "variant": "opaque-method",
+      "compile_status": 0,
+      "source_sha256": "11cc6b2c49791ef833539c834bd4b34987e3ca6e613db45b1693f2d416ba9778",
+      "stderr": "",
+      "binary_sha256": "2ed44ae6e81bc0b14242d2689e5b6becb3ac49b16531d7bc2c88636ba6897b9e",
+      "scenario_mismatches": [
+        "method-payload-not-code"
+      ],
+      "controls": [
+        {
+          "case": "method-payload-not-code",
+          "expected": 1,
+          "status": 0,
+          "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "arm",
+      "variant": "decode-width",
+      "compile_status": 0,
+      "source_sha256": "3ad67b65d5e3522b0475d0c4b3895fef43b3be975230c440421b3533915e3003",
+      "stderr": "",
+      "binary_sha256": "c3ef4dacf7611e120cfbd434b7703601c82fef24f53de4ec12926bc92b70ed6c",
+      "scenario_mismatches": [
+        "fixedio-decode-not-admitted",
+        "ten-bit-alias-not-admitted"
+      ],
+      "controls": [
+        {
+          "case": "fixedio-decode-not-admitted",
+          "expected": 3,
+          "status": 0,
+          "output_hex": "000300000000000020000000000000000a000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "ten-bit-alias-not-admitted",
+          "expected": 3,
+          "status": 0,
+          "output_hex": "000300000000000020000000000000000a000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "arm",
+      "variant": "full-protocol",
+      "compile_status": 0,
+      "source_sha256": "c2829d8ec54ef42df5d2d1d2a7c68c2466becb04456f4e9f46d3037ef12522bd",
+      "stderr": "",
+      "binary_sha256": "3e2932070f316b69478e01dec74e1e21918abb07116967a556a10802b9f7f314",
+      "status": 0,
+      "stdout": "SMC protocol fixtures PASS; physical NOT_RUN\n"
+    },
+    {
+      "target": "x86",
+      "variant": "original",
+      "compile_status": 0,
+      "source_sha256": "c8008348be7a4ab3d8e13d5aeecc4c5dd8ebe054d5c1c5bf54b38408f14d8c5c",
+      "stderr": "",
+      "binary_sha256": "5aa627416b66ba6d341ebc28aedfb7862289fc28aefabb34e25e069623568455",
+      "scenario_mismatches": []
+    },
+    {
+      "target": "x86",
+      "variant": "table-checksum",
+      "compile_status": 0,
+      "source_sha256": "c5068b370ddfce0c0a59fb719a2d0bbff427eeb9077dfefdbb9c60a1acbd6369",
+      "stderr": "",
+      "binary_sha256": "bb25354b2e68e349d9c74606e44a1c266ea4979b9ef06c8dbf5fe46bf108b788",
+      "scenario_mismatches": [
+        "table-checksum"
+      ],
+      "controls": [
+        {
+          "case": "table-checksum",
+          "expected": 2,
+          "status": 0,
+          "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "x86",
+      "variant": "candidate-duplicates",
+      "compile_status": 0,
+      "source_sha256": "cba6e98688ef83191d3d07a400618d2361c8c733c88043ca5289458dd97d0ec1",
+      "stderr": "",
+      "binary_sha256": "629e8cf2f5684ee6133c90a57fd0d055c506d67a3da25cd77e5d1d1e94d0bfd0",
+      "scenario_mismatches": [
+        "duplicate-same-table",
+        "duplicate-other-ssdt",
+        "disabled-duplicate"
+      ],
+      "controls": [
+        {
+          "case": "duplicate-same-table",
+          "expected": 4,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000100000000000000530000000000000078000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "duplicate-other-ssdt",
+          "expected": 4,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000200000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "disabled-duplicate",
+          "expected": 4,
+          "status": 5,
+          "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "x86",
+      "variant": "template-terminal",
+      "compile_status": 0,
+      "source_sha256": "370133bd37122a697f0bdc26684756641b5eb53821d432caf45862e4e83b438a",
+      "stderr": "",
+      "binary_sha256": "e7d92fa96867b9c6ae8953fa355ddbcb32b4c1db81b6ded9d044a90c5291cc57",
+      "scenario_mismatches": [
+        "trailing-template-bytes"
+      ],
+      "controls": [
+        {
+          "case": "trailing-template-bytes",
+          "expected": 2,
+          "status": 0,
+          "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "x86",
+      "variant": "opaque-method",
+      "compile_status": 0,
+      "source_sha256": "b8499ca17dd0eb2a0e319773eac546e2147bc85346a5fb01506109632e61809f",
+      "stderr": "",
+      "binary_sha256": "5e04ed04d83661109a00371713b0fce2a07ce8d6cf894ff6960a746a3ccffdd0",
+      "scenario_mismatches": [
+        "method-payload-not-code"
+      ],
+      "controls": [
+        {
+          "case": "method-payload-not-code",
+          "expected": 1,
+          "status": 0,
+          "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "x86",
+      "variant": "decode-width",
+      "compile_status": 0,
+      "source_sha256": "123330dd971175f9cce8a9ad9a5923fd2cbc8af8f0ca59909436958ffcc81bc9",
+      "stderr": "",
+      "binary_sha256": "24537ce88a3f6d779c954639956f14912255f142aae34465139a2052fe58c508",
+      "scenario_mismatches": [
+        "fixedio-decode-not-admitted",
+        "ten-bit-alias-not-admitted"
+      ],
+      "controls": [
+        {
+          "case": "fixedio-decode-not-admitted",
+          "expected": 3,
+          "status": 0,
+          "output_hex": "000300000000000020000000000000000a000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        },
+        {
+          "case": "ten-bit-alias-not-admitted",
+          "expected": 3,
+          "status": 0,
+          "output_hex": "000300000000000020000000000000000a000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "target": "x86",
+      "variant": "full-protocol",
+      "compile_status": 0,
+      "source_sha256": "dcbb56bbaa9e84195526ad87fe4c600fd02cc3a3df80810464c98eb803a1d9a0",
+      "stderr": "",
+      "binary_sha256": "6ff8e5d9570e59202f114ec8cd3771c8b1eb2c39de2159c9b2bebb5376dc1f3b",
+      "status": 0,
+      "stdout": "SMC protocol fixtures PASS; physical NOT_RUN\n"
+    }
+  ],
+  "cases": [
+    {
+      "target": "arm",
+      "case": "literal-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "constant-return-methods",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "000300000000000020000000000000001000000000000000010000000000000024000000000000004f000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "ancillary-irq-memory",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "nonzero-resource-checksum",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "functioning-without-ui",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000b0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "siblings-preserve-path",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "00030000000000002000000000000000100000000000000001000000000000002c0000000000000051000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "absolute-scope-restores-parent",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "000300000000000020000000000000001000000000000000010000000000000039000000000000005e000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "dual-name-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000300000000000000055000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "multi-name-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000310000000000000056000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "parent-path-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000320000000000000057000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "buffer-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "method-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "string-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "empty-static-table",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "non-smc-device",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "duplicate-same-table",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "duplicate-other-ssdt",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "disabled-duplicate",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "duplicate-declaration",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "namespace-alias-duplicate",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "disabled",
+      "expected": 5,
+      "status": 5,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "not-functioning",
+      "expected": 5,
+      "status": 5,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "missing-status-is-unsupported",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "unknown-status-bits",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "dynamic-status",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "dynamic-crs-not-first-buffer",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "return-buffer-plus-code",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "serialized-resource-method",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "buffer-size-mismatch",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "dynamic-hid",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "compressed-hid-unsupported",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "fixedio-decode-not-admitted",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "ten-bit-alias-not-admitted",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "reserved-io-bits",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "unsupported-range",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "zero-range",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "wrapping-range",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "second-io-range",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "bad-irq-flags",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "empty-irq",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "bad-memory-info",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "truncated-large-descriptor",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "bad-resource-checksum",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "trailing-template-bytes",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "missing-endtag",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "bad-endtag-length",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "dependent-alternatives",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "unknown-after-valid-table",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "malformed-after-valid-table",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "truncated-package",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "package-crosses-parent",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "unsupported-module-code",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "declaration-capacity",
+      "expected": 6,
+      "status": 6,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "table-capacity",
+      "expected": 6,
+      "status": 6,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "table-checksum",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "table-signature",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "declared-table-truncation",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "arm",
+      "case": "captured-table-set",
+      "tables": 14,
+      "status": 3,
+      "inputs": {
+        "DSDT.BIN": "2b21c0b9f7bafe93cdd7c2d73203f3e83398534f7f24cdadaa3b06289717686d",
+        "SSDT.BIN": "ea0c85d3106411e013dcea3fdc22de846efc8f6e295edaced557a2a4e16d1da1",
+        "SSDT1.BIN": "06299d918fbc46b599ba2a2ef0cf3e747fab35203b8c4aff30b859137826ed0f",
+        "SSDT10.BIN": "bbbdc929d8a72f5591f43ebeb1b81026505a8e58d571397ec3121737dbcc47d4",
+        "SSDT11.BIN": "ac8bc9231df4dcabc628f3ee81489d0e93b17f262c167ba0ef16ff79b4237cb6",
+        "SSDT12.BIN": "e23ee8d3d20971e8c765dea4cc308b5d9fb2b292aa6bc98955ee1887c5614ba4",
+        "SSDT2.BIN": "44f06ea04611ac42507edb74e2a81030611d8d5cbcc5c42a4a2ffc8d85d2e422",
+        "SSDT3.BIN": "bab613ca3a78d8dc4eebbef3444833feca40b46dabe4f89e135309600a12f813",
+        "SSDT4.BIN": "3c8e317a8be9e5feb7c240090ae8035a1116d1da5286346aa91aa43db1c0a513",
+        "SSDT5.BIN": "0358e7f6e785657dc216416053a253d3be1dd5510e626218b6119923e025134b",
+        "SSDT6.BIN": "aab57b617ebf71dbe4a1d5722fd171f8974ad59f72ca49f51e998df78bfc75b6",
+        "SSDT7.BIN": "e2e15339356b84abd096f9c386d8065ac9eaa2031b5afcdbe391cbc576a13994",
+        "SSDT8.BIN": "6d93868015a808a2afda316807544f53088a7f1b77f2db61f68f596a7cbbb76c",
+        "SSDT9.BIN": "47826006d981c600ff548aae37783488843e7291cb96457c2721e8d9120d46f2"
+      },
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "claim": "offline replay only; unsupported is not hardware absence"
+    },
+    {
+      "target": "x86",
+      "case": "literal-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "00030000000000002000000000000000100000000000000001000000000000002b0000000000000050000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "constant-return-methods",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "000300000000000020000000000000001000000000000000010000000000000024000000000000004f000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "ancillary-irq-memory",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "nonzero-resource-checksum",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "functioning-without-ui",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000240000000000000049000000000000000b0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "siblings-preserve-path",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "00030000000000002000000000000000100000000000000001000000000000002c0000000000000051000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "absolute-scope-restores-parent",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "000300000000000020000000000000001000000000000000010000000000000039000000000000005e000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "dual-name-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000300000000000000055000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "multi-name-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000310000000000000056000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "parent-path-scope",
+      "expected": 0,
+      "status": 0,
+      "output_hex": "0003000000000000200000000000000010000000000000000100000000000000320000000000000057000000000000000f0000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "buffer-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "method-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "string-payload-not-code",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "empty-static-table",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "non-smc-device",
+      "expected": 1,
+      "status": 1,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "duplicate-same-table",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "duplicate-other-ssdt",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "disabled-duplicate",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "duplicate-declaration",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "namespace-alias-duplicate",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "disabled",
+      "expected": 5,
+      "status": 5,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "not-functioning",
+      "expected": 5,
+      "status": 5,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "missing-status-is-unsupported",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "unknown-status-bits",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "dynamic-status",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "dynamic-crs-not-first-buffer",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "return-buffer-plus-code",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "serialized-resource-method",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "buffer-size-mismatch",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "dynamic-hid",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "compressed-hid-unsupported",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "fixedio-decode-not-admitted",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "ten-bit-alias-not-admitted",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "reserved-io-bits",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "unsupported-range",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "zero-range",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "wrapping-range",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "second-io-range",
+      "expected": 4,
+      "status": 4,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "bad-irq-flags",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "empty-irq",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "bad-memory-info",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "truncated-large-descriptor",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "bad-resource-checksum",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "trailing-template-bytes",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "missing-endtag",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "bad-endtag-length",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "dependent-alternatives",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "unknown-after-valid-table",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "malformed-after-valid-table",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "truncated-package",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "package-crosses-parent",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "unsupported-module-code",
+      "expected": 3,
+      "status": 3,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "declaration-capacity",
+      "expected": 6,
+      "status": 6,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "table-capacity",
+      "expected": 6,
+      "status": 6,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "table-checksum",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "table-signature",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "declared-table-truncation",
+      "expected": 2,
+      "status": 2,
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "pass": true
+    },
+    {
+      "target": "x86",
+      "case": "captured-table-set",
+      "tables": 14,
+      "status": 3,
+      "inputs": {
+        "DSDT.BIN": "2b21c0b9f7bafe93cdd7c2d73203f3e83398534f7f24cdadaa3b06289717686d",
+        "SSDT.BIN": "ea0c85d3106411e013dcea3fdc22de846efc8f6e295edaced557a2a4e16d1da1",
+        "SSDT1.BIN": "06299d918fbc46b599ba2a2ef0cf3e747fab35203b8c4aff30b859137826ed0f",
+        "SSDT10.BIN": "bbbdc929d8a72f5591f43ebeb1b81026505a8e58d571397ec3121737dbcc47d4",
+        "SSDT11.BIN": "ac8bc9231df4dcabc628f3ee81489d0e93b17f262c167ba0ef16ff79b4237cb6",
+        "SSDT12.BIN": "e23ee8d3d20971e8c765dea4cc308b5d9fb2b292aa6bc98955ee1887c5614ba4",
+        "SSDT2.BIN": "44f06ea04611ac42507edb74e2a81030611d8d5cbcc5c42a4a2ffc8d85d2e422",
+        "SSDT3.BIN": "bab613ca3a78d8dc4eebbef3444833feca40b46dabe4f89e135309600a12f813",
+        "SSDT4.BIN": "3c8e317a8be9e5feb7c240090ae8035a1116d1da5286346aa91aa43db1c0a513",
+        "SSDT5.BIN": "0358e7f6e785657dc216416053a253d3be1dd5510e626218b6119923e025134b",
+        "SSDT6.BIN": "aab57b617ebf71dbe4a1d5722fd171f8974ad59f72ca49f51e998df78bfc75b6",
+        "SSDT7.BIN": "e2e15339356b84abd096f9c386d8065ac9eaa2031b5afcdbe391cbc576a13994",
+        "SSDT8.BIN": "6d93868015a808a2afda316807544f53088a7f1b77f2db61f68f596a7cbbb76c",
+        "SSDT9.BIN": "47826006d981c600ff548aae37783488843e7291cb96457c2721e8d9120d46f2"
+      },
+      "output_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004",
+      "stderr": "",
+      "claim": "offline replay only; unsupported is not hardware absence"
+    }
+  ],
+  "failures": [],
+  "command_note": "Executable and fresh output paths are redacted in this public derivative. The original local receipt is retained unchanged; all compiled source/artifact hashes and observed statuses are unchanged."
+}

@@ -3,18 +3,18 @@
     "generated": {
       "children": [],
       "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "compiled_at": "2026-10-28T12:05:40Z",
+      "compiled_at": "2026-10-28T18:59:56Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:7231bb7234fb6a234e12c3d791ef5fb6208277f1937eac9e2fcc5954140ce28e",
+      "digest": "sha256:0841ad6853f4816433edf2d8ef57b232e74cceb373e64c505c7edf8a733134b2",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 0,
-      "generated_at_commit": "4a6bcf2580d6f8918a762daea384a3fc176d8bd9",
-      "source_tree": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "files": 10,
+      "generated_at_commit": "a30cb01d3940d4d8c681c768d11da219391e7d06",
+      "source_tree": "sha256:10538479df2b081a34f3ce02da770016e8cb3324dcf5a85b34c8b0acec76b33b"
     }
   },
   "layer": "native",
   "name": "smc",
-  "purpose": "Transport-independent Apple SMC readback protocol, native fixtures, physical executor unavailable",
+  "purpose": "Partial supplied-byte ACPI candidate discovery and Apple SMC protocol; physical executor unsupported",
   "schema_version": "1.0.0"
 }

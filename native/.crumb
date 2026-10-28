@@ -97,8 +97,8 @@
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
-          "digest": "00070bab5731f71aa8f07d32ce980e1916399ed63d5fca6528e43693c21da9af",
-          "last_commit": "4a6bcf2",
+          "digest": "0679f5feb081e76e913560255409b429fecef847d9de03360757cd9ec466e1ab",
+          "last_commit": "a30cb01",
           "name": "omega",
           "purpose": "Native Omega components, composed directly by the seeded compiler"
         },
@@ -115,15 +115,15 @@
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:21c034ed08b5a57167af6a1fff545e9a567c4a6db77d722582ab3d7ab844fe56",
-      "compiled_at": "2026-10-28T12:05:40Z",
+      "children_root": "sha256:d85a1a4ab725097d310af03b35c667a6bcdfb1e2f12abd45fa1e20724d7bd672",
+      "compiled_at": "2026-10-28T18:59:56Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:0cf701101af2b3a68f2472107e175e7a86e549305d492c4bf4602124c8b623a9",
+      "digest": "sha256:5e3b61fdaa975948c700004d68ba8fe881198ef18910c2d1b7493475afd43d3f",
       "evidence_files": 4,
       "evidence_root": "sha256:e410b845507e00568e15b51a5797af32a97e0e4b8ab4e8487bb7c98e7e0cf335",
-      "files": 827,
-      "generated_at_commit": "4a6bcf2580d6f8918a762daea384a3fc176d8bd9",
-      "source_tree": "sha256:b801b08386330304129b2d524fdf76f71e29799615572b5876393514f9dec116"
+      "files": 837,
+      "generated_at_commit": "a30cb01d3940d4d8c681c768d11da219391e7d06",
+      "source_tree": "sha256:02db3da1371729d75b1c349187ffee3b9e09b2a612f69fe91b623e57ddbfefea"
     },
     "owner_lane": "",
     "provenance": {

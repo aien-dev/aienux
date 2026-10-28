@@ -1,9 +1,10 @@
 # Native Omega SMC readback protocol
 
-This is an implemented transport-independent SMC protocol engine and native
-fixture diagnostic, **not a hardware-capable driver**. Physical readback is
-**NOT_RUN**. `smphysical` returns `SMUNSUP`; no executor performs port I/O. No
-boot path, firmware, fan policy, reset behavior or existing kernel driver changes.
+This implements a transport-independent SMC protocol engine, a **partial static
+ACPI candidate decoder** and native fixture diagnostics, **not a hardware-capable
+driver**. Physical readback is **NOT_RUN**. `smphysical` returns `SMUNSUP`; no
+executor performs port I/O. No boot path, firmware, fan policy, reset behavior
+or existing kernel driver changes.
 
 ## Ownership and exact source boundary
 
@@ -161,7 +162,119 @@ WolframLanguageEvaluator:
 returned `{Quantity[1000,"Milliseconds"],254,6400,32768}`.
 These are arithmetic checks, not temperature measurements.
 
-## Missing native extension (omega-mv owner)
+## Partial static discovery recovery (2026-10-28)
+
+`resource.om` and `discovery.om` now implement the reachable supplied-byte
+discovery work in first-party Omega. They do not enumerate live firmware tables,
+interpret general AML, authenticate ACPI, establish a complete live namespace,
+or acquire a controller. No compiler operation or physical transport was added.
+In particular, **a checksum-valid static candidate is not a trusted discovery
+descriptor or an ownership capability**. Nothing copies `Dsout` into `Smbase`,
+`Smlen`, `Smen` or `Smhid`; the existing protocol and physical refusal are unchanged.
+
+### Supported static contract
+
+Call `dsbegin`, load a supplied table into `Acpi`, call `dsadd(available_bytes)`
+for each table, then call `dsseal`. Only successful sealing publishes `Dsout`:
+base, length, decode width, table ordinal, Device byte offset, resource-template
+byte offset and static `_STA` value. Offsets identify supplied bytes, not live
+addresses. A new `dsadd` invalidates previous published output; every error is
+sticky until a new `dsbegin`. Missing/failed discovery publishes only zeroes.
+The caller must not mutate input while any parser call is running. The parser,
+like the protocol, is a single-executor component, not a concurrent service.
+
+The bounded subset is:
+
+- At most sixteen supplied DSDT/SSDT tables, each at most 65536 bytes; validate
+  signature, declared length against available bytes and whole-table checksum.
+- Structural Scope/Device/Name/Method boundaries, checked package lengths and
+  NameSeg characters. Scope/Device paths resolve root, parent, dual and multi
+  encodings; fields must be local single-segment declarations. Canonical
+  declarations are unique across the whole supplied set. Scope reopening is
+  deliberately refused, not merged heuristically.
+- Literal string `_HID` equal to APP0001; explicit constant integer `_STA`
+  requiring present, enabled and functioning, independent of UI visibility.
+  Absent `_STA`, compressed EISA identifiers, references, executable module
+  terms, aliases and other unresolved semantics are unsupported. This is
+  stricter than ACPI's absent-`_STA` default, not an approximation of that default.
+- `_CRS` as a literal Buffer, or an exact zero-argument, nonserialized
+  `Return(literal Buffer)` method; analogous constant-return `_STA`. BufferSize
+  must equal initializer length. Unrelated methods are skipped by their package
+  boundary; their payload is never searched for convincing declarations.
+- Whole resource-template validation through one terminal EndTag with no
+  trailing bytes. A zero EndTag checksum disables that checksum per ACPI; a
+  nonzero checksum must validate. Decode I/O and FixedIO ranges, retaining
+  alias/decode-width distinctions. Admission requires exactly one 16-bit-decoded
+  fixed range at 0x300, length 32. FixedIO and 10-bit decoding remain unsupported.
+  Validate optional IRQ and FixedMemory32 descriptors without granting access
+  to either. Alternatives, vendor/unknown resources, duplicates, reserved bits,
+  zero/wrapping ranges and truncation refuse.
+- Sixteen stack frames, sixteen path segments and 128 canonical declarations.
+  Capacity exhaustion refuses explicitly. These are bounded implementation
+  limits, not properties of AML or a claim that all real firmware fits.
+
+Parser statuses are `DSOK=0`, `DSABS=1`, `DSMAL=2`, `DSUNSUP=3`,
+`DSAMBIG=4`, `DSDIS=5`, `DSLIMIT=6`. These are component-local outcomes,
+**not** assigned status encodings for the proposed EFI extension. Multiple
+APP0001 candidates refuse, including a valid candidate followed by a disabled
+duplicate. An earlier unsupported/disabled table remains a refusal rather than
+being treated as proof that an omitted candidate is absent.
+
+### What the actual iMac capture requires
+
+Offline replay of the fourteen captured DSDT/SSDT files returns `DSUNSUP` on
+both targets, with zero candidate output and `smphysical == SMUNSUP`. This is
+**not** a successful hardware discovery and **not** evidence of hardware absence.
+The captured DSDT has materially different semantics from the supported subset:
+SMC `_HID` is compressed `EisaId("APP0001")`; `_STA` is 0x0B; `BUF0` contains
+the I/O, FixedMemory32 and IRQ resources; serialized `_CRS` executes
+`CreateDWordField(BUF0, ..._BAS, SBA0)`, writes `SBA0 = SMCB`, then
+`Return(BUF0)`. Treating its first Buffer as the returned, live resource would
+discard real execution/dataflow. The current native application has no AML
+interpreter. No such heuristic is added here.
+
+The offline interpretation was inspected with ACPICA iASL 20230628 over the
+existing DSDT capture; it is not a device query. The disassembler reported
+unresolved external methods, so its view is not a complete live namespace.
+The original bytes, not regenerated AML, are replay inputs; their hashes are
+recorded in `recovery-exercise.json`.
+
+### Reproduce the new exercised paths
+
+```sh
+python3 native/omega/smc/check-discovery.py \
+  --omc /path/to/the/pinned/seed/out/omc \
+  --out /path/to/a/new/output-directory \
+  --captured-acpi evidence/imac_boot0_2026-10-16/ACPI
+```
+
+At the unchanged candidate compiler above, the settled scenario prints
+`SMC static discovery PASS; physical NOT_RUN` and exits 0. Both ARM Linux
+and x86 Linux under QEMU 8.2.2 pass all 57 synthetic discovery/refusal cases.
+All five guard-removal mutants compile successfully on both targets and are
+detected: table checksum, candidate uniqueness, terminal resource framing,
+opaque-method skipping and decode-width admission. Their exact changed
+expectations, statuses and output bytes are recorded. The entire existing
+protocol diagnostic also compiles/runs on both targets with its original PASS
+output. Original `exercise.json` remains untouched.
+
+`check-discovery.py` is a development-only independent fixture/oracle and
+compiler/process runner, not a host implementation of discovery or an SMC
+runtime dependency. Verification used Python 3.12.3 and QEMU 8.2.2; exact
+versions, source/compiler/artifact hashes, input hashes and observed results
+are in `recovery-exercise.json`. The production logic is the `.om` units.
+No compiler pin, gate, authorization policy, language or harness guide changed.
+
+Arithmetic used by the decoder was checked with Wolfram, not measured on a
+controller. `Map[FromDigits[#,16]&,{"47","4B","22","23","86","79","300","20"}]`
+returns `{71,75,34,35,134,121,768,32}`.
+`{BitAnd[255,BitNot[FromDigits["39",16]]],BitAnd[2^64-1,BitNot[31]]}`
+returns `{198,18446744073709551584}` for reserved-bit masks.
+`Mod[Total[Append[v,Mod[-Total[v],256]]],256]` evaluates to zero for the
+fixture byte vectors checked in the arithmetic oracle; that identity is not
+ACPI authentication or a hardware observation.
+
+## Missing live native extension (omega-mv owner)
 
 Concrete owner proposal and smallest refusal reproduction:
 [omega-mv #917](https://github.com/aien-dev/omega-mv/issues/917).
@@ -194,6 +307,40 @@ The extension proposal requires all of the following before physical integration
 - Compiler positive/negative and wrong-word-mutant tests, then an emulator
   byte-I/O trace model; physical transaction approval and recovery/thermal
   observation are separate gates. No current permission covers those actions.
+
+The recovery review's decisive boundary is: a default-disabled runtime branch
+does not authorize a new effectful compiler primitive. Adding callable IN/OUT
+lowering would make a previously refused physical effect representable. Thus
+operation 11 remains compiler-refused; no shared compiler files were edited.
+
+The remaining implementation and authorization gates are concrete:
+
+1. **Live resource evaluation:** an Omega native ACPI table acquisition and AML
+   evaluator, or a separately reviewed complete static/dataflow subset, must
+   evaluate the actual compressed identity and serialized `_CRS` above against
+   the complete supplied/live namespace. It must preserve the memory-field
+   update and refuse unresolved references, duplicate devices and dynamic table
+   loading it cannot account for. The partial decoder does not meet this gate.
+2. **Ownership contract approval:** specify the authorized executable/dispatcher
+   identity, resource grant and revocation source, cross-core/callback exclusion
+   and firmware/SMM coexistence. UEFI Boot Services or interrupt masking on one
+   core do not establish the latter. Until an independently supported handoff
+   exists, acquire must refuse; no boolean, ACPI checksum or cooperative owner
+   token can substitute for it.
+3. **Reviewed compiler implementation:** after that contract is approved,
+   implement the fixed packet/handle ABI in Omega-owned native lowering with
+   byte-only ordered accesses and checked monotonic timing. Assign stable ABI
+   statuses and add positive/refusal, revoked-handle, wrong-target/width/opcode
+   and wrong-word-mutant tests plus an emulator port-trace executor. The packet
+   is not an approved generic privileged escape hatch.
+4. **Separate operator-approved physical readback and recovery observation:**
+   only after the above proofs and current transaction-specific authorization.
+   Command/argument writes remain real physical effects. Thermal/fan safety,
+   physical timing and controller/firmware coexistence remain **NOT_RUN**.
+
+This is not a GPU reservation problem and no permission request is implied.
+The exact pending owner proposal remains omega-mv #917; it is not implemented
+by this partial static parser.
 
 This missing platform feature blocks hardware completion; the diagnostic is
 not a replacement SMC chip, SMC firmware, production kernel hook or thermal
