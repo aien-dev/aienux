@@ -2,7 +2,7 @@
 
 Status: PREPARATION DOCUMENT (updated 2026-10-28). **Physical NOT_RUN. Nothing here authorizes staging or booting.**
 Host/QEMU qualification and candidate-only builds do not qualify Spark hardware. The fixture-provisioned full
-candidate is NOT boot-admissible; no approved Spark owner material is available. No ESP or recovery-media writes.
+candidate is NOT boot-admissible; no approved Spark owner material is available. This lane performs no ESP or media writes.
 
 Owner issue: aien-dev/aienux#286 (native GB10, cut B7b). Authority: Drake's ruling of 2026-10-10 (aien-architecture#190,
 item 5) authorizes B7b *preparation*, not a boot; the boot needs "a first operator-confirmed, two-hour attended window
@@ -48,18 +48,26 @@ check only, never a boot) gave one digest. This is historical preparation, not t
 |---|---|
 | Drake present for the whole window | at the machine, display and keyboard attached; a fresh go-ahead for this boot, given in this window (a past approval does not carry over) |
 | Window | two hours, written down in advance with start time; nothing else uses the machine in it |
-| Recovery stick | existing `AIENOSRECOV`, firmware **Boot0002**, PARTUUID `f227357c-1e80-4fd0-a55e-2efbef1dd25c`; serial `5D0344B4`; read-only, never format/repartition/overwrite |
+| Recovery stick | existing `AIENOSRECOV`, current firmware **Boot0002**, PARTUUID `f227357c-1e80-4fd0-a55e-2efbef1dd25c`; serial `5D0344B4`; read-only for this lane; parent alone owns any newly authorized backup/reuse/restore |
 | Camera and witnesses | camera on screen for whole boot; primary native xHCI/USB keyboard plus independent RTL8127 UDP boot-report witness on iMac/MacBook (neither may be silently dropped) |
 | Witness | a second person (or Drake plus a time-stamped recording) who reads the screen aloud and keeps the clock |
 | Notes | paper or a laptop for times and the exact words on screen |
-| Owner provisioning (full image) | Drake-provided `CK_OWNER_PUBKEYS` and `CK_MACHINE_ID` files; never generate a substitute or reuse another machine's key |
-| Candidate medium | a separate blank medium, independently identified and explicitly authorized if removable-media staging is selected; never reuse the recovery stick |
+| Prerequisite 0: owner provisioning | completed Drake-provided `CK_OWNER_PUBKEYS` + `CK_MACHINE_ID` ceremony before full staging; currently NOT DONE; never generate a substitute or reuse another machine's key |
+| Candidate medium | separate blank medium preferred; Drake subsequently approved parent-owned backup then reuse of the recovery stick, conditional on verified backup and an executable recovery restore path; this lane never writes it |
 
 The October 28 parent inspection found the existing recovery stick in the Spark, with shim/GRUB, recovery
 kernel/initrd, `capture-attended.sh`, and `aienos-evidence/attended-recovery-machine1.txt`. The parent read that file:
 2026-09-25T00:26:25Z, BootCurrent was this stick (then Boot0004), NVMe root/ESP mounted read-only,
 `RECOVERY_BOOT_GATE: PASS`. This is historical physical recovery proof, not a recovery boot today. Recheck medium
 identity before GO. Current Boot0002 and historical Boot0004 are the same PARTUUID; never rewrite it to match a number.
+
+Later October 28 authorization correction, relayed by the parent: Drake approved backing up this stick and then
+reusing it. **The parent owns every `/dev/sda` action**, including backup, verification, writing and restoration;
+this lane remains read-only. Before reuse/GO, retain a byte-exact backup with digest, partition metadata and the
+on-stick recovery evidence, and prove a restoration route on another available machine if Spark fails to boot.
+A backup stored only on an unbootable Spark is not a usable recovery route. While the stick contains a candidate,
+Boot0002 does not magically remain a recovery environment: restore the verified recovery bytes before using it as
+recovery. Recheck its restored identity/hash and historical evidence before another boot window.
 
 The full-image build parser (`native/kernel/tools/ck_owner_gen.c`, matching the existing native/m5 owner boundary)
 accepts text lines `name hex`, blank lines and `#` comments. Public-key file: exactly
@@ -80,7 +88,7 @@ failure.
 | P2 | `git -C <checkout> rev-parse HEAD` | the commit the probe image is built from; write it down |
 | P3 | `quietlock check` | clear (no other session holds the machine quiet) |
 | P4 | `efibootmgr` (no arguments) | `Boot0002 AIENOSRECOV` matches the recovery PARTUUID; `BootCurrent: 0001`; `BootOrder` and no `BootNext` match the captured current Linux baseline (do not assume an old BootOrder) |
-| P5 | `lsblk -f` and parent-approved read-only identification | recovery serial `5D0344B4`, vfat `AIENOSRECOV`, PARTUUID above; internal root/ESP match `docs/RECOVERY_MEDIA_MACHINE1.md`; candidate medium is a different device |
+| P5 | `lsblk -f` and parent-approved read-only identification | exact recovery identity above and internal root/ESP match; if parent reuses recovery medium, verified backup and independent-machine restore route are recorded before any write |
 | P6 | `bash scripts/verify_recovery_tools.sh` | `PASS` (static check of the recovery initrd; `NOT_RUN` is not a pass) |
 | P7 | `bash scripts/qemu_verify_recovery_media.sh` | the recovery environment boots in QEMU with zero hard disks |
 | P8 | `bash scripts/qemu_ck_rollback_test.sh` and `bash scripts/qemu_native_rollback_test.sh` | the rollback gates pass for this commit |
@@ -106,10 +114,11 @@ UNVERIFIED here and is part of Drake's go/no-go.
   on screen).
 - G5 `BootNext` unset, `BootOrder` unchanged (P4), Linux is the running system.
 - G6 Everyone can state the abort rule (section 7) from memory.
-- G7 The separate-medium procedure `docs/campaigns/SPARK-BOOT-INPUT-20261028.md` is integrated, reviewed with Drake,
-  and names an independently identified blank candidate medium. The legacy ESP staging script is not the current
-  campaign route; its read-only dry run may be inspected but `--apply` needs separate explicit ESP authorization.
-  Missing owner material, candidate medium and composed keyboard/network witness image keep this campaign NO-GO.
+- G7 The media procedure `docs/campaigns/SPARK-BOOT-INPUT-20261028.md` is integrated and reviewed with Drake.
+  Either a separate identified medium is supplied, or the parent has completed the specifically authorized
+  recovery-backup/reuse prerequisite above. Only the parent acts on that medium. The legacy ESP staging script's
+  `--apply` still requires separate explicit ESP authorization and is not the current route.
+  Incomplete owner ceremony or composed keyboard/network witness image keeps this campaign NO-GO.
 - G8 Drake says "go" out loud in the window, and the witness writes the time.
 - G9 The exact admitted candidate includes both native confined xHCI/USB keyboard and RTL8127 UDP report witness.
   The standalone core-only SMMU artifact does not include either and cannot satisfy this combined physical campaign.
@@ -126,8 +135,8 @@ that Drake wants answered first.
 2. Capture the before state with `sudo scripts/verify_native_rollback.sh --capture-pre evidence/pre_boot_capture.json`
    only with the window's explicit authorization; preserve existing BootOrder/BootNext/Secure Boot and ESP.
 3. Use the separately reviewed medium-identification/image-writing procedure in
-   `docs/campaigns/SPARK-BOOT-INPUT-20261028.md`. It requires a **different** candidate medium; no write to
-   `AIENOSRECOV` or internal ESP. No candidate medium has been supplied as of October 28.
+   `docs/campaigns/SPARK-BOOT-INPUT-20261028.md`. Parent alone may write the exact authorized candidate medium,
+   including recovery-stick reuse only after the verified backup/independent restore prerequisite. No internal ESP write.
    Verify the exact candidate hash after packaging. Full TEST-FIXTURE image is never eligible.
 4. Drake selects that candidate through the firmware's attended one-time boot menu and starts the clock.
    Do not use ALLEN.EFI or Boot0000. No automatic reboot or persistent boot-order edit is part of this route.
@@ -159,10 +168,11 @@ that Drake wants answered first.
 
 - **Abort rule.** If the screen shows a panic, shows nothing new for 60 seconds, or anyone says "stop": touch nothing
   until the 60 seconds are over, then hold the chassis power button until the machine is off, wait ten seconds, press
-  it again. `BootNext` was consumed before the image started, so the machine boots `BootOrder` (Linux, `0001`).
-- **If Linux does not come up:** firmware boot-menu key (F11 or the firmware's own), pick `AIENOSRECOV` (**Boot0002**, verify the exact recovery PARTUUID).
-  Mount root and ESP **read-only** and run the collector exactly as in `docs/RECOVERY_MEDIA_MACHINE1.md` ("Inspect
-  internal storage read-only", "Capture the recovery evidence").
+  it again. The one-time menu choice must not change captured BootOrder; normal fallback is Linux (`0001`).
+- **If Linux does not come up:** use the firmware one-time menu for `AIENOSRECOV` (current historical entry
+  **Boot0002**, verify recovery PARTUUID), but only if its recovery contents are present. If the parent reused it,
+  the parent first restores its verified recovery backup using the pre-arranged independent-machine route.
+  Then mount internal root/ESP **read-only** and run the collector in `docs/RECOVERY_MEDIA_MACHINE1.md`.
 - **Repair** (removing `\EFI\AIENOS`, touching `BootOrder`) needs a new, separate go-ahead from Drake at that moment.
 - **Never**: change Secure Boot, change firmware settings, run `--apply` a second time, retry a failed probe in the
   same window without a fresh go, or "fix" anything on the machine during the window.
@@ -202,9 +212,10 @@ receipts: it may contain credentials.
    does not prove answer service restoration. Close the operator window only after restoration or an explicit
    operator-directed recovery handoff.
 
-Undo: restore only the captured incumbent settings and approved staging backup. Never delete CORE.EFI, never boot
-ALLEN.EFI/Boot0000, never overwrite the recovery stick, never change BootOrder or Secure Boot. Removing a newly
-created boot entry or staged file is a distinct write requiring Drake's approval; preserve before/after receipts.
+Undo: restore only the captured incumbent settings and approved staging backup. For authorized recovery-stick
+reuse, the parent alone restores and verifies its byte-exact recovery backup; this lane never writes the stick.
+Never delete CORE.EFI, boot ALLEN.EFI/Boot0000, or change BootOrder/Secure Boot. Removing a newly created boot
+entry or staged file is a distinct write requiring Drake's approval; preserve before/after receipts.
 
 ## 8. Known unknowns (carried from #302)
 
