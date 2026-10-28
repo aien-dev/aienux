@@ -171,6 +171,7 @@ static struct {
     uint32_t key_t;
     unsigned seen_input, seen_said, seen_map, seen_wake;
     int asleep; /* dark screen, nothing drawn but the mark */
+    uint32_t black_presented; /* release-published only after a complete black frame */
     unsigned seen_sleep;
     int input_moved;
     /* the conversation */
@@ -1338,6 +1339,15 @@ int ck_allen_ui_tick(uint64_t now)
                 ui.dusk_slowest = us;
         }
     }
+    if (ui.asleep && ui.dim == DIM_FULL) {
+        /* done's acquire above includes every helper's framebuffer writes.
+         * Publish only after presentation, and never acknowledge a sleep
+         * request superseded while this frame was in flight. */
+        lock();
+        if (note.sleep_gen == ui.seen_sleep && note.sleep)
+            __atomic_store_n(&ui.black_presented, 1, __ATOMIC_RELEASE);
+        unlock();
+    }
     return 1;
 }
 
@@ -1484,11 +1494,12 @@ void ck_allen_ui_sleep(int asleep, uint64_t now)
 {
     (void)now;
     lock();
+    __atomic_store_n(&ui.black_presented, 0, __ATOMIC_RELEASE);
     note.sleep = asleep != 0;
     note.sleep_gen++;
     unlock();
 }
-int ck_allen_ui_asleep(void) { return ui.asleep && ui.dim == DIM_FULL; }
+int ck_allen_ui_asleep(void) { return __atomic_load_n(&ui.black_presented, __ATOMIC_ACQUIRE) != 0; }
 
 void ck_allen_ui_wake(const char *footer, uint64_t now)
 {

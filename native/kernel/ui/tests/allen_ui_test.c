@@ -211,8 +211,17 @@ static unsigned differ(const uint32_t *a, const uint32_t *b, uint32_t pitch, uin
 /* the frames are timed by the wall clock; ALLEN_UI_CLOCK=cpu times them by this thread's CPU time instead,
  * which is the fairer figure on a busy host */
 static int cpu_clock;
+/* The injected frame clock runs at begin and after helpers/presentation,
+ * before the completed frame is published. No test-only renderer hook. */
+static unsigned black_probe, black_probe_calls, black_probe_early, wake_during_frame;
 static uint64_t real_us(void)
 {
+    if (black_probe) {
+        black_probe_calls++;
+        black_probe_early += ck_allen_ui_asleep() != 0;
+    }
+    if (wake_during_frame && !--wake_during_frame)
+        ck_allen_ui_sleep(0, 0);
     struct timespec ts;
     clock_gettime(cpu_clock ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
@@ -971,7 +980,10 @@ int main(int argc, char **argv)
         unsigned nf = 0, saved = 0, lit600 = 0;
         int mid_ok = 1;
         for (; now_us <= (uint64_t)(s0 + 4300) * 1000u; now_us += 16000) {
-            if (!ck_allen_ui_tick(now_us))
+            black_probe = !ck_allen_ui_asleep();
+            int drawn = ck_allen_ui_tick(now_us);
+            black_probe = 0;
+            if (!drawn)
                 continue;
             uint32_t d = (uint32_t)(now_us / 1000) - s0;
             if (nf < 320) {
@@ -1025,6 +1037,8 @@ int main(int argc, char **argv)
             }
         CHECK(rises == 0, "dusk: after the disk's height the light only falls, frame by frame (within a thousandth)");
         CHECK(mid_ok, "dusk: in the middle of the dusk the middle of the screen is brighter than its edges");
+        CHECK(black_probe_calls > 0 && black_probe_early == 0,
+              "dusk: frame-begin/end observers cannot see unpublished black completion");
         CHECK(ck_allen_ui_asleep(), "dusk: asleep once the horizon has closed");
         CHECK(count(&P, 0, 0, W, H, BLACK) == W * H, "dusk: the closed horizon is pure black, every pixel");
         if (dir) {
@@ -1040,7 +1054,18 @@ int main(int argc, char **argv)
                df, da, ds, cpu_clock ? "CPU time of this thread" : "wall clock");
         CHECK(df >= 200 && da > 0, "dusk: its frames are counted");
         /* the dawn: not a cut, and the sky is back in under a second, with nothing of the dusk left */
-        ck_allen_ui_sleep(0, now_us);
+        ck_allen_ui_sleep(1, now_us);
+        CHECK(!ck_allen_ui_asleep(), "sleep: a new request clears the previous black acknowledgement immediately");
+        ck_allen_ui_refresh();
+        ck_allen_ui_tick(now_us - 16000);
+        CHECK(ck_allen_ui_asleep(), "sleep: a repeated request is acknowledged after a newly completed black frame");
+        /* Queue a wake from the closing clock callback, after drawing but
+         * before completion publication. The stale sleep must not win. */
+        wake_during_frame = 2;
+        ck_allen_ui_refresh();
+        ck_allen_ui_tick(now_us - 16000);
+        CHECK(!wake_during_frame && !ck_allen_ui_asleep(),
+              "dawn: a wake queued before frame commit cannot be overwritten by that sleeping frame");
         uint32_t w0 = (uint32_t)(now_us / 1000);
         run_to(w0 + 300);
         CHECK(!ck_allen_ui_asleep(), "dawn: awake after ck_allen_ui_sleep(0)");

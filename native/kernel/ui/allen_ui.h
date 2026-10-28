@@ -64,8 +64,9 @@ void ck_allen_ui_refresh(void);
 /* Allen sleeps (asleep = 1): the dusk. Everything on the screen (the stars, the galaxies, the water's
  * light, Allen, his words) falls in a spiral into a black hole where he was; an accretion disk glows as the
  * light arrives, then dims, and the horizon closes to pure black over about four seconds, after which nothing
- * moves and ck_allen_ui_asleep() is 1 (the panel can be switched off). asleep = 0 brings the sky back,
- * calmly, in under a second. */
+ * moves and ck_allen_ui_asleep() is 1, only after all drawing cores have presented the final black frame
+ * (the panel can then be switched off). A new sleep/wake request clears that acknowledgement immediately.
+ * asleep = 0 brings the sky back, calmly, in under a second. */
 void ck_allen_ui_sleep(int asleep, uint64_t now);
 int ck_allen_ui_asleep(void);
 /* Frames drawn, the slowest and the average (microseconds). */

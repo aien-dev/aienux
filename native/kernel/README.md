@@ -314,6 +314,10 @@ with any-key or power-button wake: the panel comes on before the sky returns, an
 the waking key is not typed. If the panel is unsupported or its off sequence fails,
 the kernel instead requests full ACPI S5 power-off; a cold power-button start is
 then required, not an arbitrary key. It never substitutes black pixels for panel-off.
+The normal display-off transition waits for a published, fully presented black
+frame, not merely the animation clock reaching its dark state; helper strips
+must finish first. The existing bounded watchdog still forces display-off if
+the renderer stalls, and logs that the picture did not reach black.
 The button is read by polling the PM1 status register named in the ACPI FADT
  (bit 8, PWRBTN_STS; its interrupt enable is cleared so
 the firmware never sees the press); the QEMU keyboard test drives it with the monitor's
