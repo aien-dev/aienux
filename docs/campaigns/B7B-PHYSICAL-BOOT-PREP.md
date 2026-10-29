@@ -143,11 +143,13 @@ that Drake wants answered first.
 
 - UNKNOWN whether the GB10 or the HDA0 audio device attempts DMA while no OS drives them, after SMMUv3 B is left
   enabled with every stream aborting until the next reset. An abort there is recorded as an event, not acted on.
-  Checked 2026-10-12 against the code (`native/kernel/core/smmu_svc.c`, the unconfine path): the kernel drains the
-  event queue only while unconfining, and counts only events for the stream being unconfined; after the probe no
-  event is read. So a later GB10 or HDA0 abort would NOT appear on screen in this window. It is not answered by the
-  Spark user guide either (DOCS SILENT); the window records only what the screen shows. Answering it needs a later
-  probe build that reads and prints the event queue before the final report (a P07 item), not a change to this one.
+  Checked 2026-10-12 against the code; corrected 2026-10-28 at main `659ddd2d`: the unconfine path
+  (`ck_dma_unconfine`, `native/kernel/core/smmu_svc.c`) reads no events at all. Only `ck_dma_faults` drains the event
+  queues, and only the NVMe and virtio-net negative tests call it; the probe never does. So a later GB10 or HDA0 abort
+  would NOT appear on screen in this window, and a probe summary is not a fault or visibility measurement. It is not
+  answered by the Spark user guide either (DOCS SILENT); the window records only what the screen shows. Answering it
+  needs a later probe build that reads and prints the event queue before the final report (a P07 item), not a change
+  to this one.
 - UNVERIFIED that the Spark's real IORT routes segment 15 rid 0x100 to instance 1; this is the expectation from
   decoded tables (`GB10_IORT_DECODE.md` sections 3 and 9), and the first thing the window tests.
 - UNVERIFIED hold time and reset behavior of the probe image on the real console.

@@ -242,8 +242,10 @@ int ck_entropy_fill(void *buf, size_t len)
 }
 
 /* Host: no IORT by default, so no SMMU (the NVMe gate stays fail-closed). A test may set
- * ck_host_confine_rc = 0 to model an SMMU that confines; every call is recorded. */
+ * ck_host_confine_rc = 0 to model an SMMU that confines; every call is recorded.
+ * ck_host_unconfine_fail = 1 models an SMMU that refuses the abort (CK_SMMU_FAILED). */
 int ck_host_confine_rc = CK_SMMU_ABSENT;
+int ck_host_unconfine_fail;
 unsigned ck_host_confine_calls, ck_host_unconfine_calls;
 uint32_t ck_host_confine_segment, ck_host_confine_rid;
 uint64_t ck_host_confine_phys, ck_host_confine_len;
@@ -271,6 +273,7 @@ int ck_dma_unconfine(uint32_t stream_id)
 {
     (void)stream_id;
     ck_host_unconfine_calls++;
+    if (ck_host_unconfine_fail) return CK_SMMU_FAILED;
     return ck_host_confine_rc == 0 ? 0 : CK_SMMU_EARG;
 }
 int ck_dma_faults(uint32_t stream_id, struct ck_dma_fault *first)
