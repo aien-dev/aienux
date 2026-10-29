@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # QEMU twin of the Raspberry Pi 5 EL0 artifact qualification image (PI5-7 cut 3, native/kernel/core/artifact_card.h).
 # Builds the SAME code the Pi image runs (make CK_ARTIFACT_CARD=1 CK_SEED0B_TEST_ANCHOR=1, the core image with the card
 # bundle source; the Pi image adds only CK_PI5) and boots it in QEMU AArch64 + UEFI (AAVMF) with the signed artifacts in ONE

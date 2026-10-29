@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* slot_service_pi5.c -- the slot service of the Pi resident-lifecycle qualification image (CK_PI5_LIFECYCLE).
  * The Pi card has no SLOTLDR.EFI image slots (P11 is the NVMe/GB10 layout), so there is nothing to promote,
  * abandon or update: the lifecycle's four slot hooks (svc/slot_service.h) are present and say so. The real

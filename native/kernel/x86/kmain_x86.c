@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* kmain_x86.c -- AIENOS-IMAC-KERNEL-0: the C kernel core on x86_64, first
  * cut, for the 2017 iMac (iMac18,3, Core i5-7500) and QEMU q35.
  *
@@ -30,6 +46,9 @@
 
 #ifndef AIENOS_COMMIT
 #define AIENOS_COMMIT "unknown"
+#endif
+#ifndef CK_X86_REPORT
+#define CK_X86_REPORT 0 /* 1 only in the opt-in lab image: the network report */
 #endif
 #ifndef CK_X86_HOLD_S
 #define CK_X86_HOLD_S 60u
@@ -240,7 +259,14 @@ static __attribute__((noreturn)) void finish(void)
     }
     if (CK_X86_HOLD_S) {
         ck_printf("power: holding the screen %u s, then ACPI S5\n", (unsigned)CK_X86_HOLD_S);
-        ck_x86_report_hold(tsc_hz, CK_X86_HOLD_S); /* sends the report if the network is up */
+#if CK_X86_REPORT
+        /* Lab build only (make imac-kernel CK_X86_REPORT=1): sends the
+         * allowlisted, unauthenticated report if the network is up. */
+        ck_x86_report_hold(tsc_hz, CK_X86_HOLD_S);
+#else
+        /* Default and resident builds: no report code is linked; nothing is sent. */
+        delay_ms((uint64_t)CK_X86_HOLD_S * 1000u);
+#endif
     }
     acpi_poweroff();
     ck_puts("power: halted; hold the power button to turn the machine off\n");

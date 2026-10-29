@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # PI5-8: put one model on the card's raw AIENOS-MODEL partition (p3), run the measurement image once, clean up.
 #   pi_run.sh MODEL.gguf MODEL.MAP BOOTAA64.EFI TAG [--no-write | --write-only]
 #   --no-write: p3 already holds the model (only verify it); --write-only: write and verify p3, do not run.
@@ -8,7 +23,7 @@
 # The hub is the house server: one ssh at a time, no fast retries, never `find /` on it.
 set -euo pipefail
 model="${1:?model}"; map="${2:?map}"; efi="${3:?efi}"; tag="${4:?tag}"; nowrite="${5:-}"
-hold=/home/drakestapleton/.claude/jobs/9974574d/tmp/pi-hold
+hold="${PI5_HOLD_FILE:-$HOME/.claude/jobs/9974574d/tmp/pi-hold}"
 hs() { ssh -o BatchMode=yes -o ConnectTimeout=15 hub "$@"; }
 until [[ ! -e "$hold" ]] && [[ -z "$(ps -eo pid,args | grep -E ' bash [^ ]*/pi5-run[^ ]*\.sh' | grep -v grep || true)" ]]; do sleep 30; done
 size=$(stat -c %s "$model"); sha=$(sha256sum "$model" | cut -d' ' -f1)

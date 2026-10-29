@@ -1,5 +1,24 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* tg3_x86.c -- the 2017 iMac's Broadcom BCM57766 Ethernet chip (PCI
- * 14e4:1686), transmit only, polled, for the kernel's network report.
+ * 14e4:1686), polled, received frames never read. The default image uses
+ * it for link detection only; frame transmit (ck_x86_tg3_send,
+ * ck_x86_tg3_drain) is compiled only into the opt-in lab image
+ * (CK_X86_REPORT=1), for the lab-only network report.
  *
  * Written from Broadcom's register layout as the Linux tg3 driver documents
  * it (no code taken from it); the order of every step follows tg3's
@@ -161,7 +180,7 @@
 static volatile uint8_t *regs, *cfg;
 static uint64_t hz, dma;
 static uint8_t mac[6];
-static int ready, link_up, stalled_shown;
+static int ready, link_up;
 static unsigned tx_prod, pcie_cap;
 static uint32_t mac_mode;
 
@@ -632,6 +651,11 @@ int ck_x86_tg3_link(void)
     return 1;
 }
 
+#if defined(CK_X86_REPORT) && CK_X86_REPORT
+/* Transmit exists only in the opt-in lab image, for the network report
+ * (report_x86.c). The default image has no way to send a frame. */
+static int stalled_shown;
+
 static unsigned tx_cons(void)
 {
     __asm__ volatile("" ::: "memory");
@@ -685,3 +709,4 @@ int ck_x86_tg3_drain(unsigned ms)
     }
     return -1;
 }
+#endif /* CK_X86_REPORT */

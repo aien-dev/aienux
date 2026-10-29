@@ -2,7 +2,7 @@
 
 ## Executive Summary & Gate Verdict
 
-This document audits all historical and current physical evidence from Machine 1 (NVIDIA DGX Spark, `spark-b87b`) regarding the **M0 Native-Boot Rollback Gate**.
+This document audits all historical and current physical evidence from Machine 1 (NVIDIA DGX Spark) regarding the **M0 Native-Boot Rollback Gate**.
 
 ### Core Questions
 

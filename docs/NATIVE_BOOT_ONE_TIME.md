@@ -1,6 +1,6 @@
 # Machine 1 Native Boot Qualification Procedure: Attended, One-Time, Secure Boot OFF for development (as of 2026-10-01), ON for release
 
-This document defines the safe, operator-attended qualification procedure for one-time native candidate boots of AIENOS on NVIDIA DGX Spark ("Machine 1", `spark-b87b`).
+This document defines the safe, operator-attended qualification procedure for one-time native candidate boots of AIENOS on NVIDIA DGX Spark ("Machine 1").
 
 ---
 
