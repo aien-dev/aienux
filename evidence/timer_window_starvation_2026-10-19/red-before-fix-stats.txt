@@ -1,0 +1,20 @@
+timer_irq: 3 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=22261 avg_us=63425 max_us=127049 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=22671 avg_us=99331 max_us=175990 
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=189039 avg_us=189039 max_us=189039 
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=251606 avg_us=251606 max_us=251606 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=28106 avg_us=127561 max_us=227016 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=18965 avg_us=65979 max_us=112993 
+FAIL  tick statistics out of range: timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0 timer_irq: 0 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0 
+
+
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=64112 avg_us=64112 max_us=64112 
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=234449 avg_us=234449 max_us=234449 
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=128576 avg_us=128576 max_us=128576 
+timer_irq: 3 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=18093 avg_us=67359 max_us=120038 
+timer_irq: 3 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=61419 avg_us=83425 max_us=126006 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=63812 avg_us=125928 max_us=188044 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=120501 avg_us=124589 max_us=128677 
+FAIL  tick statistics out of range: timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0 timer_irq: 0 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=62871 avg_us=125027 max_us=187183 
+timer_irq: 2 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=63837 avg_us=125671 max_us=187505 
+timer_irq: 1 ticks in 200 ms timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=62338 avg_us=62338 max_us=62338 

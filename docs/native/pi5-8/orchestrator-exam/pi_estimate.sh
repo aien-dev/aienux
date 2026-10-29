@@ -1,4 +1,19 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # ESTIMATE of Pi 5 speed, scaled from the measured Pi numbers in PI5-8-MODEL-CHOICE.md (SDOT path, per-token time is proportional to the weight bytes read per token).
 # Calibration (measured): TinyLlama 631.9 MB read per token (file minus the unread embedding table) -> 683,917 us; danube3 290.2 MB -> 309,842 us; Llama yardstick 807.7 MB -> 832,559 us.
 # That is 1.03 to 1.08 ms per MB; this script uses 1.05 ms per MB. Not measured for any model here. Q5_0/Q8_0 tensors would use kernels the engine does not have, so their speed is unknown.

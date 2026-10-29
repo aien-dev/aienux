@@ -13,21 +13,21 @@
     "generated": {
       "children": [
         {
-          "digest": "451d20161f6df66f91a25be8a7257306238f81ce0afb80c7f22b5994d05f1350",
-          "last_commit": "35b3086",
+          "digest": "6d2f9d174c5f47baaea3ce4b79b5de2d7f5318280a7ff36f5bbb023030ebd5b0",
+          "last_commit": "621c9e6f",
           "name": "xhci",
           "purpose": "Directory crates/aienos-kernel/src/usb/xhci. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:84fa272544e7bafacd247ab2c9371317f746bd408f0bdb5e0918007370dfe5c3",
-      "compiled_at": "2026-10-13T02:27:54Z",
+      "children_root": "sha256:228437c37db496908c3e6c759b2946cfa4e124315ce3f42cda297deab1dcfbbc",
+      "compiled_at": "2026-10-24T04:15:32Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:f51233705a5c33d1c72abca84575d077a80fd907e73c14ee95d9939a02c06eb0",
+      "digest": "sha256:c87c0832b8e6069723c0deb614b223c05879100d7b6d2768c4e6b45d7d7b6ed5",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 9,
-      "generated_at_commit": "74f638c298bc04543b03d6851a83dac815d36645",
-      "source_tree": "sha256:cb2d7930d8dbaad0d76d7e5d5903ae3a810e34e6558192ecc4554d8fb6e89675"
+      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
+      "source_tree": "sha256:463495d5d7b1f8f5a52346732e597f2f892c61d6e1ed46e5754a081c9460b0a7"
     },
     "owner_lane": "",
     "provenance": {
