@@ -25,13 +25,13 @@
 #
 #   scripts/workflow_files_check.sh <commit sha>
 # Needs: gh with a token that can read Actions (GITHUB_TOKEN in CI), and
-# GITHUB_REPOSITORY (owner/name; defaults to aien-spark/aienos). POSIX sh, no
+# GITHUB_REPOSITORY (owner/name; defaults to aien-dev/aienux). POSIX sh, no
 # Python. Exit 0 when every workflow run on the commit has at least one job,
 # 1 when one does not, 2 on usage or API error.
 set -eu
 sha="${1:-}"
 [ -n "$sha" ] || { echo "usage: $0 <commit sha>" >&2; exit 2; }
-repo="${GITHUB_REPOSITORY:-aien-dev/aienos}"
+repo="${GITHUB_REPOSITORY:-aien-dev/aienux}"
 settle="${WORKFLOW_FILES_SETTLE_SECONDS:-20}"
 [ "$settle" -gt 0 ] && sleep "$settle"   # let GitHub record the push-event runs
 runs=$(gh api "repos/$repo/actions/runs?head_sha=$sha&per_page=100" \

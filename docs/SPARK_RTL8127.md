@@ -71,7 +71,7 @@ Aienux leaves out, on purpose: MAC MCU patch code (hw_mac_mcu_config), PCIe EPHY
 |---|---|---|
 | Driver core (polled, one DMA region, TX no-close, RX type 1, IRQs masked) | `native/net/aienos_rtl8127.{h,c}` | `native/net/tests/rtl8127_test.c` (chip model, `make -C native/net test`, also under ASan/UBSan in `make sanitize`) |
 | Boot report frames, tag `AIENUX-SPARK-REPORT`, UDP 47031 broadcast, iMac wire format | `native/net/aienos_report.{h,c}` | `rtl8127_test.c` (report sent through the driver and rebuilt from the model's wire), `scripts/ck_spark_report_test.sh` (loopback to the receiver) |
-| Receiver (now accepts the Spark tag, writes `spark-<run>.txt`) | `native/kernel/tools/ck_imac_report_listen.c` | `scripts/ck_spark_report_test.sh`, `scripts/ck_imac_report_test.sh` |
+| Receiver (now accepts the Spark tag, writes `spark-<run>.unauthenticated.txt`) | `native/kernel/tools/ck_imac_report_listen.c` | `scripts/ck_spark_report_test.sh`, `scripts/ck_imac_report_test.sh` |
 | Kernel binding: find 10ec:8127 in the multi-segment discovery, SMMU window first, BAR 2, init, link wait (10 s), report every 2 s for 20 s, receive count, release | `native/kernel/dev/rtl8127_bind.{h,c}`, called from `dev/devices.c` only in a `CK_RTL8127=1` build | `stage_test` case `test_rtl8127_bind` (absent, no SMMU: denied with memory decode and bus master off, bad BAR) |
 
 The chip model is written from the same vendor source as the driver. It proves the driver does what the
@@ -115,6 +115,6 @@ interrupt mask, RX repost) was killed by the test every time.
 
 Build the full image with `make -C native/kernel full CK_RTL8127=1` (output `$(OUT)/full/BOOTAA64.EFI`; the binding call and the RAM console copy are added there; the core-only `make` image has no devices stage, so it never binds the NIC). On another machine
 on the same LAN, run `ck_imac_report_listen 47031 OUTDIR 120`
-(`make -C native/kernel imac-report-listen`); the Spark's log arrives as `OUTDIR/spark-<run>.txt`.
+(`make -C native/kernel imac-report-listen`); the Spark's log arrives as `OUTDIR/spark-<run>.unauthenticated.txt` (unauthenticated UDP, like the iMac's).
 The image never takes the chip out of the devices stage with DMA live: every path ends in
 `rtl8127: chip stop`, `dma_gate: rtl8127 bus master revoked`, `smmu: rtl8127 stream ... returned to abort`.

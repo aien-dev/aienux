@@ -16,7 +16,7 @@
 //! D3 adversarial tests for the AIENOS P3 native NVMe **write + flush** lane.
 //!
 //! Target: `crates/aienos-kernel/tests/nvme_write_prp.rs`. Baseline:
-//! aien-spark/aienos @ ef359ec.
+//! aien-dev/aienux @ ef359ec.
 //!
 //! Pure PRP geometry is asserted against the real
 //! `aienos_kernel::nvme::build_prps` with exact expected values. Transfer

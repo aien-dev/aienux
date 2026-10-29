@@ -232,6 +232,18 @@ else
     skipped "gzip or cpio not present on host."
 fi
 
+# Offline recovery media trust boundary (scratch files and throwaway keys).
+# The host-only test does not qualify shim enrollment or physical media.
+echo ""
+echo "--- [Recovery Media Security Regression] ---"
+if command -v mkfs.ext4 >/dev/null && command -v mkfs.vfat >/dev/null &&
+   command -v grub-mkstandalone >/dev/null && command -v sbsign >/dev/null &&
+   command -v sbverify >/dev/null && command -v openssl >/dev/null; then
+    run_or_skip "recovery media security" ./scripts/test_recovery_media_security.sh
+else
+    skipped "mkfs, GRUB standalone builder, OpenSSL or sbsigntool not present on host."
+fi
+
 # Step 10: TRUST-1 Gate 0/2 measurement tools (software TPM, no hardware).
 echo ""
 echo "--- [TRUST-1 Measurement Tools Self-Test] ---"
