@@ -13,21 +13,21 @@
     "generated": {
       "children": [
         {
-          "digest": "78115cdbda04ee0b7568424dbdba2833bd201f01118cf01464cb17653fc26aee",
-          "last_commit": "b84c0a6",
+          "digest": "255342dca0a867bcdb31c250841c472640734028e234b2015d82ab56127a5c62",
+          "last_commit": "621c9e6f",
           "name": "tests",
           "purpose": "Directory native/capability/tests. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:0c70cfa122966e11065bca94434dcb159c75a4557cf6322bbc5256e28d49f2e5",
-      "compiled_at": "2026-10-14T14:58:51Z",
+      "children_root": "sha256:a8848d31d2fc74c0d5a73bc5637ba3f8070591deb05e33a141f6d4341d999aeb",
+      "compiled_at": "2026-10-24T04:15:32Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:750c519c466783ed6330a6a2c8fcb2153efdaadb9d65b38a6a85e8463d78b68d",
+      "digest": "sha256:1b5414c184e37d4d943e7979db3d82f1441d6004bb9b5c379a4e4e39381fe7fd",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 8,
-      "generated_at_commit": "596870d6ef47c5238cc2c7fa1c08f5e5486e5d84",
-      "source_tree": "sha256:bb4b4f4706f6b22f2cb4a92ec9ed82733cff2ef5c3a626843e3ee584785e8b9b"
+      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
+      "source_tree": "sha256:760bfa9738488222d102305e0d3ed7d0a4c6e1f2e92b97cd9f45ff178c386882"
     },
     "owner_lane": "",
     "provenance": {
