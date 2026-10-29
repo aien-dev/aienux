@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* pi5_store_locate.h -- host side only. Where the KeySlotManifest (Store object kind 21, ADR 0017 section
  * 2.4) sits inside a copy of the Pi card's AIENOS partition, found the way the kernel finds it:
  * the unkeyed st_open catalog (svc/store_boot.c ck_store_unlock_boot -> ss_keyslot_bootstrap) lists the

@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* osc_launch.h -- the pure parts of launching an admitted OSC unit (OSC_UNIT_ARTIFACT.md section 9):
  * the argument rule (9.2), range ownership (9.1.1 item 4), the ticks budget, and the classification
  * of what an EL0 unit did into the four result classes (9.3). No globals, no I/O, no MMU: host tested

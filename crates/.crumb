@@ -65,99 +65,99 @@
     "generated": {
       "children": [
         {
-          "digest": "0a8510e7fedafbf6b5d1ea15307da3a1eb6e8d6bd6ffa7caabf193fabaa464b5",
+          "digest": "b345ab6edd5272610bf2b0280e7513e91d7f5304d5e6546fa4957567603953dc",
           "last_commit": "3e71759",
           "name": "aienos-accel",
           "purpose": "Directory crates/aienos-accel. Purpose not yet described by a human."
         },
         {
-          "digest": "68682a56017aef2e95b4101731a5bc023e0d297127e6b07af7d3be9f3d8afaeb",
+          "digest": "a2e8ebab5461a9752e5374baed7f0a34d8aef68c075655f1e20f28a789cd4347",
           "last_commit": "15d5f3d",
           "name": "aienos-aegis",
           "purpose": "Directory crates/aienos-aegis. Purpose not yet described by a human."
         },
         {
-          "digest": "d5ad195a8f38c6bd0e1cc00feb8c5040f0fc8eabe47a9a69d961c73d6901d61e",
+          "digest": "5c09a9fbd6b8abbde046f877cc7e7dd2a2dfcfda2b64c84520c600ae5e475d34",
           "last_commit": "39e246a",
           "name": "aienos-agent-state",
           "purpose": "Directory crates/aienos-agent-state. Purpose not yet described by a human."
         },
         {
-          "digest": "ffb6a9a637e1eca1408280c4522ea52b283d740a90b8efad30350082900cbcdc",
+          "digest": "51ea4b3e93aa77257cea1270ac7520c8bc630300c3dc5051e72439fd64315835",
           "last_commit": "e12e6f6",
           "name": "aienos-artifact",
           "purpose": "Directory crates/aienos-artifact. Purpose not yet described by a human."
         },
         {
-          "digest": "ff4260f8fede1182f834d89589eb4d5a6c6160032dfc570003d506411fe93aa4",
+          "digest": "dec08f80237f84bc2f9bb73d0f009609cd402dca821a852bf3e8b7e309aec149",
           "last_commit": "e9d39a9",
           "name": "aienos-artifact-tool",
           "purpose": "Directory crates/aienos-artifact-tool. Purpose not yet described by a human."
         },
         {
-          "digest": "223e3399133c766986b1044a16c8367b51b78158d3070c0ec63c7ed3e639d644",
+          "digest": "4d0c47dce8dfe3a7cba63b731228c6329ba5ab0fd04ad29d7951fd796afd455c",
           "last_commit": "49ff776",
           "name": "aienos-boot",
           "purpose": "Directory crates/aienos-boot. Purpose not yet described by a human."
         },
         {
-          "digest": "01d4fe4a0bd556f338ac4615b7ed1c9141e4f8035c07e0082f2894a57fa071d0",
+          "digest": "4e69a6d968b5fcb69ddf80b0ba6e47337d7091f81ab4f45459d13e7c08173bb3",
           "last_commit": "bc25e73",
           "name": "aienos-c1-tree",
           "purpose": "Directory crates/aienos-c1-tree. Purpose not yet described by a human."
         },
         {
-          "digest": "ca15c2b9ae570b0aa2c7859672de2c976d6ce046188c09b7c74b5ccbee350136",
+          "digest": "4d2b17a9d26ddec69d05b85f7119c83f5aae0d7d3fe01e238af3214f928a1030",
           "last_commit": "51c05da",
           "name": "aienos-capability",
           "purpose": "Directory crates/aienos-capability. Purpose not yet described by a human."
         },
         {
-          "digest": "c63ab3d5643ac3c0974eee276273a0ab80584c54926cbb62c637294b5b857718",
+          "digest": "b204f80d66bb0dda46f7bdad090636552084acd18d9c6184a0446ff4d2df0f8b",
           "last_commit": "51c05da",
           "name": "aienos-capability-ffi",
           "purpose": "Directory crates/aienos-capability-ffi. Purpose not yet described by a human."
         },
         {
-          "digest": "f062e2e58faa2950ce8adeb2e4c16234dacce6672d560ed4fdeb7224c5093a77",
+          "digest": "b19271c073e30328bdff3a6e8a261957002cc0ce1e2d90e406103d38ae9f1153",
           "last_commit": "bc25e73",
           "name": "aienos-cortex",
           "purpose": "Directory crates/aienos-cortex. Purpose not yet described by a human."
         },
         {
-          "digest": "feccaaf349b9e88bc116db18951ffbd0145176b40ce702bc6320338c35b2e85e",
+          "digest": "abc59b7f8730775fca5d3595415bff49a12a0d9ca42fa73fd28ab25931ad1495",
           "last_commit": "f0facc7",
           "name": "aienos-crypto",
           "purpose": "Directory crates/aienos-crypto. Purpose not yet described by a human."
         },
         {
-          "digest": "e88324eb9a32d23d8358413c7404038ee4095fcf8c4889ac9c221b97aef80b8e",
+          "digest": "4b6a8ce817f3cb8139e4b3f993dec01db75804afd267545018a9ae4ce29697d2",
           "last_commit": "e960272",
           "name": "aienos-evidence",
           "purpose": "Directory crates/aienos-evidence. Purpose not yet described by a human."
         },
         {
-          "digest": "a0d0036c90e3d64d6e1caa67b77bf2b8deb898c597e9f0b797df4a144468e061",
+          "digest": "cb10b10524d3c346f4f8e2dfca4afe4267d66f1a41f4835459acc86e9e8bf090",
           "last_commit": "2951ea1",
           "name": "aienos-kernel",
           "purpose": "Directory crates/aienos-kernel. Purpose not yet described by a human."
         },
         {
-          "digest": "716d679da128e7aab8efb6e9cf836ee22a62fe9fe6993e2d0a20c3016d78b3a0",
+          "digest": "7a80efb2b807ebdc8d8189de8a7b268d404aaa2188ec25e1ceaf53ee26fc5674",
           "last_commit": "761e63d",
           "name": "aienos-store-tool",
           "purpose": "Directory crates/aienos-store-tool. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:ca16d018c0c02840ba1f87e2a7b64ed259a36253ed29230f274ebcabb43c8a7e",
-      "compiled_at": "2026-10-18T06:05:27Z",
+      "children_root": "sha256:b8448e7c4de0dd02e14ebe75cd5caa5bd4dd87ce0c1c6ccb6870704f75e194ef",
+      "compiled_at": "2026-10-29T20:34:57Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:714b1bfaec9757a393b9f0efa41aafe5f9f5120f894f7e3f8433c68d4a489a6f",
+      "digest": "sha256:9f2e623c567a062ee497257e726444b401cbc9a32ddadf4da3f997692ecee289",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 272,
-      "generated_at_commit": "59ba81a5fcc123a0f7c4020473d8e3fbd24ad021",
-      "source_tree": "sha256:c766fb61804c3e76bb861dd2f80cac7e19bdac72ee56887db443817835dc0b7c"
+      "generated_at_commit": "1afff3629cd7f3d323d448172c55e32590276a48",
+      "source_tree": "sha256:bd60ee6fdee3be40d2a06fc1b5f41ce3df378db8f36e180490983b78b143382e"
     },
     "owner_lane": "",
     "provenance": {
