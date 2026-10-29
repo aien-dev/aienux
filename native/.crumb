@@ -49,14 +49,14 @@
     "generated": {
       "children": [
         {
-          "digest": "9a550a7209350cc658a55708701504f70b54c461e672243bebf48d50c52c1c70",
-          "last_commit": "f45d00a",
+          "digest": "572990d31c305b2f2bf0e45de60b1380c41f5dd6d24e962c65261bec25028b9a",
+          "last_commit": "d701275",
           "name": "argus",
           "purpose": "Directory native/argus. Purpose not yet described by a human."
         },
         {
-          "digest": "62678ee88494d4f5fab2a67d68edded631793eecbe46bc470db7941e220cba04",
-          "last_commit": "f45d00a",
+          "digest": "8c80dd54cfd07aefd79ea4f1456325d66643317a9d3f74b967d9f710242fad42",
+          "last_commit": "41119ce",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
@@ -79,8 +79,8 @@
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
-          "digest": "77047afc7d4f7c70b090d9b6717eb21cb2f6031ed386a5750a15f0cd88a33425",
-          "last_commit": "5291a4a",
+          "digest": "a5403bcaa92fcbea01f9907073a94127801891c012f049e59ecf212d833d3ff8",
+          "last_commit": "41119ce",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
@@ -109,15 +109,15 @@
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:04fc6765a8f988da93b5e2ebd1023727a42445137c157cf55a07111c91ae9959",
-      "compiled_at": "2026-10-24T23:50:49Z",
+      "children_root": "sha256:bb4101d2fe074a88e1c3a40626d52c7021dc99f404d7cc7379c1341c385fd201",
+      "compiled_at": "2026-10-29T20:34:35Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:00b880e64b64e555aad33c179570de21713d53ab8b74ff0265dc9aa88dd576a9",
+      "digest": "sha256:4391f9c9c0cac7126587d7956ef3d2c6aedd6a07a6529066ee28d87e23a283cd",
       "evidence_files": 24,
       "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
       "files": 640,
-      "generated_at_commit": "f927c746806753146c99e80f291c6c1b6e90a2ca",
-      "source_tree": "sha256:8c65f0415e98aac54285e90952e72f9d2766a4d855053f6e14a5b666ed0f0699"
+      "generated_at_commit": "c45ea2c49e568a6e0090702c77e11a89c15dba8d",
+      "source_tree": "sha256:ab9138e7b5e38760f18c7dd468f7f4be7755737e612924728705a264c3fb986e"
     },
     "owner_lane": "",
     "provenance": {

@@ -137,8 +137,8 @@
           "purpose": "Directory crates/aienos-evidence. Purpose not yet described by a human."
         },
         {
-          "digest": "ab35d646b8609d01b53594b99c345c9ae87f9c304a1189bc14d6945ff94f4ae1",
-          "last_commit": "f45d00a",
+          "digest": "cb10b10524d3c346f4f8e2dfca4afe4267d66f1a41f4835459acc86e9e8bf090",
+          "last_commit": "a088d77",
           "name": "aienos-kernel",
           "purpose": "Directory crates/aienos-kernel. Purpose not yet described by a human."
         },
@@ -149,15 +149,15 @@
           "purpose": "Directory crates/aienos-store-tool. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:f4f384614a0edbb6cd166a489e86c50b09efa95b9e8ec669efec3efa9c5f8b17",
-      "compiled_at": "2026-10-24T23:50:49Z",
+      "children_root": "sha256:b8448e7c4de0dd02e14ebe75cd5caa5bd4dd87ce0c1c6ccb6870704f75e194ef",
+      "compiled_at": "2026-10-29T20:34:35Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:b783a26951f165aac22eb4c4077330d48a9a044a55bf08dc51a8ad431db4bfc4",
+      "digest": "sha256:791de86a40c7086efdbe9ae14a52ecb72fc03f2b2e65bcd864134c8bd2e56906",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 268,
-      "generated_at_commit": "f927c746806753146c99e80f291c6c1b6e90a2ca",
-      "source_tree": "sha256:dac38c63454f2b650c83cdbb5c5359493cc0dbe073d3559886536f1ba93874f4"
+      "generated_at_commit": "c45ea2c49e568a6e0090702c77e11a89c15dba8d",
+      "source_tree": "sha256:bd1d8478cc2faaf0a697dbbc4ba22f9fb08dad674985a7ed29438e53a21ab3a4"
     },
     "owner_lane": "",
     "provenance": {
