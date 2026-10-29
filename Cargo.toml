@@ -24,8 +24,8 @@ members = [
 version = "0.1.0"
 edition = "2021"
 authors = ["AIENOS Sovereign Contributors"]
-license = "AGPL-3.0-or-later"
-repository = "https://github.com/aien-spark/aienos"
+license = "Apache-2.0"
+repository = "https://github.com/aien-dev/aienux"
 
 [workspace.dependencies]
 aienos-crypto = { path = "crates/aienos-crypto" }
@@ -39,3 +39,11 @@ aienos-c1-tree = { path = "crates/aienos-c1-tree" }
 aienos-accel = { path = "crates/aienos-accel" }
 serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+
+# aienos-infer's forward tests run a real Llama-3.2-1B forward pass whenever the model
+# file is present (it is on the Spark). Unoptimized, `cargo test --workspace` in
+# scripts/verify_all.sh spent over an hour there and AIENOS-VERIFY-ALL hit its timeout.
+# Optimizing only this crate keeps every test running (debug assertions and overflow
+# checks stay on) and makes the gate finish.
+[profile.dev.package.aienos-infer]
+opt-level = 3

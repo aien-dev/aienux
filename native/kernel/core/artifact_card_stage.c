@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* artifact_card_stage.c -- offers the card artifact bundle (core/artifact_card.h) to the core loader through
  * the boot-disk hook (ck_stage_disk_artifacts, ck.h), in the images built with CK_ARTIFACT_CARD only
  * (QUALIFICATION ONLY, TEST keys). Such an image links no Store stage, so the hook has exactly one
