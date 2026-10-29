@@ -1,6 +1,6 @@
 # D6  -  SMMU / DMA review: P3 Native NVMe Write + Flush lane
 
-Repo: `aien-spark/aienos`, base `ef359ec` (mirror `/Users/drakestapleton/aienos-nvme-rw`).
+Repo: `aien-dev/aienux`, base `ef359ec` (mirror `~/aienos-nvme-rw`).
 Scope: read-only review of the DMA/SMMU authority that a future write+flush lane
 would inherit from the existing read substrate. No edits, no cargo, no hardware.
 

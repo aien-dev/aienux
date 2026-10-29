@@ -28,7 +28,7 @@ Result column: OK means observed on 2026-10-05 19:17 UTC; the other tags are exp
 
 | # | Prerequisite | How to check (read-only) | Result |
 |---|---|---|---|
-| 1 | Repository is at the pinned work | `gh api repos/aien-dev/aienos/commits/main -q .sha` | OK: main is `6bbd3c6` (docs only after `bbad5e4`; the scripts are unchanged between them, `git diff --stat` lists only docs and crumbs) |
+| 1 | Repository is at the pinned work | `gh api repos/aien-dev/aienux/commits/main -q .sha` | OK: main is `6bbd3c6` (docs only after `bbad5e4`; the scripts are unchanged between them, `git diff --stat` lists only docs and crumbs) |
 | 2 | Gate 2 tool copy is the one the runbook names | `sha256sum ~/workspace/aienos-recovery-gate/scripts/tpm_measurement_campaign.sh` | OK: `aac10377...4529`, byte-identical to main's file |
 | 3 | Secure Boot state | `mokutil --sb-state` | OK for the Gate 2 sittings: `SecureBoot disabled` (it must be enabled only after sitting 3) |
 | 4 | Booted by UEFI, boot entries | `efibootmgr` | OK: BootCurrent 0001, BootOrder 0001,0003, no stale USB entry |

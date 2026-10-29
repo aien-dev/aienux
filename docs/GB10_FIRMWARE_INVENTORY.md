@@ -6,7 +6,7 @@ parsers and refusal tests for firmware metadata. No loading" item of
 docs/GB10_NATIVE_DEPENDENCY_MAP.md section 7. Any firmware load or GSP handoff
 on the real machine stays an OPERATOR STEP (same document, section 7).
 
-Tags: [OBSERVED] read on the Spark (spark-b87b, Linux 7.0.0-1019-nvidia,
+Tags: [OBSERVED] read on the Spark (Linux 7.0.0-1019-nvidia,
 nvidia-open 580.173.02) on 2026-10-12. [SOURCE file:line] read in the named
 file of NVIDIA/open-gpu-kernel-modules at tag `580.173.02` (the same version as
 the driver on the box; fetched read-only into a scratch directory, not vendored).
@@ -281,7 +281,7 @@ Firmware package: `/usr/share/doc/nvidia-firmware-580-580.173.02/copyright`,
   kernels distributed under the terms of an OSI-approved open source license
   ... provided that (i) the binary files thereof are not modified in any way
   ... and (ii) this Agreement is provided to each SOFTWARE recipient". AIENOS is
-  AGPL-3.0, an OSI-approved licence, so shipping the unmodified file plus the
+  Apache-2.0, an OSI-approved licence, so shipping the unmodified file plus the
   agreement text is within this clause [INFERRED (high): plain reading, not
   legal advice].
 - 2.1: firmware only on NVIDIA platforms; no translation to another
