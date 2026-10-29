@@ -23,6 +23,11 @@
 #include "mmio_window.h"
 #include "virtio_net.h"
 #include "net_bind.h"
+#include "rtl8127_bind.h"
+#if CK_RTL8127
+#include "aienos_report.h"
+#include "../core/klog.h"
+#endif
 #include "xhci_fence.h"
 #include "usb_kbd.h"
 #include "../../boot/slot_format.h"
@@ -136,6 +141,20 @@ int ck_stage_devices(void)
     int netrc = (vrc == 0 && vf) ? ck_net_bind_selftest(vf, &caps) : 1;
     ck_printf("devices: pci=ok nvme=%s virtio_net=%s\n", g_nvme.bound ? "bound" : "unbound",
               vrc != 0 ? "caps-refused" : !vf ? "absent" : netrc == 0 ? "selftest-ok" : "selftest-failed");
+#if CK_RTL8127
+    /* Spark attended boot (L198): the RTL8127 report. Reported, never a
+     * devices-stage failure; the chip is released again before this returns. */
+    {
+        static pci_func rf;
+        static char rlog[NET_REPORT_MAX];
+        int rrc = ck_rtl8127_find(df, dn, &rf);
+        if (rrc == CK_RTL_OK) {
+            size_t rn = ck_klog_read(rlog, sizeof rlog);
+            rrc = ck_rtl8127_report(&rf, rlog, rn, 20);
+        }
+        ck_printf("devices: rtl8127=%s (rc=%d)\n", rrc == CK_RTL_OK ? "report-sent" : rrc == CK_RTL_ABSENT ? "absent" : "failed", rrc);
+    }
+#endif
     /* xHCI: DMA fence (bus master off before the gate, SMMU-confined grant or
      * fail-closed deny, halt, revoke, stream back to abort) with the operator
      * keyboard phase inside the grant (usb_kbd.c). Reported, never a
@@ -165,6 +184,8 @@ void ck_stage_quiesce(void)
 {
     int net_live = ck_net_live();
     if (net_live) ck_net_release();
+    int rtl_live = ck_rtl8127_live();
+    if (rtl_live) ck_rtl8127_release();
     int xhci_live = ck_xhci_live();
     if (xhci_live) ck_xhci_release();
     int was_live = g_nvme.pf && (g_nvme.bm_on || g_nvme.confined);
@@ -173,6 +194,7 @@ void ck_stage_quiesce(void)
     ck_printf("devices: quiesce before reset nvme=%s\n",
               !g_nvme.pf ? "none" : was_live ? "released-now" : "already-released");
     if (net_live) ck_printf("devices: quiesce before reset virtio_net=released-now\n");
+    if (rtl_live) ck_printf("devices: quiesce before reset rtl8127=released-now\n");
     if (xhci_live) ck_printf("devices: quiesce before reset xhci=released-now\n");
 }
 
