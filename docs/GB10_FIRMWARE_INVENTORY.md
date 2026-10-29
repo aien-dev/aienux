@@ -6,7 +6,7 @@ parsers and refusal tests for firmware metadata. No loading" item of
 docs/GB10_NATIVE_DEPENDENCY_MAP.md section 7. Any firmware load or GSP handoff
 on the real machine stays an OPERATOR STEP (same document, section 7).
 
-Tags: [OBSERVED] read on the Spark (spark-b87b, Linux 7.0.0-1019-nvidia,
+Tags: [OBSERVED] read on the Spark (Linux 7.0.0-1019-nvidia,
 nvidia-open 580.173.02) on 2026-10-12. [SOURCE file:line] read in the named
 file of NVIDIA/open-gpu-kernel-modules at tag `580.173.02` (the same version as
 the driver on the box; fetched read-only into a scratch directory, not vendored).

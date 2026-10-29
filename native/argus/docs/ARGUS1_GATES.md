@@ -7,7 +7,7 @@ remain in `ARGUS1_SPEC.md`; unmeasured gates are not counted as passed here.
 
 DGX Spark, GCC 13.3.0, core 7 pinned, paired A/B x5, each timing round processes 5,000
 identical benign events in 100-event batches. Measurements ran with
-`/home/drakestapleton/workspace/.argus-bench.lock` held and no `.spark-quiet` marker.
+`~/workspace/.argus-bench.lock` held and no `.spark-quiet` marker.
 
 | Measurement | ARGUS-0 reference (`a64bc55`) | ARGUS-1 | Result |
 |---|---:|---:|---|

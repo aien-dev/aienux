@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      REPO_SLUG: aien-dev/aienos
+      REPO_SLUG: aien-dev/aienux
       AIEN_TEST_PIN: a51042b61b87355c0850ef82ba409a46e153a1ff
       RECEIPTS_RAW: https://raw.githubusercontent.com/aien-dev/aien-receipts/main
     steps:
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      REPO_SLUG: aien-dev/aienos
+      REPO_SLUG: aien-dev/aienux
       AIEN_TEST_PIN: a51042b61b87355c0850ef82ba409a46e153a1ff
       RECEIPTS_RAW: https://raw.githubusercontent.com/aien-dev/aien-receipts/main
     steps:
@@ -204,7 +204,7 @@ jobs:
 
       - name: Fetch the signed Spark bundle for the tagged commit
         run: |
-          url="$RECEIPTS_RAW/aienos/${{ steps.ids.outputs.sha }}/bundle.json"
+          url="$RECEIPTS_RAW/aienux/${{ steps.ids.outputs.sha }}/bundle.json"
           echo "bundle url: $url"
           if ! curl -fsSL "$url" -o "$RUNNER_TEMP/bundle.json"; then
             echo "::error::no signed Spark bundle for ${{ steps.ids.outputs.sha }} at $url"

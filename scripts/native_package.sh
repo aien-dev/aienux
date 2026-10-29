@@ -210,7 +210,7 @@ write_package_txt() {
     {
         echo "format $FORMAT"
         # source revision
-        echo "repo aien-dev/aienos"
+        echo "repo aien-dev/aienux"
         echo "commit $commit"
         echo "commit_time $commit_time"
         echo "tree_clean $tree_clean"

@@ -60,7 +60,8 @@
  *
  * Never: UEFI variables, runtime services, ExitBootServices (the chained
  * stub leaves boot services itself), any disk write other than the control
- * region, any write when the control record is missing or corrupt.
+ * region, any write when the control record is missing or corrupt. Missing
+ * control requires recovery, not a zero-floor signed-image boot.
  * Freestanding C with the kernel's flags; no kernel objects are linked. */
 #include <stdarg.h>
 #include "efi.h"
@@ -454,12 +455,12 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
                 ctl->flags, (unsigned long long)ctl->generation_floor,
                 (unsigned long long)ctl->last_good_generation);
         } else {
-            say("slot_loader: control record refused (%s): no control, nothing will be written\n", why);
+            say("slot_loader: control record refused (%s): recovery required, nothing will be written\n", why);
         }
     } else if (trc == TS_EMPTY) {
-        say("slot_loader: control none committed: no control, nothing will be written\n");
+        say("slot_loader: control none committed: recovery required, nothing will be written\n");
     } else {
-        say("slot_loader: control region unreadable or corrupt (rc=%d): no control, nothing will be written\n", trc);
+        say("slot_loader: control region unreadable or corrupt (rc=%d): recovery required, nothing will be written\n", trc);
     }
 
     /* Both slots: manifest, image, verification. */
