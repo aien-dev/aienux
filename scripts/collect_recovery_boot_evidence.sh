@@ -18,7 +18,7 @@
 # USB actually booted Machine 1 into a rescue environment that can mount the
 # NVMe root, repair /boot/efi, and restore boot entries (issue #17).
 #
-# Run this on Machine 1 (spark-b87b), booted from the recovery USB, under:
+# Run this on Machine 1 (the DGX Spark), booted from the recovery USB, under:
 #   aien-proof hold --resource machine-1 --job recovery-boot-evidence -- \
 #       bash scripts/collect_recovery_boot_evidence.sh /mnt/root
 #
@@ -115,7 +115,16 @@ check "efibootmgr_readable" "$(grep -q '^Boot' <<<"${entries}" && echo 1 || echo
 echo "== TRUST-1 Gate 1 item 6: disks and encrypted stores (read-only)"
 lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL 2>/dev/null || echo "lsblk unavailable"
 # The Spark's encrypted stores are gocryptfs folders on the NVMe root.
-CIPHER_DIRS="${AIENOS_CIPHER_DIRS:-/home/atlas/atlas-runtime-setup-20260905/private-cipher /home/drakestapleton/workspace/atlas-forgejo/cipher}"
+# Default: the two known store locations, matched for any home folder on the root (AIENOS_CIPHER_DIRS overrides).
+if [[ -n "${AIENOS_CIPHER_DIRS:-}" ]]; then
+    CIPHER_DIRS="${AIENOS_CIPHER_DIRS}"
+else
+    CIPHER_DIRS=""
+    for d in "${ROOT_MNT}"/home/*/atlas-runtime-setup-*/private-cipher "${ROOT_MNT}"/home/*/workspace/atlas-forgejo/cipher; do
+        [[ -d "${d}" ]] && CIPHER_DIRS="${CIPHER_DIRS:+${CIPHER_DIRS} }${d#"${ROOT_MNT}"}"
+    done
+    [[ -n "${CIPHER_DIRS}" ]] || echo "gocryptfs_store: no store at the default locations under ${ROOT_MNT}"
+fi
 stores_seen=0
 for c in ${CIPHER_DIRS}; do
     conf="${ROOT_MNT}${c}/gocryptfs.conf"

@@ -25,8 +25,8 @@
  *
  * Rules (TRUST-1 Q19, ADR 0006), in the order ck_slot_select applies them:
  *   usable(s)  = ev[s].valid && ev[s].generation >= floor
- *   1. no control record: boot the highest usable generation (A on a tie);
- *      none usable -> recovery required. Nothing is written.
+ *   1. no valid control record: recovery required. Disk loss must not
+ *      silently reset a previously established floor to zero.
  *   2. a candidate is set, has tries left and is usable: boot it and hand
  *      back the control record with tries - 1 for the loader to COMMIT
  *      BEFORE jumping (that is what bounds attempts when the candidate hangs).
@@ -38,8 +38,9 @@
  *      ("last-good never erased": media damage to one slot does not strand
  *      the machine).
  *   6. otherwise recovery required: the loader must not boot either slot.
- * The floor never lowers: ck_slot_promote raises it to the promoted image's
- * policy_generation. A validly signed image below the floor never boots. */
+ * A validly signed image below the currently read disk record's floor never
+ * boots. Without an external anchor, replaying an older record can lower
+ * this floor across boots. */
 #include "slot_format.h"
 #include "../sig/aienos_sig.h"
 #include "../argus/sha256.h"
@@ -226,13 +227,8 @@ void ck_slot_select(const struct ck_slot_control *ctl, const struct ck_slot_eval
         ((uint8_t *)&d->ctl_out)[i] = 0;
 
     if (!ctl || ck_slot_control_check(ctl, &why) != 0) {
-        /* Rule 1: no floor is known, so none is invented. */
-        int a = usable(&ev[0], 0), b = usable(&ev[1], 0);
-        if (a && (!b || ev[0].generation >= ev[1].generation))
-            d->boot_slot = 0;
-        else if (b)
-            d->boot_slot = 1;
-        d->reason = d->boot_slot < 0 ? CK_SLOT_R_RECOVERY_REQUIRED : CK_SLOT_R_NO_CONTROL;
+        /* Neither the floor nor the active slot survives loss of control.
+         * Require explicit recovery rather than booting an old signed image. */
         return;
     }
 

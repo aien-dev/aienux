@@ -884,10 +884,12 @@ static int selftest(void)
 #define EV(i, v, g) do { e[i].valid = (v); e[i].generation = (g); e[i].policy_generation = (g); e[i].why = 0; } while (0)
         EV(0, 1, 5); EV(1, 1, 7);
         ck_slot_select(0, e, &dec);
-        check(dec.boot_slot == 1 && dec.reason == CK_SLOT_R_NO_CONTROL && !dec.loader_write, "no control: highest generation");
+        check(dec.boot_slot == -1 && dec.reason == CK_SLOT_R_RECOVERY_REQUIRED && !dec.loader_write,
+              "no control with signed images: recovery required, not rollback");
         EV(0, 1, 7); EV(1, 1, 7);
         ck_slot_select(0, e, &dec);
-        check(dec.boot_slot == 0 && dec.reason == CK_SLOT_R_NO_CONTROL, "no control: tie goes to A");
+        check(dec.boot_slot == -1 && dec.reason == CK_SLOT_R_RECOVERY_REQUIRED,
+              "no control with signed tie: recovery required");
         EV(0, 0, 0); EV(1, 0, 0);
         ck_slot_select(0, e, &dec);
         check(dec.boot_slot == -1 && dec.reason == CK_SLOT_R_RECOVERY_REQUIRED, "no control, nothing valid: recovery");
@@ -895,7 +897,8 @@ static int selftest(void)
         c.magic[0] ^= 1;
         EV(0, 1, 5); EV(1, 1, 7);
         ck_slot_select(&c, e, &dec);
-        check(dec.boot_slot == 1 && dec.reason == CK_SLOT_R_NO_CONTROL, "corrupt control is treated as absent");
+        check(dec.boot_slot == -1 && dec.reason == CK_SLOT_R_RECOVERY_REQUIRED,
+              "corrupt control with signed images: recovery required");
 
         ck_slot_control_init(&c, 0);
         EV(0, 1, 5); EV(1, 1, 7);
@@ -1482,7 +1485,7 @@ static int cmd_select(int argc, char **argv)
         if (rc == 0 && ck_slot_control_check(&c, &why) == 0)
             ctl = &c;
         else
-            printf("control: unreadable or corrupt, treated as absent\n");
+            printf("control: unreadable or corrupt, recovery required\n");
     }
     if (load_slot(opt(argc, argv, "--a"), cap, keys, nkeys, &ev[0], "A") != 0)
         return 1;
