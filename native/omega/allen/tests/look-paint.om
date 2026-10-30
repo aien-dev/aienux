@@ -1,0 +1,243 @@
+note tests/look-paint.om: prints the drawing kit's values in the same order as the C harness
+note (~/work/IMacLook/paint/ptest.c over aienux 4b24df65 paint.c); the two outputs must cmp equal.
+note Unit: font-data.om font.om look-paint.om tio.om tests/look-paint.om.
+global Tcs ulong 12
+fn tdump to void
+for i ulong 3072
+tu ulong get Nfrm i
+tnl
+end
+end
+fn tword pen ulong y long c uchar color ulong a ulong plus bool to ulong
+pen = pkletter pen y c color a plus
+tu pen
+tnl
+ret pen
+end
+fn tblend to void
+put Tcs 0 0
+put Tcs 1 1052688
+put Tcs 2 1193046
+put Tcs 3 16777215
+put Tcs 4 13158655
+put Tcs 5 4227327
+put Tcs 6 16711680
+put Tcs 7 65280
+put Tcs 8 255
+put Tcs 9 8355711
+put Tcs 10 66051
+put Tcs 11 16711422
+for i ulong 12
+for j ulong 12
+a = ulong 0
+while le a 256
+tu pkadd get Tcs i get Tcs j a
+tc 32
+tu pkmix get Tcs i get Tcs j a
+tc 32
+tu pkscale get Tcs i a
+tnl
+a = add a 19
+end
+end
+end
+for i ulong 12
+j = rem add i 1 12
+tu pkadd get Tcs i get Tcs j 256
+tc 32
+tu pkmix get Tcs i get Tcs j 256
+tc 32
+tu pkscale get Tcs i 256
+tnl
+end
+end
+fn tthread x0 long y0 long x1 long y1 long color ulong w long to void
+put Pa 0 w
+pkthread x0 y0 x1 y1 color 0
+end
+fn tshapes to void
+for i ulong 3072
+put Nfrm i 1052688
+end
+pkclip 0 0 64 48
+pkglow 500 400 300 13158655 200
+pkglow -40 700 160 16777215 256
+put Pa 1 200
+put Pa 2 60
+tthread 30 40 900 600 16762368 16
+put Pa 1 30
+put Pa 2 255
+tthread 800 20 100 700 4227327 40
+put Pa 1 255
+put Pa 2 255
+tthread 100 100 110 700 16777215 24
+put Pa 1 0
+put Pa 2 256
+tthread 50 650 950 660 16746496 8
+put Pa 1 100
+put Pa 2 100
+tthread 300 300 300 300 16777215 16
+tthread 300 300 500 500 16777215 0
+put Pa 1 256
+put Pa 2 0
+tthread -200 -100 1200 900 8454016 50
+pkclip 10 5 30 30
+pkglow 300 300 400 16711680 128
+pkclip -5 -5 20 20
+put Pa 1 200
+put Pa 2 200
+tthread 0 0 500 120 16777215 12
+tdump
+end
+fn trrect to void
+put Lg 9 6
+for j ulong 48
+for i ulong 64
+tl pksdrrect long i long j 8 6 40 30
+tc 32
+end
+tnl
+end
+put Lg 9 0
+for j ulong 48
+for i ulong 64
+tl pksdrrect long i long j -3 10 70 15
+tc 32
+end
+tnl
+end
+end
+fn tletters to void
+if not afinit 14 1250
+trap 9
+end
+for i ulong 3072
+if eq and i 1 1
+put Nfrm i 2105408
+else
+put Nfrm i 0
+end
+end
+pkclip 0 0 64 48
+pen = ulong 868
+pen = tword pen 20 65 16769184 230 false
+pen = tword pen 20 103 16769184 230 false
+pen = tword pen 20 63 16769184 230 false
+pen = tword pen 20 106 16769184 230 false
+pen = tword pen 20 32 16769184 230 false
+pen = tword pen 20 44 16769184 230 false
+pen = tword pen 20 87 16769184 230 false
+pen = 256
+pen = tword pen 38 105 8438015 256 true
+pen = tword pen 38 77 8438015 256 true
+pen = tword pen 38 97 8438015 256 true
+pen = tword pen 38 99 8438015 256 true
+pkclip 10 5 30 30
+pen = 256
+pen = tword pen 30 88 16728128 120 true
+pen = tword pen 30 121 16728128 120 true
+pkclip 0 0 64 48
+pen = 256
+pen = tword pen 30 81 16728128 0 false
+tdump
+end
+fn main to int
+pkinit
+for i ulong 677
+a = mul i 97
+tl pksin a
+tc 32
+tl pkcos a
+tnl
+end
+y = long -50000
+while le y 50000
+x = long -50000
+while le x 50000
+tu pkatan2 y x
+tnl
+x = add x 3331
+end
+y = add y 2917
+end
+tu pkatan2 3 0
+tnl
+tu pkatan2 -7 0
+tnl
+for i ulong 600
+tu pkexpneg mul i 7
+tnl
+end
+for i ulong 257
+tu get Plog i
+tnl
+end
+v = ulong 1
+while lt v 4611686018427387904
+tu pklog2q16 v
+tc 32
+tu pkisqrt v
+tnl
+v = add mul v 3 1
+end
+tu pklog2q16 0
+tc 32
+tu pkisqrt 0
+tnl
+y = long -2000
+while le y 2000
+x = long -3000
+while le x 3000
+tu pkhash x y 909
+tc 32
+tu pknoise x y 909
+tc 32
+tu pkfbm x y 909 4
+tnl
+x = add x 413
+end
+y = add y 377
+end
+t = long -20
+while le t 280
+tu pksmooth t
+tc 32
+tu pkeaseout t
+tc 32
+tl pkprog ulong add 1000 t 990 1200
+tnl
+t = add t 7
+end
+tl pkprog 5 9 20
+tc 32
+tl pkprog 50 9 20
+tc 32
+tl pkprog 20 9 20
+tnl
+t = long -40
+while le t 40
+tu pkcover t
+tnl
+t = add t 3
+end
+l = ulong 0
+while lt l 40000
+tu pklenc l
+tnl
+l = add l 61
+end
+for i ulong 256
+tu ulong get Slin i
+tc 32
+tu ulong get Ssrgb add mul i 16 1
+tnl
+end
+tblend
+put Lg 0 64
+put Lg 1 48
+tshapes
+trrect
+tletters
+tflush
+ret 0
+end

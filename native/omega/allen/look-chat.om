@@ -1,0 +1,142 @@
+note SPDX-License-Identifier: MIT
+note COURIER lane: Allen's courier to the Spark relay over UDP 47033, the Omega
+note build's x86/courier_udp_x86.c. application.om (appinit, appask, apppoll,
+note appsent, appreceive) already speaks the courier wire; this module binds its
+note datagrams to net.om's netudpsend/Chrx hooks and the typed line to appask.
+note Needs base, runtime, code, courier, scheduler, memory, intent, reply,
+note context, application (gate.sh core list) and net.om before it in the unit.
+note Ch: 0 initialized, 1 last event, 2 datagrams out, 3 datagrams in,
+note 4 refused sends, 5 answers taken, 6 run id, 7 dropped-at-receive seen.
+note Chevent after chstep: 0 nothing, 1 answer visible in Chsay, 2 asked AGAIN,
+note 3 gave up, 4 refused, 5 slow notice, 6 silence (application.om A2).
+global Ch ulong 8
+global Chsay uchar 320
+global Chsayn ulong 1
+global Chevent ulong 1
+note Run id like the C kernel: the clock at start mixed with the MAC, never 0.
+fn chrun now ulong to ulong
+run = now
+for i ulong 6
+run = xor run shl ulong get Nmac i mul 8 add i 2
+end
+if eq run 0
+run = 1
+end
+ret run
+end
+note Refused (false, nothing touched) while application.om is still active.
+fn chinit now ulong run ulong to bool
+if eq run 0
+run = chrun now
+end
+if not appinit run now
+ret false
+end
+for i ulong 8
+put Ch i 0
+end
+put Chsayn 0 0
+put Chevent 0 0
+put Chrxn 0 0
+put Chdrop 0 0
+put Ch 0 1
+put Ch 6 run
+ret true
+end
+note The typed request is platform.om's Dprm[0..Dprmn); appask copies and
+note validates it (1..159 printable bytes). Dprmn is left for the caller.
+fn chask now ulong to bool
+if eq get Ch 0 0
+ret false
+end
+n = get Dprmn 0
+if gt n len Dprm
+ret false
+end
+for i ulong n
+put In i get Dprm i
+end
+put Inlen 0 n
+ret appask now
+end
+fn chbusy to bool
+if eq get Ch 0 0
+ret false
+end
+ret or ne get R 1 0 ne get A 1 0
+end
+fn chcancel to void
+if eq get Ch 0 0
+ret
+end
+appcancel
+put Chevent 0 0
+end
+fn chsay to void
+n = get R 8
+if gt n len Chsay
+n = len Chsay
+end
+for i ulong n
+put Chsay i get Answer i
+end
+put Chsayn 0 n
+put Ch 5 add get Ch 5 1
+end
+fn chevent to void
+e = get A 2
+if eq e 0
+ret
+end
+put Chevent 0 e
+put Ch 1 e
+if eq e 1
+chsay
+end
+end
+fn chtake now ulong to void
+n = get Chrxn 0
+put Chrxn 0 0
+put Ch 3 add get Ch 3 1
+put Ch 7 get Chdrop 0
+for i ulong n
+put In i get Chrx i
+end
+put Inlen 0 n
+if appreceive now
+chevent
+end
+end
+fn chsend now ulong to void
+n = get Outlen 0
+ok = false
+if and ne n 0 le n len Chtx
+for i ulong n
+put Chtx i get Outb i
+end
+ok = netudpsend n
+end
+if ok
+put Ch 2 add get Ch 2 1
+else
+put Ch 4 add get Ch 4 1
+end
+ok = appsent now ok
+end
+note One step of the courier, like the C pump: take the datagram waiting in
+note Chrx, then let the scheduler offer HELLO/JOB/GOT and send it. up is the
+note firmware's network-up flag (Es 6). Chevent reports this step's event.
+fn chstep now ulong up bool to void
+put Chevent 0 0
+if eq get Ch 0 0
+ret
+end
+if ne get Chrxn 0 0
+chtake now
+end
+off = apppoll now up
+chevent
+if off
+chsend now
+end
+end

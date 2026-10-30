@@ -1,0 +1,121 @@
+note tests/look-sky.om: the sky as the C oracle (layer 1, cref2/oracle W H 0 1) draws it, as a P6 PPM on
+note stdout: argv 1 W, argv 2 H. k and the centre as allen_ui.c sets them: k = min(w*4/30, h*4/25)
+note rounded to 2 (ck_night_init's caller), cx = w/2, cy = h*2/5. Then one twinkle check (argv 3 = "tw"):
+note Nfrm black, clip (100, 100, w-200, h-200), sktwink of every listed star with amount 96, PPM of Nfrm.
+global Targ uchar 16
+fn targ i ulong to long
+n = argread i Targ 0 16
+if lt n 0
+ret -1
+end
+v = long 0
+for j ulong ulong n
+v = add mul v 10 long sub ulong get Targ j 48
+end
+ret v
+end
+fn tppm to void
+w = ulong get Lg 0
+h = ulong get Lg 1
+tc 80
+tc 54
+tc 10
+tu w
+tc 32
+tu h
+tc 10
+tu 255
+tc 10
+tflush
+for y ulong h
+r = mul y w
+for x ulong w
+c = ulong 0
+if eq get Sktgt 0 0
+c = ulong get Nsky add r x
+else
+c = ulong get Nfrm add r x
+end
+tc uchar and shr c 16 255
+tc uchar and shr c 8 255
+tc uchar and c 255
+end
+tflush
+end
+end
+fn tgsum i ulong to void
+b = mul i 4
+n = mul ulong get Skgbox add b 2 ulong get Skgbox add b 3
+o = get Skgoff i
+sl = ulong 0
+sp = ulong 0
+for k ulong n
+b = add o k
+sl = add sl mul ulong get Skglit b add rem k 1000 1
+sp = add sp mul ulong get Skgpha b add rem k 997 1
+end
+tu sl
+tc 32
+tu sp
+end
+fn main to int
+w = targ 1
+h = targ 2
+if lt w 1
+ret 2
+end
+if lt h 1
+ret 2
+end
+put Lg 0 w
+put Lg 1 h
+k = pkmin div mul w 4 30 div mul h 4 25
+put Lg 2 and k -2
+put Lg 3 div w 2
+put Lg 4 div mul h 2 5
+pkinit
+skmake
+if eq argcnt 3
+tppm
+ret 0
+end
+n = argread 3 Targ 0 16
+if eq get Targ 0 103
+note argv 3 "gal": per galaxy i box tint period and weighted sums of light and phase, then ntw
+for i ulong 6
+b = mul i 4
+tu i
+tc 32
+tl get Skgbox b
+tc 32
+tl get Skgbox add b 1
+tc 32
+tl get Skgbox add b 2
+tc 32
+tl get Skgbox add b 3
+tc 32
+tu ulong get Skgtint i
+tc 32
+tu get Skgper i
+tc 32
+tgsum i
+tnl
+end
+tu 103
+tc 32
+tu get Sktwn 0
+tnl
+tflush
+ret 0
+end
+put Lg 5 100
+put Lg 6 100
+put Lg 7 sub w 200
+put Lg 8 sub h 200
+for i ulong get Sktwn 0
+sktwink i 96
+end
+put Sktgt 0 1
+tppm
+ret 0
+end

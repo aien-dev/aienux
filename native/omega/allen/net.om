@@ -39,7 +39,9 @@ global Nrmap uchar 65536
 global Nhop uchar 6
 global Narp uchar 6
 global Napip ulong 1
-note Queue kind 1DHCP 2ARPquery 3ARPreply 4DNS 5TCPflight 6TCPack.
+note Queue kind 1DHCP 2ARPquery 3ARPreply 4DNS 5TCPflight 6TCPack 7courierUDP.
+note Kind 7 (look-chat.om, netudpsend) is fire-and-forget: netsent only clears it,
+note no retry bookkeeping; the courier scheduler resends on its own clock.
 note Q1 failures Q2 queuedAt Q3 DHCP/ARP phase Q4 seq Q5 ack Q6 window Q7 generation.
 global Nq ulong 8
 note Parsed packet: frameLen,ipHlen,ipLen,src,dst,l4off,l4len,seq,ack,
@@ -57,6 +59,14 @@ global Nd ulong 8
 global Nname uchar 256
 global Nwant uchar 256
 global Nrr ulong 4
+note Courier UDP hooks (look-chat.om): one datagram body out in Chtx, one in
+note Chrx/Chrxn (0 = empty slot); a second arrival before chstep consumed the
+note slot is dropped and counted in Chdrop. Port 47033 both ways, like the C
+note kernel (x86/courier_udp.h CK_COURIER_PORT); source 0.0.0.0 before a lease.
+global Chtx uchar 1600
+global Chrx uchar 1600
+global Chrxn ulong 1
+global Chdrop ulong 1
 text Nhost "api.github.com"
 fn nr16 p ulong to ulong
 ret add shl ulong get Nrx p 8 ulong get Nrx add p 1
@@ -221,6 +231,25 @@ s = 65535
 end
 nt16 40 s
 nipbuild dest 17 add n 8 broad
+end
+note Courier datagram out: Chtx[0..n) to 255.255.255.255:47033 from Ncfg2:47033
+note in a broadcast frame, queued as kind 7 only when nothing else is in flight
+note and the stack is not in error state 6. false: not queued, the courier
+note scheduler offers the same datagram again on its own clock.
+fn netudpsend n ulong to bool
+if or ne get Ntxlen 0 0 eq get Tcpstate 0 6
+ret false
+end
+if or eq n 0 gt n 1472
+ret false
+end
+ntxzero
+for i ulong n
+put Ntx add 42 i get Chtx i
+end
+nudp 4294967295 47033 47033 n true
+nqueue 7 add 42 n
+ret true
 end
 fn narpout target ulong probe bool to void
 ntxzero
@@ -1219,6 +1248,26 @@ put Nct 22 nadd get Npk 7 get Npk 11
 ntdrain
 end
 end
+note Courier datagram in (UDP to port 47033, checksum already verified). Like
+note the C kernel (courier_udp_x86.c pump) the frame is ours by its Ethernet
+note destination (netinput: our MAC or ff:ff:ff:ff:ff:ff) and the port alone:
+note any IPv4 destination is taken, so the relay's --udp-answer 192.168.1.255
+note reaches a kernel that has no lease yet. Copied into Chrx when the slot is
+note free, else dropped and counted. Any source port.
+fn netudpin p ulong to void
+n = sub get Npk 6 8
+if or eq n 0 gt n len Chrx
+ret
+end
+if ne get Chrxn 0 0
+put Chdrop 0 add get Chdrop 0 1
+ret
+end
+for i ulong n
+put Chrx i get Nrx add add p 8 i
+end
+put Chrxn 0 n
+end
 fn nipin to void
 if lt get Npk 0 34
 ret
@@ -1281,6 +1330,10 @@ if or eq get Ncfg 1 1 eq get Ncfg 1 2
 note Any destination: chaddr, random xid and server-id gate acceptance.
 ndhcpin
 end
+ret
+end
+if eq nr16 add p 2 47033
+netudpin p
 ret
 end
 if ne get Tcpstate 0 2
@@ -1758,6 +1811,7 @@ end
 ret
 end
 put Ntxlen 0 0
+note Kind 7 (courier UDP) ends here: nothing to retry or acknowledge.
 if ne get Nq 7 get Ncfg 17
 ret
 end

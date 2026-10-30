@@ -1,0 +1,1088 @@
+note SPDX-License-Identifier: MIT
+note Allen's look, part 4: Allen's presence, the mind of light. Handwritten Omega port of
+note native/kernel/ui/mind.h and mind.c (aienux 4b24df65), integer for integer: about a hundred
+note sharp points on and inside a sphere joined by fine threads, turning round a compact heart,
+note with sparks running along the threads. mdat moves it to a time; mddraw only reads.
+note Needs look-paint.om (pkmin pkmax pkabs pkclamp pksin pkcos pkisqrt pkhash pkexpneg pkprog
+note pkeaseout pksmooth pkcover pkmix, Lg, Nfrm). The mind's own thread and point mix coverage
+note (never add light), so they are private here (mdthread, mdpoint), as in mind.c.
+note Statements are short on purpose: every literal and operator of a statement holds one of the
+note function's 16 value slots until the statement ends.
+note Mdv state slots: 0 cx 1 cy 2 R (px) 3 k 4 ne 5 born 6 t 7 rng (32-bit xorshift) 8 spawn
+note 9 mode (0 idle 1 listen 2 think 3 speak) 10 angle (32-bit wrap, 1/256 of a 65536th)
+note 11 spin 12 squeeze 13 heart 14 voice 15 nspark 16 alpha 17 hx 18 hy 19 hr (16ths)
+note 20 form (0..256 this frame) 21 ca 22 sa 23 ct 24 st 25 scale 26 R16 27 x0 28 x1 29 y0 30 y1
+note (the frame's bounding box in 16ths) 31 ta (thread alpha this draw).
+note Mdhome: home[i][c] at 3*i+c (unit sphere, Q14). Mdea/Mdeb: the edges. Mdact: how lit each
+note point is. Sparks as parallel arrays Mdse (edge) Mdsdur (ms) Mdsback (runs eb to ea) Mdst0.
+note Mdpx Mdpy (16ths) Mdlum Mdnear: the frame for mddraw. Mdwords/Mdkeys: when the last four
+note pulses began (ms, 0 none). Mdnow/Mdwas: the box now and the frame before; mddirty writes
+note their union to Mdbox. Mdclip: the draw rect. Mdp: draw scratch. Mdtab: the mode tables
+note (0..3 spins, 4..7 squeezes, 8..11 hearts, 12..15 spark rates, by mode).
+global Mdv long 32
+global Mdhome long 360
+global Mdea long 300
+global Mdeb long 300
+global Mdact long 120
+global Mdse long 64
+global Mdsdur long 64
+global Mdsback long 64
+global Mdst0 long 64
+global Mdpx long 120
+global Mdpy long 120
+global Mdlum long 120
+global Mdnear long 120
+global Mdwords long 4
+global Mdkeys long 4
+global Mdnow long 4
+global Mdwas long 4
+global Mdbox long 4
+global Mdclip long 4
+global Mdp long 16
+global Mdtab long 16
+fn mdrnd to long
+r = get Mdv 7
+s = shl r 13
+s = and s 4294967295
+r = xor r s
+s = shr r 17
+r = xor r s
+s = shl r 5
+s = and s 4294967295
+r = xor r s
+put Mdv 7 r
+ret r
+end
+fn mdhome i long c long to long
+j = mul i 3
+j = add j c
+ret get Mdhome j
+end
+fn mddist2 i long j long to long
+dx = sub mdhome i 0 mdhome j 0
+dy = sub mdhome i 1 mdhome j 1
+dz = sub mdhome i 2 mdhome j 2
+dx = mul dx dx
+dy = mul dy dy
+dz = mul dz dz
+ret add add dx dy dz
+end
+fn mdhasedge a long b long to bool
+nedge = get Mdv 4
+for i ulong ulong nedge
+ea = get Mdea i
+eb = get Mdeb i
+if eq ea a
+if eq eb b
+ret true
+end
+end
+if eq ea b
+if eq eb a
+ret true
+end
+end
+end
+ret false
+end
+fn mdput i long c long v long to void
+j = mul i 3
+j = add j c
+put Mdhome j v
+end
+note one home point: the first 96 on a Fibonacci lattice over the sphere, the last 24 inside
+fn mdnode i long to void
+y = long 0
+th = ulong 0
+ln = long 0
+if lt i 96
+y = mul 2 i
+y = add y 1
+y = mul y 16384
+y = div y 96
+y = sub 16384 y
+th = mul ulong i 25033
+ln = long rem pkhash i 1 31 5900
+ln = add ln 13434
+else
+h1 = pkhash i 2 31
+th = pkhash i 3 31
+y = long rem h1 32768
+y = sub 16384 y
+ln = long rem pkhash i 4 31 5734
+ln = add ln 4915
+end
+rr = mul y y
+rr = sub 268435456 rr
+rr = long pkisqrt ulong rr
+x = mul rr pkcos th
+x = shr x 14
+z = mul rr pksin th
+z = shr z 14
+x = mul x ln
+mdput i 0 shr x 14
+y = mul y ln
+mdput i 1 shr y 14
+z = mul z ln
+mdput i 2 shr z 14
+end
+note the nearest point to i not yet joined to it, or -1
+fn mdnearest i long to long
+best = long -1
+bd = long 0
+for j ulong 120
+jj = long j
+if ne jj i
+if not mdhasedge i jj
+d = mddist2 i jj
+if lt best 0
+best = jj
+bd = d
+else
+if lt d bd
+best = jj
+bd = d
+end
+end
+end
+end
+end
+ret best
+end
+fn mdedges to void
+for i ulong 120
+ii = long i
+want = long 3
+if lt ii 96
+want = 2
+end
+for w ulong ulong want
+best = mdnearest ii
+if ge best 0
+nedge = get Mdv 4
+if lt nedge 300
+put Mdea nedge ii
+put Mdeb nedge best
+put Mdv 4 add nedge 1
+end
+end
+end
+end
+end
+fn mdtables to void
+put Mdtab 0 349
+put Mdtab 1 520
+put Mdtab 2 1400
+put Mdtab 3 600
+put Mdtab 4 0
+put Mdtab 5 4
+put Mdtab 6 16
+put Mdtab 7 0
+put Mdtab 8 50
+put Mdtab 9 70
+put Mdtab 10 120
+put Mdtab 11 80
+put Mdtab 12 2
+put Mdtab 13 6
+put Mdtab 14 25
+put Mdtab 15 12
+end
+note (cx, cy) its centre and k the scale from Lg; born the time it starts to gather (ms)
+fn mdinit born long to void
+for i ulong 32
+put Mdv i 0
+end
+for i ulong 120
+put Mdact i 0
+end
+for i ulong 4
+put Mdwords i 0
+put Mdkeys i 0
+put Mdnow i 0
+put Mdwas i 0
+put Mdbox i 0
+end
+k = get Lg 2
+put Mdv 0 get Lg 3
+put Mdv 1 get Lg 4
+r = mul 118 k
+r = add r 128
+put Mdv 2 div r 256
+put Mdv 3 k
+put Mdv 5 born
+put Mdv 7 2654435769
+put Mdv 11 349
+mdtables
+for i ulong 120
+mdnode long i
+end
+mdedges
+end
+fn mdmode m long t long to void
+put Mdv 9 m
+end
+fn mdword t long to void
+put Mdwords 3 get Mdwords 2
+put Mdwords 2 get Mdwords 1
+put Mdwords 1 get Mdwords 0
+if eq t 0
+put Mdwords 0 1
+else
+put Mdwords 0 t
+end
+end
+fn mdkey t long to void
+put Mdkeys 3 get Mdkeys 2
+put Mdkeys 2 get Mdkeys 1
+put Mdkeys 1 get Mdkeys 0
+if eq t 0
+put Mdkeys 0 1
+else
+put Mdkeys 0 t
+end
+end
+fn mdvoice lvl long to void
+if gt lvl 256
+lvl = 256
+end
+put Mdv 14 lvl
+end
+note the thread leaving from that the spark takes: e or the next one round that touches from
+fn mdsedge e long from long to long
+nedge = get Mdv 4
+tries = long 0
+note at most ne + 1 passes: tries reaches ne or an edge of from is found
+while true bound 400
+if eq get Mdea e from
+break
+end
+if eq get Mdeb e from
+break
+end
+if ge tries nedge
+break
+end
+tries = add tries 1
+e = add e 1
+e = rem e nedge
+end
+ret e
+end
+note a spark on a thread leaving from, or on any thread when from is out of range
+fn mdspark from long to void
+ns = get Mdv 15
+nedge = get Mdv 4
+if ge ns 64
+ret
+end
+if eq nedge 0
+ret
+end
+e = rem mdrnd nedge
+back = long 0
+if lt from 120
+e = mdsedge e from
+if eq get Mdeb e from
+back = 1
+end
+else
+back = and mdrnd 1
+end
+put Mdse ns e
+put Mdsback ns back
+put Mdst0 ns get Mdv 6
+if eq get Mdv 9 2
+e = rem mdrnd 260
+put Mdsdur ns add e 240
+else
+e = rem mdrnd 480
+put Mdsdur ns add e 420
+end
+put Mdv 15 add ns 1
+end
+fn mdtoward cur long want long dt long ms long to long
+d = sub want cur
+step = pkmin dt ms
+step = mul d step
+step = div step ms
+if eq step 0
+if ne d 0
+if ne dt 0
+step = 1
+if lt d 0
+step = -1
+end
+end
+end
+end
+ret add cur step
+end
+note (1 - (off/width)^2)^2, 0..256
+fn mdpulse off long width long to long
+if le off neg width
+ret 0
+end
+if ge off width
+ret 0
+end
+q = mul off off
+q = mul q 256
+w2 = mul width width
+q = div q w2
+q = sub 256 q
+q = mul q q
+ret shr q 8
+end
+note ulong (t * 65536 as uint32) / period
+fn mdphase t long period long to ulong
+p = mul t 65536
+p = and p 4294967295
+ret ulong div p period
+end
+note spin, squeeze and heart eased toward the mode's
+fn mdease md long dt long t long to void
+put Mdv 11 mdtoward get Mdv 11 get Mdtab md dt 700
+w = add md 4
+put Mdv 12 mdtoward get Mdv 12 get Mdtab w dt 500
+w = add md 8
+wh = get Mdtab w
+ms = long 400
+if eq md 3
+w = mul get Mdv 14 120
+w = div w 256
+wh = add wh w
+ms = 80
+end
+if eq md 2
+w = pksin mdphase t 900
+w = add w 16384
+w = mul w 30
+w = shr w 15
+wh = add wh w
+end
+put Mdv 13 mdtoward get Mdv 13 wh dt ms
+end
+note copy spark slot a over slot b
+fn mdscopy a long b long to void
+put Mdse b get Mdse a
+put Mdsdur b get Mdsdur a
+put Mdsback b get Mdsback a
+put Mdst0 b get Mdst0 a
+end
+note spark i arrives: its point lights, and the spark may go on
+fn mdarrived md long i long to void
+e = get Mdse i
+dest = get Mdeb e
+if ne get Mdsback i 0
+dest = get Mdea e
+end
+put Mdact dest 256
+ns = sub get Mdv 15 1
+put Mdv 15 ns
+mdscopy ns i
+r = rem mdrnd 100
+go = false
+if eq md 2
+if lt r 70
+go = true
+end
+else
+if lt r 18
+go = true
+end
+end
+if go
+mdspark dest
+end
+end
+fn mdarrive md long t long to void
+i = long 0
+note each pass moves i on or removes one of the at most 64 sparks that were there
+while lt i get Mdv 15 bound 200
+age = sub t get Mdst0 i
+if lt age get Mdsdur i
+i = add i 1
+else
+mdarrived md i
+end
+end
+end
+fn mddecay dt long to void
+f = mul dt 256
+f = div f 260
+f = long pkexpneg ulong f
+for i ulong 120
+a = mul get Mdact i f
+put Mdact i shr a 16
+end
+end
+note the shape this frame: breathing, drawn in while thinking, gathered in while being born
+fn mdshape t long form long to void
+b = pksin mdphase t 5500
+b = mul b 1966
+b = shr b 14
+sq = mul get Mdv 12 65536
+sq = div sq 256
+scale = add 65536 b
+scale = sub scale sq
+gather = long pkeaseout form
+gather = sub 256 gather
+b = mul gather 560
+b = div b 256
+b = add b 256
+scale = mul scale b
+put Mdv 25 shr scale 8
+sw = mul gather gather
+sw = shr sw 8
+sw = mul sw 256
+b = shr get Mdv 10 8
+b = add b sw
+b = and b 4294967295
+put Mdv 16 long pksmooth mul form 3
+put Mdv 21 pkcos ulong b
+put Mdv 22 pksin ulong b
+put Mdv 23 pkcos 3641
+put Mdv 24 pksin 3641
+put Mdv 26 mul get Mdv 2 16
+put Mdv 27 mul get Mdv 0 16
+put Mdv 28 get Mdv 27
+put Mdv 29 mul get Mdv 1 16
+put Mdv 30 get Mdv 29
+end
+note turn about the upright axis: rz
+fn mdrz i long to long
+x = mul mdhome i 0 get Mdv 22
+z = mul mdhome i 2 get Mdv 21
+x = add x z
+ret shr x 14
+end
+fn mdrx i long to long
+x = mul mdhome i 0 get Mdv 21
+z = mul mdhome i 2 get Mdv 22
+x = sub x z
+ret shr x 14
+end
+note c*16 + 8 + (v * persp >> 14) * R16 / 16384 * scale / 65536
+fn mdscreen c long v long persp long to long
+v = mul v persp
+v = shr v 14
+v = mul v get Mdv 26
+v = div v 16384
+v = mul v get Mdv 25
+v = div v 65536
+c = mul c 16
+c = add c 8
+ret add c v
+end
+note (uint32_t) of the nearness then capped at 256: a negative value wraps past 256
+fn mdnear32 v long to long
+if lt v 0
+ret 256
+end
+if gt v 256
+ret 256
+end
+ret v
+end
+fn mdproj i long to void
+rz = mdrz i
+y = mdhome i 1
+ry = mul y get Mdv 23
+fz = mul rz get Mdv 24
+ry = sub ry fz
+ry = shr ry 14
+fz = mul y get Mdv 24
+y = mul rz get Mdv 23
+fz = add fz y
+fz = shr fz 14
+persp = mul fz 3
+persp = div persp 16
+persp = add persp 16384
+put Mdpx i mdscreen get Mdv 0 mdrx i persp
+put Mdpy i mdscreen get Mdv 1 ry persp
+fz = add fz 16384
+fz = mul fz 256
+put Mdnear i mdnear32 div fz 32768
+end
+fn mdrad i long to long
+x = mdhome i 0
+x = mul x x
+y = mdhome i 1
+y = mul y y
+z = mdhome i 2
+z = mul z z
+x = add add x y z
+x = long pkisqrt ulong x
+x = mul x 256
+ret div x 16384
+end
+note the light a word pulse of this age gives a point at rad
+fn mdwpulse rad long age long to long
+o = mul age 300
+o = div o 600
+o = sub rad o
+p = mdpulse o 70
+o = sub 900 age
+p = mul p o
+p = div p 900
+p = mul p 150
+ret shr p 8
+end
+note the light a key pulse of this age gives a point at ny
+fn mdkpulse ny long age long to long
+o = mul age 600
+o = div o 500
+o = sub 300 o
+o = sub ny o
+p = mdpulse o 60
+o = sub 600 age
+p = mul p o
+p = div p 600
+p = mul p 90
+ret shr p 8
+end
+note light from the pulses: words outward from the heart, keys upward from below
+fn mdpulses rad long ny long t long to long
+extra = long 0
+for w ulong 4
+wt = get Mdwords w
+if ne wt 0
+if le wt t
+age = sub t wt
+if lt age 900
+extra = add extra mdwpulse rad age
+end
+end
+end
+wt = get Mdkeys w
+if ne wt 0
+if le wt t
+age = sub t wt
+if lt age 600
+extra = add extra mdkpulse ny age
+end
+end
+end
+end
+ret extra
+end
+fn mdlight i long t long to void
+rad = mdrad i
+ny = mdhome i 1
+ny = mul ny 256
+ny = div ny 16384
+l = mdpulses rad ny t
+nr = get Mdnear i
+nr = mul nr nr
+nr = div nr 256
+nr = mul nr 180
+nr = div nr 256
+l = add l nr
+l = add l 34
+nr = mul get Mdact i 120
+nr = div nr 256
+l = add l nr
+if gt l 256
+l = 256
+end
+put Mdlum i l
+end
+fn mdgrow i long to void
+put Mdv 27 pkmin get Mdv 27 get Mdpx i
+put Mdv 28 pkmax get Mdv 28 get Mdpx i
+put Mdv 29 pkmin get Mdv 29 get Mdpy i
+put Mdv 30 pkmax get Mdv 30 get Mdpy i
+end
+note the native-pixel heart and the box round everything
+fn mdboxup to void
+hx = mul get Mdv 0 16
+hx = add hx 8
+hy = mul get Mdv 1 16
+hy = add hy 8
+put Mdv 17 hx
+put Mdv 18 hy
+put Mdv 19 24
+x0 = sub get Mdv 27 48
+x0 = pkmin x0 sub hx 40
+x1 = add get Mdv 28 48
+x1 = pkmax x1 add hx 40
+y0 = sub get Mdv 29 48
+y0 = pkmin y0 sub hy 40
+y1 = add get Mdv 30 48
+y1 = pkmax y1 add hy 40
+put Mdnow 0 sub shr x0 4 1
+put Mdnow 1 sub shr y0 4 1
+x1 = sub x1 x0
+x1 = shr x1 4
+put Mdnow 2 add x1 3
+y1 = sub y1 y0
+y1 = shr y1 4
+put Mdnow 3 add y1 3
+end
+note sparks are born at the mode's rate
+fn mdspawn md long dt long to void
+w = add md 12
+w = mul get Mdtab w dt
+spawn = add get Mdv 8 w
+note spawn grows by at most 25*250 per frame
+while ge spawn 1000 bound 999999
+spawn = sub spawn 1000
+mdspark 120
+end
+put Mdv 8 spawn
+end
+fn mdat t long to void
+dt = long 0
+if gt t get Mdv 6
+dt = sub t get Mdv 6
+end
+if gt dt 250
+dt = 250
+end
+put Mdv 6 t
+for i ulong 4
+put Mdwas i get Mdnow i
+end
+if lt t get Mdv 5
+put Mdv 16 0
+for i ulong 4
+put Mdnow i 0
+end
+ret
+end
+md = and get Mdv 9 3
+mdease md dt t
+dt2 = mul get Mdv 11 dt
+dt2 = add dt2 get Mdv 10
+put Mdv 10 and dt2 4294967295
+born = get Mdv 5
+dt2 = add born 3000
+form = pkprog ulong t ulong born ulong dt2
+put Mdv 20 form
+if ge form 192
+mdspawn md dt
+end
+mdarrive md t
+mddecay dt
+mdshape t form
+for i ulong 120
+mdproj long i
+mdlight long i t
+mdgrow long i
+end
+mdboxup
+end
+fn mdcopy4 which long to void
+for i ulong 4
+if eq which 0
+put Mdbox i get Mdnow i
+else
+put Mdbox i get Mdwas i
+end
+end
+end
+note what needs redrawing: the union of where it was and where it is, into Mdbox
+fn mddirty to void
+if le get Mdwas 2 0
+mdcopy4 0
+ret
+end
+if le get Mdwas 3 0
+mdcopy4 0
+ret
+end
+if le get Mdnow 2 0
+mdcopy4 1
+ret
+end
+if le get Mdnow 3 0
+mdcopy4 1
+ret
+end
+x0 = pkmin get Mdwas 0 get Mdnow 0
+y0 = pkmin get Mdwas 1 get Mdnow 1
+put Mdbox 0 x0
+put Mdbox 1 y0
+x1 = add get Mdwas 0 get Mdwas 2
+x1 = pkmax x1 add get Mdnow 0 get Mdnow 2
+put Mdbox 2 sub x1 x0
+x1 = add get Mdwas 1 get Mdwas 3
+x1 = pkmax x1 add get Mdnow 1 get Mdnow 3
+put Mdbox 3 sub x1 y0
+end
+note ---- drawing: coverage-mixed points and threads inside Mdclip and the screen ----
+note Mdp 1 cx 2 cy 3 radius 4 color 5 alpha 6 inner2 7 outer2 9 x0 10 y0 11 x1 12 y1 (the pixel box)
+fn mdpbox bx long by long bw long bh long to bool
+x0 = pkmax bx get Mdclip 0
+x0 = pkmax x0 0
+y0 = pkmax by get Mdclip 1
+y0 = pkmax y0 0
+x1 = add get Mdclip 0 get Mdclip 2
+x1 = pkmin x1 add bx bw
+x1 = pkmin x1 get Lg 0
+y1 = add get Mdclip 1 get Mdclip 3
+y1 = pkmin y1 add by bh
+y1 = pkmin y1 get Lg 1
+if le x1 x0
+ret false
+end
+if le y1 y0
+ret false
+end
+put Mdp 9 x0
+put Mdp 10 y0
+put Mdp 11 x1
+put Mdp 12 y1
+ret true
+end
+note mix the point's colour into frame word idx with this coverage
+fn mdpmix idx ulong cov ulong to void
+a = mul cov ulong get Mdp 5
+a = shr a 8
+put Nfrm idx uint pkmix ulong get Nfrm idx ulong get Mdp 4 a
+end
+fn mdprow y long to void
+dy = mul y 16
+dy = add dy 8
+dy = sub dy get Mdp 2
+dy = mul dy dy
+x = get Mdp 9
+xe = get Mdp 11
+idx = mul ulong y ulong get Lg 0
+idx = add idx ulong x
+note xe - x pixels, at most the screen width
+while lt x xe bound 4096
+dx = mul x 16
+dx = add dx 8
+dx = sub dx get Mdp 1
+dx = mul dx dx
+dx = add dx dy
+if lt dx get Mdp 7
+cov = ulong 256
+full = false
+if ge get Mdp 3 8
+if le dx get Mdp 6
+full = true
+end
+end
+if not full
+dx = long pkisqrt ulong dx
+cov = pkcover sub dx get Mdp 3
+end
+if ne cov 0
+mdpmix idx cov
+end
+end
+x = add x 1
+idx = add idx 1
+end
+end
+note a filled geometric point: constant light inside, one-pixel coverage at its boundary
+fn mdpoint cx long cy long radius long color long alpha long to void
+if le radius 0
+ret
+end
+if eq alpha 0
+ret
+end
+bx = sub cx radius
+bx = sub bx 8
+bx = shr bx 4
+by = sub cy radius
+by = sub by 8
+by = shr by 4
+bw = add cx radius
+bw = add bw 8
+bw = shr bw 4
+bw = sub bw bx
+bw = add bw 1
+bh = add cy radius
+bh = add bh 8
+bh = shr bh 4
+bh = sub bh by
+bh = add bh 1
+if not mdpbox bx by bw bh
+ret
+end
+put Mdp 1 cx
+put Mdp 2 cy
+put Mdp 3 radius
+put Mdp 4 color
+put Mdp 5 alpha
+bx = sub radius 8
+bx = pkmax bx 0
+put Mdp 6 mul bx bx
+bx = add radius 8
+put Mdp 7 mul bx bx
+by = get Mdp 10
+note at most the screen height rows
+while lt by get Mdp 12 bound 4096
+mdprow by
+by = add by 1
+end
+end
+note Mdp 0 width 1 x0 2 y0 3 len 4 grad 5 radius 6 a0 7 a1 8 steep (after the swaps)
+fn mdtin x long y long to bool
+if lt x get Mdclip 0
+ret false
+end
+if lt y get Mdclip 1
+ret false
+end
+if ge x add get Mdclip 0 get Mdclip 2
+ret false
+end
+if ge y add get Mdclip 1 get Mdclip 3
+ret false
+end
+if lt x 0
+ret false
+end
+if lt y 0
+ret false
+end
+if ge x get Lg 0
+ret false
+end
+if ge y get Lg 1
+ret false
+end
+ret true
+end
+fn mdtpx X long Y long yc long a long to void
+x = X
+y = Y
+if ne get Mdp 8 0
+x = Y
+y = X
+end
+if not mdtin x y
+ret
+end
+yc = mul Y 16
+yc = add yc 8
+yc = sub yc get Mdp 2
+yc = pkabs yc
+yc = sub yc get Mdp 5
+a = mul a long pkcover yc
+a = shr a 8
+x = add mul y get Lg 0 x
+put Nfrm x uint pkmix ulong get Nfrm x 7900415 ulong a
+end
+fn mdtcol X long to void
+along = mul X 16
+along = add along 8
+along = sub along get Mdp 1
+yc = mul along get Mdp 4
+yc = shr yc 16
+yc = add yc get Mdp 2
+a = sub get Mdp 7 get Mdp 6
+a = mul a along
+a = div a get Mdp 3
+a = add a get Mdp 6
+y = sub yc get Mdp 5
+y = sub y 8
+y = shr y 4
+ye = add yc get Mdp 5
+ye = add ye 8
+ye = shr ye 4
+put Mdp 2 yc
+note radius/8 + 2 rows
+while le y ye bound 4096
+mdtpx X y yc a
+y = add y 1
+end
+put Mdp 2 get Mdp 9
+end
+fn mdtrun x0 long y0 long x1 long y1 long a0 long a1 long to void
+ln = sub x1 x0
+ln = pkmax ln 1
+grad = sub y1 y0
+grad = mul grad 65536
+grad = div grad ln
+put Mdp 1 x0
+put Mdp 2 y0
+put Mdp 9 y0
+put Mdp 3 ln
+put Mdp 4 grad
+put Mdp 6 a0
+put Mdp 7 a1
+grad = mul grad grad
+grad = add grad 4294967296
+grad = long pkisqrt ulong grad
+grad = shr grad 8
+grad = mul grad get Mdp 0
+put Mdp 5 shr grad 9
+x0 = add x0 7
+x0 = shr x0 4
+x1 = sub x1 8
+x1 = shr x1 4
+if ne get Mdp 8 0
+x0 = pkmax x0 get Mdclip 1
+ln = add get Mdclip 1 get Mdclip 3
+else
+x0 = pkmax x0 get Mdclip 0
+ln = add get Mdclip 0 get Mdclip 2
+end
+x1 = pkmin x1 sub ln 1
+note at most the screen's major extent of columns
+while le x0 x1 bound 4096
+mdtcol x0
+x0 = add x0 1
+end
+end
+note a thread whose light runs from a0 to a1, coverage mixed (crossings never add up)
+fn mdthread x0 long y0 long x1 long y1 long a0 long a1 long to void
+if le get Mdp 0 0
+ret
+end
+if eq a0 0
+if eq a1 0
+ret
+end
+end
+put Mdp 8 0
+t = pkabs sub y1 y0
+if gt t pkabs sub x1 x0
+put Mdp 8 1
+t = x0
+x0 = y0
+y0 = t
+t = x1
+x1 = y1
+y1 = t
+end
+if gt x0 x1
+t = x0
+x0 = x1
+x1 = t
+t = y0
+y0 = y1
+y1 = t
+t = a0
+a0 = a1
+a1 = t
+end
+mdtrun x0 y0 x1 y1 a0 a1
+end
+fn mdtalpha n long to long
+l = mul get Mdnear n 60
+l = div l 256
+l = add l 16
+l = mul l get Mdlum n
+l = shr l 8
+l = mul l get Mdv 31
+ret shr l 8
+end
+fn mdthreads to void
+put Mdp 0 div get Mdv 3 16
+nedge = get Mdv 4
+for i ulong ulong nedge
+a = get Mdea i
+b = get Mdeb i
+mdthread get Mdpx a get Mdpy a get Mdpx b get Mdpy b mdtalpha a mdtalpha b
+end
+end
+fn mdpoints to void
+al = get Mdv 16
+for i ulong 120
+c = long pkmix 2115728 3174592 ulong get Mdact i
+a = mul get Mdlum i al
+mdpoint get Mdpx i get Mdpy i 16 c shr a 8
+end
+end
+note the k-th of a spark's three fading points
+fn mdsparkpt a long b long g long k long to void
+x = sub get Mdpx b get Mdpx a
+x = mul x g
+x = shr x 8
+x = add x get Mdpx a
+y = sub get Mdpy b get Mdpy a
+y = mul y g
+y = shr y 8
+y = add y get Mdpy a
+g = shr 200 k
+g = mul g get Mdv 16
+g = shr g 8
+k = mul k 4
+mdpoint x y sub 16 k 3174592 g
+end
+fn mdsparkdraw i long to void
+e = get Mdse i
+a = get Mdea e
+b = get Mdeb e
+if ne get Mdsback i 0
+a = get Mdeb e
+b = get Mdea e
+end
+f = sub get Mdv 6 get Mdst0 i
+f = mul f 256
+f = div f get Mdsdur i
+for k long 3
+g = mul k 22
+g = sub f g
+g = pkclamp g 0 256
+mdsparkpt a b g k
+end
+end
+fn mdheart to void
+h = get Mdv 13
+c = long pkmix 2115728 3174592 ulong h
+a = add 90 h
+a = pkmin a 256
+a = mul a get Mdv 16
+mdpoint get Mdv 17 get Mdv 18 get Mdv 19 c shr a 8
+end
+note does the mind's box meet the draw rect
+fn mdmeets to bool
+x1 = add get Mdnow 0 get Mdnow 2
+x1 = pkmin x1 add get Mdclip 0 get Mdclip 2
+if le x1 pkmax get Mdnow 0 get Mdclip 0
+ret false
+end
+x1 = add get Mdnow 1 get Mdnow 3
+x1 = pkmin x1 add get Mdclip 1 get Mdclip 3
+if le x1 pkmax get Mdnow 1 get Mdclip 1
+ret false
+end
+ret true
+end
+note the figure into the part (x, y, w, h) of the frame, held inside the clip Lg[5..8]
+fn mddraw x long y long w long h long to void
+if eq get Mdv 16 0
+ret
+end
+x0 = pkmax x get Lg 5
+y0 = pkmax y get Lg 6
+w = add x w
+w = pkmin w add get Lg 5 get Lg 7
+h = add y h
+h = pkmin h add get Lg 6 get Lg 8
+if le w x0
+ret
+end
+if le h y0
+ret
+end
+put Mdclip 0 x0
+put Mdclip 1 y0
+put Mdclip 2 sub w x0
+put Mdclip 3 sub h y0
+if not mdmeets
+ret
+end
+x0 = sub get Mdv 20 128
+x0 = mul x0 2
+x0 = long pksmooth x0
+x0 = mul x0 get Mdv 16
+put Mdv 31 shr x0 8
+if ne get Mdv 31 0
+mdthreads
+end
+mdpoints
+w = get Mdv 15
+for i ulong ulong w
+mdsparkdraw long i
+end
+mdheart
+end

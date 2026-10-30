@@ -10,8 +10,6 @@ global Et uchar 16
 global Eclk uchar 8
 global Erx uchar 1608
 global Etx uchar 2048
-note BGRA staging for GOP Blt bands (16 MiB, the compiler's per-array limit).
-global Escr uchar 16777216
 note Es (screen and network state) is declared in platform.om.
 fn efok st ulong to bool
 ret eq st 0
@@ -98,75 +96,20 @@ end
 put Gsrandn 0 96
 ret true
 end
-fn efzero at ulong count ulong to void
-for i ulong count
-put Escr add at i 0
-end
-end
-fn efcell src ulong dst ulong s ulong to void
-b = get Canvas add src 2
-g = get Canvas add src 1
-r = get Canvas src
-for k ulong s
-at = add dst mul k 4
-put Escr at b
-put Escr add at 1 g
-put Escr add at 2 r
-put Escr add at 3 0
-end
-end
-fn efpixel cy ulong row ulong to void
+fn efrows y0 ulong rows ulong to bool
+note Rows of Efa (as zeros) to the screen: used before the show owns the frame.
 w = get Es 0
-s = get Es 2
-left = get Es 3
-base = mul mul row w 4
-efzero base mul left 4
-srow = mul mul cy 768 3
-for cx ulong 768
-dst = mul add left mul cx s 4
-efcell add srow mul cx 3 add base dst s
-end
-used = add left mul 768 s
-efzero add base mul used 4 mul sub w used 4
-end
-fn efblit rows ulong dest ulong to bool
-w = get Es 0
-arg = or or w shl rows 32 shl dest 48
-st = efi 3 arg Escr 0 mul mul w rows 4
-ret efok st
-end
-fn efblank y0 ulong rows ulong to bool
-w = get Es 0
+n = mul mul w rows 4
 note Computed-count loops trap past 1,000,000 passes: clear row by row.
 for r ulong rows
-efzero mul mul r w 4 mul w 4
-end
-ret efblit rows y0
-end
-fn efpresent to bool
-w = get Es 0
-s = get Es 2
-band = div len Escr mul mul w 4 s
-if gt band 384
-band = 384
-end
-cy = ulong 0
-while lt cy 384
-n = band
-if gt add cy n 384
-n = sub 384 cy
-end
-for j ulong n
-for k ulong s
-efpixel add cy j add mul j s k
+base = mul mul r w 4
+for x ulong mul w 4
+put Efa add base x 0
 end
 end
-if not efblit mul n s add get Es 4 mul cy s
-ret false
-end
-cy = add cy n
-end
-ret true
+arg = or or w shl rows 32 shl y0 48
+st = efi 3 arg Efa 0 n
+ret efok st
 end
 fn efscreen to bool
 st = efi 0 0 Eb 0 64
@@ -177,32 +120,31 @@ w = or ulong get Eb 8 shl ulong get Eb 9 8
 w = or w shl ulong get Eb 10 16
 h = or ulong get Eb 12 shl ulong get Eb 13 8
 h = or h shl ulong get Eb 14 16
-if or or lt w 768 lt h 384 or gt w 8192 gt h 8192
+if not shfits w h
 ret false
-end
-s = div w 768
-if lt div h 384 s
-s = div h 384
 end
 put Es 0 w
 put Es 1 h
-put Es 2 s
-put Es 3 div sub w mul 768 s 2
-put Es 4 div sub h mul 384 s 2
-band = div len Escr mul w 4
+put Es 2 1
+put Es 3 0
+put Es 4 0
+band = div len Efa mul w 4
 y = ulong 0
-while lt y h
+while lt y h bound 64
 n = band
 if gt add y n h
 n = sub h y
 end
-if not efblank y n
+if not efrows y n
 ret false
 end
 y = add y n
 end
+put Lg 0 long w
+put Lg 1 long h
 ret cvinit 768 384
 end
+
 fn efnetup now ulong to void
 st = efi 8 0 Eb 0 0
 if not efok st
@@ -294,7 +236,7 @@ scan = or ulong get Ek 0 shl ulong get Ek 1 8
 ch = or ulong get Ek 2 shl ulong get Ek 3 8
 key = efkeymap scan ch
 if ne key 0
-ok = dmkey key
+ok = shkey key
 changed = true
 end
 end
@@ -380,28 +322,23 @@ note Keep trying to bring the firmware network up; the link may settle after boo
 if gt now add get Es 13 2000
 put Es 13 now
 efnetup now
-put Es 7 1
 end
 end
 efpackets now
 changed = efkeys
 if efpointer
-changed = true
+put Sh 5 1
 end
 before = efsig
 efnet now
+if ne before efsig
+put Sh 5 1
+end
+chstep now ne get Es 6 0
+shanswer
 eftransmit now
-if or changed ne before efsig
-put Es 7 1
-end
-if ne get Es 7 0
-if not dmrender
-ret 5
-end
-if not efpresent
+if not shstep now
 ret 6
-end
-put Es 7 0
 end
 st = efi 2 1000 Eb 0 0
 ret 0
@@ -423,8 +360,8 @@ end
 end
 end
 fn efloop to int
-for outer ulong 1000
-for tick ulong 60000
+for oloop ulong 1000
+for tloop ulong 60000
 rc = efstep
 if ne rc 0
 ret rc
@@ -438,13 +375,15 @@ for r ulong n
 base = mul mul r w 4
 for x ulong w
 at = add base mul x 4
-put Escr at uchar bh
-put Escr add at 1 uchar gh
-put Escr add at 2 uchar rh
-put Escr add at 3 0
+put Efa at uchar bh
+put Efa add at 1 uchar gh
+put Efa add at 2 uchar rh
+put Efa add at 3 0
 end
 end
-ret efblit n 0
+arg = or w shl n 32
+st = efi 3 arg Efa 0 mul mul w n 4
+ret efok st
 end
 fn efbanner code ulong to int
 note Paint a distinct colour for a failing stage, then hold it so a photograph is possible.
@@ -481,6 +420,9 @@ if or eq w 0 eq h 0
 w = ulong 640
 h = ulong 480
 end
+if gt mul mul w h 4 len Efa
+h = div len Efa mul w 4
+end
 rr = and mul code 37 255
 gg = and mul code 91 255
 bb = and mul code 149 255
@@ -502,6 +444,17 @@ end
 efpaint 3
 efnetup now
 efpaint 4
+if not shinit now
+ret efbanner 7
+end
+if not efentropy
+put Es 12 5
+end
+run = or ulong get Gsrand 0 shl now 8
+if eq run 0
+run = 1
+end
+ok = chinit now run
 put Es 7 1
 rc = efloop
 if ne rc 0

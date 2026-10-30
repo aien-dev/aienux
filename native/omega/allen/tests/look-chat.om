@@ -1,0 +1,257 @@
+note Courier over UDP 47033 on net.om: concatenate after platform.om, the gate.sh
+note core list, net.om, look-chat.om and tests/check.om. Host-only fixtures: HI,
+note ACK and LINE datagrams are built by courier.om's own serializer in the live
+note relay's form (allen-courier main.rs datagram(): HI/ACK part=0/0 bytes=0,
+note LINE part=i/0 bytes=<body length>), wrapped in Ethernet/IPv4/UDP frames with
+note an independent checksum, and fed through netinput; outgoing frames are
+note checked against the same rules. The first HELLO frame is written raw to
+note fd 2 for an outside checksum check. check prints through Outb, so every
+note fixture is delivered before its packet result is checked.
+text Cvline " 1/1 Model answer."
+text Cvsay "SAY "
+text Cvask "hello"
+global Cvdst ulong 1
+fn cvw16 p ulong v ulong to void
+put Nrx p uchar and shr v 8 255
+put Nrx add p 1 uchar and v 255
+end
+fn cvw32 p ulong v ulong to void
+cvw16 p shr v 16
+cvw16 add p 2 and v 65535
+end
+fn cvt16 p ulong to ulong
+ret add shl ulong get Ntx p 8 ulong get Ntx add p 1
+end
+fn cvt32 p ulong to ulong
+ret add shl cvt16 p 16 cvt16 add p 2
+end
+note Independent one's-complement sum over Nrx (tx false) or Ntx (tx true).
+fn cvsum tx bool p ulong n ulong to ulong
+s = ulong 0
+for i ulong n
+v = ulong 0
+if tx
+v = ulong get Ntx add p i
+else
+v = ulong get Nrx add p i
+end
+if eq rem i 2 0
+s = add s shl v 8
+else
+s = add s v
+end
+end
+ret s
+end
+fn cvcpl s ulong to ulong
+while gt s 65535 bound 8
+s = add shr s 16 and s 65535
+end
+ret xor s 65535
+end
+fn cvpseudo a ulong b ulong n ulong to ulong
+s = add add shr a 16 and a 65535 add shr b 16 and b 65535
+ret add s add 17 n
+end
+fn cvip4 a ulong b ulong c ulong d ulong to ulong
+ret add add shl a 24 shl b 16 add shl c 8 d
+end
+note Wrap Outb[0..Outlen) in a frame from 192.168.1.10:sp to Cvdst:dp and feed it in.
+fn cvdeliver sp ulong dp ulong now ulong to void
+n = get Outlen 0
+for i ulong 2048
+put Nrx i uchar 0
+end
+for i ulong 6
+put Nrx i uchar 255
+put Nrx add i 6 uchar 0
+end
+put Nrx 6 uchar 2
+put Nrx 11 uchar 170
+cvw16 12 2048
+put Nrx 14 uchar 69
+cvw16 16 add n 28
+cvw16 20 16384
+put Nrx 22 uchar 64
+put Nrx 23 uchar 17
+src = cvip4 192 168 1 10
+cvw32 26 src
+cvw32 30 get Cvdst 0
+cvw16 24 cvcpl cvsum false 14 20
+cvw16 34 sp
+cvw16 36 dp
+cvw16 38 add n 8
+for i ulong n
+put Nrx add 42 i get Outb i
+end
+c = cvcpl add cvpseudo src get Cvdst 0 add n 8 cvsum false 34 add n 8
+if eq c 0
+c = 65535
+end
+cvw16 40 c
+if lt n 18
+n = 18
+end
+netinput add 42 n now
+end
+note Outgoing courier frame: broadcast, IPv4/UDP 47033 both ways, valid checksums.
+fn cvtxok to bool
+if eq get Ntxlen 0 0
+ret false
+end
+for i ulong 6
+if ne get Ntx i 255
+ret false
+end
+end
+if or ne cvt16 12 2048 ne get Ntx 23 17
+ret false
+end
+if ne cvcpl cvsum true 14 20 0
+ret false
+end
+if or ne cvt16 34 47033 ne cvt16 36 47033
+ret false
+end
+n = sub cvt16 16 20
+if or ne n cvt16 38 gt add n 34 get Ntxlen 0
+ret false
+end
+if ne cvt32 30 4294967295
+ret false
+end
+s = cvpseudo cvt32 26 cvt32 30 n
+ret eq cvcpl add s cvsum true 34 n 0
+end
+fn cvkind c uchar to bool
+note The kind field starts at offset 22+16+6 of the head (ALLEN-COURIER v=1 run=<16> kind=).
+ret eq ulong get Ntx 86 ulong c
+end
+fn cvbody seq ulong to void
+outreset
+for i ulong len Cvsay
+emitb get Cvsay i
+end
+emitn seq
+for i ulong len Cvline
+emitb get Cvline i
+end
+put Inlen 0 get Outlen 0
+for i ulong get Outlen 0
+put In i get Outb i
+end
+end
+fn main to int
+put Cvdst 0 4294967295
+put Nmac 0 uchar 2
+for i ulong 4
+put Nmac add i 1 uchar 0
+end
+put Nmac 5 uchar 1
+netinit 5000
+netsent true 5000
+check eq get Ntxlen 0 0 7
+check not chbusy 1
+check chinit 5000 0 2
+check ne get Q 0 0 3
+check eq get Q 0 chrun 5000 4
+check not chinit 5000 0 5
+check eq get Ncfg 2 0 6
+chstep 5000 true
+check cvtxok 10
+check eq cvt32 26 0 11
+check cvkind 72 12
+check eq get Ch 2 1 13
+check not netudpsend 10 14
+w = write 2 Ntx 0 get Ntxlen 0
+netsent true 5000
+check eq get Ntxlen 0 0 15
+put Inlen 0 0
+ok = packet 6 0 0 0 0
+n = get Outlen 0
+cvdeliver 47033 47033 5001
+check ok 16
+check eq get Chrxn 0 n 17
+chstep 5001 true
+check eq get Chrxn 0 0 18
+check eq get T 1 1 19
+check eq get Ch 3 1 20
+check eq get Ntxlen 0 0 21
+put Dprmn 0 len Cvask
+for i ulong len Cvask
+put Dprm i get Cvask i
+end
+check chask 5002 30
+check chbusy 31
+check not chask 5003 32
+chstep 5003 true
+check cvtxok 33
+check cvkind 74 34
+netsent true 5003
+put Inlen 0 0
+ok = packet 4 get Q 1 0 0 0
+cvdeliver 47033 47033 5004
+check ok 35
+chstep 5004 true
+check eq get T 6 1 36
+check eq get Ntxlen 0 0 37
+note Negative control: a LINE whose bytes= is neither 0 nor the body length is refused.
+cvbody get Q 1
+ok = packet 2 get Q 1 1 0 add get Inlen 0 1
+cvdeliver 47033 47033 5005
+chstep 5005 true
+check and ok and eq get Chevent 0 0 eq get Ntxlen 0 0 39
+cvbody get Q 1
+ok = packet 2 get Q 1 1 0 get Inlen 0
+cvdeliver 47033 47033 5005
+n = get Chdrop 0
+cvdeliver 47033 47033 5005
+check ok 40
+check eq n 0 41
+check eq get Chdrop 0 1 42
+chstep 5005 true
+check eq get Chevent 0 1 43
+check eq get Chsayn 0 13 44
+check eq get Chsay 0 77 45
+check eq get Ch 5 1 46
+check cvtxok 47
+check cvkind 71 48
+check not chbusy 49
+netsent true 5005
+note Like the C kernel, ours by Ethernet destination and port alone: other ports
+note never reach the courier slot; any IPv4 destination does, so the relay's
+note --udp-answer 192.168.1.255 is heard without a lease.
+cvdeliver 47033 47034 5006
+check eq get Chrxn 0 0 50
+cvdeliver 1234 47033 5006
+check ne get Chrxn 0 0 51
+put Chrxn 0 0
+put Cvdst 0 cvip4 192 168 1 255
+cvdeliver 47033 47033 5007
+check ne get Chrxn 0 0 52
+put Chrxn 0 0
+put Ncfg 2 cvip4 192 168 1 20
+put Ncfg 3 cvip4 255 255 255 0
+put Cvdst 0 cvip4 192 168 1 20
+cvdeliver 47033 47033 5007
+check ne get Chrxn 0 0 53
+put Chrxn 0 0
+put Cvdst 0 cvip4 192 168 1 21
+cvdeliver 47033 47033 5007
+check ne get Chrxn 0 0 54
+put Chrxn 0 0
+put Chevent 0 1
+chcancel
+check eq get Chevent 0 0 55
+check not chbusy 56
+note With a lease the frame leaves from our address; in error state 6 nothing leaves.
+put Dprmn 0 len Cvask
+check chask 5008 60
+chstep 5008 true
+check cvtxok 61
+check eq cvt32 26 cvip4 192 168 1 20 62
+netsent true 5008
+put Tcpstate 0 6
+check not netudpsend 10 63
+ret int get Fails 0
+end

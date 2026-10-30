@@ -1,0 +1,156 @@
+note tests/look-mind.om: Allen's presence alone on a black frame, as mindref.c / oracle.c layer 8.
+note stdin: W H T REPS N then N events "ms op arg" (op 0 mode(arg) 1 word 2 key 3 voice(arg)),
+note applied before the first 16 ms step s >= ms. The mind is stepped every 16 ms from 0 to T,
+note then at T, drawn REPS times over the full frame, and written as a P6 PPM to fd 1.
+note fd 2 gets "box x y w h dirty x y w h nspark n" like mindref.c.
+global Tin uchar 65536
+global Tinn ulong 2
+global Tev long 192
+global Terr uchar 256
+global Terrn ulong 1
+fn tnum to long
+n = get Tinn 0
+end0 = get Tinn 1
+while lt n end0 bound 65536
+if gt get Tin n 32
+break
+end
+n = add n 1
+end
+v = long 0
+while lt n end0 bound 65536
+c = get Tin n
+if le c 32
+break
+end
+v = add mul v 10 sub long c 48
+n = add n 1
+end
+put Tinn 0 n
+ret v
+end
+fn tec c uchar to void
+put Terr get Terrn 0 c
+put Terrn 0 add get Terrn 0 1
+end
+fn teu v ulong to void
+if ge v 10
+teu div v 10
+end
+tec uchar add 48 rem v 10
+end
+fn tel v long to void
+if lt v 0
+tec 45
+teu bitcast ulong neg v
+ret
+end
+teu ulong v
+end
+fn tesp to void
+tec 32
+end
+fn terr to void
+w = write 2 Terr 0 get Terrn 0
+end
+fn tprow n ulong w ulong to void
+for x ulong w
+p = get Nfrm n
+tc uchar and shr p 16 255
+tc uchar and shr p 8 255
+tc uchar and p 255
+n = add n 1
+end
+end
+fn tppm w long h long to void
+tc 80
+tc 54
+tc 10
+tu ulong w
+tc 32
+tu ulong h
+tc 10
+tu 255
+tc 10
+for y ulong ulong h
+tprow mul y ulong w ulong w
+end
+tflush
+end
+fn tevent j long s long to void
+op = get Tev add mul j 3 1
+arg = get Tev add mul j 3 2
+if eq op 0
+mdmode arg s
+end
+if eq op 1
+mdword s
+end
+if eq op 2
+mdkey s
+end
+if eq op 3
+mdvoice arg
+end
+end
+fn main to int
+r = read 0 Tin 0 65536
+if le r 0
+ret 2
+end
+put Tinn 1 ulong r
+w = tnum
+h = tnum
+t = tnum
+reps = tnum
+n = tnum
+for i ulong ulong n
+put Tev mul i 3 tnum
+put Tev add mul i 3 1 tnum
+put Tev add mul i 3 2 tnum
+end
+pkinit
+put Lg 0 w
+put Lg 1 h
+put Lg 2 pkmin div mul w 256 1920 div mul h 256 1080
+put Lg 3 div w 2
+put Lg 4 div mul h 40 100
+pkclip 0 0 w h
+mdinit 12300
+j = long 0
+s = long 0
+note (T / 16) + 1 steps
+while le s t bound 999999
+while lt j n bound 64
+if gt get Tev mul j 3 s
+break
+end
+tevent j s
+j = add j 1
+end
+mdat s
+s = add s 16
+end
+mdat t
+for k ulong ulong reps
+mddraw 0 0 w h
+end
+mddirty
+tec 98
+tesp
+for i ulong 4
+tel get Mdnow i
+tesp
+end
+tec 100
+tesp
+for i ulong 4
+tel get Mdbox i
+tesp
+end
+tel get Mdv 15
+tec 10
+terr
+tppm w h
+ret 0
+end

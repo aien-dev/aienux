@@ -1,0 +1,104 @@
+global Tb uchar 4194304
+global Tn ulong 1
+fn tflush to void
+n = ulong 0
+while lt n get Tn 0
+w = write 1 Tb n sub get Tn 0 n
+if le w 0
+ret
+end
+n = add n ulong w
+end
+put Tn 0 0
+end
+fn tc c uchar to void
+if ge get Tn 0 4194000
+tflush
+end
+put Tb get Tn 0 c
+put Tn 0 add get Tn 0 1
+end
+fn tu v ulong to void
+if ge v 10
+tu div v 10
+end
+tc uchar add 48 rem v 10
+end
+fn tl v long to void
+if lt v 0
+tc 45
+tu bitcast ulong neg v
+ret
+end
+tu ulong v
+end
+fn tnl to void
+tc 10
+end
+note tests/look-night.om: argv W H T [shim voice]; writes Nfrm after ntinit, ntat T, ntbase, ntlights as P6 to fd 1,
+note ntbase and ntlights microseconds to fd 2. Compare with cref2 oracle W H T 6 (host-only).
+note Unit: font-data font look-paint look-skydata look-sky look-night + this file.
+global Dargs uchar 32
+fn darg i ulong to long
+n = argread i Dargs 0 32
+v = long 0
+for k ulong ulong n
+v = add mul v 10 long sub get Dargs k 48
+end
+ret v
+end
+fn dppm to void
+w = ulong get Lg 0
+h = ulong get Lg 1
+tc 80
+tc 54
+tnl
+tu w
+tc 32
+tu h
+tnl
+tu 255
+tnl
+for y ulong h
+for x ulong w
+c = ulong get Nfrm add mul y w x
+tc uchar and shr c 16 255
+tc uchar and shr c 8 255
+tc uchar and c 255
+end
+end
+tflush
+end
+fn main to int
+w = darg 1
+h = darg 2
+t = ulong darg 3
+put Lg 0 w
+put Lg 1 h
+put Lg 2 pkmin div mul w 256 1920 div mul h 256 1080
+put Lg 3 div w 2
+put Lg 4 div mul h 40 100
+pkinit
+pkclip 0 0 w h
+ntinit
+ntat t
+t0 = monons
+ntbase 0 0 w h
+t1 = monons
+sh = ulong 0
+vo = ulong 0
+if gt argcnt 5
+sh = ulong darg 4
+vo = ulong darg 5
+end
+ntlights 0 0 w h sh vo
+t2 = monons
+dppm
+put Tn 0 0
+tu ulong div sub t1 t0 1000
+tc 32
+tu ulong div sub t2 t1 1000
+tnl
+n = write 2 Tb 0 get Tn 0
+ret 0
+end

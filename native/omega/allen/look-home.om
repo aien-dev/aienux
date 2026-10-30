@@ -1,0 +1,1006 @@
+note look-home.om: Allen's home (allen_ui.c at aienux 4b24df65): the timeline, the merger flash, his words, the bar.
+note Frame order (the integrator): ntat t; hmstep t; mdat t; then ntbase/ntlights, hmflash, mddraw, hmtext per band.
+note hminit after pkinit, ntinit, mdinit (reads Lg 0..4). Keys: hmkey c (byte, 8 backspace, 13 enter -> Hmline/Hmlinen/Hmask).
+note hmthink 1 when the request went out; hmsaid once the answer is in Hmsay/Hmsayn. Not ported: canvas, map, panel,
+note code view, guest, notes, choices, dusk/exit, chirp, flow, working. hmdirty: union of what moved, in Hmdirty.
+note Hm: 0 on 1 wake_t 2 quiet_t 3 key_t 4 input_moved 5 speak_t 6 thinking 7 word_t 8 bar_a 9 bar_was 10 last
+note 11 frames 12 t 13 next_len 14 input_len 15 input_gen 16 seen_input 17 said_gen 18 seen_said 19 has_line 20 think
+note 21 said_input_gen 22 hint_len 23 face 24..27 bar 28..31 bar_box 32..35 words_was 36..39 flash_was
+note 40..42 s256 per face 43..45 cap 46..48 weight 49 alpha 50 add 51 text source 52..55 band 56 speaking 57 last space
+note 58..61 words box. Hmw: 0 len 1 from 2 fade 3 done 4 lines 5..9 line starts 10..14 line lengths 15..19 line x
+global Hm long 64
+global Hmin uchar 160
+global Hminn ulong 1
+global Hmline uchar 160
+global Hmlinen ulong 1
+global Hmask ulong 1
+global Hmsay uchar 320
+global Hmsayn ulong 1
+global Hmnow uchar 160
+global Hmnext uchar 160
+global Hmw long 20
+global Hmdirty long 4
+global Hmhint uchar 32
+global Hmfoot uchar 64
+global Hmfootn ulong 1
+global Hmadv long 95
+global Hmgm long 1425
+global Hmgp uchar 1572864
+global Hmgn ulong 1
+fn hmrgb r ulong g ulong b ulong to ulong
+ret or or shl r 16 shl g 8 b
+end
+fn hms v long to long
+ret div add mul v get Lg 2 128 256
+end
+fn hmmark x long y long w long h long to void
+if le w 0
+ret
+end
+if le h 0
+ret
+end
+if eq get Hmdirty 2 0
+put Hmdirty 0 x
+put Hmdirty 1 y
+put Hmdirty 2 w
+put Hmdirty 3 h
+ret
+end
+x0 = pkmin x get Hmdirty 0
+y0 = pkmin y get Hmdirty 1
+x1 = pkmax add x w add get Hmdirty 0 get Hmdirty 2
+y1 = pkmax add y h add get Hmdirty 1 get Hmdirty 3
+put Hmdirty 0 x0
+put Hmdirty 1 y0
+put Hmdirty 2 sub x1 x0
+put Hmdirty 3 sub y1 y0
+end
+note x y w h meets the band Hm 52..55 (ck_meets)
+note marks the rect kept at Hm b..b+3
+fn hmmarkat b ulong to void
+hmmark get Hm b get Hm add b 1 get Hm add b 2 get Hm add b 3
+end
+fn hmmeets x long y long w long h long to bool
+if le w 0
+ret false
+end
+if ge x add get Hm 52 get Hm 54
+ret false
+end
+if ge y add get Hm 53 get Hm 55
+ret false
+end
+if le add x w get Hm 52
+ret false
+end
+ret gt add y h get Hm 53
+end
+note clips x y w h against the band and the screen into Lg 5..8; false when empty
+fn hmcut x long y long w long h long to bool
+x0 = pkmax pkmax x get Hm 52 0
+y0 = pkmax pkmax y get Hm 53 0
+x1 = pkmin pkmin add x w add get Hm 52 get Hm 54 get Lg 0
+y1 = pkmin pkmin add y h add get Hm 53 get Hm 55 get Lg 1
+pkclip x0 y0 sub x1 x0 sub y1 y0
+if le x1 x0
+ret false
+end
+ret gt y1 y0
+end
+fn hmtoward v long want long dt long full long to long
+step = div mul 256 dt full
+if eq step 0
+if ne dt 0
+step = 1
+end
+end
+if lt v want
+ret pkmin add v step want
+end
+ret pkmax sub v step want
+end
+note ---- letters: font.om masks cached once per face (Hm 23) and glyph ----
+fn hmch i ulong to uchar
+s = get Hm 51
+if eq s 0
+ret get Hmhint i
+end
+if eq s 1
+ret get Hmin i
+end
+if eq s 2
+ret get Hmnow i
+end
+ret get Hmfoot i
+end
+fn hmadv c uchar to ulong
+if lt c 32
+c = 63
+end
+if gt c 126
+c = 63
+end
+g = sub ulong c 32
+if lt get Hmadv g 0
+ok = afpick c
+put Afpos 0 add get Afpos 0 1
+put Hmadv g afnum
+end
+ret mul ulong get Hmadv g ulong get Hm add 40 ulong get Hm 23
+end
+fn hmmeas from ulong n ulong to long
+w = ulong 0
+for i ulong n
+w = add w hmadv hmch add from i
+end
+ret long div add w 255 256
+end
+fn hmglyph c uchar to ulong
+if lt c 32
+c = 63
+end
+if gt c 126
+c = 63
+end
+m = mul add mul ulong get Hm 23 95 sub ulong c 32 5
+if ge get Hmgm add m 4 0
+ret m
+end
+f = ulong get Hm 23
+ok = afinit ulong get Hm add 43 f ulong get Hm add 46 f
+ok = afglyph c
+n = mul get Af 3 get Af 4
+put Hmgm m long get Af 3
+put Hmgm add m 1 long get Af 4
+put Hmgm add m 2 get Ab 0
+put Hmgm add m 3 get Ab 1
+put Hmgm add m 4 long get Hmgn 0
+if gt add get Hmgn 0 n len Hmgp
+put Hmgm m 0
+ret m
+end
+for i ulong n
+put Hmgp add get Hmgn 0 i get Alpha i
+end
+put Hmgn 0 add get Hmgn 0 n
+ret m
+end
+note one glyph row: n mask bytes from off onto Nfrm from at; color Hm 63, alpha Hm 49, add Hm 50
+fn hmrow at ulong off ulong n ulong to void
+for i ulong n
+cov = ulong get Hmgp add off i
+if ne cov 0
+cov = add cov shr cov 7
+cov = shr mul cov ulong get Hm 49 8
+if eq get Hm 50 0
+cov = pkmix ulong get Nfrm at ulong get Hm 63 cov
+else
+cov = pkadd ulong get Nfrm at ulong get Hm 63 cov
+end
+put Nfrm at uint cov
+end
+at = add at 1
+end
+end
+note draws cached glyph m with its top-left at gx gy, clipped to Lg 5..8 (color Hm 63)
+fn hmglyphat m ulong gx long gy long to void
+x0 = pkmax gx get Lg 5
+y0 = pkmax gy get Lg 6
+x1 = add gx get Hmgm m
+x1 = pkmin x1 add get Lg 5 get Lg 7
+y1 = add gy get Hmgm add m 1
+y1 = pkmin y1 add get Lg 6 get Lg 8
+if ge x0 x1
+ret
+end
+gx = sub x0 gx
+x1 = sub x1 x0
+gy = sub y0 gy
+while lt y0 y1
+o = mul ulong gy ulong get Hmgm m
+o = add o ulong gx
+o = add o ulong get Hmgm add m 4
+at = mul ulong y0 ulong get Lg 0
+at = add at ulong x0
+hmrow at o ulong x1
+y0 = add y0 1
+gy = add gy 1
+end
+end
+fn hmblit pen ulong y long c uchar color ulong to ulong
+if eq get Hm 49 0
+ret add pen hmadv c
+end
+m = hmglyph c
+if eq get Hmgm m 0
+ret add pen hmadv c
+end
+put Hm 63 long color
+gx = add long div add pen 128 256 get Hmgm add m 2
+gy = add y get Hmgm add m 3
+hmglyphat m gx gy
+ret add pen hmadv c
+end
+note text() of the C: source Hm 51, face Hm 23, alpha Hm 49, clip Lg 5..8; returns the pen end in pixels
+fn hmwrite from ulong n ulong x long y long color ulong to long
+pen = mul ulong x 256
+for i ulong n
+pen = hmblit pen y hmch add from i color
+end
+ret long div add pen 255 256
+end
+note ---- init ----
+fn hminit to void
+for i ulong 64
+put Hm i 0
+end
+for i ulong 1425
+put Hmgm i 0
+end
+for i ulong 285
+put Hmgm add mul i 5 4 neg 1
+end
+for i ulong 95
+put Hmadv i neg 1
+end
+put Hmgn 0 0
+for i ulong 20
+put Hmw i 0
+end
+put Hminn 0 0
+put Hmlinen 0 0
+put Hmask 0 0
+put Hmsayn 0 0
+put Hmfootn 0 0
+note caps: CAP_VOICE/BODY/SMALL * k / 256 (truncating, not S())
+put Hm 43 div mul 19 get Lg 2 256
+put Hm 44 div mul 15 get Lg 2 256
+put Hm 45 div mul 11 get Lg 2 256
+put Hm 46 1000
+put Hm 47 1150
+put Hm 48 1250
+for i ulong 3
+put Hm add 40 i div mul get Hm add 43 i 256 20
+end
+put Hmhint 0 83
+put Hmhint 1 112
+put Hmhint 2 101
+put Hmhint 3 97
+put Hmhint 4 107
+put Hmhint 5 32
+put Hmhint 6 116
+put Hmhint 7 111
+put Hmhint 8 32
+put Hmhint 9 65
+put Hmhint 10 108
+put Hmhint 11 108
+put Hmhint 12 101
+put Hmhint 13 110
+put Hm 22 14
+bw = hms 720
+bh = hms 54
+put Hm 24 div sub get Lg 0 bw 2
+put Hm 25 sub get Lg 1 hms 150
+put Hm 26 bw
+put Hm 27 bh
+put Hm 28 pkmin sub get Hm 24 hms 20 sub div get Lg 0 2 hms 360
+put Hm 29 sub get Hm 25 hms 20
+put Hm 30 pkmax add bw hms 40 hms 720
+put Hm 31 add bh hms 80
+note woken at once (ck_allen_ui_wake before the first frame); quiet_t is set by the first frame (hmstep)
+put Hm 0 1
+put Hmdirty 2 0
+end
+note ---- the keyboard side ----
+fn hmkey key ulong to void
+if eq key 13
+if gt get Hminn 0 0
+for i ulong get Hminn 0
+put Hmline i get Hmin i
+end
+put Hmlinen 0 get Hminn 0
+put Hmask 0 1
+put Hminn 0 0
+put Hm 15 add get Hm 15 1
+end
+ret
+end
+if eq key 8
+if gt get Hminn 0 0
+put Hminn 0 sub get Hminn 0 1
+put Hm 15 add get Hm 15 1
+end
+ret
+end
+if lt key 32
+ret
+end
+if gt key 126
+ret
+end
+if lt get Hminn 0 159
+put Hmin get Hminn 0 uchar key
+put Hminn 0 add get Hminn 0 1
+put Hm 15 add get Hm 15 1
+end
+end
+fn hmthink on long to void
+if eq on 0
+ret
+end
+put Hm 19 1
+put Hm 20 1
+put Hm 21 get Hm 15
+put Hm 17 add get Hm 17 1
+end
+fn hmsaid to void
+put Hm 19 0
+if eq get Hmask 0 1
+put Hm 19 1
+put Hmask 0 0
+end
+put Hm 20 0
+put Hm 21 get Hm 15
+put Hm 17 add get Hm 17 1
+end
+note ---- the frame ----
+fn hmnotes t long to void
+if ne get Hm 15 get Hm 16
+put Hm 16 get Hm 15
+if gt get Hminn 0 ulong get Hm 14
+mdkey t
+end
+put Hm 14 long get Hminn 0
+put Hm 3 t
+put Hm 2 t
+put Hm 4 1
+end
+if eq get Hm 17 get Hm 18
+ret
+end
+put Hm 18 get Hm 17
+if ne get Hmw 0 0
+if eq get Hmw 2 0
+put Hmw 2 t
+end
+end
+put Hm 13 0
+if ne get Hm 20 0
+put Hm 5 0
+put Hm 6 1
+else
+n = pkmin long get Hmsayn 0 159
+for i ulong ulong n
+put Hmnext i get Hmsay i
+end
+put Hm 13 n
+think = long 500
+if ne get Hm 6 0
+think = 400
+else
+if ne get Hm 19 0
+think = add 900 pkmin mul n 6 700
+end
+end
+put Hm 5 pkmax add t think 15600
+put Hm 6 0
+end
+put Hm 14 0
+if ne get Hm 15 get Hm 21
+put Hm 14 long get Hminn 0
+end
+put Hm 4 1
+put Hm 2 t
+mdmode 2 t
+end
+note the flash radius (16ths) and alpha at t (0: none)
+fn hmfrad t long to long
+tm = sub t 12000
+ret mul add hms 40 shr mul hms 220 long pkeaseout pkprog ulong tm 0 1200 8 16
+end
+fn hmfa t long to long
+if lt t 12000
+ret 0
+end
+if ge t 13600
+ret 0
+end
+tm = sub t 12000
+rise = long pksmooth pkprog ulong tm 0 120
+e = long 0
+if gt tm 120
+e = div mul sub tm 120 256 450
+end
+ret shr mul mul rise shr long pkexpneg ulong e 8 230 16
+end
+note one wrapped line of Hmnow from start: returns its end (face Hm 23 = 0)
+fn hmwline from0 long n long to long
+j = from0
+w = long 0
+go = true
+put Hm 57 0
+while go
+if lt j n
+aw = long div add hmadv get Hmnow j 255 256
+take = true
+if gt add w aw hms 900
+if gt j from0
+take = false
+end
+end
+if take
+if eq get Hmnow j 32
+put Hm 57 j
+end
+w = add w aw
+j = add j 1
+else
+go = false
+end
+else
+go = false
+end
+end
+if lt j n
+if gt get Hm 57 from0
+j = get Hm 57
+end
+end
+ret j
+end
+fn hmwrap to void
+n = get Hmw 0
+lines = long 0
+i = long 0
+put Hm 23 0
+put Hm 51 2
+while lt i n
+if ge lines 5
+i = n
+else
+while lt i n
+if eq get Hmnow i 32
+i = add i 1
+else
+n = i
+end
+end
+n = get Hmw 0
+j = hmwline i n
+put Hmw add 5 lines i
+put Hmw add 10 lines sub j i
+lines = add lines 1
+i = j
+end
+end
+put Hmw 4 lines
+end
+note one line's x (centred), updating the box edges Hm 58 (min x) and Hm 62 (max x1)
+fn hmlinex li ulong to void
+lw = hmmeas ulong get Hmw add 5 li ulong get Hmw add 10 li
+x = div sub get Lg 0 lw 2
+put Hmw add 15 li x
+put Hm 58 pkmin get Hm 58 x
+put Hm 62 pkmax get Hm 62 add x lw
+end
+fn hmlayout to void
+hmwrap
+put Hm 58 get Lg 0
+put Hm 62 0
+for li ulong ulong get Hmw 4
+hmlinex li
+end
+x0 = get Hm 58
+x1 = get Hm 62
+lines = get Hmw 4
+if eq lines 0
+put Hm 58 0
+put Hm 59 0
+put Hm 60 0
+put Hm 61 0
+put Hmw 3 add get Hmw 1 700
+ret
+end
+put Hm 58 sub x0 hms 8
+put Hm 59 sub add get Lg 4 hms 250 hms 34
+put Hm 60 add sub x1 x0 hms 16
+put Hm 61 add mul lines hms 40 hms 30
+last = add get Hmw add 4 lines get Hmw add 9 lines
+put Hmw 3 add add get Hmw 1 mul last 35 700
+end
+fn hmwalpha t long to long
+if eq get Hmw 0 0
+ret 0
+end
+out = get Hmw 2
+if eq out 0
+out = add add get Hmw 3 6000 mul get Hmw 0 70
+end
+ret sub 256 long pksmooth pkprog ulong t ulong out ulong add out 450
+end
+fn hmspeak t long to void
+if eq get Hm 5 0
+ret
+end
+if lt t get Hm 5
+ret
+end
+for i ulong ulong get Hm 13
+put Hmnow i get Hmnext i
+end
+put Hmw 0 get Hm 13
+put Hmw 1 get Hm 5
+put Hmw 2 0
+hmlayout
+put Hm 5 0
+mdmode 3 t
+end
+fn hmpulse t long prev long to void
+n = get Hmw 0
+if eq n 0
+ret
+end
+if lt t get Hmw 1
+ret
+end
+if ge prev get Hmw 3
+ret
+end
+for i ulong ulong n
+at = add get Hmw 1 mul long i 35
+if gt at prev
+if le at t
+if ne get Hmnow i 32
+first = eq i 0
+if not first
+first = eq get Hmnow sub i 1 32
+end
+if first
+mdword t
+put Hm 7 t
+end
+end
+end
+end
+end
+end
+note the mind's mode from the words' state (speaking in Hm 56)
+fn hmwmode t long to void
+n = get Hmw 0
+mode = get Mdv 9
+if eq get Hm 56 0
+if eq get Hm 5 0
+if ne n 0
+if ge t get Hmw 1
+if or eq mode 3 eq mode 2
+mdmode 0 t
+put Hm 2 t
+mode = 0
+end
+end
+end
+end
+end
+if ne mode 2
+if ne mode 3
+lis = long 0
+if ne get Hm 14 0
+if lt sub t get Hm 3 4000
+lis = 1
+end
+end
+mdmode lis t
+end
+end
+end
+note marks the words box when it changes, remembers it in Hm 32..35, forgets faded words
+fn hmwbox t long prev long to void
+n = get Hmw 0
+if ne n 0
+if lt t add get Hmw 3 40
+hmmarkat 58
+else
+if ne hmwalpha t hmwalpha prev
+hmmarkat 58
+end
+end
+end
+if ne get Hm 34 0
+moved = ne get Hm 32 get Hm 58
+if ne get Hm 34 get Hm 60
+moved = true
+end
+if ne get Hm 35 get Hm 61
+moved = true
+end
+if moved
+hmmarkat 32
+end
+end
+for i ulong 4
+put Hm add 32 i get Hm add 58 i
+end
+if ne n 0
+if eq hmwalpha t 0
+if gt t get Hmw 1
+for i ulong 20
+put Hmw i 0
+end
+for i ulong 4
+put Hm add 58 i 0
+end
+end
+end
+end
+end
+fn hmwords t long prev long to void
+hmspeak t
+hmpulse t prev
+n = get Hmw 0
+speaking = false
+if ne n 0
+if ge t get Hmw 1
+speaking = lt t add add get Hmw 1 mul n 35 300
+end
+end
+put Hm 56 0
+if speaking
+put Hm 56 1
+mdvoice shr long pkexpneg ulong div mul sub t get Hm 7 256 200 8
+else
+mdvoice 0
+end
+hmwmode t
+hmwbox t prev
+end
+fn hmbarstep t long dt long to void
+want = false
+if ne get Hm 0 0
+if ge t 15300
+want = ne get Hm 14 0
+if lt sub t get Hm 2 9000
+want = true
+end
+if ne get Hm 56 0
+want = true
+end
+if ne get Hm 5 0
+want = true
+end
+end
+end
+full = long 1400
+goal = long 0
+if want
+goal = 256
+full = 900
+if lt sub t get Hm 3 300
+full = 250
+end
+end
+put Hm 8 hmtoward get Hm 8 goal dt full
+mark = ne get Hm 8 0
+if ne get Hm 9 0
+mark = true
+end
+if ne get Hm 4 0
+mark = true
+end
+if mark
+hmmarkat 28
+end
+put Hm 9 get Hm 8
+put Hm 4 0
+end
+fn hmstep t long to void
+if ne get Hm 11 0
+if lt sub t get Hm 10 16
+ret
+end
+else
+note the first frame takes the setup panel (seen_panel = panel_gen - 1 in start): quiet_t = t, after the wake's FORMED_MS
+put Hm 2 t
+end
+put Hm 11 1
+put Hm 12 t
+prev = get Hm 10
+dt = sub t prev
+hmnotes t
+if gt dt 100
+dt = 100
+end
+put Hmdirty 2 0
+hmmarkat 36
+put Hm 38 0
+if ne hmfa t 0
+r = add shr hmfrad t 4 2
+put Hm 36 sub get Lg 3 r
+put Hm 37 sub get Lg 4 r
+put Hm 38 add mul 2 r 1
+put Hm 39 add mul 2 r 1
+hmmarkat 36
+end
+hmwords t prev
+hmbarstep t dt
+put Hm 10 t
+end
+note ---- drawing: hmflash before the mind, hmtext after it, both inside band x y w h ----
+note one pixel of the shadow taking its black back (unflash in the C): hole 0, keep 0..256
+fn hmunpx x long y long keep long to void
+dx = sub add mul x 16 8 get Nthole 0
+dy = sub add mul y 16 8 get Nthole 1
+dx = long pkisqrt ulong add mul dx dx mul dy dy
+dy = sub get Nthole 3 dx
+if le dy 0
+ret
+end
+if ge dy 16
+dy = 256
+else
+dy = mul dy 16
+end
+dy = sub 256 shr mul dy sub 256 keep 8
+at = add mul ulong y ulong get Lg 0 ulong x
+put Nfrm at uint pkscale ulong get Nfrm at ulong dy
+end
+fn hmunrow y long keep long to void
+for i ulong ulong get Lg 7
+hmunpx add get Lg 5 long i y keep
+end
+end
+note clips hole 0's box; false when nothing to do
+fn hmunbox to bool
+rs = get Nthole 3
+if le rs 16
+ret false
+end
+bx = shr sub get Nthole 0 rs 4
+by = shr sub get Nthole 1 rs 4
+bw = add shr mul 2 rs 4 2
+ret hmcut bx by bw bw
+end
+fn hmunflash t long to void
+tm = sub t 12000
+if ne get Nthol 0 1
+ret
+end
+if lt tm 100
+ret
+end
+keep = sub 256 long pksmooth pkprog ulong tm 100 400
+if not hmunbox
+ret
+end
+for j ulong ulong get Lg 8
+hmunrow add get Lg 6 long j keep
+end
+end
+fn hmflash x long y long w long h long to void
+put Hm 52 x
+put Hm 53 y
+put Hm 54 w
+put Hm 55 h
+t = get Hm 12
+a = hmfa t
+if eq a 0
+ret
+end
+if not hmcut x y w h
+ret
+end
+rad = hmfrad t
+cx = add mul get Lg 3 16 8
+cy = add mul get Lg 4 16 8
+pkglow cx cy rad hmrgb 200 210 255 ulong div a 3
+pkglow cx cy div rad 3 hmrgb 255 240 224 ulong a
+hmunflash t
+end
+note one of Allen's letters (Hmnow i) age ms after its moment: alpha, colour and rise as draw_words in the C
+fn hmwletter pen ulong y long i long age long all long to ulong
+put Hm 49 shr mul long pksmooth pkprog ulong age 0 260 all 8
+c = pkmix hmrgb 255 212 150 hmrgb 234 238 252 pksmooth pkprog ulong age 0 900
+rise = shr mul hms 6 sub 256 long pkeaseout pkprog ulong age 0 360 8
+ret hmblit pen add y rise get Hmnow ulong i c
+end
+fn hmwline2 li ulong t long all long to void
+pen = mul ulong get Hmw add 15 li 256
+y = add add get Lg 4 hms 250 mul long li hms 40
+j = get Hmw add 5 li
+e = add j get Hmw add 10 li
+while lt j e
+at = add get Hmw 1 mul j 35
+if le t at
+j = e
+else
+pen = hmwletter pen y j sub t at all
+j = add j 1
+end
+end
+end
+fn hmwdraw t long to void
+all = hmwalpha t
+if eq all 0
+ret
+end
+if not hmmeets get Hm 58 get Hm 59 get Hm 60 get Hm 61
+ret
+end
+if not hmcut get Hm 52 get Hm 53 get Hm 54 get Hm 55
+ret
+end
+put Hm 23 0
+put Hm 51 2
+put Hm 50 0
+for li ulong ulong get Hmw 4
+hmwline2 li t all
+end
+end
+note the bar's rim and, while typing, the soft blue glow round it (draw_bar in the C)
+fn hmbaredge px ulong sd long a ulong to ulong
+edge = pkabs add sd 8
+if lt edge 16
+e = ulong mul sub 16 edge 3
+if ne get Hm 14 0
+e = ulong mul sub 16 edge 4
+end
+px = pkadd px hmrgb 255 255 255 shr mul e a 8
+end
+if ne get Hm 14 0
+if gt sd 0
+if lt sd mul hms 14 16
+g = ulong sub 256 div mul sd 256 mul hms 14 16
+g = shr mul g g 8
+g = shr mul g 34 8
+px = pkadd px hmrgb 110 130 255 shr mul g a 8
+end
+end
+end
+ret px
+end
+fn hmbarpx x long y long sd long to void
+a = ulong get Hm 8
+at = add mul ulong y ulong get Lg 0 ulong x
+px = ulong get Nfrm at
+in = pkcover sd
+if ne in 0
+px = pkmix px hmrgb 6 8 18 shr mul shr mul in 150 8 a 8
+end
+put Nfrm at uint hmbaredge px sd a
+end
+fn hmbarsd x long y long to long
+ret pksdrrect x y get Hm 24 get Hm 25 get Hm 26 get Hm 27
+end
+fn hmbarrow y long to void
+for i ulong ulong get Lg 7
+x = add get Lg 5 long i
+hmbarpx x y hmbarsd x y
+end
+end
+fn hmbarbody to void
+g = hms 14
+x = sub get Hm 24 g
+y = sub get Hm 25 g
+w = add get Hm 26 mul 2 g
+h = add get Hm 27 mul 2 g
+if not hmcut x y w h
+ret
+end
+put Lg 9 div get Hm 27 2
+for j ulong ulong get Lg 8
+hmbarrow add get Lg 6 long j
+end
+end
+note the caret's light at t: it breathes (ck_sin over 1100 ms) rather than blinks
+fn hmcaretlvl t long to long
+d = and mul and sub t get Hm 3 4294967295 65536 4294967295
+ca = shr mul add 16384 pksin ulong add div d 1100 16384 200 15
+if lt sub t get Hm 3 500
+ca = 200
+end
+ret shr mul add 40 ca get Hm 8 8
+end
+fn hmcaretrow y long a long to void
+at = add mul ulong y ulong get Lg 0 ulong get Lg 5
+for i ulong ulong get Lg 7
+put Nfrm at uint pkadd ulong get Nfrm at hmrgb 150 170 255 ulong a
+at = add at 1
+end
+end
+fn hmcaret x long t long to void
+a = hmcaretlvl t
+cy = sub add get Hm 25 div get Hm 27 2 hms 12
+if not hmcut add x hms 3 cy pkmax hms 2 2 hms 24
+ret
+end
+for j ulong ulong get Lg 8
+hmcaretrow add get Lg 6 long j a
+end
+end
+note the first typed letter that fits in avail px (the line scrolls from the left)
+fn hmbarfrom avail long to long
+n = get Hm 14
+from = long 0
+while lt from n
+if gt hmmeas ulong from ulong sub n from avail
+from = add from 1
+else
+n = from
+end
+end
+ret from
+end
+note the typed line in the bar: returns the pen end in px (Hm 51 = 1, face Hm 23 = 1)
+fn hmbartyped x long base long tcw bool to long
+put Hm 51 1
+avail = sub sub get Hm 26 mul 2 hms 30 hms 12
+from = hmbarfrom avail
+n = sub get Hm 14 from
+if tcw
+put Hm 49 get Hm 8
+ret hmwrite ulong from ulong n x base hmrgb 236 240 252
+end
+ret add x hmmeas ulong from ulong n
+end
+fn hmbarline t long to void
+pad = hms 30
+base = add add get Hm 25 div get Hm 27 2 hms 7
+x = add get Hm 24 pad
+pad = sub get Hm 26 mul 2 pad
+tcw = hmcut x get Hm 25 pad get Hm 27
+put Hm 23 1
+put Hm 50 0
+if eq get Hm 14 0
+if tcw
+put Hm 51 0
+put Hm 49 shr mul 192 get Hm 8 8
+dd = hmwrite 0 ulong get Hm 22 x base hmrgb 150 160 196
+end
+else
+x = hmbartyped x base tcw
+end
+hmcaret x t
+end
+fn hmfooter to void
+if eq get Hmfootn 0 0
+ret
+end
+if ne get Hm 14 0
+ret
+end
+if not hmcut get Hm 52 get Hm 53 get Hm 54 get Hm 55
+ret
+end
+put Hm 23 2
+put Hm 51 3
+put Hm 50 0
+put Hm 49 shr mul 222 get Hm 8 8
+n = get Hmfootn 0
+fw = hmmeas 0 n
+fw = div sub get Lg 0 fw 2
+fy = add add get Hm 25 get Hm 27 hms 34
+dd = hmwrite 0 n fw fy hmrgb 130 140 176
+end
+fn hmbar t long to void
+if eq get Hm 8 0
+ret
+end
+if not hmmeets get Hm 28 get Hm 29 get Hm 30 get Hm 31
+ret
+end
+hmbarbody
+hmbarline t
+hmfooter
+end
+fn hmtext x long y long w long h long to void
+put Hm 52 x
+put Hm 53 y
+put Hm 54 w
+put Hm 55 h
+hmwdraw get Hm 12
+hmbar get Hm 12
+end
+fn hmdraw x long y long w long h long to void
+hmflash x y w h
+hmtext x y w h
+end

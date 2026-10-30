@@ -193,8 +193,15 @@ end
 if ne kind 2
 ret 0
 end
-if or ne get N 3 0 ne get N 4 0
+note LINE total is 0; bytes is 0 (this line's tests) or the body length (the
+note relay, allen-courier main.rs datagram(): bytes=body.len()).
+if ne get N 3 0
 ret 0
+end
+if ne get N 4 0
+if ne get N 4 get N 6
+ret 0
+end
 end
 if and ne get T 13 0 ne get T 13 get N 2
 ret 0

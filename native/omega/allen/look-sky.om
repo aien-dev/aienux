@@ -1,0 +1,360 @@
+note SPDX-License-Identifier: MIT
+note Allen's look: the real sky. Handwritten Omega port of native/kernel/ui/sky_real.c (aienux 4b24df65):
+note the gnomonic projection of the catalogue's stars (look-skydata.om) into Nsky, the list of the bright
+note ones that twinkle, the twinkle itself (into Nfrm, inside the clip), and the two Magellanic Clouds'
+note light and phase maps for the sweeping light. Same integers as the C; tests/look-sky.om compares the
+note sky byte for byte with the C oracle.
+note Ported: ck_sky_project (skproj), ck_sky_draw_stars (skstars), ck_sky_twinkle (sktwink),
+note ck_sky_galaxy_bound/in_view/box/maps (skgbound skginview skgbox skgmaps), and ck_night_init's sky
+note construction (skmake, night.c:120-133). Not ported, never reached by the default iMac build (sky_mode 0,
+note allen_ui.c:1226): ck_sky_draw_milkyway and its helpers, ck_sky_gmst, ck_sky_zenith, ck_sky_view_at.
+note Interface (NIGHT reads these; the names were agreed with LookNight):
+note skmake: reads Lg 0..4 (w h k cx cy), runs skinit, clears Nsky w*h, draws the stars into Nsky, fills
+note Sktwn/Sktw, then every galaxy's box, offset and maps. Never touches Nfrm or the clip.
+note Sktwn: how many stars twinkle (<= 256). Sktw: 8 longs per star i at 8*i: 0 x16, 1 y16 (16ths of a
+note pixel), 2 peak (catalogue flux, linear Q16), 3 4 5 col (linear, brightest channel 4096), 6 period
+note (ms), 7 phase (ms).
+note sktwink i amount: ck_sky_twinkle of star i with amount (1/256 of its flux) into Nfrm, clipped by Lg 5..8.
+note Skgbox: x y w h per galaxy (w 0: empty; only galaxies 0 and 1 exist). Skgtint: its sRGB tint.
+note Skgper: ms for the sweep to come round. Skgoff: where its maps start in Skglit (light 0..255) and
+note Skgpha (phase 0..255), row-major box w*h each. The pools hold every box a 3840-wide screen can need:
+note sum of (2a+1)^2 over ck_sky_galaxy_bound = 445^2 + 231^2 = 251386 (Wolfram).
+const SKGPOOL ulong 251386
+global Sktwn ulong 1
+global Sktw long 2048
+global Skgbox long 24
+global Skgtint uint 6
+global Skgper ulong 6
+global Skgoff ulong 6
+global Skglit uchar SKGPOOL
+global Skgpha uchar SKGPOOL
+note scratch: Skpx 0 x16 1 y16 (skproj's result), Skgp 0 gx 1 gy (skginview's result);
+note Skpk 0 peak 1 2 3 colour, Skclip x y w h, Sktgt 0 Nsky 1 Nfrm (skpoint's arguments);
+note Skgw 0 gx 1 gy 2 a 3 b 4 cos 5 sin 6 box x 7 box y 8 a^2 9 b^2 (skgmaps' per-galaxy values for skgpx)
+global Skpx long 2
+global Skgp long 2
+global Skpk ulong 4
+global Skclip long 4
+global Sktgt ulong 1
+global Skgw long 10
+note ck_sky_project: where direction (dx dy dz) (Q15) lands on the Lg 0 wide screen whose view centre is
+note (Lg 3, Lg 4): Skpx 0 1 in 16ths of a pixel; 0 when behind the camera (more than 88 degrees away).
+fn skproj dx long dy long dz long to long
+a2 = add mul get Skview 11 dx mul get Skview 12 dy
+a2 = add a2 mul get Skview 13 dz
+if lt a2 1099511627776
+ret 0
+end
+a2 = shr a2 16
+u = add mul get Skview 5 dx mul get Skview 6 dy
+u = add u mul get Skview 7 dz
+u = div mul u 16384 a2
+t = add mul get Skview 8 dx mul get Skview 9 dy
+t = add t mul get Skview 10 dz
+t = div mul t 16384 a2
+s = mul get Lg 0 8
+u = div mul u s get Skview 4
+t = div mul t s get Skview 4
+put Skpx 0 add mul get Lg 3 16 u
+put Skpx 1 sub mul get Lg 4 16 t
+ret 1
+end
+note one native pixel of point_add: pixel (x, y) of the target gets weight/256 of the light Skpk
+fn skdep x long y long wt ulong to void
+i = ulong add mul y get Lg 0 x
+c = ulong 0
+if eq get Sktgt 0 0
+c = ulong get Nsky i
+else
+c = ulong get Nfrm i
+end
+out = ulong 0
+for k ulong 3
+lv = and shr c sub 16 mul 8 k 255
+a = mul get Skpk 0 get Skpk add k 1
+a = shr mul shr a 13 wt 8
+if ne a 0
+l = add ulong get Slin lv a
+if ge l 32767
+l = 4095
+else
+l = shr l 3
+end
+lv = shr add ulong get Ssrgb l 8 4
+if gt lv 255
+lv = 255
+end
+end
+out = or shl out 8 lv
+end
+c = or and c 4278190080 out
+if eq get Sktgt 0 0
+put Nsky i uint c
+else
+put Nfrm i uint c
+end
+end
+note the clip for skpoint: (x, y, w, h) cut to the screen, kept as x0 y0 x1 y1 (ends exclusive) in Skclip
+fn skclip x long y long w long h long to void
+put Skclip 0 pkmax x 0
+put Skclip 1 pkmax y 0
+put Skclip 2 pkmin add x w get Lg 0
+put Skclip 3 pkmin add y h get Lg 1
+end
+note point_add: a point source at (x16, y16) deposits the light Skpk on the 2 x 2 native pixels round it,
+note inside Skclip (already cut to the screen), into Nsky (Sktgt 0) or Nfrm (Sktgt 1). Weights sum to 256.
+fn skpoint x16 long y16 long to void
+x0 = shr sub x16 8 4
+y0 = shr sub y16 8 4
+fx = ulong and sub x16 8 15
+fy = ulong and sub y16 8 15
+for j ulong 2
+y = add y0 long j
+if ge y get Skclip 1
+if lt y get Skclip 3
+for i ulong 2
+x = add x0 long i
+if ge x get Skclip 0
+if lt x get Skclip 2
+wt = sub 16 fx
+if eq i 1
+wt = fx
+end
+if eq j 1
+wt = mul wt fy
+else
+wt = mul wt sub 16 fy
+end
+if ne wt 0
+skdep x y wt
+end
+end
+end
+end
+end
+end
+end
+end
+note ck_sky_draw_stars for star i: project it, add its light to Nsky, list it to twinkle when V <= 1.0
+fn skstar1 i ulong to void
+j = mul i 3
+if eq skproj get Skstar j get Skstar add j 1 get Skstar add j 2 0
+ret
+end
+x = get Skpx 0
+y = get Skpx 1
+if lt x -32
+ret
+end
+if lt y -32
+ret
+end
+if gt x add mul get Lg 0 16 32
+ret
+end
+if gt y add mul get Lg 1 16 32
+ret
+end
+bv = get Skbv i
+if ge bv 128
+bv = 127
+end
+bv = mul bv 3
+put Skpk 0 get Skflux get Skmag i
+put Skpk 1 get Skpal bv
+put Skpk 2 get Skpal add bv 1
+put Skpk 3 get Skpal add bv 2
+skpoint x y
+if le get Skmag i 59
+n = get Sktwn 0
+if lt n 256
+n = mul n 8
+put Sktw n x
+put Sktw add n 1 y
+put Sktw add n 2 long get Skpk 0
+put Sktw add n 3 long get Skpk 1
+put Sktw add n 4 long get Skpk 2
+put Sktw add n 5 long get Skpk 3
+put Sktw add n 6 long add 1200 rem mul i 137 2400
+put Sktw add n 7 long rem mul i 919 65536
+put Sktwn 0 add get Sktwn 0 1
+end
+end
+end
+note ck_sky_draw_stars: every catalogue star in the view into Nsky (clip: the whole screen), the bright
+note ones listed in Sktw
+fn skstars to void
+put Sktwn 0 0
+put Sktgt 0 0
+skclip 0 0 get Lg 0 get Lg 1
+for i ulong SKNST
+skstar1 i
+end
+end
+note ck_sky_twinkle: star i of Sktw with amount/256 more of its light, into Nfrm inside the clip Lg 5..8
+fn sktwink i ulong amount ulong to void
+n = mul i 8
+put Skpk 0 shr mul ulong get Sktw add n 2 amount 8
+put Skpk 1 ulong get Sktw add n 3
+put Skpk 2 ulong get Sktw add n 4
+put Skpk 3 ulong get Sktw add n 5
+put Sktgt 0 1
+skclip get Lg 5 get Lg 6 get Lg 7 get Lg 8
+skpoint get Sktw n get Sktw add n 1
+end
+note ck_sky_galaxy_bound: the side of the largest box galaxy i can need on a w-wide screen (0: no galaxy i)
+fn skgbound w long i ulong to long
+if ge i SKNGAL
+ret 0
+end
+a = add shr mul get Skgal add mul i 7 3 w 16 4
+ret add mul a 2 1
+end
+note ck_sky_galaxy_in_view: galaxy i's centre pixel into Skgp 0 1; 1 when it is on the Lg 0 x h screen
+fn skginview i ulong h long to long
+if ge i SKNGAL
+ret 0
+end
+j = mul i 7
+if eq skproj get Skgal j get Skgal add j 1 get Skgal add j 2 0
+ret 0
+end
+x = shr add get Skpx 0 8 4
+y = shr add get Skpx 1 8 4
+put Skgp 0 x
+put Skgp 1 y
+if lt x 0
+ret 0
+end
+if ge x get Lg 0
+ret 0
+end
+if lt y 0
+ret 0
+end
+if ge y h
+ret 0
+end
+ret 1
+end
+note ck_sky_galaxy_box: galaxy i's box on the screen into Skgbox (clipped; empty when out of view or none)
+fn skgbox i ulong to void
+b = mul i 4
+put Skgbox b 0
+put Skgbox add b 1 0
+put Skgbox add b 2 0
+put Skgbox add b 3 0
+if eq skginview i get Lg 1 0
+ret
+end
+a = add shr mul get Skgal add mul i 7 3 get Lg 0 16 4
+x0 = pkmax 0 sub get Skgp 0 a
+y0 = pkmax 0 sub get Skgp 1 a
+x1 = pkmin sub get Lg 0 1 add get Skgp 0 a
+y1 = pkmin sub get Lg 1 1 add get Skgp 1 a
+if ge x0 x1
+ret
+end
+if ge y0 y1
+ret
+end
+put Skgbox b x0
+put Skgbox add b 1 y0
+put Skgbox add b 2 sub x1 x0
+put Skgbox add b 3 sub y1 y0
+end
+note one map pixel (px, py) of the galaxy Skgw describes, at pool offset off: its light and phase
+fn skgpx px long py long off ulong to void
+px = sub add get Skgw 6 px get Skgw 0
+py = sub add get Skgw 7 py get Skgw 1
+u = mul px get Skgw 4
+u = shr add u mul py get Skgw 5 14
+v = mul neg px get Skgw 5
+v = shr add v mul py get Skgw 4 14
+a = get Skgw 2
+note f < 0: no galaxy there (a or b 0, or outside the ellipse u^2 b^2 + v^2 a^2 > a^2 b^2);
+note Skgw 8 is a^2, Skgw 9 is b^2
+f = long -1
+if ne a 0
+if ne get Skgw 3 0
+f = mul mul u u get Skgw 9
+f = add f mul mul v v get Skgw 8
+f = sub mul get Skgw 8 get Skgw 9 f
+end
+end
+if lt f 0
+put Skglit off 0
+put Skgpha off 128
+ret
+end
+note light falls off as (1 - (u/a)^2 - (v/b)^2)^2
+f = mul mul u u 65536
+f = sub 65536 div f get Skgw 8
+v = mul mul v v 65536
+f = sub f div v get Skgw 9
+if lt f 0
+f = 0
+end
+f = shr mul f f 16
+f = shr mul f 255 16
+put Skglit off uchar f
+f = mul add u a 255
+f = div f add mul a 2 1
+put Skgpha off uchar f
+end
+note ck_sky_galaxy_maps: galaxy i's light and phase over its box into Skglit / Skgpha at Skgoff i
+fn skgmaps i ulong to void
+if ge i SKNGAL
+ret
+end
+b = mul i 4
+if eq get Skgbox add b 2 0
+ret
+end
+if eq skginview i 2147483647 0
+ret
+end
+j = mul i 7
+put Skgw 0 get Skgp 0
+put Skgw 1 get Skgp 1
+put Skgw 2 shr mul get Skgal add j 3 get Lg 0 16
+put Skgw 3 add shr mul get Skgal add j 4 get Lg 0 16 1
+put Skgw 4 pkcos ulong get Skgal add j 5
+put Skgw 5 pksin ulong get Skgal add j 5
+put Skgw 6 get Skgbox b
+put Skgw 7 get Skgbox add b 1
+put Skgw 8 mul get Skgw 2 get Skgw 2
+put Skgw 9 mul get Skgw 3 get Skgw 3
+put Skgtint i uint get Skgal add j 6
+put Skgper i add 2400 mul i 400
+w = ulong get Skgbox add b 2
+h = ulong get Skgbox add b 3
+off = get Skgoff i
+for py ulong h
+for px ulong w
+skgpx long px long py off
+off = add off 1
+end
+end
+end
+note the sky as ck_night_init makes it (night.c:120-133): black, the stars, the galaxies
+fn skmake to void
+skinit
+w = ulong get Lg 0
+h = ulong get Lg 1
+for y ulong h
+r = mul y w
+for x ulong w
+put Nsky add r x 0
+end
+end
+skstars
+off = ulong 0
+for i ulong 6
+skgbox i
+put Skgoff i off
+b = mul i 4
+off = add off mul ulong get Skgbox add b 2 ulong get Skgbox add b 3
+skgmaps i
+end
+end

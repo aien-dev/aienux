@@ -280,27 +280,13 @@ end
 end
 end
 end
-fn ghfillrow at ulong w ulong color ulong to void
-for xx ulong w
-put Canvas at uchar and shr color 16 255
-put Canvas add at 1 uchar and shr color 8 255
-put Canvas add at 2 uchar and color 255
-at = add at 3
-end
-end
 fn ghfill x ulong y ulong w ulong h ulong color ulong to void
-if or gt x get Cv 0 gt y get Cv 1
-ret
+note The night colour is the screen's shade: translucent, so the sky shows through it.
+a = ulong 255
+if eq color 395282
+a = 208
 end
-if or gt w sub get Cv 0 x gt h sub get Cv 1 y
-ret
-end
-for yy ulong h
-at = add y yy
-at = mul at get Cv 0
-at = mul add at x 3
-ghfillrow at w color
-end
+cvfill x y w h color a
 end
 fn ghdraw c uchar x long y long color ulong to void
 if not cvglyph c x y color
@@ -529,7 +515,7 @@ end
 if or lt get Cv 0 320 lt get Cv 1 288
 ret false
 end
-if not afinit 10 1000
+if not cvfont 10 1000
 ret false
 end
 if not cvclip 0 0 get Cv 0 get Cv 1

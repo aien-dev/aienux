@@ -1,0 +1,774 @@
+note look-night.om: the night, ported from native/kernel/ui/night.c at aienux 4b24df65 (integer for integer).
+note Needs look-paint.om (pk*, Lg, Nfrm, Nsky, Slin, Ssrgb) and look-sky.om (skmake, sktwink, Sktw*, Skg*) before it;
+note pkinit must have run (the integrator does that once; ntinit does not).
+note API: ntinit; ntat t; ntbase x y w h; ntlights x y w h shim voice; ntfaded x y l; ntstarbox i (into Pa 0..3);
+note ntholes; ntcount. Readable state after ntat: Nthol (count), Nthole (x y e rs per hole, 16ths; hole 0 at 0..3, hole 1 at
+note 4..7), Ntlens (x y w h px, w=0 none), Ntrip (0 ripple_r px, 1 ripple_w px (0 none), 2 ripple_c2, 3 ripple_s2 Q14).
+note Milliseconds: FADE_END 6800, HOLES 2600, SPIRAL 6000, MERGE 12000, RIPPLE 3600, GONE 15200, ORBIT 5200.
+global Ntapp uchar 519901
+global Ntaw long 1
+global Ntt ulong 1
+global Nthol ulong 1
+global Nthole long 8
+global Ntlens long 4
+global Ntrip long 4
+global Ntdisp long 1024
+global Ntlit uchar 1024
+global Ntband uchar 256
+global Ntpow2 ulong 257
+global Ntsep long 1
+global Ntsxy long 2
+global Ntwarp long 3
+global Ntcor long 12
+global Ntwt long 4
+global Ntb long 4
+global Ntd long 4
+global Ntg long 5
+note nts: S(v) = (v * k + 128) / 256, the 1920 x 1080 design unit scaled to this screen.
+fn nts v long to long
+ret div add mul v get Lg 2 128 256
+end
+note ntpow2: 2^(x / 65536) in Q16 (night.c pow2_q16).
+fn ntpow2 x ulong to ulong
+n = shr x 16
+f = and x 65535
+k = shr f 8
+g = and f 255
+m = add get Ntpow2 k shr mul sub get Ntpow2 add k 1 get Ntpow2 k g 8
+ret shl m n
+end
+note ntgauss: exp(-(v / width)^2) in Q16 (night.c gauss).
+fn ntgauss v long width long to ulong
+if eq width 0
+width = 1
+end
+q = div mul v 256 width
+if or gt q 4095 lt q -4095
+ret 0
+end
+ret pkexpneg ulong shr mul q q 8
+end
+note ntfar: the farthest screen corner from the centre, pixels.
+fn ntfar to long
+far = long 0
+for i ulong 4
+px = long 0
+if eq and i 1 1
+px = get Lg 0
+end
+py = long 0
+if eq shr i 1 1
+py = get Lg 1
+end
+dx = sub px get Lg 3
+dy = sub py get Lg 4
+far = pkmax far long pkisqrt ulong add mul dx dx mul dy dy
+end
+ret far
+end
+fn ntappx x long y long h long far long to uchar
+x = mul x 4
+y = mul y 4
+dx = sub x get Lg 3
+dy = sub y get Lg 4
+dx = long pkisqrt ulong add mul dx dx mul dy dy
+dx = div mul dx 255 far
+x = div mul x 640 h
+y = div mul y 640 h
+dy = long shr pkfbm x y 909 4 8
+ret uchar div add mul dy 6 mul dx 4 10
+end
+note ntappear: the appearance map, one byte per 4 x 4 cell (night.c appear_map).
+fn ntappear to void
+aw = ulong get Ntaw 0
+ah = ulong add div get Lg 1 4 1
+h = get Lg 1
+far = ntfar
+if eq far 0
+far = 1
+end
+for y ulong ah
+for x ulong aw
+put Ntapp add mul y aw x ntappx long x long y h far
+end
+end
+end
+note ntfaded: how far pixel (x, y) with luma l has faded in, 0..256 (ck_night_faded).
+fn ntfaded x long y long l ulong to ulong
+if ge get Ntt 0 6800
+ret 256
+end
+x = pkclamp x 0 sub get Lg 0 1
+y = pkclamp y 0 sub get Lg 1 1
+y = add mul shr y 2 get Ntaw 0 shr x 2
+x = mul long get Ntapp y 12
+x = add add 300 x mul sub 255 long l 8
+dt = sub long get Ntt 0 x
+if le dt 0
+ret 0
+end
+if ge dt 1365
+ret 256
+end
+ret pksmooth shr mul dt 48 8
+end
+fn ntfadepx c ulong x long y long to ulong
+l = pkmax pkmax long and shr c 16 255 long and shr c 8 255 long and c 255
+f = ntfaded x y ulong l
+if ge f 256
+ret c
+end
+ret pkscale c f
+end
+note ntfrow / ntcrow: one row of the base, pixels x0..x1-1, fading / plain copy.
+fn ntfrow y long x0 long x1 long to void
+base = mul y get Lg 0
+for i ulong ulong sub x1 x0
+x = add x0 long i
+p = add base x
+c = ulong get Nsky p
+if ne c 0
+c = ntfadepx c x y
+end
+put Nfrm p uint c
+end
+end
+fn ntcrow y long x0 long x1 long to void
+base = mul y get Lg 0
+for i ulong ulong sub x1 x0
+p = add base add x0 long i
+put Nfrm p get Nsky p
+end
+end
+note ntinit: tables, the sky (skmake), the appearance map, state at t = 0 (ck_night_init).
+fn ntinit to void
+for i ulong 256
+c = shr ulong add 16384 pkcos mul i 256 1
+c2 = shr mul c c 14
+c6 = shr mul shr mul c2 c2 14 c2 14
+put Ntband i uchar shr mul c6 255 14
+end
+e2 = ulong 1073741824
+for i ulong 256
+put Ntpow2 i shr add e2 8192 14
+e2 = shr mul e2 1076652777 30
+end
+put Ntpow2 256 131072
+put Ntaw 0 add div get Lg 0 4 1
+skmake
+ntappear
+ntat 0
+end
+fn ntroot8 l ulong to ulong
+for i ulong 3
+l = pkisqrt shl l 30
+end
+ret l
+end
+note ntorbit: the orbit angle (turns / 65536) at t; the separation (16ths) goes to Ntsep (night.c orbit_angle).
+fn ntorbit t ulong a0 long to ulong
+if lt t 6000
+put Ntsep 0 a0
+ret div mul sub t 2600 65536 5200
+end
+left = div shl sub 12000 t 30 6000
+r = ntroot8 left
+r2 = shr mul r r 30
+r5 = shr mul shr mul r2 r2 30 r 30
+put Ntsep 0 long shr mul ulong a0 r2 30
+ret add 42850 shr mul 120989 sub 1073741824 r5 30
+end
+fn ntat2 t ulong ef long rf long a0 long cx long cy long to void
+ang = ntorbit t a0
+v = shr mul ef long pksmooth pkprog t 2600 5200 8
+put Nthole 2 v
+put Nthole 6 v
+v = shr mul rf long pksmooth pkprog t 4000 6000 8
+put Nthole 3 v
+put Nthole 7 v
+v = div get Ntsep 0 2
+hx = shr mul v pkcos ang 14
+hy = shr mul v pksin ang 15
+put Nthole 0 add cx hx
+put Nthole 1 add cy hy
+put Nthole 4 sub cx hx
+put Nthole 5 sub cy hy
+put Nthol 0 2
+end
+fn ntat1 t ulong ef long rf long cx long cy long to void
+tm = sub t 12000
+rs0 = div mul rf 323 256
+rs = long pksmooth pkprog tm 0 180
+rs = add rs0 shr mul sub mul rf 2 rs0 rs 8
+wob = long pkexpneg div mul tm 256 260
+wob = shr mul pksin div mul tm 65536 95 wob 16
+wob = div mul mul rs wob 7 100
+rs = add rs shr wob 14
+keep = sub 256 long pksmooth pkprog t 12900 15200
+put Nthole 0 cx
+put Nthole 1 cy
+ef = div mul ef 362 256
+put Nthole 2 shr mul ef keep 8
+keep = shr mul keep keep 8
+put Nthole 3 shr mul rs keep 8
+put Nthol 0 1
+end
+note ntunion: Ntlens = Ntlens U (x y w h), the lens rect in pixels.
+fn ntunion x long y long w long h long to void
+if or le get Ntlens 2 0 le get Ntlens 3 0
+put Ntlens 0 x
+put Ntlens 1 y
+put Ntlens 2 w
+put Ntlens 3 h
+ret
+end
+x0 = pkmin get Ntlens 0 x
+y0 = pkmin get Ntlens 1 y
+x1 = pkmax add get Ntlens 0 get Ntlens 2 add x w
+y1 = pkmax add get Ntlens 1 get Ntlens 3 add y h
+put Ntlens 0 x0
+put Ntlens 1 y0
+put Ntlens 2 sub x1 x0
+put Ntlens 3 sub y1 y0
+end
+fn ntlensbox to void
+for i ulong get Nthol 0
+b = mul i 4
+e = get Nthole add b 2
+rs = get Nthole add b 3
+if or gt e 0 gt rs 0
+reach = add shr div mul e 44 10 4 2
+rs = add shr div mul rs 16 10 4 2
+reach = pkmax reach rs
+e = sub shr get Nthole b 4 reach
+rs = sub shr get Nthole add b 1 4 reach
+reach = add mul 2 reach 1
+ntunion e rs reach reach
+end
+end
+if ne get Ntlens 2 0
+x0 = pkmax get Ntlens 0 0
+y0 = pkmax get Ntlens 1 0
+x1 = pkmin add get Ntlens 0 get Ntlens 2 get Lg 0
+y1 = pkmin add get Ntlens 1 get Ntlens 3 get Lg 1
+if or le x1 x0 le y1 y0
+put Ntlens 0 0
+put Ntlens 1 0
+put Ntlens 2 0
+put Ntlens 3 0
+else
+put Ntlens 0 x0
+put Ntlens 1 y0
+put Ntlens 2 sub x1 x0
+put Ntlens 3 sub y1 y0
+end
+end
+end
+note ntriptab: Ntdisp / Ntlit over the ripple width; amp in Ntsxy 0, env in Ntsxy 1.
+fn ntriptab reach long w long lambda long to void
+n = ulong add mul 2 reach 1
+for i ulong n
+o = sub long i reach
+s = and div mul o 65536 lambda 65535
+s = shr mul get Ntsxy 0 pksin ulong s 14
+put Ntdisp i shr mul s long ntgauss o w 16
+s = long ntgauss o div mul w 6 10
+s = mul mul s get Ntsxy 1 46
+put Ntlit i uchar shr s 24
+end
+end
+fn ntripple t ulong last ulong to void
+if or lt t 12000 ge t 15600
+ret
+end
+tr = sub t 12000
+w = pkclamp nts 60 4 200
+reach = div mul w 22 10
+far = add ntfar reach
+rr = div mul far long tr 3600
+put Ntrip 0 rr
+put Ntrip 1 w
+env = sub 256 pksmooth pkprog tr 2160 3600
+env = shr mul pksmooth pkprog tr 0 220 env 8
+amp = sub 256 div mul 150 rr far
+amp = shr mul mul nts 6 16 amp 8
+put Ntsxy 0 shr mul amp long env 8
+put Ntsxy 1 long env
+ntriptab reach w pkmax nts 110 8
+put Ntrip 2 pkcos mul 2 last
+put Ntrip 3 pksin mul 2 last
+end
+note ntat: the state at t ms (ck_night_at): holes, lens rect, ripple tables.
+fn ntat t ulong to void
+put Ntt 0 t
+put Nthol 0 0
+put Ntlens 0 0
+put Ntlens 1 0
+put Ntlens 2 0
+put Ntlens 3 0
+put Ntrip 0 0
+put Ntrip 1 0
+put Ntrip 2 0
+put Ntrip 3 0
+ef = mul nts 60 16
+rf = mul nts 20 16
+a0 = mul nts 270 16
+cx = add mul get Lg 3 16 8
+cy = add mul get Lg 4 16 8
+last = ntorbit 11999 a0
+if and ge t 2600 lt t 12000
+ntat2 t ef rf a0 cx cy
+else
+if and ge t 12000 lt t 15200
+ntat1 t ef rf cx cy
+end
+end
+ntlensbox
+ntripple t last
+end
+fn ntsrow r long ix long ix1 long fx ulong to ulong
+ret pkmix ulong get Nsky add r ix ulong get Nsky add r ix1 fx
+end
+note ntsample: the sky at (sx, sy) in 16ths, bilinear (night.c sample).
+fn ntsample sx long sy long to ulong
+sx = pkclamp sub sx 8 0 mul sub get Lg 0 1 16
+sy = pkclamp sub sy 8 0 mul sub get Lg 1 1 16
+ix = shr sx 4
+iy = shr sy 4
+ix1 = pkmin add ix 1 sub get Lg 0 1
+iy1 = pkmin add iy 1 sub get Lg 1 1
+fx = mul ulong and sx 15 16
+a = ntsrow mul iy get Lg 0 ix ix1 fx
+b = ntsrow mul iy1 get Lg 0 ix ix1 fx
+ret pkmix a b mul ulong and sy 15 16
+end
+fn ntlens1 e long dx long dy long d2 long out long to void
+in = div mul mul e e 484 100
+if lt d2 64
+d2 = 64
+end
+f = div mul mul e e 65536 d2
+if gt d2 in
+w = div mul sub out d2 65536 sub out in
+f = shr mul f shr mul w w 16 16
+end
+put Ntsxy 0 sub get Ntsxy 0 shr mul dx f 16
+put Ntsxy 1 sub get Ntsxy 1 shr mul dy f 16
+end
+fn ntlens0 X long Y long b ulong to void
+e = get Nthole add b 2
+if le e 0
+ret
+end
+dx = sub X get Nthole b
+dy = sub Y get Nthole add b 1
+d2 = add mul dx dx mul dy dy
+out = div mul mul e e 1936 100
+if lt d2 out
+ntlens1 e dx dy d2 out
+end
+end
+fn ntlensat X long Y long to void
+for i ulong get Nthol 0
+ntlens0 X Y mul i 4
+end
+end
+fn ntwrip2 dx long dy long d2 long r16 long i long to void
+q = mul sub mul dx dx mul dy dy get Ntrip 2
+q = add q mul mul 2 mul dx dy get Ntrip 3
+q = div q d2
+m = add 5734 shr mul q 10650 14
+m = shr mul get Ntdisp i m 14
+put Ntsxy 0 sub get Ntsxy 0 div mul m dx r16
+put Ntsxy 1 sub get Ntsxy 1 div mul m dy r16
+put Ntwarp 2 long get Ntlit i
+end
+fn ntwripple X long Y long to void
+dx = sub X add mul get Lg 3 16 8
+dy = sub Y add mul get Lg 4 16 8
+d2 = add mul dx dx mul dy dy
+r16 = long pkisqrt ulong d2
+reach = div mul get Ntrip 1 22 10
+i = add sub shr r16 4 get Ntrip 0 reach
+if gt r16 0
+if and ge i 0 le i mul 2 reach
+if lt i 1024
+ntwrip2 dx dy d2 r16 i
+end
+end
+end
+end
+note ntwarp: where (X, Y) in 16ths samples from: offset in Ntwarp 0 1, ripple light in Ntwarp 2 (night.c warp).
+fn ntwarp X long Y long to void
+put Ntsxy 0 0
+put Ntsxy 1 0
+put Ntwarp 2 0
+ntlensat X Y
+if ne get Ntrip 1 0
+ntwripple X Y
+end
+put Ntwarp 0 get Ntsxy 0
+put Ntwarp 1 get Ntsxy 1
+end
+fn ntfinal c ulong x long y long light ulong to ulong
+if lt get Ntt 0 6800
+c = ntfadepx c x y
+end
+if ne light 0
+ret pkadd c 5663920 light
+end
+ret c
+end
+note ntring: the shadow disc and the ring of a hole of radius rs at distance r (16ths) over c.
+fn ntring c ulong r long rs long to ulong
+c = pkmix c 0 pkcover sub r rs
+ring = pkabs sub r div mul rs 104 100
+a = ulong 0
+if lt ring 22
+a = ulong mul sub 22 ring 6
+end
+if gt r rs
+if lt r div mul rs 3 2
+ring = sub div mul rs 3 2 r
+a = add a ulong div mul ring 46 add div rs 2 1
+end
+end
+ret pkadd c 16770244 a
+end
+fn ntshadow c ulong X long Y long b ulong to ulong
+rs = get Nthole add b 3
+if le rs 0
+ret c
+end
+dx = sub X get Nthole b
+dy = sub Y get Nthole add b 1
+dx = add mul dx dx mul dy dy
+if ge dx div mul mul rs rs 9 4
+ret c
+end
+ret ntring c long pkisqrt ulong dx rs
+end
+note ntnearpx: one pixel next to a hole, exact warp plus the shadow disc and ring (night.c near_px).
+fn ntnearpx x long y long to ulong
+X = add mul x 16 8
+Y = add mul y 16 8
+ntwarp X Y
+c = ntsample add X get Ntwarp 0 add Y get Ntwarp 1
+c = ntfinal c x y ulong get Ntwarp 2
+for i ulong get Nthol 0
+c = ntshadow c X Y mul i 4
+end
+ret c
+end
+fn ntnear1 X long Y long b ulong to bool
+reach = div mul get Nthole add b 3 3 2
+reach = add pkmax get Nthole add b 2 reach 128
+dx = sub X get Nthole b
+dy = sub Y get Nthole add b 1
+ret lt add mul dx dx mul dy dy mul reach reach
+end
+fn ntnearhole x long y long to bool
+x = add mul x 16 8
+y = add mul y 16 8
+for i ulong get Nthol 0
+if ntnear1 x y mul i 4
+ret true
+end
+end
+ret false
+end
+fn ntinrip bx long by long to bool
+if eq get Ntrip 1 0
+ret false
+end
+reach = add div mul get Ntrip 1 22 10 1
+lo = pkmax 0 sub get Ntrip 0 reach
+hi = add get Ntrip 0 reach
+cx = get Lg 3
+cy = get Lg 4
+nx = sub pkclamp cx bx add bx 8 cx
+ny = sub pkclamp cy by add by 8 cy
+if gt add mul nx nx mul ny ny mul hi hi
+ret false
+end
+nx = pkmax pkabs sub bx cx pkabs sub add bx 8 cx
+ny = pkmax pkabs sub by cy pkabs sub add by 8 cy
+ret ge add mul nx nx mul ny ny mul lo lo
+end
+note ntmeetl: does the s x s box at (x, y) meet the lens rect.
+fn ntmeetl x long y long s long to bool
+if ge x add get Ntlens 0 get Ntlens 2
+ret false
+end
+if ge y add get Ntlens 1 get Ntlens 3
+ret false
+end
+if le add x s get Ntlens 0
+ret false
+end
+if le add y s get Ntlens 1
+ret false
+end
+ret true
+end
+note ntdrect: Ntd = (x y w h) ∩ clip ∩ screen as x0 y0 x1 y1; false if empty.
+fn ntdrect x long y long w long h long to bool
+put Ntd 0 pkmax x pkmax 0 get Lg 5
+put Ntd 1 pkmax y pkmax 0 get Lg 6
+x = pkmin get Lg 0 add get Lg 5 get Lg 7
+put Ntd 2 pkmin add x w x
+y = pkmin get Lg 1 add get Lg 6 get Lg 8
+put Ntd 3 pkmin add y h y
+if le get Ntd 2 get Ntd 0
+ret false
+end
+if le get Ntd 3 get Ntd 1
+ret false
+end
+ret true
+end
+note ntbclip: Ntb = (bx by 8 8) clipped to Ntd, as x0 y0 x1 y1; false if empty.
+fn ntbclip bx long by long to bool
+put Ntb 0 pkmax bx get Ntd 0
+put Ntb 1 pkmax by get Ntd 1
+put Ntb 2 pkmin add bx 8 get Ntd 2
+put Ntb 3 pkmin add by 8 get Ntd 3
+if le get Ntb 2 get Ntb 0
+ret false
+end
+if le get Ntb 3 get Ntb 1
+ret false
+end
+ret true
+end
+fn ntnearrow y long to void
+p = mul y get Lg 0
+n = ulong sub get Ntb 2 get Ntb 0
+for i ulong n
+x = add get Ntb 0 long i
+put Nfrm add p x uint ntnearpx x y
+end
+end
+fn ntnearblk to void
+n = ulong sub get Ntb 3 get Ntb 1
+for j ulong n
+ntnearrow add get Ntb 1 long j
+end
+end
+fn ntcorners bx long by long to void
+for c ulong 4
+X = mul add bx mul long and c 1 8 16
+Y = mul add by mul long shr c 1 8 16
+ntwarp X Y
+put Ntcor c get Ntwarp 0
+put Ntcor add c 4 get Ntwarp 1
+put Ntcor add c 8 get Ntwarp 2
+end
+end
+fn ntdot b ulong to long
+s = mul get Ntcor b get Ntwt 0
+s = add s mul get Ntcor add b 1 get Ntwt 1
+s = add s mul get Ntcor add b 2 get Ntwt 2
+s = add s mul get Ntcor add b 3 get Ntwt 3
+ret shr s 8
+end
+fn ntgpx x long y long to ulong
+sx = ntdot 0
+sy = ntdot 4
+l = ulong ntdot 8
+c = ntsample add add mul x 16 8 sx add add mul y 16 8 sy
+ret ntfinal c x y l
+end
+fn ntwts wx long wy long to void
+put Ntwt 0 mul sub 16 wx sub 16 wy
+put Ntwt 1 mul wx sub 16 wy
+put Ntwt 2 mul sub 16 wx wy
+put Ntwt 3 mul wx wy
+end
+fn ntgridrow y long bx long wy long to void
+p = mul y get Lg 0
+n = ulong sub get Ntb 2 get Ntb 0
+for i ulong n
+x = add get Ntb 0 long i
+ntwts add mul 2 sub x bx 1 wy
+put Nfrm add p x uint ntgpx x y
+end
+end
+fn ntgridblk bx long by long to void
+n = ulong sub get Ntb 3 get Ntb 1
+for j ulong n
+y = add get Ntb 1 long j
+ntgridrow y bx add mul 2 sub y by 1
+end
+end
+note ntblock: one 8 x 8 block of the warped base (night.c ck_night_base block loop).
+fn ntblock bx long by long to void
+lens = false
+if ne get Ntlens 2 0
+lens = ntmeetl bx by 8
+end
+if not lens
+if not ntinrip bx by
+ret
+end
+end
+if not ntbclip bx by
+ret
+end
+if lens
+if ntnearhole add bx 4 add by 4
+ntnearblk
+ret
+end
+end
+ntcorners bx by
+ntgridblk bx by
+end
+fn ntblocks to void
+by = sub get Ntd 1 rem get Ntd 1 8
+while lt by get Ntd 3 bound 1024
+bx = sub get Ntd 0 rem get Ntd 0 8
+while lt bx get Ntd 2 bound 1024
+ntblock bx by
+bx = add bx 8
+end
+by = add by 8
+end
+end
+note ntbase: Nsky as seen now into Nfrm, inside (x y w h) ∩ clip (ck_night_base).
+fn ntbase x long y long w long h long to void
+if not ntdrect x y w h
+ret
+end
+fading = lt get Ntt 0 6800
+n = ulong sub get Ntd 3 get Ntd 1
+for i ulong n
+y = add get Ntd 1 long i
+if fading
+ntfrow y get Ntd 0 get Ntd 2
+else
+ntcrow y get Ntd 0 get Ntd 2
+end
+end
+if and eq get Ntlens 2 0 eq get Ntrip 1 0
+ret
+end
+ntblocks
+end
+note ntstarbox: the 2 x 2 pixel box of twinkle star i into Pa 0..3 (x y w h) (ck_night_star_box).
+fn ntstarbox i ulong to void
+put Pa 0 shr sub get Sktw mul i 8 8 4
+put Pa 1 shr sub get Sktw add mul i 8 1 8 4
+put Pa 2 2
+put Pa 3 2
+end
+fn ntholes to ulong
+ret get Nthol 0
+end
+note ntcount: the number of twinkle stars.
+fn ntcount to ulong
+ret get Sktwn 0
+end
+fn ntmeetd x long y long s long to bool
+if ge x get Ntd 2
+ret false
+end
+if ge y get Ntd 3
+ret false
+end
+if le add x s get Ntd 0
+ret false
+end
+if le add y s get Ntd 1
+ret false
+end
+ret true
+end
+fn nttw1 i ulong to void
+ntstarbox i
+if not ntmeetd get Pa 0 get Pa 1 2
+ret
+end
+if ne get Ntlens 2 0
+if ntmeetl get Pa 0 get Pa 1 2
+ret
+end
+end
+b = mul i 8
+per = ulong get Sktw add b 6
+tw = rem add get Ntt 0 ulong get Sktw add b 7 per
+tw = shr ulong add 16384 pksin div mul tw 65536 per 7
+a = shr mul shr mul tw tw 8 120 8
+tw = ntfaded shr get Sktw b 4 shr get Sktw add b 1 4 255
+a = shr mul a tw 8
+sktwink i a
+end
+note ntglpx: one galaxy pixel: Ntg 0 sweep, 1 map base, 2 shimmer, 3 voice, 4 tint.
+fn ntglpx x long row long to void
+p = add get Ntg 1 x
+l = ulong get Skglit p
+if eq l 0
+ret
+end
+a = ulong sub 256 get Ntg 0
+a = and add a ulong get Skgpha p 255
+a = shr mul l ulong get Ntband a 8
+a = shr mul a ulong get Ntg 2 8
+a = add a shr mul shr mul l l 8 ulong get Ntg 3 9
+if ne a 0
+p = add row x
+put Nfrm p uint pkadd ulong get Nfrm p ulong get Ntg 4 a
+end
+end
+fn ntgrow g ulong y long x0 long x1 long to void
+b = mul g 4
+n = ulong sub y get Skgbox add b 1
+n = mul n ulong get Skgbox add b 2
+put Ntg 1 sub long add get Skgoff g n get Skgbox b
+base = mul y get Lg 0
+n = ulong sub x1 x0
+for i ulong n
+ntglpx add x0 long i base
+end
+end
+fn ntgset g ulong shim ulong voice ulong to void
+per = get Skgper g
+put Ntg 0 long div mul rem get Ntt 0 per 256 per
+put Ntg 2 long shim
+put Ntg 3 long voice
+put Ntg 4 long get Skgtint g
+end
+fn ntgal g ulong shim ulong voice ulong to void
+b = mul g 4
+if eq get Skgbox add b 2 0
+ret
+end
+ntgset g shim voice
+x0 = pkmax get Skgbox b get Ntd 0
+y0 = pkmax get Skgbox add b 1 get Ntd 1
+x1 = add get Skgbox b get Skgbox add b 2
+x1 = pkmin x1 get Ntd 2
+y1 = add get Skgbox add b 1 get Skgbox add b 3
+y1 = pkmin y1 get Ntd 3
+if or le x1 x0 le y1 y0
+ret
+end
+for j ulong ulong sub y1 y0
+ntgrow g add y0 long j x0 x1
+end
+end
+note ntlights: twinkles and galaxy glow over the base inside (x y w h) ∩ clip (ck_night_lights).
+fn ntlights x long y long w long h long shim ulong voice ulong to void
+if not ntdrect x y w h
+ret
+end
+for i ulong get Sktwn 0
+nttw1 i
+end
+if and eq shim 0 eq voice 0
+ret
+end
+for g ulong 6
+ntgal g shim voice
+end
+end

@@ -1,6 +1,11 @@
-note Bounded RGB text surface, no device effects. See SURFACE.md.
+note Bounded text surface at native scale. See SURFACE.md. The screens lay out on a logical
+note 768 x 384 grid (Cv); every glyph and fill lands in the native frame Nfrm (look-paint.om) at
+note Cvs[0] native pixels per logical pixel, centred by Cvs[2], Cvs[3]. Glyphs are rasterised at
+note the logical cap height times the scale, so type stays crisp on a 4K panel.
+note Cvs: 0 scale, 1 logical cap, 2 x offset, 3 y offset, 4..7 the clip in native pixels.
 global Canvas uchar 884736
 global Cv ulong 8
+global Cvs ulong 8
 global Cvpose long 2
 fn cvinit w ulong h ulong to bool
 if or eq w 0 gt w 768
@@ -17,15 +22,28 @@ put Cv 1 h
 put Cv 4 w
 put Cv 5 h
 put Cv 6 1
-for i ulong len Canvas
-put Canvas i 0
+for i ulong 8
+put Cvs i 0
 end
-for i ulong mul w h
-at = mul i 3
-put Canvas at 6
-put Canvas add at 1 8
-put Canvas add at 2 18
+put Cvs 0 1
+sw = ulong get Lg 0
+sh = ulong get Lg 1
+if and ge sw w ge sh h
+s = div sw w
+if lt div sh h s
+s = div sh h
 end
+if eq s 0
+s = 1
+end
+put Cvs 0 s
+put Cvs 2 div sub sw mul w s 2
+put Cvs 3 div sub sh mul h s 2
+end
+put Cvs 4 get Cvs 2
+put Cvs 5 get Cvs 3
+put Cvs 6 mul w get Cvs 0
+put Cvs 7 mul h get Cvs 0
 ret true
 end
 fn cvclip x ulong y ulong w ulong h ulong to bool
@@ -45,29 +63,51 @@ put Cv 2 x
 put Cv 3 y
 put Cv 4 w
 put Cv 5 h
+s = get Cvs 0
+put Cvs 4 add mul x s get Cvs 2
+put Cvs 5 add mul y s get Cvs 3
+put Cvs 6 mul w s
+put Cvs 7 mul h s
 ret true
 end
-fn cvblend bg ulong fg ulong a ulong to uchar
+fn cvfont cap ulong wt ulong to bool
+note The face for the following glyphs: cap in logical pixels, rasterised at native size.
+put Cvs 1 cap
+n = mul cap get Cvs 0
+if gt n 64
+n = 64
+end
+ret afinit n wt
+end
+fn cvblend bg ulong fg ulong a ulong to ulong
 v = mul bg sub ulong 255 a
 v = add v mul fg a
-ret uchar div v 255
+ret div v 255
+end
+fn cvin x long y long to bool
+if or lt x long get Cvs 4 lt y long get Cvs 5
+ret false
+end
+if ge x long add get Cvs 4 get Cvs 6
+ret false
+end
+ret lt y long add get Cvs 5 get Cvs 7
+end
+fn cvmixat at ulong a ulong color ulong to void
+note One native pixel of the frame toward color by a/255.
+d = ulong get Nfrm at
+r = cvblend and shr d 16 255 and shr color 16 255 a
+g = cvblend and shr d 8 255 and shr color 8 255 a
+b = cvblend and d 255 and color 255 a
+put Nfrm at uint or or shl r 16 shl g 8 b
 end
 fn cvpixel x long y long a uchar color ulong to void
-if or lt x long get Cv 2 lt y long get Cv 3
+note Native coordinates, held inside the clip.
+if not cvin x y
 ret
 end
-if ge x long add get Cv 2 get Cv 4
-ret
-end
-if ge y long add get Cv 3 get Cv 5
-ret
-end
-at = mul add mul ulong y get Cv 0 ulong x 3
-for k ulong 3
-s = mul sub ulong 2 k 8
-fg = and shr color s 255
-put Canvas add at k cvblend ulong get Canvas add at k fg ulong a
-end
+at = add mul ulong y ulong get Lg 0 ulong x
+cvmixat at ulong a color
 end
 fn cvrow yy ulong color ulong to void
 y = add get Cvpose 1 long yy
@@ -78,8 +118,10 @@ cvpixel px y get Alpha add at x color
 end
 end
 fn cvblit x long y long color ulong to void
-put Cvpose 0 add x get Ab 0
-put Cvpose 1 add y get Ab 1
+note x, y: the glyph's logical origin and baseline; the mask offsets Ab are native already.
+s = long get Cvs 0
+put Cvpose 0 add add mul x s long get Cvs 2 get Ab 0
+put Cvpose 1 add add mul y s long get Cvs 3 get Ab 1
 for yy ulong get Af 4
 cvrow yy color
 end
@@ -104,6 +146,38 @@ if not afglyph c
 ret false
 end
 cvblit x y color
-put Cv 7 get Af 5
+put Cv 7 div get Af 5 get Cvs 0
 ret true
+end
+fn cvfillrow y long x0 long n long a ulong color ulong to void
+for k ulong ulong n
+cvpixel add x0 long k y uchar a color
+end
+end
+fn cvfill x ulong y ulong w ulong h ulong color ulong a ulong to void
+note A logical rectangle mixed toward color by a/255 (255: solid), inside the clip.
+if eq get Cv 6 0
+ret
+end
+if gt x get Cv 0
+ret
+end
+if gt y get Cv 1
+ret
+end
+if gt w sub get Cv 0 x
+ret
+end
+if gt h sub get Cv 1 y
+ret
+end
+if gt a 255
+a = 255
+end
+s = get Cvs 0
+x0 = long add mul x s get Cvs 2
+y0 = long add mul y s get Cvs 3
+for yy ulong mul h s
+cvfillrow add y0 long yy x0 long mul w s a color
+end
 end

@@ -1,0 +1,197 @@
+note tests/look-home.om: drives look-home.om on the C harness's schedule (~/work/IMacLook/home/harness.c) and writes
+note the same regions as P6 PPMs to fd 1, in the harness's order: flashA flashB barA barB wordsC barC wordsD barD.
+note NIGHT's hole radius at the two flash frames is taken from the C harness log (346/417 at 1280, 1066/1285 at 3840).
+note stdin: the harness's <name>-night.ppm files, in that order (the bare night each frame is drawn on).
+note Unit: font-data.om font.om look-paint.om look-night.om look-mind.om look-home.om tio.om tests/look-home.om.
+global Tbg uchar 16384
+global Thead ulong 4
+global Tnow long 1
+text Tsay "Opening the Allen repository on GitHub, aien-dev/aienux. The same code runs on the Spark, so ask me about any file."
+text Ttyped "open allen github repository"
+note reads exactly n bytes from fd 0 into Tbg
+fn tfill n ulong to void
+got = ulong 0
+while lt got n
+r = read 0 Tbg got sub n got
+if le r 0
+trap 2
+end
+got = add got ulong r
+end
+end
+note one P6 header: "P6\n<w> <h>\n255\n" read byte by byte; Thead 1 2 = w h
+fn thead to void
+nl = ulong 0
+v = ulong 0
+k = ulong 0
+while lt nl 4
+tfill 1
+c = get Tbg 0
+if or eq c 10 eq c 32
+if ne k 0
+put Thead nl v
+nl = add nl 1
+end
+v = 0
+k = 0
+else
+if ge c 48
+v = add mul v 10 sub ulong c 48
+k = add k 1
+end
+end
+end
+end
+note one P6 from fd 0 into Nfrm (the frame's size must match Lg 0 1)
+fn tpx p ulong to ulong
+c = shl ulong get Tbg p 16
+c = or c shl ulong get Tbg add p 1 8
+ret or c ulong get Tbg add p 2
+end
+fn trow at ulong w ulong to void
+for i ulong w
+put Nfrm add at i uint tpx mul i 3
+end
+end
+fn tload to void
+thead
+w = get Thead 1
+for j ulong get Thead 2
+tfill mul w 3
+trow mul j w w
+end
+end
+fn tpix c ulong to void
+tc uchar and shr c 16 255
+tc uchar and shr c 8 255
+tc uchar and c 255
+end
+fn tprow at ulong w ulong to void
+for i ulong w
+tpix ulong get Nfrm add at i
+end
+end
+fn tppm x long y long w long h long to void
+tc 80
+tc 54
+tc 10
+tu ulong w
+tc 32
+tu ulong h
+tc 10
+tu 255
+tc 10
+at = add mul ulong y ulong get Lg 0 ulong x
+for j ulong ulong h
+tprow at ulong w
+at = add at ulong get Lg 0
+end
+end
+fn trun upto long to void
+while le get Tnow 0 upto
+hmstep get Tnow 0
+put Tnow 0 add get Tnow 0 16
+end
+end
+note draws the frame last stepped on the bare night from stdin, and writes the region
+fn tdump x long y long w long h long to void
+tload
+hmflash 0 0 get Lg 0 get Lg 1
+hmtext 0 0 get Lg 0 get Lg 1
+tppm x y w h
+end
+note the regions the C harness dumps: the flash box, the bar box (Hm 28..31) and the words box of lay_out
+fn tflash to void
+r = add shr hmfrad get Hm 12 4 2
+x = sub get Lg 3 r
+y = sub get Lg 4 r
+r = add mul 2 r 1
+tppm x y r r
+end
+fn tbar to void
+tppm get Hm 28 get Hm 29 get Hm 30 get Hm 31
+end
+fn twords to void
+x = sub sub get Lg 3 hms 450 hms 8
+y = sub add get Lg 4 hms 250 hms 34
+w = add hms 900 hms 16
+h = add mul 5 hms 40 hms 30
+tppm x y w h
+end
+fn tdraw to void
+hmflash 0 0 get Lg 0 get Lg 1
+hmtext 0 0 get Lg 0 get Lg 1
+end
+fn main to long
+note the first night file gives the size (all frames share it): Lg 0 1 are only placeholders for its load
+put Lg 0 1280
+put Lg 1 800
+tload
+put Lg 0 long get Thead 1
+put Lg 1 long get Thead 2
+kw = div mul get Lg 0 256 1920
+kh = div mul get Lg 1 256 1080
+put Lg 2 pkmin kw kh
+put Lg 3 div get Lg 0 2
+put Lg 4 div mul get Lg 1 40 100
+pkinit
+hminit
+put Tnow 0 0
+put Nthol 0 1
+put Nthole 0 add mul get Lg 3 16 8
+put Nthole 1 add mul get Lg 4 16 8
+trun 12100
+put Nthole 3 346
+if ne get Lg 0 1280
+put Nthole 3 1066
+end
+tdraw
+tflash
+trun 12290
+put Nthole 3 417
+if ne get Lg 0 1280
+put Nthole 3 1285
+end
+tload
+tdraw
+tflash
+put Nthol 0 0
+trun 16500
+tload
+tdraw
+tbar
+for i ulong len Ttyped
+hmkey ulong get Ttyped i
+trun add get Tnow 0 120
+end
+tload
+tdraw
+tbar
+trun 20500
+hmkey 13
+hmthink 1
+trun 23500
+for i ulong len Tsay
+put Hmsay i get Tsay i
+end
+put Hmsayn 0 len Tsay
+hmsaid
+speak = add get Tnow 0 400
+n = long len Tsay
+trun add speak div mul n 35 2
+tload
+tdraw
+twords
+tload
+tdraw
+tbar
+trun add add speak mul n 35 500
+tload
+tdraw
+twords
+tload
+tdraw
+tbar
+tflush
+ret 0
+end
