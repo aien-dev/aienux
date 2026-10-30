@@ -391,6 +391,18 @@ SMP_TEST_FLAGS := -DCK_TEST_SMP_SKIP_CPU=1
 else
 SMP_TEST_FLAGS :=
 endif
+CK_B7B_PROBE ?=
+CK_B7B_EVENT_READOUT ?=
+ifneq ($(strip $(CK_B7B_EVENT_READOUT)),)
+ifneq ($(strip $(CK_B7B_EVENT_READOUT)),1)
+$(error CK_B7B_EVENT_READOUT must be empty or 1)
+endif
+ifneq ($(strip $(CK_B7B_PROBE)),1)
+$(error CK_B7B_EVENT_READOUT requires CK_B7B_PROBE=1)
+endif
+OUT ?= $(REPO)/target/native-kernel-b7b-events
+SMP_TEST_FLAGS += -DCK_B7B_EVENT_READOUT=1
+endif
 # B7b preparation probe (aienos#286, core/smmu_svc.c): CK_B7B_PROBE=1 builds an
 # image that confines PCI segment 15 requester 0x100 (the Spark's GB10) once on
 # a one-page window, prints the route and SMMU_IDR0/IDR1, and unconfines. Own
@@ -399,7 +411,6 @@ endif
 # (TEST-ONLY, needs CK_B7B_PROBE=1) probes segment 0 for the QEMU positive path
 # and is refused with CK_HARDWARE_STAGING. Default images are checked to carry
 # no probe (b7b_check). Gate: scripts/qemu_ck_b7b_probe_test.sh.
-CK_B7B_PROBE ?=
 CK_B7B_PROBE_TEST_SEGMENT0 ?=
 ifneq ($(strip $(CK_B7B_PROBE_TEST_SEGMENT0)),)
 ifneq ($(strip $(CK_B7B_PROBE_TEST_SEGMENT0)),1)
@@ -1231,6 +1242,11 @@ define b7b_check
 	else \
 	  if grep -aqF "TEST-ONLY B7b probe" $(1); then echo "image carries the TEST-ONLY segment-0 probe"; rm -f $(1); exit 1; fi; \
 	fi
+	@if [ "$(strip $(CK_B7B_EVENT_READOUT))" = 1 ]; then \
+	  grep -aqF "b7b_events: final begin all_sids=yes" $(1) || { echo "B7b image lacks event readout"; rm -f $(1); exit 1; }; \
+	else \
+	  if grep -aqF "b7b_events:" $(1); then echo "image carries unrequested event readout"; rm -f $(1); exit 1; fi; \
+	fi
 endef
 
 # crash_check(elf): a full image built without CK_TEST_STORE_CRASH must carry
@@ -1466,7 +1482,8 @@ iort-mutants: $(OUT)/host/test_smmu
 # UNGRANTED_VALID: L1STDs valid before any grant; BAD_L1_PTR: misaligned L1
 # table accepted; L2_NO_FILL: a new L2 page published without abort STEs).
 # Host only (smmu.c refuses them freestanding and with CK_HARDWARE_STAGING).
-SMMU_L2_MUTANTS := CK_SMMU_MUTANT_SPAN_OVERFLOW CK_SMMU_MUTANT_UNGRANTED_VALID CK_SMMU_MUTANT_BAD_L1_PTR CK_SMMU_MUTANT_L2_NO_FILL
+# Also kills DROP_EVENT: consuming the queue without visiting its records.
+SMMU_L2_MUTANTS := CK_SMMU_MUTANT_SPAN_OVERFLOW CK_SMMU_MUTANT_UNGRANTED_VALID CK_SMMU_MUTANT_BAD_L1_PTR CK_SMMU_MUTANT_L2_NO_FILL CK_SMMU_MUTANT_DROP_EVENT
 smmu-l2-mutants: $(OUT)/host/test_smmu
 	@mkdir -p $(OUT)/host-mut; fail=0; \
 	$(OUT)/host/test_smmu > $(OUT)/host-mut/smmu-l2-base.log 2>&1 || { echo "unmutated test_smmu fails"; fail=1; }; \
