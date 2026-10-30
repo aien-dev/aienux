@@ -87,14 +87,26 @@ static int run(char **argv, bool with_prefix, bool quiet_stderr, char *out, size
         _exit(127);
     }
     close(fds[1]);
+    if (cap == 0) fail("empty capture buffer", NULL);
     size_t len = 0;
-    for (ssize_t got; len + 1 < cap && (got = read(fds[0], out + len, cap - 1 - len)) > 0;) len += (size_t)got;
+    bool overflow = false;
     char drain[256];
-    while (read(fds[0], drain, sizeof drain) > 0) {}
+    for (;;) {
+        bool full = len + 1 == cap;
+        ssize_t got = read(fds[0], full ? drain : out + len,
+                           full ? sizeof drain : cap - 1 - len);
+        if (got < 0 && errno == EINTR) continue;
+        if (got < 0) fail("read probe output", strerror(errno));
+        if (got == 0) break;
+        if (full) overflow = true;
+        else len += (size_t)got;
+    }
     close(fds[0]);
     out[len] = 0;
     int status;
-    if (waitpid(pid, &status, 0) < 0) fail("waitpid", strerror(errno));
+    while (waitpid(pid, &status, 0) < 0)
+        if (errno != EINTR) fail("waitpid", strerror(errno));
+    if (overflow) fail("probe output exceeds capture limit", full[0]);
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }
 
@@ -130,8 +142,54 @@ typedef struct {
 static result results[MAX_CASES];
 static int nresults;
 
+static bool logit_lengths_ok(size_t a, size_t b, size_t vocab) {
+    return vocab != 0 && vocab <= SIZE_MAX / 4 && a == vocab * 4 && b == a;
+}
+
+/* These negative controls require no weights or model runtime. An empty/short
+ * pair must not qualify, nor may capture silently hide a probe's trailing output. */
+static int self_test(void) {
+    static const struct { size_t a, b, vocab; bool ok; } sizes[] = {
+        { 0, 0, 512, false }, { 4, 4, 512, false },
+        { 2044, 2044, 512, false }, { 2049, 2049, 512, false },
+        { 2048, 2044, 512, false }, { 2048, 2048, 512, true },
+        { 128000, 128000, 32000, true }, { 0, 0, SIZE_MAX, false },
+    };
+    unsigned checks = 0;
+    for (size_t i = 0; i < sizeof sizes / sizeof *sizes; i++) {
+        if (logit_lengths_ok(sizes[i].a, sizes[i].b, sizes[i].vocab) != sizes[i].ok)
+            fail("self-test: incomplete logits accepted or valid logits refused", NULL);
+        checks++;
+    }
+    static const struct { const char *cmd; int status; } captures[] = {
+        { "head -c 0 /dev/zero", 0 }, { "head -c 31 /dev/zero", 0 },
+        { "head -c 32 /dev/zero", 1 }, { "head -c 4096 /dev/zero", 1 },
+    };
+    for (size_t i = 0; i < sizeof captures / sizeof *captures; i++) {
+        pid_t pid = fork();
+        if (pid < 0) fail("self-test fork", strerror(errno));
+        if (pid == 0) {
+            int fd = open("/dev/null", O_WRONLY);
+            if (fd < 0 || dup2(fd, 2) < 0) _exit(2);
+            close(fd);
+            char out[32];
+            char *args[] = { (char *)"sh", (char *)"-c", (char *)captures[i].cmd, NULL };
+            _exit(run(args, false, false, out, sizeof out));
+        }
+        int status;
+        while (waitpid(pid, &status, 0) < 0)
+            if (errno != EINTR) fail("self-test waitpid", strerror(errno));
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != captures[i].status)
+            fail("self-test: capture boundary was not enforced", captures[i].cmd);
+        checks++;
+    }
+    printf("LOCAL_MODEL_CHECKER_SELF_TEST: PASS checks=%u\n", checks);
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 2) { fputs("usage: check_local_model EVIDENCE_DIR\n", stderr); return 2; }
+    if (argc == 2 && !strcmp(argv[1], "--self-test")) return self_test();
+    if (argc != 2) { fputs("usage: check_local_model EVIDENCE_DIR | --self-test\n", stderr); return 2; }
     root = realpath(argv[1], NULL);
     if (!root) fail("no such directory", argv[1]);
     struct utsname un;
@@ -182,7 +240,8 @@ int main(int argc, char **argv) {
 
         size_t alen, blen;
         uint8_t *ab = slurp(omega_out, &alen), *bb = slurp(ref_out, &blen);
-        if (alen != blen || alen % 4) fail("logit files differ in length", r->name);
+        size_t vocab = !strcmp(cases[c].model, "stories260K") ? 512 : 32000;
+        if (!logit_lengths_ok(alen, blen, vocab)) fail("logit files must contain the full vocabulary", r->name);
         const float *a = (const float *)(void *)ab, *b = (const float *)(void *)bb;
         for (size_t i = 0; i < alen / 4; i++)
             if (!isfinite(a[i]) || !isfinite(b[i])) fail("non-finite logit", r->name);

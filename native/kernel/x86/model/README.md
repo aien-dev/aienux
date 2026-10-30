@@ -46,3 +46,5 @@ The host oracle checks exact greedy IDs and every final logit against an indepen
 A deployable image uses `CK_LOCAL_MODEL=1`, `CK_LOCAL_MODEL_FILE`, `CK_LOCAL_TOKENIZER_FILE`, `CK_LOCAL_TEST=0`, and the same owner-key/lab flags as the current iMac. It has a distinct `-MODEL.EFI` output. The approximately 62 MB image fits the existing 64 MiB signed network-loader limit. Stage with `scripts/ck_imac_netboot_push.sh`; keep the previous image for rollback. Apple firmware must start the existing network booter before it can receive the queued image. A queued image, emulator result, or unauthenticated diagnostic alone does not prove physical execution.
 
 Physical CPU timing and GPU inference are separate qualification steps. This experiment has no GPU kernels or Radeon compute-driver qualification. Full repository strict validation is also separate from these targeted checks.
+
+The host checker also has a weight-free boundary test: `bash scripts/check_local_model.sh --self-test`. It rejects empty or incomplete vocabulary logits and probe output that exceeds its capture buffer.
