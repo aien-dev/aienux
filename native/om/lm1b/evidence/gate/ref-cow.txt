@@ -1,0 +1,25 @@
+arch: llama
+tensor_types: {"F32": 34, "Q4_K": 96, "Q6_K": 17}
+params: layers=16 embd=2048 heads=32 kv_heads=8 ff=8192 vocab=128256 rope_base=500000 ctx=131072 tied_output=true
+gguf_eos_id: Some(128009) bos_id: Some(128000)
+prompt_ids: 19
+dot: f32
+prefill_us: 10869313
+step 0 12379
+bits 0 1104246371
+step 1 10539
+bits 1 1104525585
+step 2 63162
+bits 2 1104205313
+step 3 320
+bits 3 1103045896
+step 4 7489
+bits 4 1102478266
+step 5 54
+bits 5 1102969294
+step 6 8
+bits 6 1105305305
+step 7 374
+bits 7 1103017353
+mean_tok_us: 714098.7
+tok_per_s: 1.400
