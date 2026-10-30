@@ -18,10 +18,12 @@ mkdir -p "$out"
 cross=""; [[ $(uname -m) = x86_64 ]] || cross=x86_64-linux-gnu-
 make -s -j4 -C native/kernel X86_CROSS="$cross" OUT="$out/build" CK_LOCAL_TEST=1 imac-kernel
 cargo build -q -p allen-courier
+${HOSTCC:-cc} -std=c11 -D_DEFAULT_SOURCE -O2 -Wall -Wextra -Werror \
+    -o "$out/local_tools_model_oracle" native/kernel/x86/tests/local_tools_model_oracle.c
 for cpu in qemu64 max; do
     run="$out/$cpu-courier"; mkdir -p "$run"
     rm -f "$run/oracle-port.txt" "$run/oracle-pass.txt" "$run/oracle-failure.txt" "$run/wire.sock"
-    python3 scripts/local_tools_model_oracle.py "$run" >"$run/oracle.log" 2>&1 &
+    "$out/local_tools_model_oracle" "$run" >"$run/oracle.log" 2>&1 &
     oracle_pid=$!
     for ((i=0;i<100;i++)); do [[ ! -f "$run/oracle-port.txt" ]] || break; sleep .1; done
     port=$(cat "$run/oracle-port.txt")
