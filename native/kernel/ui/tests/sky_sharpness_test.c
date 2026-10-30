@@ -95,16 +95,47 @@ int main(int argc, char **argv)
 #else
     if (ck_night_init(&n,W,H,512,W/2,864,mem,bytes)) return 2;
 #endif
-    /* Every native pixel, including all off-quarter-grid positions. */
+    /* Diffuse oracle. Every native pixel, including all off-quarter-grid
+     * positions, of a DIRECT ck_sky_draw_milkyway render must equal the
+     * independent per-pixel reference. This is the renderer contract and is
+     * separate from the UI policy below. */
     for (int y = 0; y < H; y++)
         for (int x = 0; x < W; x++) expected[(size_t)y*W+x] = reference(&n.view,x,y);
     ck_night_star tw[CK_NIGHT_TWINKLES];
     unsigned ntw;
-    TEST_DRAW_STARS(&ref,512,W/2,864,&n.view,tw,CK_NIGHT_TWINKLES,&ntw);
     unsigned mismatch = 0;
+#ifdef CK_SKY_BASELINE
+    /* The pinned rejected source composed fog into n.sky and has no direct
+     * renderer entry point; keep its historical contract. */
+    TEST_DRAW_STARS(&ref,512,W/2,864,&n.view,tw,CK_NIGHT_TWINKLES,&ntw);
     for (size_t i = 0; i < (size_t)W*H; i++) mismatch += expected[i] != n.sky[i];
     check(!mismatch,"native frame versus direct source samples (mismatched pixels)",mismatch);
     crop(dir,"native-map",n.sky,W/2,864);
+#else
+    ck_sky_draw_milkyway(&cv,W/2,864,&n.view);
+    for (size_t i = 0; i < (size_t)W*H; i++) mismatch += expected[i] != pixels[i];
+    check(!mismatch,"direct milkyway render versus direct source samples (mismatched pixels)",mismatch);
+    crop(dir,"native-map",pixels,W/2,864);
+    /* UI policy: the sky behind Allen is catalogue stars on black, with no
+     * diffuse fog, immediately after init and after a view change. */
+    memset(expected,0,(size_t)W*H*4);
+    TEST_DRAW_STARS(&ref,512,W/2,864,&n.view,tw,CK_NIGHT_TWINKLES,&ntw);
+    mismatch = 0;
+    for (size_t i = 0; i < (size_t)W*H; i++) mismatch += expected[i] != n.sky[i];
+    check(!mismatch,"clear sky after init is catalogue stars on black (mismatched pixels)",mismatch);
+    memcpy(pixels,n.sky,(size_t)W*H*4);
+    ck_sky_view original = n.view, other;
+    ck_sky_view_at(&other,200000000,30000000,80000,0);
+    ck_night_view(&n,&other);
+    memset(expected,0,(size_t)W*H*4);
+    TEST_DRAW_STARS(&ref,512,W/2,864,&n.view,tw,CK_NIGHT_TWINKLES,&ntw);
+    mismatch = 0;
+    for (size_t i = 0; i < (size_t)W*H; i++) mismatch += expected[i] != n.sky[i];
+    check(!mismatch,"clear sky after view change is catalogue stars on black (mismatched pixels)",mismatch);
+    check(memcmp(&n.view,&other,sizeof other)==0 && memcmp(pixels,n.sky,(size_t)W*H*4)!=0,"view change applied and moved the stars",0);
+    ck_night_view(&n,&original);
+    memset(pixels,0,(size_t)W*H*4);
+#endif
     /* Pick the brightest real visible catalogue star, retaining its exact
      * subpixel projection, magnitude, colour and twinkle schedule. */
     unsigned selected = ck_sky_nstars;

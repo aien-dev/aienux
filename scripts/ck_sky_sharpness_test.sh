@@ -46,7 +46,9 @@ cp "$WORK/$K/ui/night.c" "$WORK/night.clean"
 # Mutate copies, never the checkout. Historical cubic lobes and quarter
 # screen grid are taken verbatim from the rejected pinned source. Each
 # independent defect must be rejected, as must suppressing the point layer.
-for control in static-bloom dynamic-bloom quarter-grid invisible; do
+# init-fog and view-fog reintroduce the diffuse Milky Way into the UI sky in
+# ck_night_init and ck_night_view; each must fail its own clear-sky assertion.
+for control in static-bloom dynamic-bloom quarter-grid invisible init-fog view-fog; do
     cp "$WORK/sky.clean" "$WORK/$K/ui/sky_real.c"
     cp "$WORK/night.clean" "$WORK/$K/ui/night.c"
     python3 - "$WORK/$K/ui" "$control" <<'PY'
@@ -102,6 +104,14 @@ elif control == 'invisible':
         '        point_add(cv, &all, x16, y16, core * 0, col);')
     sky = replace_once(sky,'    point_add(cv, clip, s->x, s->y, (uint64_t)s->peak * amount >> 8, s->col);',
         '    point_add(cv, clip, s->x, s->y, (uint64_t)s->peak * amount * 0, s->col);')
+elif control == 'init-fog':
+    night = replace_once(night,'    ck_sky_draw_stars(&cv, cx, cy, &n->view,',
+        '    ck_sky_draw_milkyway(&cv, cx, cy, &n->view);\n'
+        '    ck_sky_draw_stars(&cv, cx, cy, &n->view,')
+elif control == 'view-fog':
+    night = replace_once(night,'    ck_sky_draw_stars(&cv, n->cx, n->cy, &n->view,',
+        '    ck_sky_draw_milkyway(&cv, n->cx, n->cy, &n->view);\n'
+        '    ck_sky_draw_stars(&cv, n->cx, n->cy, &n->view,')
 (root/'sky_real.c').write_text(sky)
 (root/'night.c').write_text(night)
 PY
@@ -109,6 +119,18 @@ PY
     status=0
     "$WORK/test" > "$OUT/control-$control.log" || status=$?
     [ "$status" = 1 ] || { echo "SKY_SHARPNESS: FAIL control $control returned $status, expected rejection"; exit 1; }
+    # The fog controls are rejected by their own assertion only.
+    case $control in
+    init-fog) own="clear sky after init"; other="clear sky after view change" ;;
+    view-fog) own="clear sky after view change"; other="clear sky after init" ;;
+    *) own=; other= ;;
+    esac
+    if [ -n "$own" ]; then
+        grep -q "^FAIL $own " "$OUT/control-$control.log" &&
+            grep -q "^PASS $other " "$OUT/control-$control.log" &&
+            grep -q "^PASS direct milkyway render " "$OUT/control-$control.log" || {
+            echo "SKY_SHARPNESS: FAIL control $control was not rejected by its own assertion ($own)"; exit 1; }
+    fi
     echo "PASS rejected control: $control (details $OUT/control-$control.log)"
 done
 echo "AIENOS_SKY_SHARPNESS: PASS"
