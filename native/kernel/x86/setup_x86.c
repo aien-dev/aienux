@@ -158,7 +158,9 @@ static void begin(void)
         return;
     pending = 0;
     t0 = ck_rdtsc();
-    sw_start(&wiz, &inv, wire != 0, saved_n ? text : 0, saved_n, now_ms());
+    /* courier 0: this build sends no key test, so the wizard says so at the
+     * pick and never opens the key screen to type a secret that cannot be used */
+    sw_start(&wiz, &inv, 0, saved_n ? text : 0, saved_n, now_ms());
     said = gen = ~0u;
     events();
     show();
