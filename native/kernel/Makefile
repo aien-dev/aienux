@@ -865,9 +865,11 @@ endif
 # a fixed script of launches with valid, missing and refused realization receipts instead of the C3-3a script.
 # TEST ONLY, QEMU only.
 # The post-admission code byte flip (variant 3, ck_osc_receipt_test_code_flip in
-# core/osc_admit.c) is compiled only here. Empty by default. Refused in a
-# release build (no CK_SEED0B_TEST_ANCHOR), with CK_HARDWARE_STAGING and with
-# CK_SERVICE. core/osc_admit.c #errors on the same combinations for a direct -D.
+# core/osc_admit.c) is compiled only here, and only with its own opt-in
+# -DCK_OSC_RECEIPT_CODE_FLIP=1. Empty by default. -DCK_SEED0B_TEST_ANCHOR does
+# not enable it. Refused in a release build (no CK_SEED0B_TEST_ANCHOR), with
+# CK_HARDWARE_STAGING and with CK_SERVICE. core/osc_admit.c #errors on the same
+# combinations, and also when the receipt-test define arrives without the opt-in.
 CK_OSC_RECEIPT_TEST ?=
 ifeq ($(strip $(CK_OSC_RECEIPT_TEST)),1)
 ifneq ($(strip $(CK_HARDWARE_STAGING)),)
@@ -882,7 +884,7 @@ endif
 ifneq ($(strip $(CK_OSC_LAUNCH_TEST)),1)
 $(error CK_OSC_RECEIPT_TEST needs CK_OSC_LAUNCH_TEST=1)
 endif
-ART_TRUST_FLAGS += -DCK_OSC_RECEIPT_TEST=1
+ART_TRUST_FLAGS += -DCK_OSC_RECEIPT_TEST=1 -DCK_OSC_RECEIPT_CODE_FLIP=1
 endif
 # OSH-AIENOS-0: the shell-core self-test (core/osh_test.c) runs the three osh units over embedded fixture scripts and
 # prints the step trace. TEST ONLY, QEMU only; not combined with the launch self-test.
@@ -924,6 +926,12 @@ KCFLAGS := -std=gnu11 -O2 -Wall -Wextra -Werror -ffreestanding -nostdlib -fno-bu
 	-fno-stack-protector -fno-tree-loop-distribute-patterns -mstrict-align \
 	-mgeneral-regs-only -mno-outline-atomics -fno-asynchronous-unwind-tables -fpie \
 	-fvisibility=hidden -fno-plt $(KINC) $(SMP_TEST_FLAGS) -DCK_FB_HOLD_S=$(CK_FB_HOLD_S) $(CK_EXTRA_CFLAGS)
+# After CK_EXTRA_CFLAGS. gcc keeps the last -D/-U, so a -U in extra cflags
+# cannot drop this. Set on every build that is not the qualification anchor.
+# Nothing else reads it. osc_admit.c #errors if the code flip is combined with it.
+ifeq ($(strip $(CK_SEED0B_TEST_ANCHOR)),)
+KCFLAGS += -DCK_RELEASE_IMAGE=1
+endif
 KLDFLAGS := -nostdlib -pie --no-dynamic-linker -z norelro -z noexecstack -z max-page-size=4096 --no-warn-rwx-segments \
 	-T $(BOOT)/image.ld
 
@@ -1158,7 +1166,7 @@ $(KOBJ)/kernel/core/artifact_loader.o: $(KDIR)/core/artifact_loader.c $(HDRS) $(
 
 $(KOBJ)/kernel/core/osc_admit.o: $(KDIR)/core/osc_admit.c $(HDRS) $(ART_HDRS) $(OUT)/trust.stamp
 	@mkdir -p $(dir $@)
-	$(KCC) $(KCFLAGS) $(ART_TRUST_FLAGS) $(if $(strip $(CK_HARDWARE_STAGING)),-DCK_HARDWARE_STAGING=1,) $(if $(filter 1,$(strip $(CK_SERVICE))),-DCK_SERVICE=1,) -c -o $@ $<
+	$(KCC) $(KCFLAGS) $(ART_TRUST_FLAGS) $(if $(strip $(CK_HARDWARE_STAGING)),-DCK_HARDWARE_STAGING=1,) $(if $(filter 1,$(strip $(CK_SERVICE))),-DCK_SERVICE=1,) $(if $(filter 1,$(strip $(CK_SEED0B_TEST_ANCHOR))),,-DCK_RELEASE_IMAGE=1) -c -o $@ $<
 
 # core/osh_op.c refuses to build without CK_OSH_OP_TEST (and with CK_HARDWARE_STAGING): it takes the trust flags too.
 $(KOBJ)/kernel/core/osh_op.o: $(KDIR)/core/osh_op.c $(KDIR)/core/osh_op.h $(HDRS) $(OUT)/trust.stamp
@@ -1682,46 +1690,72 @@ $(OUT)/host/test_osc_receipt_release: $(KDIR)/tests/test_osc_receipt.c $(KDIR)/c
 osc-receipt-release: $(OUT)/host/test_osc_receipt_release
 	@$<
 
-# The code byte flip must be absent from a default object and from a launch
-# self-test object, present in a CK_OSC_RECEIPT_TEST object, and refused by
-# the compiler and by make for a release build, CK_HARDWARE_STAGING and CK_SERVICE.
+# The code byte flip must be absent from a default object, a seed-anchor object
+# and a launch self-test object. It is present only with CK_OSC_RECEIPT_CODE_FLIP
+# (which also requires CK_OSC_RECEIPT_TEST). The compiler refuses the receipt-test
+# define without that opt-in, the opt-in alone, and the opt-in together with
+# CK_RELEASE_IMAGE, CK_HARDWARE_STAGING, CK_SERVICE, or a release build (no seed
+# anchor). make refuses the make variable for a release build, CK_HARDWARE_STAGING
+# and CK_SERVICE.
 OSC_FLIP_CC := $(HOSTCC) $(HCFLAGS) $(ART_HOST_INC) -I$(KDIR)/include
 OSC_FLIP_SRC := $(KDIR)/core/osc_admit.c
+OSC_FLIP_OPT := -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -DCK_OSC_RECEIPT_TEST=1 -DCK_OSC_RECEIPT_CODE_FLIP=1
 osc-code-flip-guard:
 	@mkdir -p $(OUT)/host-mut; fail=0; \
 	def=$(OUT)/host-mut/osc_admit_default.o; \
 	lau=$(OUT)/host-mut/osc_admit_launch.o; \
+	seed=$(OUT)/host-mut/osc_admit_seed.o; \
 	rcp=$(OUT)/host-mut/osc_admit_receipt.o; \
 	log=$(OUT)/host-mut/osc_flip_guard.log; \
 	if ! $(OSC_FLIP_CC) -c -o $$def $(OSC_FLIP_SRC); then echo "default osc_admit.c failed to compile (FAIL)"; fail=1; \
 	elif grep -aqF "TEST-ONLY post-admission code byte flip" $$def || nm $$def | grep -q ck_osc_receipt_test_code_flip; then \
 	  echo "default osc_admit.o contains the code byte flip (FAIL)"; fail=1; \
 	else echo "default osc_admit.o has no code byte flip"; fi; \
+	if ! $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -c -o $$seed $(OSC_FLIP_SRC); then \
+	  echo "seed-anchor osc_admit.c failed to compile (FAIL)"; fail=1; \
+	elif grep -aqF "TEST-ONLY post-admission code byte flip" $$seed || nm $$seed | grep -q ck_osc_receipt_test_code_flip; then \
+	  echo "CK_SEED0B_TEST_ANCHOR object contains the code byte flip (FAIL)"; fail=1; \
+	else echo "CK_SEED0B_TEST_ANCHOR object has no code byte flip"; fi; \
 	if ! $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -c -o $$lau $(OSC_FLIP_SRC); then \
 	  echo "launch-test osc_admit.c failed to compile (FAIL)"; fail=1; \
 	elif grep -aqF "TEST-ONLY post-admission code byte flip" $$lau || nm $$lau | grep -q ck_osc_receipt_test_code_flip; then \
 	  echo "CK_OSC_LAUNCH_TEST object contains the code byte flip (FAIL)"; fail=1; \
 	else echo "CK_OSC_LAUNCH_TEST object has no code byte flip"; fi; \
-	if ! $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -DCK_OSC_RECEIPT_TEST=1 -c -o $$rcp $(OSC_FLIP_SRC); then \
+	if $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -DCK_OSC_RECEIPT_TEST=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "seed anchor plus CK_OSC_RECEIPT_TEST compiled the flip without CK_OSC_RECEIPT_CODE_FLIP (FAIL)"; fail=1; \
+	elif ! grep -qF "CK_SEED0B_TEST_ANCHOR does not enable the post-admission code byte flip" $$log; then \
+	  echo "missing-opt-in refusal did not name CK_SEED0B_TEST_ANCHOR (FAIL)"; cat $$log; fail=1; \
+	else echo "CK_OSC_RECEIPT_TEST with only the seed anchor refused"; fi; \
+	if ! $(OSC_FLIP_CC) $(OSC_FLIP_OPT) -c -o $$rcp $(OSC_FLIP_SRC); then \
 	  echo "receipt-test osc_admit.c failed to compile (FAIL)"; fail=1; \
 	elif ! grep -aqF "TEST-ONLY post-admission code byte flip" $$rcp || ! nm $$rcp | grep -q ck_osc_receipt_test_code_flip; then \
-	  echo "CK_OSC_RECEIPT_TEST object lacks the code byte flip (FAIL)"; fail=1; \
-	else echo "CK_OSC_RECEIPT_TEST object contains the code byte flip"; fi; \
-	if $(OSC_FLIP_CC) -DCK_OSC_RECEIPT_TEST=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
-	  echo "release build accepted CK_OSC_RECEIPT_TEST (FAIL)"; fail=1; \
+	  echo "CK_OSC_RECEIPT_CODE_FLIP object lacks the code byte flip (FAIL)"; fail=1; \
+	else echo "CK_OSC_RECEIPT_CODE_FLIP object contains the code byte flip"; fi; \
+	if $(OSC_FLIP_CC) -DCK_OSC_RECEIPT_CODE_FLIP=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "opt-in alone compiled (FAIL)"; fail=1; \
+	elif ! grep -qF "requires CK_OSC_RECEIPT_TEST" $$log; then \
+	  echo "opt-in-alone refusal did not require CK_OSC_RECEIPT_TEST (FAIL)"; cat $$log; fail=1; \
+	else echo "CK_OSC_RECEIPT_CODE_FLIP alone refused"; fi; \
+	if $(OSC_FLIP_CC) -DCK_OSC_RECEIPT_TEST=1 -DCK_OSC_RECEIPT_CODE_FLIP=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "release build accepted the code byte flip (FAIL)"; fail=1; \
 	elif ! grep -qF "cannot be compiled into a release build" $$log; then \
 	  echo "release refusal did not name the release build (FAIL)"; cat $$log; fail=1; \
-	else echo "CK_OSC_RECEIPT_TEST refused in a release build"; fi; \
-	if $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -DCK_OSC_RECEIPT_TEST=1 -DCK_HARDWARE_STAGING=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
-	  echo "CK_HARDWARE_STAGING accepted CK_OSC_RECEIPT_TEST (FAIL)"; fail=1; \
-	elif ! grep -qF "cannot be combined with CK_HARDWARE_STAGING" $$log; then \
+	else echo "code byte flip refused in a release build"; fi; \
+	if $(OSC_FLIP_CC) $(OSC_FLIP_OPT) -DCK_RELEASE_IMAGE=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "CK_RELEASE_IMAGE accepted the code byte flip (FAIL)"; fail=1; \
+	elif ! grep -qF "production or release define is present: CK_RELEASE_IMAGE" $$log; then \
+	  echo "CK_RELEASE_IMAGE refusal did not name CK_RELEASE_IMAGE (FAIL)"; cat $$log; fail=1; \
+	else echo "code byte flip refused with CK_RELEASE_IMAGE"; fi; \
+	if $(OSC_FLIP_CC) $(OSC_FLIP_OPT) -DCK_HARDWARE_STAGING=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "CK_HARDWARE_STAGING accepted the code byte flip (FAIL)"; fail=1; \
+	elif ! grep -qF "production or release define is present: CK_HARDWARE_STAGING" $$log; then \
 	  echo "hardware-staging refusal did not name CK_HARDWARE_STAGING (FAIL)"; cat $$log; fail=1; \
-	else echo "CK_OSC_RECEIPT_TEST refused with CK_HARDWARE_STAGING"; fi; \
-	if $(OSC_FLIP_CC) -DCK_SEED0B_TEST_ANCHOR=1 -DCK_OSC_LAUNCH_TEST=1 -DCK_OSC_RECEIPT_TEST=1 -DCK_SERVICE=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
-	  echo "CK_SERVICE accepted CK_OSC_RECEIPT_TEST (FAIL)"; fail=1; \
-	elif ! grep -qF "cannot be combined with CK_SERVICE" $$log; then \
+	else echo "code byte flip refused with CK_HARDWARE_STAGING"; fi; \
+	if $(OSC_FLIP_CC) $(OSC_FLIP_OPT) -DCK_SERVICE=1 -fsyntax-only $(OSC_FLIP_SRC) >$$log 2>&1; then \
+	  echo "CK_SERVICE accepted the code byte flip (FAIL)"; fail=1; \
+	elif ! grep -qF "production or release define is present: CK_SERVICE" $$log; then \
 	  echo "service refusal did not name CK_SERVICE (FAIL)"; cat $$log; fail=1; \
-	else echo "CK_OSC_RECEIPT_TEST refused with CK_SERVICE"; fi; \
+	else echo "code byte flip refused with CK_SERVICE"; fi; \
 	if $(MAKE) -s -n OUT=$(OUT)/host-mut/flip-mk-rel CK_OSC_RECEIPT_TEST=1 full >$$log 2>&1; then \
 	  echo "make accepted CK_OSC_RECEIPT_TEST on a release build (FAIL)"; fail=1; \
 	elif ! grep -qF "cannot be compiled into a release build" $$log; then \

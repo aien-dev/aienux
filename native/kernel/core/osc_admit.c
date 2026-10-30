@@ -42,19 +42,31 @@ void ck_osh_all(void);
 #include "osc_receipt_test_anchor.h"
 #endif
 /* Variant 3 flips one admitted code byte after admission and restores it after
- * launch (ck_osc_receipt_test_code_flip). It is compiled only with
- * CK_OSC_RECEIPT_TEST, which the Makefile leaves empty unless that flag is 1.
- * A release build does not define CK_SEED0B_TEST_ANCHOR. These #errors fire
- * for a direct -D as well as for a make variable: the image link check is the
- * backstop when the flag arrives some other way. */
-#if defined(CK_OSC_RECEIPT_TEST) && !defined(CK_SEED0B_TEST_ANCHOR)
-#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be compiled into a release build"
+ * launch (ck_osc_receipt_test_code_flip). The flip is its own opt-in,
+ * CK_OSC_RECEIPT_CODE_FLIP. The Makefile defines that macro only inside the
+ * CK_OSC_RECEIPT_TEST=1 block. CK_OSC_RECEIPT_TEST does not enable the flip,
+ * and neither does CK_SEED0B_TEST_ANCHOR: a compiler command that passes those
+ * two and skips native/kernel/Makefile fails below. CK_RELEASE_IMAGE (every
+ * build that is not the qualification anchor), CK_HARDWARE_STAGING and
+ * CK_SERVICE are positive production or release defines; the flip #errors
+ * when any of them is present. */
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && !defined(CK_OSC_RECEIPT_TEST)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) requires CK_OSC_RECEIPT_TEST"
 #endif
-#if defined(CK_OSC_RECEIPT_TEST) && defined(CK_HARDWARE_STAGING)
-#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be combined with CK_HARDWARE_STAGING"
+#if defined(CK_OSC_RECEIPT_TEST) && !defined(CK_OSC_RECEIPT_CODE_FLIP)
+#error "CK_OSC_RECEIPT_TEST requires CK_OSC_RECEIPT_CODE_FLIP; CK_SEED0B_TEST_ANCHOR does not enable the post-admission code byte flip"
 #endif
-#if defined(CK_OSC_RECEIPT_TEST) && defined(CK_SERVICE)
-#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be combined with CK_SERVICE"
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_RELEASE_IMAGE)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_RELEASE_IMAGE"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_HARDWARE_STAGING)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_HARDWARE_STAGING"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_SERVICE)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_SERVICE"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && !defined(CK_SEED0B_TEST_ANCHOR)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled into a release build"
 #endif
 
 static unsigned seen, accepted, refused, oversize, announced;
@@ -270,7 +282,7 @@ static struct ck_osc_ws lt_ws[8] = { { lt_ws_mem1, 4 }, { lt_ws_mem2, 4 }, { lt_
                                       { 0, 1 }, { lt_ws_mem1 + 8, 1 }, { 0, 1 }, { lt_ws_mem2, 4 } };
 static unsigned lt_counts[5];
 
-#ifdef CK_OSC_RECEIPT_TEST
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
 /* TEST ONLY. One call flips one admitted code byte; the second call restores
  * it. The launch between the two calls rehashes the private copy. */
 static __attribute__((noinline)) void ck_osc_receipt_test_code_flip(uint8_t *code_byte)
@@ -311,14 +323,14 @@ static void lt_run(const struct lt_step *s)
         size_t rlen = 0;
         const uint8_t *rb = lt_streq(rn, "-") ? 0 : ck_osc_receipt_find(rn, &rlen);
         ck_osc_rcpt_variant = s->variant == 3 ? 0 : s->variant;
-#ifdef CK_OSC_RECEIPT_TEST
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
         /* Preserve the valid receipt and admitted view; alter only the bytes
          * privately copied by the launcher, exercising its final rehash. */
         if (s->variant == 3)
             ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
 #endif
         ck_osc_launch(lt_unit[u].bytes, lt_unit[u].len, &lt_unit[u].acc, rb, rlen, &rq, &r, &info);
-#ifdef CK_OSC_RECEIPT_TEST
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
         if (s->variant == 3)
             ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
 #endif
