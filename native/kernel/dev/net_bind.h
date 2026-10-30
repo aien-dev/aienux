@@ -55,7 +55,7 @@ enum {
     CK_NET_E_ARP = -505,     /* no ARP reply from the gateway in time */
     CK_NET_E_TX = -506,      /* frame build, post or completion failed */
     CK_NET_E_RX = -507,      /* no matching UDP reply in time, or device broken */
-    CK_NET_E_SMMU = -508,    /* SMMU negative test or its recovery failed */
+    CK_NET_E_SMMU = -508,    /* SMMU negative test, its recovery, or a refused release abort */
 };
 
 /* Attach (DMA gate, BAR map, bus master, vnet_init_flags with
@@ -64,7 +64,9 @@ enum {
  * trip (CK_NET_E_SMMU if either fails), every wait bounded by ck_time_us.
  * Leaves the device released (reset, bus master off, stream back to abort)
  * before returning, unless the SMMU refuses the abort: the stream then stays
- * confined, ck_net_live stays 1 and a passing selftest returns CK_NET_E_SMMU. */
+ * confined, ck_net_live stays 1, and the bind returns CK_NET_E_SMMU. A bus
+ * master that will not clear is still live, but that is not an SMMU refusal:
+ * the original error stands (a passing selftest still returns CK_NET_E_SMMU). */
 int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps);
 
 /* Reset the device, revoke bus mastering and return the SMMU stream to

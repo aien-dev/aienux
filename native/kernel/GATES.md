@@ -797,14 +797,24 @@ policy, ambiguities and the UNVERIFIED list: `docs/osc-receipts.md`.
 - Host tests: `tests/test_osc_receipt.c`, part of `make test` and `make sanitize`, built for the qualification
   and the release policy. Mutants: `make osc-receipt-mutants`, 25 of 25 guards killed.
 - QEMU gate: one boot of the qualification image built with `CK_SEED0B_TEST_ANCHOR=1 CK_OSC_LAUNCH_TEST=1
-  CK_OSC_RECEIPT_TEST=1` (TEST ONLY). The Store holds a01_valid_min.unit, 13 receipts minted by omega
-  checker2 with its TEST key and one receipt signed with the owner key (`a01.owner.rcpt`, aienos#387). 18 launches
+  CK_OSC_RECEIPT_TEST=1` (TEST ONLY). `CK_OSC_RECEIPT_TEST` is empty by default. Variant 3 (one admitted code
+  byte flipped after admission and restored after launch, `ck_osc_receipt_test_code_flip`) is compiled only
+  into that image, and only when the Makefile also passes `-DCK_OSC_RECEIPT_CODE_FLIP=1`. The seed anchor
+  does not enable the flip. `core/osc_admit.c` `#error`s if the receipt-test define lacks that opt-in, if the
+  opt-in lacks the receipt-test define, or if the opt-in is combined with `CK_RELEASE_IMAGE`,
+  `CK_HARDWARE_STAGING` or `CK_SERVICE`. The Makefile refuses the make variable on a release build, with
+  `CK_HARDWARE_STAGING`, and with `CK_SERVICE`. `make osc-code-flip-guard` (part of `make test`) checks
+  those refusals and that a default object has neither the banner nor the symbol.
+  Linking an image checks the same: a receipt-test image must carry both, every other image must carry neither.
+  The Store holds a01_valid_min.unit, 13 receipts minted by omega
+  checker2 with its TEST key and one receipt signed with the owner key (`a01.owner.rcpt`, aienos#387). 19 launches
   of a01 add(a, b), one `osc_rcpt_launch:` line each: the valid receipt RETURNS 3 and, after every refusal, 42; the
   owner receipt in release mode (variant 1: the qualification policy with release set) RETURNS 35; no receipt 64 MISSING; altered 75 BAD_SIGNATURE; replayed 77
   STALE_EPOCH; revoked id 76 REVOKED (`revoked=receipt_id`); revoked TEST key 76 REVOKED (`revoked=signer_key`);
   expired 78; not yet valid 79; wrong target 80; l01's receipt 83 EXECUTABLE_MISMATCH; other program 82
   PROGRAM_MISMATCH; 417 bytes 65 SIZE; release policy 73 TEST_SIGNER_IN_PRODUCTION; firmware 81; dependency 88;
-  other checker 86 UNTRUSTED_CHECKER. Every refusal maps nothing (`ticks=0 pages_mapped=0`).
+  other checker 86 UNTRUSTED_CHECKER; one code byte changed after admission 16 CODE_HASH_MISMATCH, then the same
+  receipt runs again. Every refusal maps nothing (`ticks=0 pages_mapped=0`).
 - Owner receipt (aienos#387): the owner root is the one OWNER receipt anchor of both policies
   (`docs/OWNER_KEY_CEREMONY.md` section 7). The host test checks the owner receipt VALID under the release policy, all
   3328 single-bit flips and the wrong-unit, wrong-target, epoch, checker and revocation controls refused, and TEST

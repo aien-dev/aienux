@@ -33,13 +33,13 @@
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "2da52c0f6623ccbe74988cf23e46555db495916e0c2dc89ebf31cbb3c0edbfbb",
+          "digest": "1fb0f1833fe438d23063374924f8a06bd25111fe45bdc6987847eddd039f5fa4",
           "last_commit": "89a57143",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
-          "digest": "8a9676ad2f6ceb99376dc05bd9bbd2bed91fc5ada13243f7bca9357fdf96feae",
+          "digest": "2dffaed43899cb00c03694e7e840f7fd844898f3a155797eee43a17f397c8af5",
           "last_commit": "fefbbe65",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
@@ -51,15 +51,15 @@
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:f84b75bfe5e2334e058436cfc49853eb487fd81c2f1b3c840c146efed4e6d78f",
-      "compiled_at": "2026-10-30T12:56:01Z",
+      "children_root": "sha256:3ab7abb27f123b3df8a3e4da1661cd9fac817d7b6a6942b2cabe937b78cb09b9",
+      "compiled_at": "2026-10-30T13:17:50Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:113a5a375e884d2d6089ac69bc44e57512435de73f66385b0fdc05c2f4855656",
-      "evidence_files": 240,
-      "evidence_root": "sha256:e753e72c45ba069d2e622abdc2bd3f9e4938b73a50a128ae29e8db9ec2b7e783",
-      "files": 3587,
-      "generated_at_commit": "8e44213615500eec6cebb7d36c34cb351fb39fb7",
-      "source_tree": "sha256:0851e7198dee4c0f0e0e8b46b9d1a0734dbbb94068d5f7dc6f9d0489212fb585"
+      "digest": "sha256:8082a7097e11d6bebd6c19cc9c645198604b6bfeb6fbe83fa0767f55896fdad4",
+      "evidence_files": 242,
+      "evidence_root": "sha256:b12605c0d31ef6d1edadc70e16f25a7b9d9696a2a9f972d60c514bf8939c945e",
+      "files": 3590,
+      "generated_at_commit": "3e157636411b2e360023ed02fe8b00f3fb1eb3ab",
+      "source_tree": "sha256:7aa9cf804d338b878e35627f7a63bb23a0228b7a5a29b3b99e02540386838752"
     },
     "owner_lane": "",
     "provenance": {
