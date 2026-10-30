@@ -16,8 +16,12 @@ make mutants    # each GUARD-tagged refusal removed in turn; tests must fail
 make clean
 ```
 
-All tests are host-only (hosted libc test program); nothing here runs in QEMU
-or on the Spark, and nothing measures time or energy.
+All tests in this folder are host-only (hosted libc test program), and nothing
+measures time or energy. The kernel links `m5_keys.c`, `m5_envelope.c` and
+`m5_state.c` through the sealed Store (`native/kernel/stage.mk`), so those
+run in the QEMU Store gates and on the Raspberry Pi 5 with throwaway secrets
+(`docs/native/PI5-4-UNLOCK-RUNS.md`). `m5_owner_sig.c` stays host-only. None
+of this has run on the Spark.
 
 ## What is covered
 
@@ -51,7 +55,10 @@ HMAC-SHA-256 under K_root_auth over `domain || bytes`, compared in constant time
   The wrap AAD is stronger: `"AIENOS-M5-KEYSLOT-V2\0" || store_uuid || slot_id || slot_type || key_epoch`
   (Rust: `slot_id` only). Decode and unwrap also refuse a wrap_suite other than
   0x01 (Empty may hold 0), kdf_suite above 0x02 and any flag bit (ADR 0017;
-  Rust does not check these). KeySlotManifest (kind 21) itself is not ported.
+  Rust does not check these). KeySlotManifest (kind 21) is ported:
+  `m5_ksm_encode` / `m5_ksm_decode` (640-byte fixed part, `t_ksm_roundtrip`,
+  `t_ksm_refusals`). The manifest chain is checked in
+  `native/store/store_sealed.c`, not in this library.
 - **SecurityManifest**: byte-compatible with Rust kind-22 v1 (`AIENSEC1`,
   version 1, 256 bytes, fields 16..224, MAC at 224 with domain
   `"AIENOS-M5-ROOT-AUTH-V1\0"`; `t_secman_roundtrip_rust_v1_layout` checks the
@@ -117,9 +124,10 @@ HMAC-SHA-256 under K_root_auth over `domain || bytes`, compared in constant time
   `m5_migration_authorize_owner` requires both records: the manifest MAC
   under the source K_root_auth and an owner record naming that exact
   manifest digest and the same counter, stores, agent root and generations.
-- **`tools/m5_migsig`** (hosted CLI): `pubkey`, `body` (from a key=value
-  spec), `sign SECRET_KEY_FILE BODY OUT`, `verify PUBLIC_KEY_FILE RECORD
-  SPEC LAST_COUNTER`. It never creates a key. The secret key is read only
+- **`tools/m5_migsig`** (hosted CLI): `pubkey SECRET_KEY_FILE PUBLIC_KEY_OUT`,
+  `body SPEC_FILE PUBLIC_KEY_FILE BODY_OUT` (the spec is key=value),
+  `sign SECRET_KEY_FILE BODY_FILE RECORD_OUT`, `verify PUBLIC_KEY_FILE
+  RECORD_FILE SPEC_FILE LAST_COUNTER`. It never creates a key. The secret key is read only
   from the given path (32 raw bytes, 64 hex digits or unencrypted Ed25519
   PKCS#8 DER, mode 0600 or tighter), so the real signature can be made only
   in the offline Gate 3 ceremony, for example after
@@ -139,17 +147,23 @@ HMAC-SHA-256 under K_root_auth over `domain || bytes`, compared in constant time
 - **Owner-signature binding: host-tested with TEST keys only; the real
   owner signature is BLOCKED_OPERATOR on the Gate 3 offline key ceremony.**
   The signature primitive is `native/sig` (in-house Ed25519, #188). The
-  record and the tool exist and are tested, but no record has been signed
-  with the real owner key, nothing in the Store or boot path calls
-  `m5_migration_authorize_owner` yet (it is host-only), and no
-  trusted owner public key is provisioned anywhere.
+  record and the tool exist and are tested. An owner key was created on a
+  YubiKey on 2026-10-14 for the Pi 5 work (`docs/native/PI5-8-OWNER-CEREMONY.md`,
+  run online by owner decision); that document does not say it is the Gate 3
+  ceremony. No migration record has been signed with an owner key, and nothing
+  in the Store or boot path calls `m5_migration_authorize_owner` (callers are
+  the host tests in `native/m5`). Hardware-staging images bake an owner public
+  key from `CK_OWNER_PUBKEYS` (`native/kernel/svc/store_boot.c`,
+  `docs/native/PI5-8-OWNER-CEREMONY.md`); that key is not passed to
+  `m5_migration_authorize_owner`.
 - **Binding to the Gate 3 Owner Root**: the hierarchy carries an owner
   hierarchy generation, but nothing ties K_vol to the Gate 3 Owner Root yet.
 - **Store integration** lives outside this library: recovery here works on a
   commit record, an anchor and in-memory candidate envelopes; it does not read
-  or repair a disk and does not touch `native/store`. The C disk layer now exists (#190, #191) and the C sealed Store uses this library on the host and in the QEMU C kernel with TEST keys, but the Store kernel binding on a real device (`m5_store_kernel_binding`) is still MISSING_IMPLEMENTATION.
-- Recovery KDF (Argon2id / WebAuthn PRF) and KeySlotManifest lineage are not
-  ported.
+  or repair a disk and does not touch `native/store`. The C disk layer now exists (#190, #191) and the C sealed Store uses this library on the host, in the QEMU C kernel with TEST keys, and on the Raspberry Pi 5 with throwaway secrets (`docs/native/PI5-4-UNLOCK-RUNS.md`). The qualification row `m5_store_kernel_binding` (a real device with real keys) is still MISSING_IMPLEMENTATION (`scripts/trust1_m5_qualify.sh`).
+- Recovery KDF (Argon2id / WebAuthn PRF) is not ported. The recovery KEK is
+  HKDF (`m5_recovery_kek`). KeySlotManifest lineage is the chain in
+  `native/store/store_sealed.c`.
 
 ## AGENTS.md section 3 (resolved)
 

@@ -18,20 +18,20 @@
       "children": [
         {
           "digest": "653d8f9d2cbb6a67f8c0538c40b57b83c1c4102f8112f25c823730ea045e4bcb",
-          "last_commit": "621c9e6f",
+          "last_commit": "22769069",
           "name": "src",
           "purpose": "Directory crates/aienos-artifact-tool/src. Purpose not yet described by a human."
         }
       ],
       "children_root": "sha256:b92b9805eeb5915f2d773e5eee2186bfa1b76fb4a7882172442e7509ec6a9f84",
-      "compiled_at": "2026-10-24T04:15:32Z",
+      "compiled_at": "2026-10-30T02:54:03Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:dec08f80237f84bc2f9bb73d0f009609cd402dca821a852bf3e8b7e309aec149",
+      "digest": "sha256:1f64887df338f230476175cffddf26a62b00725af08d2b9786bef7bfd62ca799",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 39,
-      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
-      "source_tree": "sha256:f55f5ae48b80c3718ca44c015773f983e19ca314f0b205f3a84d5ca8ba7b8273"
+      "generated_at_commit": "3ab0a75872f163e488eff4ef7d9850564f5915a6",
+      "source_tree": "sha256:83e735a2507418f843124c83ae563927477c20ae468d939aef30adb8e78694c4"
     },
     "owner_lane": "",
     "provenance": {
