@@ -28,7 +28,11 @@
 # writing (the ESP, and a data disk with a GPT whose AIENOS partition the kernel
 # must locate where ck_gpt_image wrote it; the data disk must be byte-identical
 # afterwards), print "kernel: alive", hold the screen and power QEMU off through
-# ACPI S5 by itself.
+# ACPI S5 by itself. W^X (#409): each run must show writes to code and read-only
+# data and execution from heap and stack faulting with the right #PF error code,
+# and an audit of every page table leaf (only the code executable, nothing
+# writable and executable, NXE and WP on every core). Two TEST-ONLY mutant builds
+# (IMACKERN_WX_MUTANT=no_nx, =text_writable) must make those probes panic.
 # The kernel's report reaches the serial log through COM1, which QEMU has and the
 # iMac does not. Needs qemu-system-x86_64, OVMF, mtools and an x86_64 gcc. Final line:
 #     AIENOS_IMAC_KERNEL: PASS|FAIL|NOT_RUN [(...)]      exit 0 / 1 / 2 (tools) / 3 (NOT_RUN)
@@ -133,6 +137,9 @@ run() { # name, -cpu model, expected APIC mode
     chk "${name}: one-line summary" "${txt}" "^summary: cores=4/4 timer=ok sata_disks=2 nvme_disks=1 gpt_valid=2 writes=none net=none\$"
     [[ "$(sha256sum "${nvm}" | cut -d" " -f1)" == "${nvm_sum}" ]] && echo "PASS  ${name}: NVMe disk unchanged" || { echo "FAIL  ${name}: NVMe disk changed"; fails=$((fails + 1)); }
     [[ "$(sha256sum "${data}" | cut -d" " -f1)" == "${data_sum}" ]] && echo "PASS  ${name}: data disk unchanged" || { echo "FAIL  ${name}: data disk changed"; fails=$((fails + 1)); }
+    chk "${name}: W^X probes fault" "${txt}" '^wx: ok nx=on wp=on text_write=fault ro_write=fault heap_exec=fault stack_exec=fault$'
+    chk "${name}: W^X audit, only code executable, every core" "${txt}" '^wx_audit: ok wx_pages=0 exec_pages=([1-9][0-9]*) text_pages=\1 exec_outside_text=0 ro_writable=0 cores_nx_wp=4/4 trampoline=retired$'
+    if grep -aq '^wx: TEST-ONLY' "${txt}"; then echo "FAIL  ${name}: default image is a W^X mutant"; fails=$((fails + 1)); fi
     chk "${name}: kernel alive" "${txt}" '^kernel: alive$'
     chk "${name}: DONE" "${txt}" '^AIENOS-IMAC-KERNEL-0 DONE$'
     chk "${name}: ACPI S5 power off" "${txt}" '^power: off via ACPI S5 pm1a=0x[0-9a-f]+ '
@@ -152,5 +159,39 @@ run() { # name, -cpu model, expected APIC mode
 }
 run max max xapic
 run qemu64 qemu64 xapic
+# W^X negative controls: the probes run before the clock is measured, so a mutant's
+# panic halts instead of powering off; wait for the panic line, then stop QEMU.
+mutant() { # IMACKERN_WX_MUTANT value, expected panic pattern
+    local m="$1" mo="${out}-wx-$1" mi="${work}/wx-$1.img" log="${work}/wx-$1.log" hit=0
+    make -s -C native/kernel X86_CROSS="${cross}" OUT="${mo}" AIENOS_COMMIT="${commit}" IMACKERN_WX_MUTANT="${m}" imac-kernel >/dev/null
+    truncate -s 64M "${mi}"
+    mformat -i "${mi}" -F ::
+    mmd -i "${mi}" ::/EFI ::/EFI/BOOT
+    mcopy -i "${mi}" "${mo}/IMACKERN.EFI" ::/EFI/BOOT/BOOTX64.EFI
+    cp "${vars_fd}" "${work}/vars.fd"
+    qemu-system-x86_64 -M q35 -accel tcg -cpu max -smp 1 -m 1024 \
+        -drive if=pflash,format=raw,readonly=on,file="${code_fd}" \
+        -drive if=pflash,format=raw,file="${work}/vars.fd" \
+        -drive if=none,id=esp,format=raw,file="${mi}" -device ide-hd,drive=esp,bus=ide.0 \
+        -display none -nic none -serial file:"${log}" -no-reboot &
+    qpid=$!
+    for _ in $(seq 1 "${AIENOS_IMAC_KERNEL_WAIT:-300}"); do
+        if tr -d '\r' <"${log}" 2>/dev/null | grep -aqE -- "$2"; then hit=1; break; fi
+        kill -0 "${qpid}" 2>/dev/null || break
+        sleep 1
+    done
+    kill "${qpid}" 2>/dev/null || true
+    wait "${qpid}" 2>/dev/null || true
+    qpid=""
+    if [[ ${hit} == 1 ]] && tr -d '\r' <"${log}" | grep -aq '^wx: TEST-ONLY W^X mutant build'; then
+        echo "PASS  mutant ${m}: W^X probes catch it"
+        tr -d '\r' <"${log}" | grep -a '^panic: wx'
+    else
+        echo "FAIL  mutant ${m}: no match for: $2"; fails=$((fails + 1))
+        tr -d '\r' <"${log}" | tail -20
+    fi
+}
+mutant no_nx '^panic: wx: FAIL nx=on wp=on text_write=fault ro_write=fault heap_exec=ALLOWED stack_exec=ALLOWED$'
+mutant text_writable '^panic: wx: FAIL nx=on wp=on text_write=ALLOWED ro_write=fault heap_exec=fault stack_exec=fault$'
 if [[ ${fails} == 0 ]]; then echo "${tag}: PASS"; exit 0; fi
 echo "${tag}: FAIL (${fails} checks)"; exit 1

@@ -107,8 +107,8 @@ void *ck_dma_alloc(size_t bytes, size_t align, uint64_t *phys)
     if (phys) *phys = (uint64_t)(uintptr_t)p;
     return p;
 }
-/* Host: no platform MMIO by default (the ACPI platform xHCI list is always
- * empty). A test may turn on identity mapping (ck_host_try_map_ok) and make
+/* Host: no platform MMIO by default (no DSDT unless ck_host_plat_set injects
+ * one). A test may turn on identity mapping (ck_host_try_map_ok) and make
  * one exact address fail (ck_host_try_map_fail).
  *
  * The fake also keeps a tiny page map so exclusive ownership and unmap can be
@@ -195,13 +195,36 @@ int ck_mmio_unmap_exclusive(uint64_t phys, size_t len)
     hmap[i].unmapped = 1;
     return mprotect((void *)(uintptr_t)lo, hi - lo, PROT_NONE) == 0 ? 0 : -1;
 }
-/* Host: no DSDT reachable (no FADT in ck_acpi_find). */
+/* Host: no DSDT unless a test injects one platform device (ck_host_plat_set). */
+static struct ck_platform_dev host_plat;
+static int host_plat_on;
+void ck_host_plat_set(const char *name, const char *hid, uint64_t mmio_base, uint64_t mmio_len)
+{
+    memset(&host_plat, 0, sizeof host_plat);
+    if (name)
+        for (size_t i = 0; i + 1 < sizeof host_plat.name && name[i]; i++) host_plat.name[i] = name[i];
+    if (hid)
+        for (size_t i = 0; i + 1 < sizeof host_plat.hid && hid[i]; i++) host_plat.hid[i] = hid[i];
+    host_plat.table[0] = 'D'; host_plat.table[1] = 'S'; host_plat.table[2] = 'D'; host_plat.table[3] = 'T';
+    host_plat.mmio_base = mmio_base;
+    host_plat.mmio_len = mmio_len;
+    host_plat_on = 1;
+}
+void ck_host_plat_clear(void) { host_plat_on = 0; }
 int ck_acpi_platform_devices(const char *const *ids, unsigned nids, struct ck_platform_dev *out, unsigned max,
                              struct ck_acpi_scan_info *info)
 {
-    (void)ids; (void)nids; (void)out; (void)max;
     if (info) info->tables = info->refused = info->devices = 0, info->first_refusal = 0;
-    return -1;
+    if (!host_plat_on) return -1;
+    if (info) info->tables = info->devices = 1;
+    int match = 0;
+    for (unsigned i = 0; i < nids && ids && ids[i]; i++)
+        if ((host_plat.hid[0] && strcmp(host_plat.hid, ids[i]) == 0) ||
+            (host_plat.cid[0] && strcmp(host_plat.cid, ids[i]) == 0))
+            match = 1;
+    if (!match) return 0;
+    if (out && max) *out = host_plat;
+    return 1;
 }
 void ck_mb(void) { __sync_synchronize(); }
 const void *ck_acpi_find(const char sig[4])
@@ -243,9 +266,13 @@ int ck_entropy_fill(void *buf, size_t len)
 
 /* Host: no IORT by default, so no SMMU (the NVMe gate stays fail-closed). A test may set
  * ck_host_confine_rc = 0 to model an SMMU that confines; every call is recorded.
- * ck_host_unconfine_fail = 1 models an SMMU that refuses the abort (CK_SMMU_FAILED). */
+ * ck_host_confine_named_rc is the ACPI-name path (platform xHCI). 
+ * ck_host_unconfine_fail = 1 models an SMMU that refuses the abort (CK_SMMU_FAILED).
+ * ck_host_unconfine_allow lets that many aborts succeed first, then the refusal starts. */
 int ck_host_confine_rc = CK_SMMU_ABSENT;
+int ck_host_confine_named_rc = CK_SMMU_ABSENT;
 int ck_host_unconfine_fail;
+unsigned ck_host_unconfine_allow;
 unsigned ck_host_confine_calls, ck_host_unconfine_calls;
 uint32_t ck_host_confine_segment, ck_host_confine_rid;
 uint64_t ck_host_confine_phys, ck_host_confine_len;
@@ -266,14 +293,27 @@ int ck_dma_confine(uint32_t segment, uint32_t rid, uint64_t phys, uint64_t len, 
 }
 int ck_dma_confine_named(const char *acpi_name, uint64_t phys, uint64_t len, struct ck_dma_confinement *out)
 {
-    (void)acpi_name; (void)phys; (void)len; (void)out;
-    return CK_SMMU_ABSENT;
+    (void)acpi_name;
+    ck_host_confine_calls++;
+    if (ck_host_confine_named_rc == 0 && out) {
+        out->smmu_base = 0x13800000ull;
+        out->stream_id = 0x5u;
+        out->iova = phys;
+        out->len = len;
+    }
+    return ck_host_confine_named_rc;
 }
 int ck_dma_unconfine(uint32_t stream_id)
 {
     (void)stream_id;
     ck_host_unconfine_calls++;
-    if (ck_host_unconfine_fail) return CK_SMMU_FAILED;
+    if (ck_host_unconfine_fail) {
+        if (ck_host_unconfine_allow) {
+            ck_host_unconfine_allow--;
+            return 0;
+        }
+        return CK_SMMU_FAILED;
+    }
     return ck_host_confine_rc == 0 ? 0 : CK_SMMU_EARG;
 }
 int ck_dma_faults(uint32_t stream_id, struct ck_dma_fault *first)

@@ -1,0 +1,24 @@
+# Host-only pull-request check for the TEST-ONLY post-admission OSC code flip.
+# Compiles native/kernel/core/osc_admit.c with the host compiler. No cross
+# toolchain, no QEMU, no change to any other workflow.
+name: OSC code-flip guard
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  osc-code-flip-guard:
+    name: osc-code-flip-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: make -C native/kernel osc-code-flip-guard
+        run: make -C native/kernel osc-code-flip-guard

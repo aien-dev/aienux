@@ -1,0 +1,3 @@
+GSP_SEQ_PASS checks=13
+mut_rc=1
+mutant (index check removed) failed the save-index case, as required

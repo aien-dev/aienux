@@ -1,0 +1,97 @@
+# gb10_chan.devc -- one GB10 compute channel (GPFIFO ring, USERD, instance block, doorbell)
+# as a device contract (ADR 0021 devc 1, class gpu-chan; L332 rung 1).
+#
+# This file is the channel driver. crates/aienos-devc (branch feat/devc-gpu) compiles it into
+#   gen/gch_contract.c   the same API as ../gpu_chan.h (ck_gpu_chan_*), swapped in with
+#                        `make CK_GPU_CHAN_IMPL=contract test-gpu-sim`
+#   gen/gb10_chan.md     the documentation page
+# The hand-written ../gpu_chan.c (L193) stays as the reference twin; both must pass
+# test_gpu_sim (225 checks) and produce the same register and memory trace.
+#
+# Grammar (class gpu-chan): one statement per line, "#" to end of line is a comment,
+# strings in double quotes, numbers decimal or 0x hex. Steps inside create/submit/
+# teardown come from a closed list; the checker refuses unsafe orders (see gen/gb10_chan.md).
+
+devc 1
+device gb10-gpu-channel
+prefix ck_gpu
+class gpu-chan
+transport pci-bar
+ring-kind gpfifo
+
+# ---- evidence: the driver-source lines this contract is written from ----
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/sdk/nvidia/inc/class/clc96f.h:95" "#define NVC96F_GP_ENTRY0_GET 31:2"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/sdk/nvidia/inc/class/clc96f.h:98" "#define NVC96F_GP_ENTRY1_GET_HI 7:0"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/sdk/nvidia/inc/class/clc96f.h:102" "#define NVC96F_GP_ENTRY1_LENGTH 30:10"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/sdk/nvidia/inc/class/clc96f.h:31" "NvU32 GPPut; /* GP FIFO put offset 008c-008f*/"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb100/dev_vm.h:620" "#define NV_VIRTUAL_FUNCTION_DOORBELL 0x30090 /* -W-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb100/dev_vm.h:622" "#define NV_VIRTUAL_FUNCTION_DOORBELL_VECTOR 11:0 /* -WXUF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb100/dev_vm.h:624" "#define NV_VIRTUAL_FUNCTION_DOORBELL_RUNLIST_ID 22:16 /* -WXUF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_ram.h:27" "#define NV_RAMRL_ENTRY_CHAN_USERD_PTR_LO (31+0*32):(8+0*32) /* RWXUF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_ram.h:28" "#define NV_RAMRL_ENTRY_CHAN_USERD_PTR_HI_HW (19+1*32):(0+1*32) /* RWXUF */"
+# No chip has run this contract. GB10 silicon behaviour is UNVERIFIED (L193 UNKNOWN list 1-9).
+proven gpu-sim aienos-host 2026-10-21 test_gpu_sim pending
+
+# ---- constants (C: CK_GPU_<NAME> in the generated file) ----
+const CHID_MAX 0xFFF
+const RUNLIST_INVALID 0x7F
+const ENTRIES_MIN 2
+const ENTRIES_MAX 65536
+const GP_LEN_MAX 0x1FFFFF
+const GP_VA_BITS 40
+const USERD_BYTES 512
+const USERD_GPPUT 0x8C
+const INST_BYTES 4096
+const RAMIN_PDB_WORD 128
+const TARGET_SYS_COH 2
+
+# ---- register window and registers: window NAME bar N base B size S ----
+window vf bar 0 base 0xB80000 size 0x40000
+reg vf DOORBELL 0x30090 4 wo
+
+# ---- packed formats: format NAME BITS then fields NAME HI:LO [place] ----
+# `place` = the value already sits at its bit position (an address); otherwise it is shifted in.
+format TOKEN 32 RUNLIST_ID 22:16 VECTOR 11:0
+format GP_ENTRY 64 GET 39:2 place LEVEL 41:41 LENGTH 62:42
+format RL_USERD 64 PTR_LO 31:8 place PTR_HI 51:32 place
+format RAMIN_PDB 64 TARGET 1:0 BIG_PAGE_64K 11:11 ADDR 63:12 place
+
+# ---- buffers the channel owns: buffer NAME size (CONST | entries xN) cache flags ----
+# The CPU writes the ring and USERD while the GPU reads them: uncached (spark-hardware-manual 4.2).
+buffer GPFIFO entries x8 uncached gpu-ro
+buffer USERD USERD_BYTES uncached host-polled
+buffer INST INST_BYTES uncached none
+
+# ---- the three operations ----
+create
+  refuse chid > CHID_MAX else EINVAL
+  refuse runlist_id >= RUNLIST_INVALID else EINVAL
+  refuse-entries pow2 ENTRIES_MIN ENTRIES_MAX else EINVAL
+  alloc GPFIFO USERD INST else ENOMEM
+  zero GPFIFO USERD INST
+  store-pdb INST RAMIN_PDB_WORD RAMIN_PDB TARGET=TARGET_SYS_COH BIG_PAGE_64K=1
+  token TOKEN RUNLIST_ID=runlist_id VECTOR=chid
+  runlist-userd RL_USERD USERD else ENOMEM
+  fence
+  bind else EBIND
+end
+
+submit
+  require-open else ESTATE
+  require-buffer else EINVAL
+  require-span GP_LEN_MAX else EINVAL
+  require-va GP_VA_BITS else EINVAL
+  require-room else EFULL
+  ring-write GP_ENTRY GET=va LENGTH=nwords LEVEL=1   # LEVEL 1 = SUBROUTINE, as physics sets it (chip-proven there; L216)
+  fence
+  publish USERD USERD_GPPUT
+  fence
+  doorbell DOORBELL TOKEN
+end
+
+teardown
+  require-open else ESTATE
+  disable
+  poll-idle
+  release INST USERD GPFIFO
+end

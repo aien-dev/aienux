@@ -49,8 +49,8 @@
     "generated": {
       "children": [
         {
-          "digest": "572990d31c305b2f2bf0e45de60b1380c41f5dd6d24e962c65261bec25028b9a",
-          "last_commit": "d7012755",
+          "digest": "72ee4e94f3dc99d79ea4eb3bf619ad645c0b76d7009d1883e59adfbfce9c8ac2",
+          "last_commit": "2c9c8b50",
           "name": "argus",
           "purpose": "Directory native/argus. Purpose not yet described by a human."
         },
@@ -67,14 +67,14 @@
           "purpose": "Directory native/capability. Purpose not yet described by a human."
         },
         {
-          "digest": "5ee5fb66726b423c9a8a15d6b6f8c2ac08092727f386c32015f3fb14fe258079",
-          "last_commit": "f45d00ad",
+          "digest": "ec6a4295568339a6dea0df513d23cf7a28a90d07bee2cd8f93a7417b48ff7871",
+          "last_commit": "2c9c8b50",
           "name": "crypto",
           "purpose": "Directory native/crypto. Purpose not yet described by a human."
         },
         {
-          "digest": "c4ce5c38d99a4f4fbbaf8f829817511aa6ba94d92318ba4f638eddd485341eb0",
-          "last_commit": "f45d00ad",
+          "digest": "43e1cf9e246a9cdfca6b1147381ad071e1cffaf408bb58d3e09b7001e7b0eb5c",
+          "last_commit": "b5e72686",
           "name": "disk",
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
@@ -85,26 +85,32 @@
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
         {
-          "digest": "257e53b395e1f417a61838914d73ebbf408361083e9e40ca3b56011e1f9754c4",
-          "last_commit": "f45d00ad",
+          "digest": "b9588f7026aaa3fbf7777f5c10d90a1c915cc301be98be5081d3d66106cf77c8",
+          "last_commit": "2c9c8b50",
           "name": "m5",
           "purpose": "Directory native/m5. Purpose not yet described by a human."
         },
         {
-          "digest": "f9c2453f4a79f6f4f27e6761cc2cdfc0431fb698be73a7f8869b5d6580e96d9d",
-          "last_commit": "f45d00ad",
+          "digest": "b0c2410bb450a0bf6156e064185b024b622fd844e87d7acd476df10c7af63cf6",
+          "last_commit": "dc9a9961",
           "name": "net",
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
-          "digest": "e89066d6aa5c09de6f67671846971d09cf733e4620f713983ff29fae60321c9e",
-          "last_commit": "f45d00ad",
+          "digest": "f3c7ee4f18f768fa9964c123e07f076c544c58c0966a8a5e9571b0397bf57b06",
+          "last_commit": "c93a5f57",
+          "name": "omega",
+          "purpose": "Seeded Omega native modules"
+        },
+        {
+          "digest": "6f0bf10c76df492d27ae642792476c1138bc73f0d897b3ddca04605ac07b4268",
+          "last_commit": "2c9c8b50",
           "name": "sig",
           "purpose": "Directory native/sig. Purpose not yet described by a human."
         },
         {
-          "digest": "325fec79752c7be76550de52f400c5cc35d4641de8dc45290cff10ddc526fa3b",
-          "last_commit": "f45d00ad",
+          "digest": "e125172a18437b662edf303f4b9615bb791f5e7d2ed94192033823185e7d40e1",
+          "last_commit": "2c9c8b50",
           "name": "store",
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }

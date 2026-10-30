@@ -348,6 +348,9 @@ static __attribute__((noreturn)) void ck_el1_main(void *arg)
         ck_printf("stage lifecycle: %s rc=%d\n", lrc == 0 ? "ok" : "FAIL", lrc);
     }
 
+#ifdef CK_B7B_EVENT_READOUT
+    ck_b7b_event_readout();
+#endif
     ck_set_stage("final");
     ck_puts("\n");
     ck_report_header("final");
