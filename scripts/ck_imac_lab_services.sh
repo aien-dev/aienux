@@ -21,6 +21,8 @@ bcast="${IMAC_LAB_BCAST:-192.168.1.255}"
 imac_mac="${IMAC_LAB_IMAC_MAC:-78:7b:8a:bd:d0:51}"
 server_ip="${IMAC_LAB_SERVER_IP:-192.168.1.108}"
 router="${IMAC_LAB_ROUTER:-192.168.1.1}"
+# This LAN filters UDP 67 -> 68; the iMac accepts BSDP answers from 1067.
+reply_source_port="${IMAC_LAB_BSDP_REPLY_SOURCE_PORT:-1067}"
 booter="${IMAC_LAB_BOOTER:-${out}/NETLDR.EFI}"
 mkdir -p "${state}/reports"
 
@@ -55,7 +57,7 @@ start() {
         install -m 0644 "${booter}" "${state}/netldr.efi"
         sudo -n setcap cap_net_bind_service=+ep "${out}/host/ck_imac_bsdp"
         setsid nohup "${out}/host/ck_imac_bsdp" serve --booter "${state}/netldr.efi" --server-ip "${server_ip}" \
-            --mac "${imac_mac}" --router "${router}" --also-broadcast yes >>"${state}/bsdp.log" 2>&1 </dev/null &
+            --mac "${imac_mac}" --router "${router}" --also-broadcast yes --reply-source-port "${reply_source_port}" >>"${state}/bsdp.log" 2>&1 </dev/null &
         echo $! >"${state}/bsdp.pid"
         echo "bsdp: started (pid $!, log ${state}/bsdp.log, booter sha256 $(sha256sum "${state}/netldr.efi" | cut -c1-16))"
     fi
