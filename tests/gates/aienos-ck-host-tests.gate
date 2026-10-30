@@ -1,5 +1,5 @@
 # tests/gates/aienos-ck-host-tests.gate
-# Mirrors hosted: ck-kernel.yml 'Host unit tests (plain and ASan + UBSan)': make -C native/kernel test sanitize
+# Host kernel tests plus iMac swap bounds, service ownership and model-checker regressions.
 gate: AIENOS-CK-HOST-TESTS
 manifest_version: 2
 owner: aienos
@@ -7,6 +7,12 @@ requires:
   - host
 inputs:
   - native/kernel/
+  - native/argus/
+  - native/boot/
+  - scripts/ck_swap_disk_bound_test.sh
+  - scripts/ck_imac_lab_services_test.sh
+  - scripts/ck_imac_lab_services.sh
+  - scripts/check_local_model.sh
   - scripts/ck_gates.sh
   - scripts/lib_ck_m1_checks.sh
   - scripts/lib_gate_hold.sh
