@@ -535,9 +535,9 @@ this computer first (Allen's own 27B + 30B pair if it answers, else an installed
 running model), then peers, then "connect my own" (OpenAI-style or Anthropic
 service, key typed once). One found model is offered with "Use it / Choose another"
 and starts by itself after 10 s; two or more are never picked for the person. The
-key stays in kernel RAM, is tested with one request through the courier relay
-(`KEYTEST` in `crates/allen-courier`, http only: the relay has no TLS and we do not
-hand-roll it, so https services are refused out loud) and is wiped; only
+key stays in kernel RAM and is wiped when the test is refused locally. The current
+courier is unencrypted, so the iMac never submits `KEYTEST` or a service credential
+through it. Configure the credential on the host and select its local model. Only
 `llm.conf` (`kind`, `base_url`, `model`, `key_env`, never the key) and a consent
 record are kept, with the wizard's place, in fixed records inside Allen's memory
 section (`svc/setup_store.c`), so a power cut resumes where it stopped and a
@@ -586,8 +586,11 @@ calculator and prints the times).
 starts a kernel it hands it a `struct nb_pass` (`../boot/netboot_proto.h`) as
 LoadOptions: the processor clock when the loader began, and where the verified
 object (signed manifest + image) lies in the loader's memory. The kernel checks
-the image's SHA-512 against the manifest again and installs it on the disk that
-holds Allen's section, in a 256 MiB EFI System Partition it adds in unused
+the manifest's owner signature and the image's SHA-512 again before installing it
+on the disk that holds Allen's section. Build with `CK_SLOT_KEYS=<owner public keys>`
+to authorize installation; without configured keys, installation is refused.
+`CK_TEST_SLOT_KEY=1` supplies the public test key only for emulator fixtures.
+The boot image goes in a 256 MiB EFI System Partition it adds in unused
 space (`dev/gpt_add.c` `ck_gpt_add`; never on a disk that already has another
 system's), as `\EFI\BOOT\BOOTX64.EFI` on a FAT32 volume it writes itself
 (`dev/fat_boot.c`, Microsoft FAT32 specification 1.03). Two slots: the new
