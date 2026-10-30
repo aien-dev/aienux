@@ -24,6 +24,7 @@
 //! usage: model_probe MODEL.gguf IDS_FILE N EOS_ID
 //!   IDS_FILE: text file whose first line is `ids <id> <id> ...` (or bare ids)
 //! Env: AIENOS_DOT=sdot (dotprod int8 path when the CPU has it; default f32 scalar).
+//! Env: AIENOS_BITS=1 also prints `bits <i> <u32>`, the f32 bits of each chosen logit.
 //! Output: one `key: value` line per fact, `step <i> <id>` lines in llama_ref's style.
 
 #![allow(clippy::chunks_exact_to_as_chunks)]
@@ -135,10 +136,15 @@ fn main() {
             );
         }
     }
+    // AIENOS_BITS=1: also print the f32 bits of each chosen logit (oracle for native/om/lm1b).
+    let bits = std::env::var("AIENOS_BITS").map(|v| v == "1").unwrap_or(false);
     let mut tok_us = Vec::new();
     for i in 0..n {
         let t = argmax(&st.logits);
         println!("step {i} {t}");
+        if bits {
+            println!("bits {i} {}", st.logits[t as usize].to_bits());
+        }
         if t == eos {
             println!("eog");
             break;
