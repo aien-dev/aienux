@@ -1,0 +1,27 @@
+[2J[01;01H[=3h[2J[01;01H[2J[01;01H[=3h[2J[01;01H[2J[01;01H[=3h[2J[01;01HBdsDxe: loading Boot0001 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+BdsDxe: starting Boot0001 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+AIENOS-IMAC-KERNEL-0
+report_kind: pre_exit
+aienos_commit: 111a37150967d0e030cdef4dd8783fc1441d0e99
+kernel_impl: c (native/kernel/x86, x86_64)
+firmware_vendor: Ubuntu distribution of EDK II
+firmware_revision: 0x10000
+firmware_cpl: 0
+gop: ok from=conout handles=2 mode=0/30 1280x800 pitch=1280 format=1 base=0x80000000 size=0x3e8000
+acpi_rsdp: 0x3fb7e014
+image: 0x3e3a2000-0x3e3f9000
+exiting firmware boot services
+
+report_kind: kernel
+wx: TEST-ONLY W^X mutant build, page permissions deliberately broken, never deploy
+exit_boot_services: ok attempts=1
+cpu: AuthenticAMD QEMU TCG CPU version 2.5+
+descriptors: gdt=5 tss=yes ist1=df,nmi,mc idt=256
+handoff: CHANDOF3 ok
+screen: gop 1280x800 pitch=1280 format=bgrx base=0x80000000 map=wc scale=1 grid=160x80
+paging: root=0x2000 firmware_cr3=0x3fc01000 switched=yes top_gib=512 pages_2m_wb=510 pages_2m_wc=2 pages_2m_uc=261630 pt_frames=516 fb=wc pat1=wc
+memory: frame_ranges=8 free_bytes=1024655360 heap=0x266000+1048576 heap_test=ok
+stack: 0x3e3ca000-0x3e3da000 guard=0x3e3c9000 ist1=0x3e3de000
+guard_page: ok fault=contained (#PF cr2=0x3e3c9000 error=0x0, not present)
+panic: wx: FAIL nx=on wp=on text_write=fault ro_write=fault heap_exec=ALLOWED stack_exec=ALLOWED
+power: halted before the clock was measured; hold the power button to turn the machine off
