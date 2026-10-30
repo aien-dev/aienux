@@ -920,7 +920,7 @@ a FAIL to report, not to retry.
 3. `ck_enter_el1`: EL2 -> EL1h with the MMU already on our tables.
 4. EL1: `mmu: enabled`, `mmu_switch: ...` read back from the registers,
    heap check, guard-page self test, GICv3 from the MADT, 200 ms timer window
-   (INTID 30, 10 ms period), `kernel: alive`, `kernel_el: EL1h`.
+   (INTID 30, 10 ms period; on a starved emulator the window keeps counting up to 5 s until five ticks arrived, and each interval is measured from IRQ entry, so a host stall cannot produce a short interval), `kernel: alive`, `kernel_el: EL1h`.
 5. Stages, in order, if linked: `ck_stage_devices`, `ck_stage_security`,
    `ck_stage_store`. Each prints `stage <name>: ok`, `stage <name>: FAIL
    rc=<n>` or `stage <name>: not linked`.

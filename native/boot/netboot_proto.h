@@ -88,4 +88,15 @@ struct nb_pass {
     uint64_t object_len;  /* manifest + image bytes */
 };
 
+/* Length of a DONE text: bytes before the first NUL, at most NB_TEXT_MAX.
+ * Reads no byte past text[NB_TEXT_MAX - 1], so text need not be terminated
+ * within the cap. */
+static inline size_t nb_text_len(const char *text)
+{
+    size_t n = 0;
+    while (n < NB_TEXT_MAX && text[n])
+        n++;
+    return n;
+}
+
 #endif /* AIENOS_NETBOOT_PROTO_H */

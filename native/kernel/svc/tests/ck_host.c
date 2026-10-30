@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* ck_host.c -- host implementation of the ck.h services for the stage host
  * tests (malloc + stdio). Hosted test code only; never in the image.
  * Identity "mapping": ck_mmio_map returns the address it is given, so a
@@ -226,8 +242,10 @@ int ck_entropy_fill(void *buf, size_t len)
 }
 
 /* Host: no IORT by default, so no SMMU (the NVMe gate stays fail-closed). A test may set
- * ck_host_confine_rc = 0 to model an SMMU that confines; every call is recorded. */
+ * ck_host_confine_rc = 0 to model an SMMU that confines; every call is recorded.
+ * ck_host_unconfine_fail = 1 models an SMMU that refuses the abort (CK_SMMU_FAILED). */
 int ck_host_confine_rc = CK_SMMU_ABSENT;
+int ck_host_unconfine_fail;
 unsigned ck_host_confine_calls, ck_host_unconfine_calls;
 uint32_t ck_host_confine_segment, ck_host_confine_rid;
 uint64_t ck_host_confine_phys, ck_host_confine_len;
@@ -255,6 +273,7 @@ int ck_dma_unconfine(uint32_t stream_id)
 {
     (void)stream_id;
     ck_host_unconfine_calls++;
+    if (ck_host_unconfine_fail) return CK_SMMU_FAILED;
     return ck_host_confine_rc == 0 ? 0 : CK_SMMU_EARG;
 }
 int ck_dma_faults(uint32_t stream_id, struct ck_dma_fault *first)

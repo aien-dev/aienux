@@ -1,7 +1,7 @@
 # INT8-ACTIVATION-QUAL-v1: prospective numerical qualification of the int8 activation path
 
 Status: SPECIFICATION, written before any run (2026-10-11). Nothing in this document has been measured.
-Owner issue: aien-dev/aienos#34 (L6-B). Draft implementation: PR #300 (branch `l6b-int8-dot`).
+Owner issue: aien-dev/aienux#34 (L6-B). Draft implementation: PR #300 (branch `l6b-int8-dot`).
 Authority: Drake's ruling of 2026-10-11 (aien-architecture#190, comment 6109731585; aienos#34, comment 6109732149).
 Kernel default stays **f32** until a run of this specification records PASS and a separate, reviewed change flips it.
 

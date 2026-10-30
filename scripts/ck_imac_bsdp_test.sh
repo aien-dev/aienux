@@ -9,6 +9,10 @@
 # must leave from that source port (the default run: from the listening port), with the same
 # fields, client identifier echo, MAC restriction and TFTP. Loopback says nothing about the iMac
 # firmware.
+# read request that repeats blksize until a chained option answer would pass the end of its
+# 128-byte buffer, and a clock gmtime cannot convert (LD_PRELOAD time shim). The server is
+# built with ASan + UBSan, so any write past a buffer ends the test. Loopback says nothing
+# about the iMac firmware.
 # Final line: AIENOS_IMAC_BSDP: PASS|FAIL   exit 0 / 1
 set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,7 +24,9 @@ trap '[[ -z "${spid}" ]] || kill "${spid}" 2>/dev/null || true; for p in "${spid
 fail() { echo "FAIL  $1"; echo "${tag}: FAIL"; exit 1; }
 pass() { echo "PASS  $1"; }
 command -v curl >/dev/null || { echo "${tag}: NOT_RUN (curl missing)"; exit 2; }
-cc -std=gnu11 -O2 -Wall -Wextra -Werror -o "${W}/bsdp" "${repo_root}/native/kernel/tools/ck_imac_bsdp.c"
+san=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+cc -std=gnu11 -O2 -Wall -Wextra -Werror "${san[@]}" -o "${W}/bsdp" "${repo_root}/native/kernel/tools/ck_imac_bsdp.c"
+cc -std=gnu11 -O2 -Wall -Wextra -Werror -o "${W}/bsdp_plain" "${repo_root}/native/kernel/tools/ck_imac_bsdp.c"
 cat >"${W}/client.c" <<'EOF'
 #include <arpa/inet.h>
 #include <poll.h>
@@ -28,6 +34,47 @@ cat >"${W}/client.c" <<'EOF'
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <stdint.h>
+/* client SERVER_PORT REPLY_PORT list|select|discover -> prints the answer's fields
+ * client TFTP_PORT REPLY_PORT flood -> a read request with blksize repeated 12 times;
+ * prints the option answer (oack_len=N, then name=value lines) or "no answer" */
+static int flood(struct sockaddr_in to, int s)
+{
+    uint8_t q[512];
+    size_t n = 0;
+    memcpy(q, "\0\1aienos/netldr.efi\0octet", 26), n = 26; /* includes the NUL after "octet" */
+    for (int i = 0; i < 12; i++)
+        memcpy(q + n, "blksize\0" "1428", 13), n += 13;
+    memcpy(q + n, "tsize\0" "0", 8), n += 8;
+    sendto(s, q, n, 0, (struct sockaddr *)&to, sizeof to);
+    struct pollfd pf = {s, POLLIN, 0};
+    if (poll(&pf, 1, 3000) <= 0) {
+        printf("no answer\n");
+        return 0;
+    }
+    uint8_t r[1600];
+    struct sockaddr_in from;
+    socklen_t fl = sizeof from;
+    ssize_t k = recvfrom(s, r, sizeof r, 0, (struct sockaddr *)&from, &fl);
+    if (k < 2 || r[1] != 6) {
+        printf("not an option answer (opcode %d)\n", k >= 2 ? r[1] : -1);
+        return 0;
+    }
+    printf("oack_len=%zd\n", k);
+    for (ssize_t i = 2; i < k;) {
+        const char *name = (const char *)r + i;
+        size_t a = strnlen(name, (size_t)(k - i));
+        if (i + (ssize_t)a + 1 >= k)
+            break;
+        const char *val = name + a + 1;
+        size_t b = strnlen(val, (size_t)(k - i - (ssize_t)a - 1));
+        printf("%.*s=%.*s\n", (int)a, name, (int)b, val);
+        i += (ssize_t)(a + b + 2);
+    }
+    uint8_t err[] = {0, 5, 0, 0, 's', 't', 'o', 'p', 0}; /* end the transfer */
+    sendto(s, err, sizeof err, 0, (struct sockaddr *)&from, sizeof from);
+    return 0;
+}
 /* client SERVER_PORT REPLY_PORT list|select|discover [none|short|max] [mac|other] -> prints the answer's fields
  * and, last, src_port=N (the UDP source port the answer came from).
  * The fourth argument picks the request's DHCP client identifier (option 61): none = absent,
@@ -41,6 +88,8 @@ int main(int argc, char **argv)
     struct sockaddr_in to = {.sin_family = AF_INET, .sin_port = htons(sp), .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
     if (bind(s, (struct sockaddr *)&me, sizeof me) != 0)
         return 3;
+    if (strcmp(argv[3], "flood") == 0)
+        return flood(to, s);
     uint8_t p[800] = {0};
     size_t n = 240;
     p[0] = 1, p[1] = 1, p[2] = 6;
@@ -164,6 +213,40 @@ pass "TFTP delivered the booter with the default 512-byte blocks"
 if curl -s -o "${W}/nope" "tftp://127.0.0.1:${tp}/etc/passwd"; then fail "TFTP served a file it should refuse"; fi
 grep -q 'asked for "etc/passwd" (octet): refused' "${W}/log" || fail "refusal not logged"
 pass "TFTP refused any other file"
+
+"${W}/client" "${tp}" "${rp}" flood >"${W}/flood"
+grep -q '^oack_len=' "${W}/flood" || fail "no option answer to a repeated-blksize request: $(cat "${W}/flood"); $(tail -5 "${W}/log")"
+olen="$(sed -n 's/^oack_len=//p' "${W}/flood")"
+((olen <= 128)) || fail "option answer of ${olen} bytes exceeds its 128-byte buffer"
+[[ "$(grep -c '^blksize=' "${W}/flood")" == 1 ]] || fail "blksize not acknowledged exactly once: $(cat "${W}/flood")"
+grep -q '^blksize=1428$' "${W}/flood" || fail "blksize answer: $(cat "${W}/flood")"
+grep -q '^tsize=45056$' "${W}/flood" || fail "tsize answer: $(cat "${W}/flood")"
+sleep 0.5
+kill -0 "${spid}" 2>/dev/null || fail "server died on a repeated-blksize request: $(tail -20 "${W}/log")"
+if grep -qE 'AddressSanitizer|runtime error' "${W}/log"; then fail "sanitizer report: $(grep -E -A5 'AddressSanitizer|runtime error' "${W}/log")"; fi
+pass "TFTP request with blksize repeated 12 times: one bounded option answer (${olen} bytes), server still serving"
+
+cat >"${W}/timeshim.c" <<'EOF'
+#include <time.h>
+/* A clock gmtime cannot convert (year beyond int); advances so --seconds still ends. */
+static time_t now = (time_t)1 << 62;
+time_t time(time_t *t)
+{
+    time_t v = now++;
+    if (t)
+        *t = v;
+    return v;
+}
+EOF
+cc -std=gnu11 -O2 -Wall -shared -fPIC -o "${W}/timeshim.so" "${W}/timeshim.c"
+rc=0
+LD_PRELOAD="${W}/timeshim.so" "${W}/bsdp_plain" serve --booter "${W}/booter.efi" --server-ip 127.0.0.1 \
+    --mac 78:7b:8a:bd:d0:51 --bsdp-port "$((bp + 10))" --tftp-port "$((bp + 11))" --seconds 3 >"${W}/log_clock" 2>&1 || rc=$?
+[[ "${rc}" == 0 ]] || fail "server exited ${rc} on a clock gmtime cannot convert: $(cat "${W}/log_clock")"
+grep -q 'serving BSDP' "${W}/log_clock" && grep -q 'deadline reached' "${W}/log_clock" ||
+    fail "log lines missing under an unconvertible clock: $(cat "${W}/log_clock")"
+pass "unconvertible clock: log lines still written, clean exit"
+echo "---- server log ----"; cat "${W}/log"
 
 # Default source port: the answers leave from the listening socket, so the source port is --bsdp-port.
 for f in list sel; do
