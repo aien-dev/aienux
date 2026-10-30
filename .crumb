@@ -22,7 +22,7 @@
       "children": [
         {
           "digest": "791de86a40c7086efdbe9ae14a52ecb72fc03f2b2e65bcd864134c8bd2e56906",
-          "last_commit": "d7012755",
+          "last_commit": "9f9b346c",
           "name": "crates",
           "purpose": "Directory crates. Purpose not yet described by a human."
         },
@@ -34,7 +34,7 @@
         },
         {
           "digest": "29e41ced398468a97d2bf46205db2399f437f60f7bd18b147d7a721e42c2ee8d",
-          "last_commit": "e7f886a7",
+          "last_commit": "e378096a",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
@@ -45,21 +45,21 @@
           "purpose": "Directory scripts. Purpose not yet described by a human."
         },
         {
-          "digest": "34003cd929e78814457231251c912b16e3207fb9753374db004bcca6775d56c4",
+          "digest": "e891c078bec120c3fdb14e13b7dd25d69054f608c2ea632adf2fd2b6e45d8fa1",
           "last_commit": "6c952979",
           "name": "tools",
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:c8ac268613c99066edb669fb3a01fb9512ba39e2c7b252373d7c6e561a070e8c",
-      "compiled_at": "2026-10-30T02:54:36Z",
+      "children_root": "sha256:9564c7ffc23b1bb177221f266f5f933c862930b40f5b5d165be6ab3e6b6f24e1",
+      "compiled_at": "2026-10-30T03:34:11Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:db55d315ded1f1e6951601275f097fda6d9773f61a56827ce62ca420e4cc0262",
+      "digest": "sha256:587e888d3fdfd8bdc16ceb9742d9a340c2fe185eae24455aeb12e96ae5b8fcf0",
       "evidence_files": 236,
       "evidence_root": "sha256:55ef5621f09577ce1ada90d990955aec996d15e16a9b0f6953ecb90f3ca499df",
-      "files": 3546,
-      "generated_at_commit": "e7f886a75d4ecdce252064470ead2465258dd263",
-      "source_tree": "sha256:42f4cff2861cf1ee950e8ba2f53829dcd6868098f602e0363755c5a383a0892f"
+      "files": 3549,
+      "generated_at_commit": "e378096abc4f9cf6e2d07601da83a3e86e818e20",
+      "source_tree": "sha256:c2d2d32ea043de3da873b75abb4ff93b037c481e4786e69bf4acfe4804812a97"
     },
     "owner_lane": "",
     "provenance": {
