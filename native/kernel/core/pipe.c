@@ -547,9 +547,22 @@ static const uint8_t op_args[] = { [CK_PIPE_OP_CREATE] = 0, [CK_PIPE_OP_READ] = 
                                    [CK_PIPE_OP_CLOSE] = 1, [CK_PIPE_OP_DUP] = 3 };
 #define OP_MAX CK_PIPE_OP_DUP
 
+#ifndef CK_PIPE_MUTANT_SKIP_SLICE
+/* 1 when [s, s+len) lies in [lo, hi). len 0 passes. Otherwise no s+len add: a wrapping length fails. */
+static int slice_ok(const void *s, size_t len, uintptr_t lo, uintptr_t hi)
+{
+    uintptr_t b = (uintptr_t)s;
+    if (len == 0)
+        return 1;
+    if (lo >= hi || b < lo || b >= hi)
+        return 0;
+    return len <= hi - b;
+}
+#endif
+
 unsigned ck_pipe_dispatch(struct ck_pipe_pool *p, struct ck_cap_table *caller, struct ck_cap_table *peer,
                           const uint64_t *frame, size_t ncells, uint8_t *slice, size_t slice_len,
-                          struct ck_pipe_ret *ret)
+                          uintptr_t user_lo, uintptr_t user_hi, struct ck_pipe_ret *ret)
 {
     struct ck_pipe_ret r = { 0 };
     unsigned e;
@@ -592,8 +605,16 @@ unsigned ck_pipe_dispatch(struct ck_pipe_pool *p, struct ck_cap_table *caller, s
             e = OSH_E_INVALID_ARG;
             break;
         }
-        /* slice/slice_len are not proved to lie in the caller's address space. The syscall layer has to
-         * validate the range or hand in a kernel buffer before this runs. A blocking write then copies. */
+#ifdef CK_PIPE_MUTANT_SKIP_SLICE
+        /* TEST-ONLY (make pipe-slice-mutant): the user window is not checked. test_pipe must fail. */
+        (void)user_lo;
+        (void)user_hi;
+#else
+        if (!slice_ok(slice, slice_len, user_lo, user_hi)) {
+            e = OSH_E_INVALID_ARG;
+            break;
+        }
+#endif
         e = op == CK_PIPE_OP_READ ? ck_stream_read(p, caller, h, slice, slice_len, (unsigned)frame[5], &n)
                                   : ck_stream_write(p, caller, h, slice, slice_len, (unsigned)frame[5], &n);
         r.value = n;

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -347,7 +348,8 @@ static void run_line(struct tok *t, int nt)
             memcpy(slice, c[2].b, c[2].n);
             sl = c[2].n;
         }
-        err = ck_pipe_dispatch(&pool, me, me == &ta ? &tb : &ta, cells, ncell, sl ? slice : 0, sl, &ret);
+        err = ck_pipe_dispatch(&pool, me, me == &ta ? &tb : &ta, cells, ncell, sl ? slice : 0, sl,
+                               (uintptr_t)slice, (uintptr_t)slice + sizeof slice, &ret);
         expect(ret.error == err, cur_file, cur_line, "frame result carries the error");
         n = (size_t)ret.value;
         if (want_n < 0)
@@ -549,36 +551,46 @@ static void test_epoch_and_forgery(void)
     CHECK(all_empty());
 }
 
+/* The slice is the whole window, so a length that fits the buffer passes the range check. A length of 0 does not
+ * consult the window. */
+static unsigned dispatch_owned(struct ck_cap_table *caller, struct ck_cap_table *peer, const uint64_t *frame,
+                               size_t ncells, uint8_t *slice, size_t slice_len, struct ck_pipe_ret *ret)
+{
+    uintptr_t lo = (uintptr_t)slice;
+    uintptr_t hi = lo + slice_len;
+    return ck_pipe_dispatch(&pool, caller, peer, frame, ncells, slice_len ? slice : 0, slice_len, lo, hi, ret);
+}
+
 static void test_dispatch(void)
 {
     fresh_tables();
     ck_pipe_pool_init(&pool, 0);
     struct ck_pipe_ret ret;
     uint64_t create[4] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_CREATE, 0 };
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, create, 4, 0, 0, &ret) == OSH_E_OK && ret.error == OSH_E_OK);
+    CHECK(dispatch_owned(&ta, &tb, create, 4, 0, 0, &ret) == OSH_E_OK && ret.error == OSH_E_OK);
     uint64_t rd = ret.value, wr = ret.value2;
     CHECK(rd != 0 && wr != 0 && rd != wr);
     uint8_t msg[5] = { 'p', 0, 'i', 0, 'p' }, got[8];
     uint64_t wf[6] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_WRITE, 0, wr, 0 };
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, wf, 6, msg, 5, &ret) == OSH_E_OK && ret.value == 5);
+    CHECK(dispatch_owned(&ta, &tb, wf, 6, msg, 5, &ret) == OSH_E_OK && ret.value == 5);
     uint64_t dup[7] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_DUP, 0, rd, CK_R_READ, 1 };
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, dup, 7, 0, 0, &ret) == OSH_E_OK);
+    CHECK(dispatch_owned(&ta, &tb, dup, 7, 0, 0, &ret) == OSH_E_OK);
     uint64_t rb = ret.value;
     uint64_t rf[6] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_READ, 0, rb, 0 };
     /* the dup lives in the peer table: from the caller's table the same raw handle is not ours */
-    CHECK(ck_pipe_dispatch(&pool, &tb, &ta, rf, 6, got, 8, &ret) == OSH_E_OK && ret.value == 5 && !memcmp(got, msg, 5));
+    CHECK(dispatch_owned(&tb, &ta, rf, 6, got, 8, &ret) == OSH_E_OK && ret.value == 5 && !memcmp(got, msg, 5));
     /* the read end in the peer table cannot write */
     uint64_t wb[6] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_WRITE, 0, rb, 0 };
-    CHECK(ck_pipe_dispatch(&pool, &tb, &ta, wb, 6, msg, 5, &ret) == OSH_E_DENIED && ret.value == 0);
+    CHECK(dispatch_owned(&tb, &ta, wb, 6, msg, 5, &ret) == OSH_E_DENIED && ret.value == 0);
     uint64_t cl[5] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_CLOSE, 0, 0 };
     cl[4] = rd;
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, cl, 5, 0, 0, &ret) == OSH_E_OK);
+    CHECK(dispatch_owned(&ta, &tb, cl, 5, 0, 0, &ret) == OSH_E_OK);
     cl[4] = wr;
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, cl, 5, 0, 0, &ret) == OSH_E_OK);
+    CHECK(dispatch_owned(&ta, &tb, cl, 5, 0, 0, &ret) == OSH_E_OK);
     cl[4] = rb;
-    CHECK(ck_pipe_dispatch(&pool, &tb, &ta, cl, 5, 0, 0, &ret) == OSH_E_OK);
+    CHECK(dispatch_owned(&tb, &ta, cl, 5, 0, 0, &ret) == OSH_E_OK);
     CHECK(all_empty());
-    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, 0, 0, 0, 0, &ret) == OSH_E_INVALID_ARG);
+    CHECK(dispatch_owned(&ta, &tb, 0, 0, 0, 0, &ret) == OSH_E_INVALID_ARG);
 }
 
 /* A close that fails must not add to the release count. The forged cap is removed (STALE) and still not counted.
@@ -1059,6 +1071,109 @@ static void test_concurrent(void)
     alarm(0);
 }
 
+/* Above the user-VA top named in pipe.h: ARM64 TTBR1 is 0xFFFF000000000000, and this is the x86 canonical high half. */
+#define SLICE_KERNEL_HALF ((uintptr_t)0xFFFF800000000000ULL)
+
+static sigjmp_buf slice_jmp;
+
+static void slice_fault(int sig)
+{
+    (void)sig;
+    siglongjmp(slice_jmp, 1);
+}
+
+static unsigned frame_rw(int is_write, uint64_t raw, uint8_t *slice, size_t len, uintptr_t lo, uintptr_t hi,
+                         struct ck_pipe_ret *ret)
+{
+    uint64_t fr[6] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, is_write ? CK_PIPE_OP_WRITE : CK_PIPE_OP_READ, 0, raw,
+                       0 };
+    return ck_pipe_dispatch(&pool, &ta, &tb, fr, 6, slice, len, lo, hi, ret);
+}
+
+/* A rejected slice must not move a byte. A fault means the check did not run before the copy; the ticket lock
+ * would still be held, so stop rather than deadlock the next op. */
+static void slice_reject(int is_write, uint64_t raw, void *slice, size_t len, uintptr_t lo, uintptr_t hi,
+                         uint32_t plen, uint64_t bw, uint64_t br)
+{
+    struct ck_pipe_ret ret;
+    if (sigsetjmp(slice_jmp, 1) != 0) {
+        CHECK(0 && "slice faulted; the range check did not reject it");
+        ck_t_verdict("test_pipe");
+        fflush(stdout);
+        _Exit(1);
+    }
+    unsigned err = frame_rw(is_write, raw, slice, len, lo, hi, &ret);
+    CHECK(err == OSH_E_INVALID_ARG && ret.error == OSH_E_INVALID_ARG && ret.value == 0);
+    CHECK(pool.pipes[0].len == plen && pool.total.bytes_written == bw && pool.total.bytes_read == br);
+}
+
+static void test_slice_window(void)
+{
+    fresh_tables();
+    ck_pipe_pool_init(&pool, 0);
+    struct sigaction sa, old_segv, old_bus;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = slice_fault;
+    sigemptyset(&sa.sa_mask);
+    CHECK(sigaction(SIGSEGV, &sa, &old_segv) == 0);
+    CHECK(sigaction(SIGBUS, &sa, &old_bus) == 0);
+
+    struct ck_pipe_ret ret;
+    uint64_t create[4] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_CREATE, 0 };
+    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, create, 4, 0, 0, 0, 0, &ret) == OSH_E_OK);
+    uint64_t rd = ret.value, wr = ret.value2;
+    CHECK(pool.pipes[0].flags & CK_PIPE_LIVE);
+
+    /* The declared window is mem[16, 32). The allocation is larger, so a slice past hi is still mapped. */
+    uint8_t mem[64];
+    memset(mem, 0x5A, sizeof mem);
+    uintptr_t lo = (uintptr_t)(mem + 16);
+    uintptr_t hi = lo + 16;
+    memcpy(mem + 16, "abcd", 4);
+    CHECK(frame_rw(1, wr, mem + 16, 4, lo, hi, &ret) == OSH_E_OK && ret.value == 4);
+    uint32_t plen = pool.pipes[0].len;
+    uint64_t bw = pool.total.bytes_written, br = pool.total.bytes_read;
+    CHECK(plen == 4 && bw == 4 && br == 0);
+
+    /* len 0 passes, including a pointer that must not be dereferenced. */
+    CHECK(frame_rw(0, rd, 0, 0, lo, hi, &ret) == OSH_E_OK && ret.value == 0);
+    CHECK(frame_rw(0, rd, (uint8_t *)(UINTPTR_MAX - 3), 0, lo, hi, &ret) == OSH_E_OK && ret.value == 0);
+    CHECK(frame_rw(1, wr, (uint8_t *)SLICE_KERNEL_HALF, 0, lo, hi, &ret) == OSH_E_OK && ret.value == 0);
+    CHECK(pool.pipes[0].len == plen && pool.total.bytes_written == bw && pool.total.bytes_read == br);
+
+    /* Outside the window, still inside the allocation. */
+    slice_reject(1, wr, mem, 4, lo, hi, plen, bw, br);
+    slice_reject(1, wr, mem + 40, 4, lo, hi, plen, bw, br);
+    /* One byte before lo, and the exclusive end. */
+    slice_reject(1, wr, (void *)(lo - 1), 1, lo, hi, plen, bw, br);
+    slice_reject(1, wr, (void *)hi, 1, lo, hi, plen, bw, br);
+    /* Starts on the last byte of the window and runs past hi. */
+    slice_reject(1, wr, (void *)(hi - 1), 2, lo, hi, plen, bw, br);
+    /* base == lo and len == hi - lo + 1. */
+    slice_reject(1, wr, (void *)lo, 17, lo, hi, plen, bw, br);
+    /* slice + len wraps the address space. */
+    slice_reject(1, wr, (void *)(UINTPTR_MAX - 3), 8, lo, hi, plen, bw, br);
+    /* Kernel half. */
+    slice_reject(1, wr, (void *)SLICE_KERNEL_HALF, 4, lo, hi, plen, bw, br);
+
+    /* Boundaries that are inside: lo, the last byte, and a length that lands exactly on hi. */
+    uint8_t got[4];
+    CHECK(frame_rw(0, rd, got, 4, (uintptr_t)got, (uintptr_t)got + sizeof got, &ret) == OSH_E_OK && ret.value == 4);
+    CHECK(!memcmp(got, "abcd", 4));
+    mem[31] = 'Z';
+    CHECK(frame_rw(1, wr, (uint8_t *)(hi - 1), 1, lo, hi, &ret) == OSH_E_OK && ret.value == 1);
+    CHECK(frame_rw(1, wr, (uint8_t *)lo, 16, lo, hi, &ret) == OSH_E_OK && ret.value == 16);
+    CHECK(pool.pipes[0].len == 1 + 16);
+
+    uint64_t cl[5] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, CK_PIPE_OP_CLOSE, 0, rd };
+    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, cl, 5, 0, 0, 0, 0, &ret) == OSH_E_OK);
+    cl[4] = wr;
+    CHECK(ck_pipe_dispatch(&pool, &ta, &tb, cl, 5, 0, 0, 0, 0, &ret) == OSH_E_OK);
+    CHECK(all_empty());
+    CHECK(sigaction(SIGSEGV, &old_segv, 0) == 0);
+    CHECK(sigaction(SIGBUS, &old_bus, 0) == 0);
+}
+
 int main(int argc, char **argv)
 {
     _Static_assert(CK_PIPE_CAPACITY >= 65536u, "section 8.5 minimum");
@@ -1069,6 +1184,7 @@ int main(int argc, char **argv)
     test_revoke_midstream(CK_PIPE_F_BLOCK);
     test_epoch_and_forgery();
     test_dispatch();
+    test_slice_window();
     test_release_count();
     test_toctou_snapshot();
     CHECK(pthread_mutex_init(&host.mu, 0) == 0);

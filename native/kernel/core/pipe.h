@@ -45,16 +45,24 @@
  * Locking. One ticket lock covers the pool (every pipe, the ref counts, the ring, the stats, the live count).
  * core/smp.c is the kernel's SMP primitive and it synchronises with __atomic_*; there is no separate spinlock
  * type, so the ticket lock uses those same orders. create, read, write, close, dup, revoke, cancel, release and
- * ck_pipe_pool_empty all take it. It is not IRQ-safe: pipe ops are not called from interrupt handlers. It is never
- * held across wait or wake, so a hook may call back into the pipe. The waiter increments waiting[end] under the
- * lock before dropping it; a waker calls the wake hook after dropping the lock, and only when that count was
- * non-zero. wait must still observe a wake that ran before wait blocked (check the hook's own flag under the
- * hook's lock before sleeping). before_wait, if set, runs in that window; production leaves it NULL.
+ * ck_pipe_pool_empty all take it. It is not IRQ-safe: pipe ops are not called from interrupt handlers. If a wake
+ * or a cancel is ever called from an IRQ, this lock must mask IRQs, or that CPU deadlocks against itself. It is
+ * never held across wait or wake, so a hook may call back into the pipe. The waiter increments waiting[end] under
+ * the lock before dropping it; a waker calls the wake hook after dropping the lock, and only when that count was
+ * non-zero. The wake hook must be sticky (woken[] stays set until wait has observed it). before_wait, if set,
+ * runs in that window; production leaves it NULL. The capability table is covered only by this pool lock. Another
+ * core using the same ck_cap_table for a non-pipe operation would race.
  * ck_pipe_pool_init is single-threaded, before the pool is shared.
  *
- * Caller buffers. ck_stream_read, ck_stream_write and ck_pipe_dispatch do not check that a pointer is in a
- * caller's address space. This tree has no access_ok or copy_from_user. The syscall layer must validate the
- * range, or pass a kernel buffer. Those three entry points treat the pointer as that buffer.
+ * User window. ck_pipe_dispatch rejects a read or a write whose slice lies outside [user_lo, user_hi) with
+ * INVALID_ARG, before anything reads or writes the slice. A length of 0 passes. Otherwise the base must sit in
+ * [user_lo, user_hi) and the length must be <= user_hi - base. The check never adds base and length, so a length
+ * that would wrap the address space fails. ck_stream_read and ck_stream_write do not repeat it; a direct caller
+ * passes a kernel buffer it already owns.
+ * The syscall layer still has two duties. It must assert, on each architecture, that user_hi is below the user-VA
+ * top: below TTBR1 (0xFFFF000000000000) on ARM64, and below the canonical upper half on x86. It must copy the
+ * slice in and out through a kernel bounce buffer outside the pool lock, so a user fault never runs while the
+ * ticket lock is held.
  *
  * Memory: a fixed pool of CK_PIPE_POOL_PIPES pipes with CK_PIPE_CAPACITY bytes each, all static; nothing grows.
  * Pure logic, no hardware: host-tested in tests/test_pipe.c (fixtures in tests/fixtures/pipe/, plus host threads
@@ -136,7 +144,9 @@ struct ck_pipe {
 
 /* Wait / wake hook. wait: the caller would block on (pipe, end); return OSH_E_OK to retry the operation (it re-checks
  * authority) or an error (normally OSH_E_INTERRUPTED) to give up; the operation then returns it with no byte moved.
- * Called without the pool lock. A wake for this end may already have run; wait must not sleep through it.
+ * Called without the pool lock. The wake flag must be sticky. A wake may already have run after the waiter was
+ * published and before wait is called; wait must observe it and must not clear it before that observation
+ * (pd_wait leaves woken[] set until it has seen it). A hook that clears the flag on entry loses that wake.
  * wake: (pipe, end) may proceed (bytes, space, close, revoke or cancel); called only when that end has a waiter,
  * and only after the pool lock is dropped. before_wait: optional, same window, NULL in production. */
 struct ck_pipe_hooks {
@@ -192,14 +202,15 @@ unsigned ck_pipe_release_table(struct ck_pipe_pool *p, struct ck_cap_table *t);
  * than 4 cells, bad magic or nonzero reserved -> INVALID_ARG; abi_version not CK_PIPE_ABI_VERSION or an unknown op
  * -> NOT_SUPPORTED; wrong cell count, a generation-0 handle or unknown flag bits -> INVALID_ARG.
  * Result: {error, value} as in section 8; PIPE_CREATE also fills value2 (the write end). value2 is UNVERIFIED.
- * slice / slice_len are not checked against a user address space. The syscall layer validates the range or
- * passes a kernel buffer; this function treats slice as that buffer (see the caller-buffer note above). */
+ * READ and WRITE then require slice[0, slice_len) inside [user_lo, user_hi), user_hi exclusive. A length of 0
+ * passes. Any other slice is INVALID_ARG before the buffer is touched (see the user-window note above).
+ * user_lo and user_hi are the caller's window; kernel self-tests pass the bounds of their own buffer. */
 struct ck_pipe_ret {
     uint32_t error;
     uint64_t value, value2;
 };
 unsigned ck_pipe_dispatch(struct ck_pipe_pool *p, struct ck_cap_table *caller, struct ck_cap_table *peer,
                           const uint64_t *frame, size_t ncells, uint8_t *slice, size_t slice_len,
-                          struct ck_pipe_ret *ret);
+                          uintptr_t user_lo, uintptr_t user_hi, struct ck_pipe_ret *ret);
 
 #endif

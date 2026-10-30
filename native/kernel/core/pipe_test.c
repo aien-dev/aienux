@@ -145,8 +145,9 @@ static void stale_and_ops(void)
     struct ck_pipe_ret ret;
     uint64_t unknown[4] = { CK_PIPE_FRAME_MAGIC, CK_PIPE_ABI_VERSION, 9, 0 };
     uint64_t v2[4] = { CK_PIPE_FRAME_MAGIC, 2, CK_PIPE_OP_CREATE, 0 };
-    unsigned eu = ck_pipe_dispatch(&pool, &ta, &tb, unknown, 4, 0, 0, &ret);
-    unsigned ev = ck_pipe_dispatch(&pool, &ta, &tb, v2, 4, 0, 0, &ret);
+    /* No slice. A length of 0 does not consult the window. */
+    unsigned eu = ck_pipe_dispatch(&pool, &ta, &tb, unknown, 4, 0, 0, 0, 0, &ret);
+    unsigned ev = ck_pipe_dispatch(&pool, &ta, &tb, v2, 4, 0, 0, 0, 0, &ret);
     ck_printf("pipe_detail: op_table abi_version=%u unknown_op=%s version_2=%s\n", CK_PIPE_ABI_VERSION,
               osh_err_label(eu), osh_err_label(ev));
     verdict("unknown_op_not_supported", eu == OSH_E_NOT_SUPPORTED && ev == OSH_E_NOT_SUPPORTED && empty());
