@@ -101,6 +101,9 @@ struct Args {
     busy_wait: u64, // seconds to keep asking a busy (503) model
     code_max_tokens: u32,
     code_reply: Option<PathBuf>,
+    think_budget: Option<u32>, // the server's thinking_budget_tokens for chat answers
+    local_think_budget: Option<u32>, // and for each local-tools round
+    action_schema: bool,       // ask the server to hold local-tools answers to the action schema
     split: Option<PathBuf>,
 }
 
@@ -108,7 +111,9 @@ fn usage() -> ! {
     eprintln!(
         "usage: allen-courier [--socket PATH] [--udp PORT] [--udp-answer IP:PORT] [--model HOST:PORT] \
          [--work DIR] [--log-dir DIR] [--max-tokens N] [--say-max N] [--busy-wait SECONDS] \
-         [--code-max-tokens N] [--code-reply DIR]   (one wire at least)\n       allen-courier --split FILE"
+         [--code-max-tokens N] [--code-reply DIR] [--think-budget N] [--local-think-budget N] \
+         [--action-schema on|off]   \
+         (one wire at least)\n       allen-courier --split FILE"
     );
     std::process::exit(2)
 }
@@ -127,6 +132,9 @@ fn parse_args() -> Args {
         busy_wait: 900,
         code_max_tokens: 8192,
         code_reply: None,
+        think_budget: None,
+        local_think_budget: None,
+        action_schema: false,
         split: None,
     };
     let mut it = std::env::args().skip(1);
@@ -144,6 +152,17 @@ fn parse_args() -> Args {
             "--busy-wait" => a.busy_wait = v.parse().unwrap_or_else(|_| usage()),
             "--code-max-tokens" => a.code_max_tokens = v.parse().unwrap_or_else(|_| usage()),
             "--code-reply" => a.code_reply = Some(PathBuf::from(v)),
+            "--think-budget" => a.think_budget = Some(v.parse().unwrap_or_else(|_| usage())),
+            "--local-think-budget" => {
+                a.local_think_budget = Some(v.parse().unwrap_or_else(|_| usage()))
+            }
+            "--action-schema" => {
+                a.action_schema = match v.as_str() {
+                    "on" => true,
+                    "off" => false,
+                    _ => usage(),
+                }
+            }
             "--split" => a.split = Some(PathBuf::from(v)),
             _ => usage(),
         }
@@ -582,15 +601,27 @@ struct Brain {
     lock: Mutex<()>,
     code_max_tokens: u32,
     code_reply: Option<PathBuf>,
+    think_budget: Option<u32>,
+    local_think_budget: Option<u32>,
+    action_schema: bool,
     local_pending: Mutex<HashMap<String, local_tools::Pending>>,
     code_n: Mutex<u32>, // code jobs so far (for --code-reply)
     code_history: Mutex<Vec<(String, String)>>, // the code's requests and answers, for code-more
     code_sent: Mutex<HashMap<u32, Vec<String>>>, // the last code answers' lines, for AGAIN
 }
 
+/// The thinking cap for a server that thinks before it answers. A chat or
+/// local-tools answer is short; unbounded thinking would spend its whole token
+/// budget before the first word. Unset: the request stays as it was.
+fn thinking(budget: Option<u32>) -> String {
+    budget
+        .map(|n| format!(",\"thinking_budget_tokens\":{n}"))
+        .unwrap_or_default()
+}
+
 impl Brain {
-    /// Opens the streamed chat request: the status, the head, and the stream.
-    fn open(&self, job: &Job) -> std::io::Result<(u16, String, TcpStream)> {
+    /// The streamed chat request body.
+    fn chat_body(&self, job: &Job) -> String {
         let mut history = String::new();
         // ck_allen_job_memory sends the newest notes first. Reconstruct
         // only complete exchange-shaped notes, oldest first; retain other
@@ -602,15 +633,20 @@ impl Brain {
                 json_str(said)
             ));
         }
-        let body = format!(
+        format!(
             "{{\"messages\":[{{\"role\":\"system\",\"content\":{}}}{},{{\"role\":\"user\",\"content\":{}}}],\
-             \"max_tokens\":{},\"temperature\":0.4,\"stream\":true}}",
+             \"max_tokens\":{},\"temperature\":0.4,\"stream\":true{}}}",
             json_str(&job.system()),
             history,
             json_str(&job.ask),
-            self.max_tokens
-        );
-        self.post(&body)
+            self.max_tokens,
+            thinking(self.think_budget)
+        )
+    }
+
+    /// Opens the streamed chat request: the status, the head, and the stream.
+    fn open(&self, job: &Job) -> std::io::Result<(u16, String, TcpStream)> {
+        self.post(&self.chat_body(job))
     }
 
     /// Posts a chat request body: the status, the head, and the stream after it.
@@ -1779,6 +1815,9 @@ fn main() {
         lock: Mutex::new(()),
         code_max_tokens: a.code_max_tokens,
         code_reply: a.code_reply.clone(),
+        think_budget: a.think_budget,
+        local_think_budget: a.local_think_budget,
+        action_schema: a.action_schema,
         local_pending: Mutex::new(HashMap::new()),
         code_n: Mutex::new(0),
         code_history: Mutex::new(Vec::new()),
@@ -1949,21 +1988,7 @@ mod tests {
                 .unwrap();
             String::from_utf8(body).unwrap()
         });
-        let brain = Brain {
-            model,
-            max_tokens: 150,
-            say_max: 150,
-            busy_wait: Duration::from_secs(5),
-            work: PathBuf::new(),
-            log_dir: PathBuf::new(),
-            lock: Mutex::new(()),
-            code_max_tokens: 8192,
-            code_reply: None,
-            local_pending: Mutex::new(HashMap::new()),
-            code_n: Mutex::new(0),
-            code_history: Mutex::new(Vec::new()),
-            code_sent: Mutex::new(HashMap::new()),
-        };
+        let brain = test_brain(model);
         // The kernel sends notes newest first. Facts and incomplete notes are
         // still memory, but must not become invented conversation turns.
         let job = Job::parse("JOB 3 chat Answer as Allen.\twhat did i ask\tself=Allen\tnote asked: write \"hello\" / said: Hello.\tnote asked: incomplete\tnote water the plants\tnote asked: write a haiku about rain / said: Soft drops.").unwrap();
@@ -1991,6 +2016,52 @@ mod tests {
             previous = at;
         }
         assert_eq!(body.matches("{\"role\":").count(), 6);
+    }
+
+    fn test_brain(model: String) -> Brain {
+        Brain {
+            model,
+            max_tokens: 150,
+            say_max: 150,
+            busy_wait: Duration::from_secs(5),
+            work: PathBuf::new(),
+            log_dir: PathBuf::new(),
+            lock: Mutex::new(()),
+            code_max_tokens: 8192,
+            code_reply: None,
+            think_budget: None,
+            local_think_budget: None,
+            action_schema: false,
+            local_pending: Mutex::new(HashMap::new()),
+            code_n: Mutex::new(0),
+            code_history: Mutex::new(Vec::new()),
+            code_sent: Mutex::new(HashMap::new()),
+        }
+    }
+
+    #[test]
+    fn thinking_budget_and_action_schema_reach_only_the_requests_they_are_set_for() {
+        let job = Job::parse("JOB 1 chat Answer as Allen.\thello").unwrap();
+        let mut brain = test_brain(String::new());
+        // unset: the request a server without thinking already takes
+        for body in [brain.chat_body(&job), brain.local_body("{}")] {
+            assert!(!body.contains("thinking_budget_tokens"), "{body}");
+            assert!(!body.contains("response_format"), "{body}");
+        }
+        brain.think_budget = Some(64);
+        brain.local_think_budget = Some(256);
+        let chat = brain.chat_body(&job);
+        assert!(
+            chat.ends_with(",\"stream\":true,\"thinking_budget_tokens\":64}"),
+            "{chat}"
+        );
+        assert!(!brain.local_body("{}").contains("response_format"));
+        brain.action_schema = true;
+        let local = brain.local_body("{}");
+        assert!(local.contains(",\"stream\":false,\"thinking_budget_tokens\":256,\"response_format\":{\"type\":\"json_schema\""), "{local}");
+        assert!(local.ends_with("]}}}}"), "{local}");
+        // the schema holds only the local-tools answer; chat stays free text
+        assert!(!brain.chat_body(&job).contains("response_format"));
     }
 
     #[test]
