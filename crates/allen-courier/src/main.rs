@@ -61,6 +61,23 @@ const CODE_PROMPT: &str = include_str!("../code_prompt.txt");
 const HERE: &str = "Here it is.";
 /// Answer lines in flight on the Ethernet wire at once (the kernel holds 8, x86/courier_udp_x86.c LINES).
 const WINDOW: usize = 6;
+/// Body bytes in one JOB datagram (x86/courier_udp.h CK_COURIER_PART).
+const JOB_PART: usize = 1000;
+/// The longest job line the kernel sends (x86/courier_udp.h CK_COURIER_JOB_MAX).
+const JOB_MAX: usize = 4096;
+/// Most parts one job can have: the longest job in parts of JOB_PART.
+const JOB_PARTS_MAX: u32 = JOB_MAX.div_ceil(JOB_PART) as u32;
+/// Jobs one kernel may have half-received. It sends one job at a time and drops
+/// the old one when it starts the next, so more than a couple is a stray or hostile sender.
+const JOBS_INCOMPLETE_MAX: usize = 4;
+/// Kernel boots (run ids) kept at once. One iMac makes one run per boot.
+const SESSIONS_MAX: usize = 16;
+/// A boot unheard from this long is gone: its kernel sends a HELLO at least every 10 s.
+const SESSION_IDLE: Duration = Duration::from_secs(300);
+/// Jobs waiting for the single worker. The kernel has one job out at a time (plus a
+/// RESULT or AGAIN for it), so this is room for retries across a reboot; when it is full
+/// the job is neither ACKed nor marked done, and the kernel sends it again in 2 s.
+const WORK_QUEUE: usize = 4;
 
 /// Allen's rules for the worker, from docs/ALLEN_PRESENCE_RESEARCH.md section 5
 /// (Austin: say who speaks to whom; Gollwitzer: the shape of the act; Weiser and
@@ -246,11 +263,12 @@ fn dechunk(b: &[u8]) -> Vec<u8> {
             break;
         }
         let s = e + 2;
-        if s + n > b.len() {
+        // n is the server's number: an overflowing one is a bad chunk, not a slice bound
+        let Some(end) = s.checked_add(n).filter(|&end| end <= b.len()) else {
             break;
-        }
-        out.extend_from_slice(&b[s..s + n]);
-        i = s + n + 2;
+        };
+        out.extend_from_slice(&b[s..end]);
+        i = end + 2;
     }
     out
 }
@@ -1323,14 +1341,194 @@ struct Pending {
     tries: u32,
 }
 
+/// One job being put together from its JOB parts, as the first part described it.
+struct JobParts {
+    total: u32,
+    bytes: u32,
+    bodies: Vec<Option<String>>,
+}
+
+/// What one JOB part did to its job.
+#[derive(Debug, PartialEq)]
+enum Part {
+    /// The head describes no job the kernel could send: ACK it, so it stops.
+    Refused,
+    /// Dropped without a word: it contradicts the job's first part, or is no part of it.
+    Ignored,
+    /// Kept; more parts are due.
+    Waiting,
+    /// The last part came: the whole job line.
+    Whole(String),
+    /// All parts came but their sum is not the length the head promised.
+    WrongLength,
+}
+
 /// One kernel boot (a run id).
 struct Session {
     answer_to: SocketAddr,
-    job_parts: HashMap<u32, (u32, u32, Vec<Option<String>>)>, // seq -> (parts, bytes, bodies)
-    done_seq: u32,                                            // the last job answered (or taken)
+    seen: Instant,                     // when the kernel last wrote
+    job_parts: HashMap<u32, JobParts>, // seq -> the job so far
+    done_seq: u32,                     // the last job answered (or taken)
     pending: Vec<Pending>,
     queue: VecDeque<(u32, String)>, // answer lines waiting for room in the window
     line_no: u32,                   // LINE numbers within the current job's answer
+}
+
+impl Session {
+    fn new(answer_to: SocketAddr, now: Instant) -> Session {
+        Session {
+            answer_to,
+            seen: now,
+            job_parts: HashMap::new(),
+            done_seq: 0,
+            pending: Vec::new(),
+            queue: VecDeque::new(),
+            line_no: 0,
+        }
+    }
+
+    /// Puts one JOB part in its job. The kernel cuts a job of `bytes` into `total` parts
+    /// of JOB_PART bytes (the last one shorter), so the head and the body must say the
+    /// same thing before anything is indexed or stored; the first part of a job sets what
+    /// the others must match. A repeat of a kept part changes nothing.
+    fn job_part(&mut self, seq: u32, part: u32, total: u32, bytes: u32, body: &str) -> Part {
+        let bytes_n = bytes as usize;
+        if bytes_n == 0
+            || bytes_n > JOB_MAX
+            || total == 0
+            || total > JOB_PARTS_MAX
+            || total as usize != bytes_n.div_ceil(JOB_PART)
+            || part == 0
+            || part > total
+        {
+            return Part::Refused;
+        }
+        let want = if part < total {
+            JOB_PART
+        } else {
+            bytes_n - (total as usize - 1) * JOB_PART
+        };
+        if body.len() != want {
+            return Part::Ignored;
+        }
+        if !self.job_parts.contains_key(&seq) && self.job_parts.len() >= JOBS_INCOMPLETE_MAX {
+            // the kernel moves on to higher seqs: room is made by dropping the oldest job
+            let Some(old) = self.job_parts.keys().copied().min().filter(|&k| k < seq) else {
+                return Part::Ignored;
+            };
+            self.job_parts.remove(&old);
+        }
+        let e = self.job_parts.entry(seq).or_insert_with(|| JobParts {
+            total,
+            bytes,
+            bodies: vec![None; total as usize],
+        });
+        if e.total != total || e.bytes != bytes {
+            return Part::Ignored;
+        }
+        let slot = &mut e.bodies[(part - 1) as usize];
+        if slot.is_none() {
+            *slot = Some(body.to_string());
+        }
+        if e.bodies.iter().any(|p| p.is_none()) {
+            return Part::Waiting;
+        }
+        let line: String = e.bodies.iter().flatten().map(String::as_str).collect();
+        let whole = line.len() as u32 == e.bytes;
+        self.job_parts.remove(&seq);
+        if whole {
+            Part::Whole(line)
+        } else {
+            Part::WrongLength
+        }
+    }
+
+    /// Takes in one JOB datagram. True when the kernel is to be ACKed (it holds the job, or
+    /// the job is no use to it); false when it is to send the job again: more parts are
+    /// due, the datagram was ignored, or the worker has no room, in which case nothing is
+    /// marked done. Never waits for the worker.
+    fn job(
+        &mut self,
+        run: &str,
+        (seq, part, total, bytes): (u32, u32, u32, u32),
+        body: &str,
+        work: &mpsc::SyncSender<Work>,
+    ) -> bool {
+        if seq <= self.done_seq {
+            return true;
+        }
+        let line = match self.job_part(seq, part, total, bytes, body) {
+            Part::Refused => return true,
+            Part::Ignored | Part::Waiting => return false,
+            Part::WrongLength => {
+                println!("courier: udp: a job arrived with the wrong length; waiting for it again");
+                return false;
+            }
+            Part::Whole(line) => line,
+        };
+        let again = line
+            .strip_prefix("AGAIN ")
+            .and_then(|v| v.trim().parse::<u32>().ok());
+        let run = run.to_string();
+        let w = if line.starts_with("RESULT ") {
+            Some(Work::LocalResult(run, seq, line))
+        } else if let Some(again) = again {
+            Some(Work::Again(run, again, seq))
+        } else {
+            Job::parse(&line).map(|job| Work::Job(run, seq, job))
+        };
+        match w {
+            Some(w) => match work.try_send(w) {
+                Ok(()) => {}
+                Err(mpsc::TrySendError::Full(_)) => {
+                    println!(
+                        "courier: udp: the worker has no room; job {} will be asked for again",
+                        seq
+                    );
+                    return false;
+                }
+                Err(mpsc::TrySendError::Disconnected(_)) => {
+                    println!("courier: udp: the worker is gone; job {} dropped", seq);
+                }
+            },
+            None => println!("courier: udp: a job line without its parts was dropped"),
+        }
+        self.done_seq = seq;
+        self.job_parts.retain(|&k, _| k > seq);
+        self.pending.clear();
+        self.queue.clear();
+        self.line_no = 0;
+        true
+    }
+}
+
+/// The session for a run id, made when it is new and there is room. Boots unheard from for
+/// SESSION_IDLE with no answer in flight are forgotten to make room; None when it is
+/// still full. The bool is whether the session was just made.
+fn session_for<'a>(
+    sessions: &'a mut HashMap<String, Session>,
+    run: &str,
+    answer_to: SocketAddr,
+    now: Instant,
+) -> Option<(&'a mut Session, bool)> {
+    let fresh = !sessions.contains_key(run);
+    if fresh {
+        if sessions.len() >= SESSIONS_MAX {
+            sessions.retain(|_, s| {
+                now.duration_since(s.seen) < SESSION_IDLE
+                    || !s.pending.is_empty()
+                    || !s.queue.is_empty()
+            });
+        }
+        if sessions.len() >= SESSIONS_MAX {
+            return None;
+        }
+        sessions.insert(run.to_string(), Session::new(answer_to, now));
+    }
+    let s = sessions.get_mut(run)?;
+    s.answer_to = answer_to;
+    s.seen = now;
+    Some((s, fresh))
 }
 
 /// Moves waiting lines into flight while fewer than WINDOW wait for their GOT.
@@ -1416,7 +1614,7 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
         sock: sock.try_clone().expect("socket clone"),
         sessions: HashMap::new(),
     }));
-    let (job_tx, job_rx) = mpsc::channel::<Work>();
+    let (job_tx, job_rx) = mpsc::sync_channel::<Work>(WORK_QUEUE);
     // the worker: one job at a time, answers as LINEs kept until GOT, at most WINDOW in flight
     {
         let state = Arc::clone(&state);
@@ -1526,16 +1724,10 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
             from
         };
         let Udp { sock, sessions } = &mut *st;
-        let fresh = !sessions.contains_key(&run);
-        let s = sessions.entry(run.clone()).or_insert_with(|| Session {
-            answer_to,
-            job_parts: HashMap::new(),
-            done_seq: 0,
-            pending: Vec::new(),
-            queue: VecDeque::new(),
-            line_no: 0,
-        });
-        s.answer_to = answer_to;
+        let Some((s, fresh)) = session_for(sessions, &run, answer_to, Instant::now()) else {
+            println!("courier: udp: too many kernels; run {} ignored", run);
+            continue;
+        };
         if fresh {
             println!(
                 "courier: udp: hello from a kernel, run {}, answers to {}",
@@ -1551,51 +1743,9 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
                 fill(sock, &run, s);
             }
             "JOB" => {
-                if seq <= s.done_seq || total == 0 || part == 0 || part > total || total > 8 {
+                let ack = s.job(&run, (seq, part, total, bytes), body, &job_tx);
+                if ack {
                     let _ = sock.send_to(&datagram(&run, "ACK", seq, 0, 0, ""), answer_to);
-                } else {
-                    let e = s
-                        .job_parts
-                        .entry(seq)
-                        .or_insert_with(|| (total, bytes, vec![None; total as usize]));
-                    e.2[(part - 1) as usize] = Some(body.to_string());
-                    if e.2.iter().all(|p| p.is_some()) {
-                        let line: String =
-                            e.2.iter().map(|p| p.clone().unwrap_or_default()).collect();
-                        let whole = line.len() as u32 == e.1;
-                        s.job_parts.remove(&seq);
-                        if whole {
-                            let _ = sock.send_to(&datagram(&run, "ACK", seq, 0, 0, ""), answer_to);
-                            s.done_seq = seq;
-                            s.pending.clear();
-                            s.queue.clear();
-                            s.line_no = 0;
-                            let again = line
-                                .strip_prefix("AGAIN ")
-                                .and_then(|v| v.trim().parse::<u32>().ok());
-                            if line.starts_with("RESULT ") {
-                                let _ = job_tx.send(Work::LocalResult(run.clone(), seq, line));
-                                continue;
-                            }
-                            match Job::parse(&line) {
-                                _ if again.is_some() => {
-                                    let _ = job_tx.send(Work::Again(
-                                        run.clone(),
-                                        again.unwrap_or(0),
-                                        seq,
-                                    ));
-                                }
-                                Some(job) => {
-                                    let _ = job_tx.send(Work::Job(run.clone(), seq, job));
-                                }
-                                None => println!(
-                                    "courier: udp: a job line without its parts was dropped"
-                                ),
-                            }
-                        } else {
-                            println!("courier: udp: a job arrived with the wrong length; waiting for it again");
-                        }
-                    }
                 }
             }
             _ => {}
@@ -1908,6 +2058,255 @@ mod tests {
         let (_, s) = utc_now();
         assert_eq!(s.len(), 20);
         assert!(s.starts_with("20"));
+    }
+
+    // ---- the Ethernet wire's bounds: these run the same Session and session_for the relay runs
+
+    const RUN: &str = "0123456789abcdef";
+
+    fn kernel() -> SocketAddr {
+        "127.0.0.1:47033".parse().unwrap()
+    }
+
+    fn session() -> Session {
+        Session::new(kernel(), Instant::now())
+    }
+
+    /// A job line of `n` bytes the worker can parse.
+    fn job_line(n: usize) -> String {
+        let head = "JOB 1 chat Answer as Allen.\t";
+        format!("{}{}", head, "x".repeat(n - head.len()))
+    }
+
+    /// The parts the kernel cuts a job line into: (part, total, bytes, body).
+    fn cut(line: &str) -> Vec<(u32, u32, u32, &str)> {
+        let total = line.len().div_ceil(JOB_PART) as u32;
+        line.as_bytes()
+            .chunks(JOB_PART)
+            .enumerate()
+            .map(|(i, c)| {
+                (
+                    i as u32 + 1,
+                    total,
+                    line.len() as u32,
+                    std::str::from_utf8(c).unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    fn send(
+        s: &mut Session,
+        seq: u32,
+        p: (u32, u32, u32, &str),
+        work: &mpsc::SyncSender<Work>,
+    ) -> bool {
+        s.job(RUN, (seq, p.0, p.1, p.2), p.3, work)
+    }
+
+    #[test]
+    fn a_part_that_contradicts_its_job_cannot_reach_past_the_parts_kept() {
+        let (tx, rx) = mpsc::sync_channel::<Work>(WORK_QUEUE);
+        let mut s = session();
+        // the reported crash: 1/2 promising 50 bytes, then 8/8 against the 2 slots kept
+        let fifty = "x".repeat(50);
+        assert!(
+            send(&mut s, 1, (1, 2, 50, &fifty), &tx),
+            "nonsense heads are ACKed"
+        );
+        assert!(s.job_parts.is_empty());
+        // a head that is sound, and then another part of an invented 8-part job
+        let line = job_line(1500);
+        let p = cut(&line);
+        assert!(!send(&mut s, 1, p[0], &tx));
+        assert!(
+            send(&mut s, 1, (8, 8, 1500, &fifty), &tx),
+            "a part past the job's end is refused"
+        );
+        assert!(
+            !send(&mut s, 1, (2, 3, 2500, &line[..1000]), &tx),
+            "other total: ignored"
+        );
+        assert!(
+            !send(&mut s, 1, (2, 2, 1499, &line[1000..1499]), &tx),
+            "other bytes: ignored"
+        );
+        assert!(
+            !send(&mut s, 1, (2, 2, 1500, &line[1000..1100]), &tx),
+            "short body: ignored"
+        );
+        let e = &s.job_parts[&1];
+        assert_eq!((e.total, e.bytes, e.bodies.len()), (2, 1500, 2));
+        assert!(rx.try_recv().is_err());
+        // the honest rest still finishes the job
+        assert!(send(&mut s, 1, p[1], &tx));
+        assert!(matches!(rx.try_recv(), Ok(Work::Job(_, 1, _))));
+        assert_eq!(s.done_seq, 1);
+    }
+
+    #[test]
+    fn heads_beyond_the_protocol_are_refused() {
+        let (tx, _rx) = mpsc::sync_channel::<Work>(WORK_QUEUE);
+        let mut s = session();
+        let body = "x".repeat(JOB_PART);
+        assert_eq!(JOB_PARTS_MAX, 5);
+        for (part, total, bytes) in [
+            (1, 0, 1000), // no parts
+            (0, 1, 1000), // part numbers start at 1
+            (6, 6, 5001), // longer than the kernel's job buffer
+            (1, 1, 0),    // empty
+            (1, 1, JOB_MAX as u32 + 1),
+            (1, 4, 1000), // total that the bytes do not need
+            (1, 1, 2000), // bytes that need more parts than total
+            (2, 1, 1000), // part past total
+        ] {
+            assert!(
+                s.job(RUN, (1, part, total, bytes), &body, &tx),
+                "{part}/{total} {bytes}"
+            );
+        }
+        assert!(s.job_parts.is_empty() && s.done_seq == 0);
+    }
+
+    #[test]
+    fn reordered_and_repeated_parts_make_the_job_once() {
+        let (tx, rx) = mpsc::sync_channel::<Work>(WORK_QUEUE);
+        let mut s = session();
+        let line = job_line(JOB_MAX);
+        let p = cut(&line);
+        assert_eq!(p.len(), 5);
+        for i in [3, 0, 3, 4] {
+            assert!(!send(&mut s, 1, p[i], &tx));
+        }
+        // a repeat of a kept part with other bytes of the same length changes nothing
+        let forged = "y".repeat(JOB_PART);
+        assert!(!send(&mut s, 1, (1, 5, JOB_MAX as u32, &forged), &tx));
+        assert!(!send(&mut s, 1, p[1], &tx));
+        assert!(send(&mut s, 1, p[2], &tx));
+        match rx.try_recv() {
+            Ok(Work::Job(run, 1, job)) => {
+                assert_eq!(run, RUN);
+                assert!(!job.ask.contains('y'), "the forged repeat was kept");
+                assert!(job.ask.len() > 3000);
+            }
+            _ => panic!("the whole job was not handed over"),
+        }
+        // the kernel's repeat of the whole set after the ACK is only ACKed again
+        for q in &p {
+            assert!(send(&mut s, 1, *q, &tx));
+        }
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn half_received_jobs_are_bounded_and_the_newest_wins() {
+        let (tx, _rx) = mpsc::sync_channel::<Work>(WORK_QUEUE);
+        let mut s = session();
+        let line = job_line(1500);
+        let p = cut(&line);
+        for seq in 1..=JOBS_INCOMPLETE_MAX as u32 {
+            assert!(!send(&mut s, seq, p[0], &tx));
+        }
+        assert_eq!(s.job_parts.len(), JOBS_INCOMPLETE_MAX);
+        // a newer job makes room by dropping the oldest
+        assert!(!send(&mut s, 9, p[0], &tx));
+        assert_eq!(s.job_parts.len(), JOBS_INCOMPLETE_MAX);
+        assert!(!s.job_parts.contains_key(&1) && s.job_parts.contains_key(&9));
+        // an older one than all kept finds no room
+        let mut t = session();
+        for seq in 10..10 + JOBS_INCOMPLETE_MAX as u32 {
+            send(&mut t, seq, p[0], &tx);
+        }
+        assert!(!send(&mut t, 5, p[0], &tx));
+        assert!(!t.job_parts.contains_key(&5) && t.job_parts.len() == JOBS_INCOMPLETE_MAX);
+    }
+
+    #[test]
+    fn a_full_worker_queue_is_not_acked_and_the_job_is_asked_for_again() {
+        let (tx, rx) = mpsc::sync_channel::<Work>(1);
+        let mut s = session();
+        s.pending.push(Pending {
+            run: RUN.to_string(),
+            seq: 1,
+            part: 1,
+            body: "SAY 1 1/1 hi".to_string(),
+            sent: Instant::now(),
+            tries: 1,
+        });
+        let first = job_line(100);
+        assert!(send(&mut s, 1, cut(&first)[0], &tx));
+        assert_eq!(s.done_seq, 1);
+        s.pending.clear();
+        // the worker is busy and its one place is taken (this would block if try_send waited)
+        s.pending.push(Pending {
+            run: RUN.to_string(),
+            seq: 1,
+            part: 2,
+            body: "SAY 1 2/2 hi".to_string(),
+            sent: Instant::now(),
+            tries: 1,
+        });
+        s.queue.push_back((1, "SAY 1 3/3 hi".to_string()));
+        s.line_no = 2;
+        let second = job_line(120);
+        assert!(
+            !send(&mut s, 2, cut(&second)[0], &tx),
+            "no ACK when the queue is full"
+        );
+        assert_eq!(s.done_seq, 1, "the job is not marked done");
+        assert_eq!(
+            (s.pending.len(), s.queue.len(), s.line_no),
+            (1, 1, 2),
+            "answer in flight untouched"
+        );
+        // the worker takes the first job; the kernel's repeat is accepted
+        assert!(matches!(rx.try_recv(), Ok(Work::Job(_, 1, _))));
+        assert!(send(&mut s, 2, cut(&second)[0], &tx));
+        assert_eq!(s.done_seq, 2);
+        assert!(s.pending.is_empty() && s.queue.is_empty());
+        assert!(matches!(rx.try_recv(), Ok(Work::Job(_, 2, _))));
+    }
+
+    #[test]
+    fn kernel_boots_are_bounded_and_idle_ones_make_room() {
+        let mut sessions: HashMap<String, Session> = HashMap::new();
+        let now = Instant::now();
+        let run = |i: usize| format!("{:016x}", i);
+        for i in 0..SESSIONS_MAX {
+            let (_, fresh) = session_for(&mut sessions, &run(i), kernel(), now).unwrap();
+            assert!(fresh);
+        }
+        // known boots keep working; a new one finds no room
+        assert!(
+            !session_for(&mut sessions, &run(0), kernel(), now)
+                .unwrap()
+                .1
+        );
+        assert!(session_for(&mut sessions, &run(99), kernel(), now).is_none());
+        assert_eq!(sessions.len(), SESSIONS_MAX);
+        // a boot with an answer still going out stays; the other idle ones go
+        let later = now + SESSION_IDLE + Duration::from_secs(1);
+        sessions
+            .get_mut(&run(3))
+            .unwrap()
+            .queue
+            .push_back((1, "SAY 1 1/1 hi".to_string()));
+        assert!(
+            session_for(&mut sessions, &run(99), kernel(), later)
+                .unwrap()
+                .1
+        );
+        assert_eq!(sessions.len(), 2);
+        assert!(sessions.contains_key(&run(3)));
+    }
+
+    #[test]
+    fn a_chunk_length_that_overflows_is_a_bad_chunk() {
+        assert_eq!(dechunk(b"ffffffffffffffff\r\nabc\r\n0\r\n\r\n"), b"");
+        assert_eq!(dechunk(b"fffffffffffffffe\r\nabc"), b"");
+        assert_eq!(dechunk(b"3\r\nabc\r\n4\r\nwxyz\r\n0\r\n\r\n"), b"abcwxyz");
+        // a good chunk followed by one longer than what is left
+        assert_eq!(dechunk(b"3\r\nabc\r\n10\r\nshort"), b"abc");
     }
 }
 
