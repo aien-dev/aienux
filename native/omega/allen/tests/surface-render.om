@@ -1,7 +1,33 @@
 note Native provider-to-pixels fixture. Reply is a labeled test input, not live inference.
+note The surface draws into the native frame Nfrm; the frame is 768 x 384 (scale 1) over night.
 text Cvppm "P6\n768 384\n255\n"
 text Cvask "hello"
 text Cvanswer "SAY 1 1/1 note: Hello, Drake. | This text was drawn in Omega."
+global Svrow uchar 2304
+fn svnight to void
+put Lg 0 768
+put Lg 1 384
+for i ulong 294912
+put Nfrm i 395282
+end
+end
+fn svrow y ulong to bool
+for x ulong 768
+v = ulong get Nfrm add mul y 768 x
+put Svrow mul x 3 uchar and shr v 16 255
+put Svrow add mul x 3 1 uchar and shr v 8 255
+put Svrow add mul x 3 2 uchar and v 255
+end
+p = ulong 0
+while lt p 2304
+n = write 1 Svrow p sub 2304 p
+if le n 0
+ret false
+end
+p = add p ulong n
+end
+ret true
+end
 fn svword off ulong v ulong to void
 for i ulong 8
 put Ph add off i uchar and shr v mul i 8 255
@@ -38,13 +64,10 @@ ret false
 end
 p = add p ulong n
 end
-p = 0
-while lt p len Canvas
-n = write 1 Canvas p sub len Canvas p
-if le n 0
+for y ulong 384
+if not svrow y
 ret false
 end
-p = add p ulong n
 end
 ret true
 end
@@ -80,6 +103,7 @@ end
 if or ne get Dt 0 1 ne get Dt 6 2
 ret 6
 end
+svnight
 if not cvinit 768 384
 ret 7
 end

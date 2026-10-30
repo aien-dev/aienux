@@ -21,9 +21,12 @@ sh build/allen-toolchain/tools/bootstrap.sh --offline
 The bootstrap reconstructs the compiler from seed source and checks its
 self-rebuild equality and fixed digest. Independent diverse compiler ancestry
 qualification is a separate claim; self-rebuild equality does not establish it.
-No private compiler folder or preinstalled Omega binary is needed. The expected
-compiler SHA-256 is
-`191b776ef98821597c3e30655da6d680a9b66edbc9ceaca3c39c61ea6df098e9`.
+No private compiler folder or preinstalled Omega binary is needed. Since the
+old C look (imac/old-look) the gate pins omega-mv `feat/x86efi-exit-sites`
+8da48140 (draft #977), whose `const`, `bitcast` and larger exit-site tables
+look-paint.om and the firmware unit need; the expected compiler SHA-256 is
+`a1d3217674511f3880962cf4bfd8ec0f254104cf6cb03834b005237808f6ade4`
+(`~/work/IMacLook/omc2` on the Spark; pass it as `OMEGA_COMPILER`).
 
 Run the complete component gate:
 

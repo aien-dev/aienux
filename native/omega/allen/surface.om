@@ -120,8 +120,10 @@ end
 fn cvblit x long y long color ulong to void
 note x, y: the glyph's logical origin and baseline; the mask offsets Ab are native already.
 s = long get Cvs 0
-put Cvpose 0 add add mul x s long get Cvs 2 get Ab 0
-put Cvpose 1 add add mul y s long get Cvs 3 get Ab 1
+ox = add mul x s long get Cvs 2
+oy = add mul y s long get Cvs 3
+put Cvpose 0 add ox get Ab 0
+put Cvpose 1 add oy get Ab 1
 for yy ulong get Af 4
 cvrow yy color
 end

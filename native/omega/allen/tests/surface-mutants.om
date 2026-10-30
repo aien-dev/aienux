@@ -2,10 +2,10 @@ note Native exact-line mutant construction; selector0 remove-right-clip,1 wrong-
 global Mutbuf uchar 262144
 global Mutrep uchar 128
 global Mutmode uchar 1
-text Mutold0 "\nif ge x long add get Cv 2 get Cv 4\n"
+text Mutold0 "\nif ge x long add get Cvs 4 get Cvs 6\n"
 text Mutnew0 "\nif false\n"
-text Mutold1 "\nput Canvas add at k cvblend ulong get Canvas add at k fg ulong a\n"
-text Mutnew1 "\nput Canvas add at k cvblend 6 fg ulong a\n"
+text Mutold1 "\nd = ulong get Nfrm at\n"
+text Mutnew1 "\nd = ulong 395282\n"
 fn mutmatch at ulong mode uchar to bool
 if eq mode 48
 for i ulong len Mutold0

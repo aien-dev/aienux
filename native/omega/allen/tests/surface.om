@@ -1,20 +1,37 @@
 note Surface tests: removing clipping, using constant background or bypassing drawing must fail.
-global Csave uchar 4096
-global Cmeta ulong 8
+note The surface draws packed 0x00RRGGBB words into the native frame Nfrm (look-paint.om) with
+note Lg 0..1 as the native size. A 32 x 32 native frame gives scale 1 and no offset, so the
+note logical geometry equals the former Canvas tests; 70 x 66 and 3840 x 2160 check the scale.
+global Csave uint 1024
+global Cmeta ulong 16
+const CNIGHT ulong 395282
 fn test ok bool to void
 check ok add get Checks 0 1
 end
+fn cvframe w ulong h ulong to void
+note The native size and the night background the look leaves; one sentinel word past it.
+put Lg 0 long w
+put Lg 1 long h
+for i ulong mul w h
+put Nfrm i uint CNIGHT
+end
+put Nfrm mul w h 0
+end
+fn cvat x ulong y ulong to ulong
+ret ulong get Nfrm add mul y 32 x
+end
 fn cvkeep to void
-for i ulong 3072
-put Csave i get Canvas i
+for i ulong 1024
+put Csave i get Nfrm i
 end
 for i ulong 8
 put Cmeta i get Cv i
+put Cmeta add i 8 get Cvs i
 end
 end
 fn cvsame to bool
-for i ulong 3072
-if ne get Canvas i get Csave i
+for i ulong 1024
+if ne get Nfrm i get Csave i
 ret false
 end
 end
@@ -22,36 +39,39 @@ for i ulong 8
 if ne get Cv i get Cmeta i
 ret false
 end
+if ne get Cvs i get Cmeta add i 8
+ret false
+end
 end
 ret true
+end
+fn cvink to ulong
+ink = ulong 0
+for i ulong 1024
+if ne ulong get Nfrm i CNIGHT
+ink = add ink 1
+end
+end
+ret ink
 end
 fn cvrefclip to bool
 ink = ulong 0
 for y ulong 32
 for x ulong 32
-at = mul add mul y 32 x 3
+at = add mul y 32 x
 inside = and ge x 8 lt x 16
 inside = and inside and ge y 8 lt y 16
-for k ulong 3
-v = uchar 6
-if eq k 1
-v = 8
-end
-if eq k 2
-v = 18
-end
+v = ulong get Nfrm at
 if inside
-v = get Csave add at k
-if ne v get Canvas add at k
+if ne v ulong get Csave at
 ret false
 end
-if gt v 18
+if ne v CNIGHT
 ink = add ink 1
 end
 else
-if ne get Canvas add at k v
+if ne v CNIGHT
 ret false
-end
 end
 end
 end
@@ -59,6 +79,7 @@ end
 ret gt ink 0
 end
 fn cvfrac to bool
+cvframe 32 32
 b = cvinit 32 32
 b = afinit 14 900
 for i ulong 3
@@ -72,6 +93,7 @@ if ne get Cv 7 mul one 3
 ret false
 end
 cvkeep
+cvframe 32 32
 b = cvinit 32 32
 for i ulong 3
 x = affloor add long -256 long mul one i
@@ -79,12 +101,74 @@ if not cvglyph 65 x 20 15528188
 ret false
 end
 end
-for i ulong 3072
-if ne get Canvas i get Csave i
+for i ulong 1024
+if ne get Nfrm i get Csave i
 ret false
 end
 end
 ret true
+end
+fn cvfills to void
+note A logical fill blends from the current pixel, clamps alpha, refuses an oversized rectangle
+note and stays inside the clip.
+cvframe 32 32
+test cvinit 32 32
+cvfill 1 1 2 2 15528188 128
+test eq cvat 1 1 7961735
+test eq cvat 2 2 7961735
+test eq cvat 0 0 CNIGHT
+test eq cvat 3 3 CNIGHT
+test eq cvat 1 3 CNIGHT
+test eq cvat 3 1 CNIGHT
+cvfill 1 1 2 2 15528188 128
+test eq cvat 1 1 11712193
+cvfill 1 1 2 2 0 999
+test eq cvat 2 2 0
+cvfill 31 0 2 1 15528188 255
+test eq cvat 31 0 CNIGHT
+test cvclip 8 8 8 8
+cvfill 0 0 32 32 15528188 255
+test eq cvat 7 7 CNIGHT
+test eq cvat 8 8 15528188
+test eq cvat 15 15 15528188
+test eq cvat 16 16 CNIGHT
+end
+fn cvscale to void
+note 70 x 66 native pixels hold the 32 x 32 surface at scale 2, centred at (3, 1).
+cvframe 70 66
+test cvinit 32 32
+test eq get Cvs 0 2
+test eq get Cvs 2 3
+test eq get Cvs 3 1
+test eq get Cvs 4 3
+test eq get Cvs 5 1
+test eq get Cvs 6 64
+test eq get Cvs 7 64
+cvfill 0 0 1 1 15528188 255
+test eq get Nfrm 73 15528188
+test eq get Nfrm 74 15528188
+test eq get Nfrm 143 15528188
+test eq get Nfrm 144 15528188
+test eq ulong get Nfrm 72 CNIGHT
+test eq ulong get Nfrm 75 CNIGHT
+test eq ulong get Nfrm 3 CNIGHT
+test eq ulong get Nfrm 213 CNIGHT
+test cvfont 10 900
+test eq get Cvs 1 10
+cvpixel 2 0 255 0
+test eq ulong get Nfrm 2 CNIGHT
+cvpixel 3 1 255 0
+test eq get Nfrm 73 0
+put Lg 0 3840
+put Lg 1 2160
+test cvinit 768 384
+test eq get Cv 0 768
+test eq get Cv 1 384
+test eq get Cvs 0 5
+test eq get Cvs 2 0
+test eq get Cvs 3 120
+test eq get Cvs 6 3840
+test eq get Cvs 7 1920
 end
 fn main to int
 test not cvglyph 65 0 0 15528188
@@ -92,33 +176,31 @@ test not cvinit 0 32
 test not cvinit 32 0
 test not cvinit 769 32
 test not cvinit 32 385
+cvframe 32 32
 test cvinit 32 32
 test eq get Cv 0 32
 test eq get Cv 1 32
 test eq get Cv 4 32
 test eq get Cv 5 32
-test eq get Canvas 0 6
-test eq get Canvas 1 8
-test eq get Canvas 2 18
-test eq get Canvas 3071 18
-test eq get Canvas 3072 0
+test eq get Cvs 0 1
+test eq get Cvs 2 0
+test eq get Cvs 3 0
+test eq get Cvs 6 32
+test eq get Cvs 7 32
+test eq cvat 0 0 CNIGHT
+test eq cvat 31 31 CNIGHT
+test eq get Nfrm 1024 0
 test not cvglyph 65 0 0 15528188
 test afinit 20 1000
 note Exact alpha arithmetic and repeated overlap must use current destination.
 cvpixel 0 0 0 15528188
-test eq get Canvas 0 6
+test eq cvat 0 0 CNIGHT
 cvpixel 0 0 128 15528188
-test eq get Canvas 0 121
-test eq get Canvas 1 124
-test eq get Canvas 2 135
+test eq cvat 0 0 7961735
 cvpixel 0 0 128 15528188
-test eq get Canvas 0 178
-test eq get Canvas 1 182
-test eq get Canvas 2 193
+test eq cvat 0 0 11712193
 cvpixel 0 0 255 15528188
-test eq get Canvas 0 236
-test eq get Canvas 1 240
-test eq get Canvas 2 252
+test eq cvat 0 0 15528188
 cvkeep
 cvpixel -1 0 255 0
 cvpixel 0 -1 255 0
@@ -140,17 +222,20 @@ test not cvglyph 65 0 4097 15528188
 test not cvglyph 65 0 0 16777216
 test cvsame
 note Independent reference crop of the already rendered glyph.
+cvframe 32 32
 test cvinit 32 32
 test cvglyph 65 4 24 15528188
 test gt get Cv 7 0
 cvkeep
+cvframe 32 32
 test cvinit 32 32
 test cvclip 8 8 8 8
-put Canvas 3072 165
+put Nfrm 1024 165
 test cvglyph 65 4 24 15528188
 test cvrefclip
-test eq get Canvas 3072 165
+test eq get Nfrm 1024 165
 note Zero-area and edge clips cannot draw any pixel.
+cvframe 32 32
 test cvinit 32 32
 test cvclip 32 32 0 0
 cvkeep
@@ -160,17 +245,12 @@ test cvsame
 note A negative origin that intersects the surface must draw without wrapping.
 test cvclip 0 0 32 32
 test cvglyph 65 -8 6 15528188
-ink = ulong 0
-for i ulong 3072
-if gt get Canvas i 18
-ink = add ink 1
-end
-end
-test gt ink 0
-test eq get Canvas 3072 0
+test gt cvink 0
+test eq get Nfrm 1024 0
 note Explicit retained-text span agrees with two separately positioned glyphs.
 put Dtext 0 65
 put Dtext 1 65
+cvframe 32 32
 test cvinit 32 32
 put Outb 0 88
 put Outlen 0 1
@@ -184,6 +264,7 @@ test clean
 test eq get In 8191 99
 advance = get Cv 7
 cvkeep
+cvframe 32 32
 test cvinit 32 32
 test cvglyph 65 1 24 15528188
 one = get Cv 7
@@ -191,8 +272,8 @@ x = add long 1 long div one 256
 test cvglyph 65 x 24 15528188
 test eq advance mul one 2
 same = true
-for i ulong 3072
-if ne get Canvas i get Csave i
+for i ulong 1024
+if ne get Nfrm i get Csave i
 same = false
 end
 end
@@ -213,15 +294,14 @@ test cvfrac
 for i ulong 2304
 put Dtext i 65
 end
+cvframe 32 32
 test cvinit 32 32
 cvkeep
 test cvspan 0 2304 4096 0 15528188
 put Cmeta 7 get Cv 7
 test cvsame
-test cvinit 768 384
-test eq get Cv 0 768
-test eq get Cv 1 384
-test eq get Canvas 884735 18
+cvfills
+cvscale
 if ne get Fails 0 0
 ret 1
 end

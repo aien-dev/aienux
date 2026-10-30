@@ -13,7 +13,7 @@ cat native/omega/allen/base.om native/omega/allen/vendor/sha256-core.om \
  native/omega/allen/runtime.om native/omega/allen/code.om \
  native/omega/allen/courier.om native/omega/allen/scheduler.om native/omega/allen/memory.om \
  native/omega/allen/intent.om native/omega/allen/reply.om \
- native/omega/allen/view.om native/omega/allen/scene.om native/omega/allen/paint.om native/omega/allen/application.om native/omega/allen/scene-input.om native/omega/allen/context.om native/omega/allen/presentation.om native/omega/allen/provider-core.om native/omega/allen/font-data.om native/omega/allen/font.om native/omega/allen/surface.om > "$core"
+ native/omega/allen/view.om native/omega/allen/scene.om native/omega/allen/paint.om native/omega/allen/application.om native/omega/allen/scene-input.om native/omega/allen/context.om native/omega/allen/font-data.om native/omega/allen/font.om native/omega/allen/look-paint.om native/omega/allen/surface.om native/omega/allen/presentation.om native/omega/allen/provider-core.om > "$core"
 for name in runtime code courier scheduler application provider-core presentation font surface memory context intent reply view scene scene-input paint edges fixture golden render font-output font-render surface-render; do
  cat "$core" > "$out/$name.om"
  case "$name" in golden|render|font-output|font-render|surface-render) ;; *) cat native/omega/allen/tests/check.om >> "$out/$name.om" ;; esac
