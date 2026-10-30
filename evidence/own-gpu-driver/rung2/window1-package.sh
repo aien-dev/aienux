@@ -36,7 +36,7 @@ cutsec() { # section-name out
     local off size
     read -r off size < <(awk -v n="$1" '$1=="section" && $3==n { sub("offset=","",$5); sub("size=","",$6); print $5, $6 }' "$W/inspect.txt")
     [[ -n ${off:-} && -n ${size:-} ]] || die "section $1 not in the inspect output"
-    tail -c +$((off + 1)) "$FW" | head -c "$size" > "$2"
+    dd if="$FW" of="$2" bs=64k iflag=skip_bytes,count_bytes skip="$off" count="$size" status=none
     [[ $(stat -c %s "$2") -eq $size ]] || die "short cut of $1"
 }
 cutsec .fwimage "$OUT/rm_elf.bin"
