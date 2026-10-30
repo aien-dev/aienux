@@ -483,6 +483,16 @@ and a delayed reply. Its model fixture is compiled with `rustc` from
 These host tests exercise the protocol, not the physical Broadcom card or
 authenticated networking.
 
+`scripts/ck_imac_security_test.sh` guards two security properties of the iMac
+kernel with the real production sources and mocked hardware: the setup wizard's
+API key never reaches the Ethernet courier and is erased on the local refusal
+(`x86/tests/courier_secret_test.c`, `setup_secret_test.c`), and
+`boot_section` writes nothing to the disk unless the manifest verifies against
+the kernel's owner keys (`boot_verify_test.c`, RFC 8032 public test keys only).
+The x86 parts are cross-built static and run under `qemu-x86_64` on an ARM host.
+`PROD_ROOT=<checkout>` builds the production sources from another tree, to
+check that the tests fail on a commit without the fixes.
+
 The addressless kernel sends to limited broadcast (`255.255.255.255`), not
 the LAN's directed broadcast; Linux can reject source-zero directed
 broadcast before UDP input. The relay may answer on the LAN's directed
