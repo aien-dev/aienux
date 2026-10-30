@@ -66,7 +66,7 @@ void ck_boot_agent_cmd_find(EFI_HANDLE image, EFI_SYSTEM_TABLE *st);
 #ifdef CK_ARTIFACT_CARD
 void ck_boot_artifact_card_find(EFI_HANDLE image, EFI_SYSTEM_TABLE *st);
 #endif
-#ifdef CK_KLOG
+#if defined(CK_KLOG) && defined(CK_PI5) /* the card log slot is Pi 5 only; the Spark RTL8127 build keeps klog in RAM */
 void ck_boot_klog_find(EFI_HANDLE image, EFI_SYSTEM_TABLE *st);
 #endif
 void ck_boot_gop_find(EFI_SYSTEM_TABLE *st, struct ck_handoff *h);
@@ -158,7 +158,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     /* The yardstick model from the boot disk, while the firmware drivers are
      * still up (efi_model.c). Absent map: boot continues without a model. */
     ck_boot_model_load(image, st, h);
-#ifdef CK_KLOG
+#if defined(CK_KLOG) && defined(CK_PI5)
     /* Pi 5 build: find the card's log slot while Block I/O is still up (efi_klog.c). */
     ck_boot_klog_find(image, st);
 #endif

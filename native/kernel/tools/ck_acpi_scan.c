@@ -48,7 +48,6 @@
 
 #define FILE_MAX (4u << 20)
 #define TABLES_MAX 32
-#define STE_N 4096u /* core/smmu_svc.c linear stream table */
 
 struct table {
     const char *path;
@@ -164,9 +163,8 @@ static void iort_notes(const uint8_t *t)
     }
 }
 
-/* Why ck_iort_parse refuses: root-complex (type 2) mappings that target the
- * first SMMUv3 node, against CK_IORT_MAX_MAPS, and the largest output id
- * against the linear stream table (STE_N). */
+/* Static PCI route inventory only. Stream-table geometry is selected from
+ * each hardware instance's ID registers; it is not a parser limit. */
 static void parse_notes(const uint8_t *t)
 {
     uint32_t len = rd32(t + 4), count = rd32(t + 36), off = rd32(t + 40), first = 0, rc_maps = 0, max_out = 0;
@@ -189,8 +187,8 @@ static void parse_notes(const uint8_t *t)
             o += nlen;
         }
     }
-    printf("# smmu: %u PCI root-complex mapping(s) to the first SMMUv3 (limit CK_IORT_MAX_MAPS=%u), highest stream id 0x%x (linear table holds 0x0-0x%x)\n",
-           rc_maps, (unsigned)CK_IORT_MAX_MAPS, max_out, STE_N - 1u);
+    printf("# smmu: %u PCI root-complex mapping(s) to the first SMMUv3 (parser limit CK_IORT_MAX_MAPS=%u), highest stream id 0x%x; hardware stream-table geometry NOT_RUN\n",
+           rc_maps, (unsigned)CK_IORT_MAX_MAPS, max_out);
 }
 
 static int last_seg_same(const char *a, const char *b) { return ck_aml_last_seg_eq(a, b); }
@@ -321,23 +319,22 @@ int main(int argc, char **argv)
             }
             continue;
         }
-        printf("# assumes the SMMUv3 at 0x%llx comes up (else a smmu: bring-up line and SmmuNotReady)\n",
-               (unsigned long long)first.base);
         struct ck_iort_named nc2;
         int nrc = ck_iort_named(iort, nm, &nc2);
         if (nrc != 1 || !nc2.target_off) {
             printf(CK_XHCI_PLAT_DENY_FMT, nm, nrc == -2 ? "Ambiguous" : "NoStream");
             continue;
         }
-        if (nc2.target_off != first.node_off) {
-            printf(CK_XHCI_PLAT_OTHER_FMT, nm, (unsigned long long)nc2.target_base, nc2.stream_id);
-            continue;
-        }
-        if (nc2.stream_id >= STE_N) {
+        uint32_t si;
+        for (si = 0; si < first.nsmmus; si++)
+            if (first.smmus[si].off == nc2.target_off) break;
+        if (si == first.nsmmus) {
             printf(CK_XHCI_PLAT_DENY_FMT, nm, "NoStream");
             continue;
         }
-        printf(CK_XHCI_PLAT_GRANT_FMT, nm, (unsigned long long)first.base, nc2.stream_id);
+        printf("# route: instance %u at 0x%llx; grant below CONDITIONAL on hardware bring-up, supported stream width and confinement (NOT_RUN)\n",
+               si, (unsigned long long)nc2.target_base);
+        printf("? " CK_XHCI_PLAT_GRANT_FMT, nm, (unsigned long long)nc2.target_base, nc2.stream_id);
         printf("? smmu_dma_window: xhci %s only, translation active iova=<allocation> len=<allocation>\n", nm);
         printf("? keyboard phase on %s, then release: halt, reset, stream 0x%x back to abort\n", nm, nc2.stream_id);
         fenced++;
