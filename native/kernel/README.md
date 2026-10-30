@@ -229,10 +229,31 @@ when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
 cores and attaches a SATA data disk and an NVMe disk, each with a GPT from
 `ck_gpt_image`, and fails unless three cores check in, the kernel finds each
 AIENOS partition where the tool wrote it and both disks are byte-identical
-afterwards. Not yet: work scheduled on the other cores, x2APIC, NX, disk writes,
+afterwards. Not yet: work scheduled on the other cores, x2APIC, disk writes,
 VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.
+
+Page permissions (W^X, #409): the kernel refuses a CPU without NX, sets
+EFER.NXE and CR0.WP on the boot core and in the trampoline for every other
+core, and maps its code read-only executable, its PE header and read-only data
+(`.rodata`, relocations, GOT) read-only no-execute, and everything else (data,
+bss, stacks, heap, page tables, MMIO, the framebuffer) no-execute, keeping the
+PAT cache types and the stack guard; the 2 MiB pages around the image and the
+trampoline are split into 4 KiB pages at the boundaries from
+`../boot/image_x86_64.ld`. The trampoline page is never writable and executable
+at once (writable while it is filled, executable while a core runs it,
+read-only no-execute once the cores are parked). At boot the kernel proves it:
+writes to code and to read-only data and execution from heap and stack must
+each fault with the right error code (`wx: ok ...`), and after the cores and
+disks are up an audit of every page table leaf must find nothing writable and
+executable, only the code executable, and NXE and WP on every core
+(`wx_audit: ok ...`). The QEMU test also builds two TEST-ONLY mutants
+(`make imac-kernel IMACKERN_WX_MUTANT=no_nx` or `=text_writable`) and fails
+unless their probes panic. W^X is not process isolation: everything here still
+runs in ring 0 in one address space, any kernel code can change the page
+tables, and learned or generated code must never be given kernel authority.
+QEMU only; not yet run on the iMac.
 
 The Spark's Realtek RTL8127 10 GbE (10ec:8127, segment 7) has a driver core in
 `native/net/aienos_rtl8127.c` and a binding in `dev/rtl8127_bind.c` (L198): SMMU

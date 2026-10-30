@@ -79,8 +79,8 @@
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
-          "digest": "f3976d31e569c32a762d471a506f10eb96b9278ca8b2070801487560f3a37f48",
-          "last_commit": "d41d5c2b",
+          "digest": "12489846450f78b28013d14ce5fea95920b9d1b586c86a4d48bcbfab2b9c8488",
+          "last_commit": "fefbbe65",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
@@ -115,15 +115,15 @@
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:8be3d44aab9400ece8fa18db46c9b3a222e818af5c1c004dc6ea917d57f089dc",
-      "compiled_at": "2026-10-30T13:06:28Z",
+      "children_root": "sha256:65c5c18c1473da245d2bd88d28eaf7348d8443f0fb7e69b755afe9dad4dee86b",
+      "compiled_at": "2026-10-30T13:17:50Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:871748acc4c06434293d833e95acc5ca0063361e71a75c4cc545bd5028af50b6",
+      "digest": "sha256:1fb0f1833fe438d23063374924f8a06bd25111fe45bdc6987847eddd039f5fa4",
       "evidence_files": 24,
       "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
       "files": 676,
-      "generated_at_commit": "595140e5bd22ebbe9b14d5c9abb683f44a0fa11c",
-      "source_tree": "sha256:bd98a7f271e3a2407afcc4325d64664630ccc51f02ac27b65d3408566a0d68fb"
+      "generated_at_commit": "3e157636411b2e360023ed02fe8b00f3fb1eb3ab",
+      "source_tree": "sha256:f2fb4fd7a5a61b86a49fcbb64c31f18689e26e24cdf1c9d2fccf2ff71e838e1c"
     },
     "owner_lane": "",
     "provenance": {

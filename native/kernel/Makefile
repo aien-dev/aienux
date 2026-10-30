@@ -2519,6 +2519,25 @@ $(IMACKERN_EFI): $(IMACKERN_ELF)
 	@[ "$$(od -An -tx1 -j68 -N2 $@ | tr -d ' ')" = "6486" ] || { echo "PE Machine is not x86_64 (0x8664)"; rm -f $@; exit 1; }
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-kernel: $(IMACKERN_EFI)
+# W^X negative controls (#409), TEST-ONLY, QEMU only, never deployed: IMACKERN_WX_MUTANT=no_nx drops every
+# NX bit, =text_writable leaves the kernel's code writable. The kernel's W^X probes must then panic
+# (scripts/qemu_ck_imac_kernel_test.sh builds both into their own OUT). The stamp rebuilds kmain_x86.o
+# whenever the setting changes, so a mutant object never lingers in a default build.
+IMACKERN_WX_MUTANT ?=
+ifeq ($(strip $(IMACKERN_WX_MUTANT)),)
+IMACKERN_WX_FLAGS :=
+else ifeq ($(strip $(IMACKERN_WX_MUTANT)),no_nx)
+IMACKERN_WX_FLAGS := -DCK_X86_WX_MUTANT_NO_NX=1
+else ifeq ($(strip $(IMACKERN_WX_MUTANT)),text_writable)
+IMACKERN_WX_FLAGS := -DCK_X86_WX_MUTANT_TEXT_RW=1
+else
+$(error IMACKERN_WX_MUTANT must be empty, no_nx or text_writable)
+endif
+$(IMACKERN_DIR)/kmain_x86.o: IMACKERN_CFLAGS += $(IMACKERN_WX_FLAGS)
+$(IMACKERN_DIR)/kmain_x86.o: $(IMACKERN_DIR)/wx_mutant.stamp
+$(IMACKERN_DIR)/wx_mutant.stamp: FORCE
+	@mkdir -p $(dir $@)
+	@echo '$(strip $(IMACKERN_WX_MUTANT))' | cmp -s - $@ || echo '$(strip $(IMACKERN_WX_MUTANT))' > $@
 
 # ---- NETLDR.EFI: the lab network loader for the 2017 iMac (x86_64) ----
 # native/boot/net_loader.c + netboot_proto.c (wire spec netboot_proto.h). Stays on the stick as
