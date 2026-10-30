@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Allen's anchor: an append-only, signed, hash-chained store of checked facts (aienix#5)"
+description = "Aien's anchor: an append-only, signed, hash-chained store of checked facts (aienix#5)"
 
 [dependencies]
 aienos-crypto = { path = "../aienos-crypto" }

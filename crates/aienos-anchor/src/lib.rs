@@ -1,6 +1,6 @@
 #![no_std]
 
-//! Allen's anchor (aienix#5): an append-only, hash-chained log of checked
+//! Aien's anchor (aienix#5): an append-only, hash-chained log of checked
 //! facts. Every entry is signed by a trusted admission key; the model never
 //! holds one, so it cannot write. Queries answer `Known`, `Retracted` or
 //! `Unknown`, never a guess. Entries are encoded and decoded byte-by-byte

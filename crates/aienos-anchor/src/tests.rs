@@ -23,9 +23,9 @@ fn anchor() -> (Anchor, SigningKey) {
 #[test]
 fn admitted_fact_is_known() {
     let (mut a, k) = anchor();
-    admit(&mut a, &k, b"allen.name", b"Allen").unwrap();
-    match a.query(b"allen.name") {
-        Answer::Known { value, seq, .. } => assert_eq!((value, seq), (&b"Allen"[..], 0)),
+    admit(&mut a, &k, b"aien.name", b"Aien").unwrap();
+    match a.query(b"aien.name") {
+        Answer::Known { value, seq, .. } => assert_eq!((value, seq), (&b"Aien"[..], 0)),
         other => panic!("{other:?}"),
     }
 }
