@@ -109,3 +109,20 @@ ACPI method that gives the range is not run by the kernel) and has used it to
 write its log and the Store on the card (`evidence/pi5_hardware_runs_2026-10-13/`).
 The 2017 iMac kernel uses `disk_nvme.c` read-only; its build refuses any write or
 flush call from `native/kernel/x86/` (`evidence/imac_kernel1_2026-10-17/`).
+
+## Forward seeded Omega NVMe read path
+
+`omega_nvme.om` is the bounded, read-only protocol engine for aienux #31.
+The existing C driver/model are unchanged verification oracles, not a runtime
+implementation behind the Omega interface. The hosted transport exercises real
+QEMU NVMe admin/IO queues, exact identity/extent approval, phase/head/tail wrap,
+completion correlation, two-page PRPs and fail-stop DMA retention. Host fixtures,
+disposable-QEMU refusals and guard-removal mutants are filed in
+`tests/omega_nvme_receipt.txt`.
+
+See [OMEGA_NVME_READ.md](OMEGA_NVME_READ.md) for the pinned compiler, the explicit
+manifest byte layout, repeatable gate and exact measurement-first physical
+procedure. Physical and native transport qualification remain **NOT_RUN**
+(hardware-unverified).
+The QTest transport must not be mistaken for a kernel/VFIO adapter or permission
+to open/reset the live root NVMe. The existing recovery USB remains read-only.

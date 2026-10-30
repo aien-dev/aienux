@@ -23,21 +23,21 @@
           "purpose": "Directory native/net/receipts. Purpose not yet described by a human."
         },
         {
-          "digest": "28d6bda7d776a4245d19df1556e65e80f932e3f7a13855d708f613f4a20c5c12",
-          "last_commit": "4a116e50",
+          "digest": "3550bd98277807014c71f67c99e2c542022f47aad10d511cbb6d35528bfac847",
+          "last_commit": "f45d00ad",
           "name": "tests",
           "purpose": "Directory native/net/tests. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:899cba0a6679b457029e534d176a5b0b1cf021cc05782951e29f4f9b7cbd2798",
-      "compiled_at": "2026-10-30T02:54:03Z",
+      "children_root": "sha256:6ea9dbff02f79c8d26aa7dd053c138ad5b9137d18a347eab9bdeea81171491af",
+      "compiled_at": "2026-10-30T11:26:28Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:6dbae3aeabbbadf8dd09a6e5c236a2676d11b74fde2dad27c732def2c249085f",
+      "digest": "sha256:90a001e7a27f698fa57efcbfd2a12ac58c4aedfc6700e6f701dbdb3341727fd5",
       "evidence_files": 4,
       "evidence_root": "sha256:e410b845507e00568e15b51a5797af32a97e0e4b8ab4e8487bb7c98e7e0cf335",
-      "files": 29,
-      "generated_at_commit": "3ab0a75872f163e488eff4ef7d9850564f5915a6",
-      "source_tree": "sha256:8124c12217b09284d7a0416e9769f7b1ee157b50dce065f1370f51d3dd7cba84"
+      "files": 35,
+      "generated_at_commit": "32c1fa8bf81fd890c0313699e6254d06676695bf",
+      "source_tree": "sha256:09b2b79fd536d500e84139e0e51d951a09d2282b3dcdfed01bad8b12b58a0d0d"
     },
     "owner_lane": "",
     "provenance": {

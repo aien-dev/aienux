@@ -27,39 +27,39 @@
           "purpose": "Directory crates. Purpose not yet described by a human."
         },
         {
-          "digest": "99d177c93f58a07c5491ac84a08c71d3aa0b0512ce445dd839aa802a7490de89",
+          "digest": "289309d0e431e95c5866389054925eaa880a4b02b80707e59df48de81d97d559",
           "last_commit": "832bcbd9",
           "name": "docs",
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "2745d2ccdd58b7dd3948bcc9aa7536572602486dbd8c5ae844bc16be590b5a44",
+          "digest": "6fa30721707b14fafe0751e20358a3287f9170700ebe5e5bd61579d22f4187b1",
           "last_commit": "45d8f798",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
-          "digest": "3ff6ec04ad2ae8ef9bc36a536cdf659cdfe5ea0960c3a21eb61ce6e9e16adfa4",
+          "digest": "8650bf3aae02e1f11fe999a3cd8c1399df071d318e6ecb642bc366a282e75fbf",
           "last_commit": "89e296db",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         },
         {
           "digest": "e891c078bec120c3fdb14e13b7dd25d69054f608c2ea632adf2fd2b6e45d8fa1",
-          "last_commit": "6c952979",
+          "last_commit": "29e884d5",
           "name": "tools",
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:66a7cb97bd30905cca046fa75663b0bbd24b321324146f557e35d2241c295940",
-      "compiled_at": "2026-10-30T03:34:26Z",
+      "children_root": "sha256:16e24a6d68304a7f3ffbb033bce7f9e6fd382bef5e24378ffc88c599457701df",
+      "compiled_at": "2026-10-30T11:26:28Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:2d8174eeeec42918d176a87dfbfade90c9f687ca33f1e5989974e35be82d261a",
+      "digest": "sha256:1c768f650437368fd89a73441f78c55fdc5495a56d59476259fe3895c03b66a5",
       "evidence_files": 236,
       "evidence_root": "sha256:55ef5621f09577ce1ada90d990955aec996d15e16a9b0f6953ecb90f3ca499df",
-      "files": 3549,
-      "generated_at_commit": "45d8f798f7115dc6c640452a6b085ad2349faa4f",
-      "source_tree": "sha256:2861ca890e3d2cc9d10d5357fde955b2fc04c163aec8f6305b36a4ea7b30e109"
+      "files": 3579,
+      "generated_at_commit": "32c1fa8bf81fd890c0313699e6254d06676695bf",
+      "source_tree": "sha256:d9165668333dbea6dddfff8bf7c12dba7b07a5bc71f3239ed993312fd1b76fa4"
     },
     "owner_lane": "",
     "provenance": {

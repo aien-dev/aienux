@@ -93,6 +93,12 @@ Since 2026-10-18 (PR [#427](https://github.com/aien-dev/aienux/pull/427)), all t
 - [native/kernel/GATES.md](native/kernel/GATES.md): every emulator gate row and its status.
 - [docs/adr/](docs/adr/README.md): AIENOS decision records.
 
+## Human-Directed Agentic Engineering
+
+Development follows Human-Directed Agentic Engineering (HDAE): humans define goals, architecture, constraints, acceptance criteria, and stopping points; agents implement, execute checks, diagnose failures, and revise within those boundaries. Human review retains responsibility for claims, acceptance, and release decisions.
+
+For the documented method and a systems-software case study, see Gregory M. Kurtzer, [*Ginux: Building an Independent Kernel That Runs Linux Userspace through Human-Directed Agentic Engineering* (2026)](https://doi.org/10.5281/zenodo.23682548). This concerns the development method, not kernel control-plane behavior or retrospective qualification of earlier experiments.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Good places to start are issues labelled [`good first issue`](https://github.com/aien-dev/aienux/labels/good%20first%20issue) or [`emulator-ok`](https://github.com/aien-dev/aienux/labels/emulator-ok); they need no special hardware. Work that needs the real Spark is labelled `needs-hardware` and is run by maintainers. Open pull requests against `main` and lead with the commands you ran and their output. Questions go in [Discussions](https://github.com/aien-dev/aienux/discussions). Report vulnerabilities privately through GitHub security advisories.

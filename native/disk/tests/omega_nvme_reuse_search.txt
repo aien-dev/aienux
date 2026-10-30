@@ -1,0 +1,132 @@
+Reuse search, 2026-10-28; no matching existing seeded Omega NVMe/queue implementation found.
+Pattern: case-insensitive nvme OR submission queue, *.om at each enumerated commit.
+Remote: 106 aien-dev repositories; 5321 advertised branch refs; all fetches rc=0 and all content searches rc=1 (no matches).
+Local: 1933 distinct common stores under work, workspace and /tmp, discovered to depth 4; 1921 with refs; 190008 commit-ref instances.
+Three stale alternate-object stores failed their initial scan. The aienos store was fully redundant with successful stores; the two Omega stores shared the same two otherwise unsearched tips. Both remaining tips were searched with the existing workspace/omega object directory as an environment-only alternate; git grep exit1, no matches, original stale-alternate warning retained. No source clone was changed. The raw failures stay in the JSON evidence.
+Initial failure stores: targets/L793-reuse-gate/aien-pins/omega-reuse-native; targets/L793-w4-gate/aien-pins/omega-w4-native; targets/gates-qwen38/aien-pins/aienos.
+Missing alternate: workspace/sc-native-reuse-718/../omega/.git/objects. Remaining tips: 3076b31c206bda07451958e0705f3983fbc9c632 8dfe7788bd599e844a4c00d8d0ae05447b921030.
+Working-copy scoped searches: OwnDriver/**/*.om; work/aienux-*/**/*.om excluding this new candidate; workspace/aienux*/**/*.om; workspace/synapse*/**/*.om; work/*/synapse*/**/*.om: no matches. Broad whole-root grep timed out and was replaced by these scoped searches plus the complete committed-ref search.
+Ownership: native/disk crumb historical lane11/PR190 is not a current .om claim. BOARD SparkFive/QualNvmeOm owns this isolated candidate; QualGspBoot owns the separate GPU driver work. synapse#54 is R1/J1 raw-store consumer scope, not a queue driver; no store implementation is replaced.
+All twelve empty-ref stores were also checked as working copies: no matching *.om source. Their paths are recorded below; they are not treated as scanned commits.
+
+Remote inventory: URL | branch-ref count | main commit
+https://github.com/aien-dev/aien-sovereign-core-mv.git | 825 | b65e00b0652a3b426dce1bf77f7fe4eccf5f7473
+https://github.com/aien-dev/spark-hive.git | 2 | 52f6b9cc1a0c54a0d01ad20f5b94ea3951e29ad0
+https://github.com/aien-dev/aien-harness.git | 2 | 2da4b5a3a010db4b9fc5157fc761efe088b93421
+https://github.com/aien-dev/spark-dream.git | 2 | fc8726847e9f4b7d98acc450580e25b9f27d580d
+https://github.com/aien-dev/cortex-rs.git | 2 | 3f9365fb37f1cf3a979d95c740046878ebe20d14
+https://github.com/aien-dev/spark-supervisor.git | 3 | 371ffbebfbd89512d9fc0d76e260e9ade49ea9d8
+https://github.com/aien-dev/spark-debugger.git | 2 | dc907a4ebc0dd6154c483c37efe415d602d8f388
+https://github.com/aien-dev/rad-id-sync.git | 2 | 235666135afd9a014f712f6fefc3cc2b2213d509
+https://github.com/aien-dev/spark-adapters.git | 2 | edd9aa10c0ed3274b0ed8cdab1a1447977fb5df9
+https://github.com/aien-dev/spark-crumbs-mv.git | 2 | 156633e1af13fe4f9819db0064534dd7cf9ae8fb
+https://github.com/aien-dev/mobhub.git | 10 | 5e1130654715d9b46a8903d40b52d2035233a47c
+https://github.com/aien-dev/crumb-spec-mv.git | 2 | e2dc22ea78df7d12d2ca5f2e74e3b3f064a16c9b
+https://github.com/aien-dev/spark-rsi-mv.git | 38 | fc13d3f77e6cfec789fce1b0e15125df8feac3d8
+https://github.com/aien-dev/open-humanity.git | 34 | 2e55682f1797a658d74f21dac382bc75f52433e2
+https://github.com/aien-dev/harvester.git | 2 | 0fa381acd0cf9ed99746932136f25c92dc5a1d52
+https://github.com/aien-dev/aegis-runtime-mv.git | 23 | a39788b0eaaabc694dfa17652420e35b7dc3eda5
+https://github.com/aien-dev/.github.git | 24 | d1932a7393a561b02fe5a4ecd9a85a6647e8f6cc
+https://github.com/aien-dev/spark-inquisitor.git | 2 | 0efa3e4dcd269352714134a333d9fe4ca3e6dd8a
+https://github.com/aien-dev/MojoLlama.git | 6 | 249949d1c3fe839bb5e156f91e9c5fd8d3dc7990
+https://github.com/aien-dev/benchmarks-mv.git | 26 | 0f369dbc852b2e9364ed55c6e19a7e285cd424c1
+https://github.com/aien-dev/encounter.git | 2 | 4937786098a2cc3011d6ef421cda4259af63bf2e
+https://github.com/aien-dev/aienos.com.git | 68 | 07736aa17fd16e862725cf440bcae71527945285
+https://github.com/aien-dev/aien-protocols-mv.git | 23 | e705fdc9c97394f17f32f1dcbcbf038ca556250b
+https://github.com/aien-dev/aien-local-stack.git | 2 | 2ef0b913657dbf1d12969b4858fb23979bcd2e7e
+https://github.com/aien-dev/aien-architecture-mv.git | 142 | c6512a4c6ae2e8f8babe23fc9f38880d20d25812
+https://github.com/aien-dev/aien-edge.git | 9 | 6d86caf699fd92a7092e97e3e84427e2df79c26a
+https://github.com/aien-dev/aienux.git | 410 | 659ddd2d7e3e140cb9bf942c3171cbd9cf3d092e
+https://github.com/aien-dev/atlas.git | 14 | 
+https://github.com/aien-dev/physics-mv.git | 45 | 8e92aa629c945d9574952b49ac4a2b04ef52ab06
+https://github.com/aien-dev/omega-mv.git | 1020 | d94a503f7aae57d09697046405da2e9a5895be6d
+https://github.com/aien-dev/aien-sealed.git | 41 | 2cb922986e8405b4d59d7364e77a3c2fb5c39975
+https://github.com/aien-dev/physics0.git | 1 | fe587d2c74336f9032ac7424e0ae6ddc5b540fd6
+https://github.com/aien-dev/aien-yardsticks.git | 4 | 6c66814788b55163e1867fe9c358b424f79a79e1
+https://github.com/aien-dev/readings-window.git | 17 | c1e03543fb256ff7e2a9f077541ebba36c106aa4
+https://github.com/aien-dev/pi-register.git | 10 | f65a67ac86451939b8e2b5e924f8f9e572b81eb9
+https://github.com/aien-dev/agent-archive.git | 11 | 3211d0b88de2f6f40f0cbf9d5e48ffd78410fb30
+https://github.com/aien-dev/interplane-mv.git | 110 | 1de1b0065b2e667d8d7a23ffc3d75aeb65bf864b
+https://github.com/aien-dev/odysseus.git | 20 | 934d23c0be29c9721385f34565c0ae2cbd60da04
+https://github.com/aien-dev/interplane.io.git | 9 | 62d5b27beea12c8fb75d266ffc456304af1768ae
+https://github.com/aien-dev/aien-receipts.git | 11 | 89e3c8d85e7070492e494db6b4de69f0297528d3
+https://github.com/aien-dev/rpi5-uefi.git | 2 | 
+https://github.com/aien-dev/arm-trusted-firmware.git | 2 | 
+https://github.com/aien-dev/edk2.git | 2 | 
+https://github.com/aien-dev/edk2-platforms.git | 1 | 
+https://github.com/aien-dev/edk2-non-osi.git | 3 | 
+https://github.com/aien-dev/t3code.git | 1316 | ecad5ad8fe45e8e512ad11664a6f5e8b1f89cda5,243e8a44a9f2c993232feaa5b4727cdcc32af169
+https://github.com/aien-dev/synapse.git | 84 | 099a980fedab8a6797bbf0358b8c5502c8045142
+https://github.com/aien-dev/aienix.git | 17 | 8f4e31f05ee86b86672fc8bde960c6da23f59bb4
+https://github.com/aien-dev/spark-scrub.git | 8 | cece92400d2be042ef69ac2af5c25a456f2d4ba7
+https://github.com/aien-dev/aien-translate.git | 9 | 7a97bf93eb12d5262cb108bdd1b218a1add2c8e3
+https://github.com/aien-dev/translate.git | 6 | 
+https://github.com/aien-dev/aien-rig.git | 13 | 3f852a0b26cd811e264b56bea97ede3c9a4d9b14
+https://github.com/aien-dev/spark-connector.git | 10 | 5db49d1c27e816893c09405b42efbe481ea776f3
+https://github.com/aien-dev/aien.git | 15 | 8c7ab655164dd97628c92a053a332918a42ae2ba
+https://github.com/aien-dev/aien-train.git | 30 | 5aaeb656070707800517de0557d874d763391ece
+https://github.com/aien-dev/CUDApp.git | 138 | d7f330a8a5fc5b6d83e2403549455aa661fe67ff
+https://github.com/aien-dev/omega-evidence.git | 7 | a5e1e1a0f491913c280adb50ae746ee15b1dd551
+https://github.com/aien-dev/aien-crypto.git | 4 | 7e2ff003ec0cac8306ccc6ad7a95d480e1b95b47
+https://github.com/aien-dev/omega-research.git | 5 | 414e99745cd2a8a58a42f28d175204c33eed262f
+https://github.com/aien-dev/omega-host.git | 5 | 1b07216bf57ef049e8fc71ca2e28310e2f60bfbd
+https://github.com/aien-dev/omega-learn.git | 4 | 7c36cde6876dea8497493b2fe4bc092933926e1e
+https://github.com/aien-dev/omega-programs.git | 9 | a69009deab3143d920b2058774114364bd27fe13
+https://github.com/aien-dev/omega-bridge.git | 55 | 80baac04294923643f3c0933ea6fd37e0d17f0e8
+https://github.com/aien-dev/omnet.git | 10 | f35dcace0f03a23b254a31f5353d74c2ede1434c
+https://github.com/aien-dev/aien-math.git | 5 | b005f054151f0038565ca3930d305fbf3f79915e
+https://github.com/aien-dev/omega-harness.git | 89 | af776340b9da0e0ece345d399fa24f82447c2788
+https://github.com/aien-dev/drake-voice.git | 4 | 82811f93246cb852ed576b62dd093d115b9e5146
+https://github.com/aien-dev/omega-projects.git | 10 | 36ba0475e9abdcf4ae82cb98524dee01c044ae6b
+https://github.com/aien-dev/AienOS-nv.git | 4 | f60a62a2a5059743c9ebe8628f80f4090c7d6e63
+https://github.com/aien-dev/sovereign-intelligence.git | 10 | b8c26746c2e0cf0adae72af027bcf077a152de8c
+https://github.com/aien-dev/cortex.git | 4 | 16068eea346510c6193d2bceb580e2a67ac89ecc
+https://github.com/aien-dev/aien-gpu.git | 4 | ec9d6d7601b84ca6178bf23e4b69d095eb358da6
+https://github.com/aien-dev/omtex.git | 3 | 363500c1b010219ce0b22f8e8e53d0aff7c55834
+https://github.com/aien-dev/babel.git | 3 | 13ad42d9c3383774f34caf9087bf5f7d9d3d675c
+https://github.com/aien-dev/atlas-harness.git | 103 | 0f2345a35ff57ed586e8e50c79126a5e4f8e9520
+https://github.com/aien-dev/github-atlas-harness.git | 80 | 214ddb716c718ea27b7c9e04939b9cd3cc300bed
+https://github.com/aien-dev/atlas-mac-devbox-control.git | 3 | 313c714fc8699ee14aa8d61e9a759895a066b030
+https://github.com/aien-dev/atlas-spark-proof.git | 4 | 6df4fc2f280d31ad7ce8b5f2b9cda647cb7354a7
+https://github.com/aien-dev/omega-seed-challenge.git | 3 | fbbc23026e8cdad2ac752c6bd30e388efe41cd74
+https://github.com/aien-dev/omega-kernel-template.git | 4 | 02050226cf240c9b6fbcd77c7fc4bf12319f1402
+https://github.com/aien-dev/omega-gpu-bench.git | 5 | de6e2f4c0168167a00c5211249db654d19b046cd
+https://github.com/aien-dev/compiler-explorer.git | 71 | cbe1d5d9d5b927d15af60f454f6e180a515b7f9c
+https://github.com/aien-dev/omega-packages.git | 2 | da121553fab77459320010b439fe06d018047599
+https://github.com/aien-dev/homebrew-omega.git | 2 | 9fcb1c65ce7cf20bb3d7c5e497aed661a22c82a9
+https://github.com/aien-dev/tree-sitter-omega.git | 3 | 33fc2abe55f35b7f2dfea008fc82ee069aca3096
+https://github.com/aien-dev/omega-rosetta.git | 7 | 22e7152473c709662b3c8f0bae39a053f73da06f
+https://github.com/aien-dev/BabelStream.git | 51 | 5cb9445483786f3502b12b8faab8414f8c5873b1
+https://github.com/aien-dev/synapse-claims.git | 1 | 
+https://github.com/aien-dev/synapse-map.git | 2 | 
+https://github.com/aien-dev/synapse-pulse.git | 2 | 
+https://github.com/aien-dev/synapse-mcp.git | 2 | 
+https://github.com/aien-dev/synapse-board.git | 2 | 
+https://github.com/aien-dev/vscode-omega.git | 3 | b71100fe0a118d2ab54ed649fe66ce3ad1e4c605
+https://github.com/aien-dev/openaccel-lab.git | 3 | 5f8ec51720f7978101601cec29e35e548ac1902f
+https://github.com/aien-dev/omega-bridge-kit.git | 3 | 
+https://github.com/aien-dev/omega-lift.git | 2 | 
+https://github.com/aien-dev/ggml-omega.git | 4 | 9fcb76d52ddf8b80e4556df781aa0468da86e6e3
+https://github.com/aien-dev/infra.git | 49 | 0d9c67d3d62645442a466e7cedfe22494646d72c
+https://github.com/aien-dev/omega-dnn.git | 4 | 2b7e6b3fee48921337f954c6eae102c3df8e41c0
+https://github.com/aien-dev/omega-blas.git | 4 | 178a821d4b9fb2ece22f0ecaa4f4bbd595d95d96
+https://github.com/aien-dev/omega-gpu-driver.git | 8 | 298e4681979bdbe7479fc8655a07784f1641b1fa
+https://github.com/aien-dev/gpu-head-to-head.git | 4 | 66eb00db2a164faccc5c3a4169f45aec696f7da2
+https://github.com/aien-dev/truthcleanup-secretscan.git | 2 | 1d003d86759ffd33f3442ff2d4448b64e18e65ca
+https://github.com/aien-dev/omega-npu.git | 13 | 9a0f7b9c442e7cf9ffe15aec4cf21519d2cc1452
+https://github.com/aien-dev/omega-mcp.git | 2 | 4f4c8820d9f40baff9c3d05b05938095085cd100
+https://github.com/aien-dev/rtl8127-omega.git | 2 | 4c757d7adb4bd929341324ec2c0f5530d97cf8f8
+
+Local no-ref paths:
+/home/drakestapleton/work/OmegaNpu/ext/mesa-full
+/home/drakestapleton/workspace/l182-clean/aien-demo/src/omega
+/home/drakestapleton/workspace/l182-final/aien-demo/src/omega
+/home/drakestapleton/work/BridgeAttach/llama.cpp
+/home/drakestapleton/workspace/investigations/2026-10-17-SPEED-1G-router-logits/physics
+/home/drakestapleton/workspace/l182-clean/aien-demo/src/physics
+/home/drakestapleton/workspace/l182-clean/aien-demo/src/sc
+/home/drakestapleton/workspace/l182-final/aien-demo/src/physics
+/home/drakestapleton/workspace/l182-final/aien-demo/src/sc
+/home/drakestapleton/workspace/oq3-v5-build-4770703/physics
+/home/drakestapleton/workspace/perf233/crumb-tool-94fffbcf88492c5a1c54211b5126c8a6c370a98d/src
+/home/drakestapleton/workspace/perf233/crumb-tool-d0f0b95d344b4c6628c3d868346932fd247ce168/src
