@@ -1,0 +1,34 @@
+--- a/drivers/thermal/pcie_cooling.c
++++ b/drivers/thermal/pcie_cooling.c
+@@ -20,9 +20,13 @@
+ static int pcie_cooling_get_max_level(struct thermal_cooling_device *cdev, unsigned long *state)
+ {
+ 	struct pci_dev *port = cdev->devdata;
++	enum pci_bus_speed speed = READ_ONCE(port->subordinate->max_bus_speed);
++
++	if (speed < PCIE_SPEED_2_5GT || speed > PCIE_SPEED_64_0GT)
++		return -EINVAL;
+ 
+ 	/* cooling state 0 is same as the maximum PCIe speed */
+-	*state = port->subordinate->max_bus_speed - PCIE_SPEED_2_5GT;
++	*state = speed - PCIE_SPEED_2_5GT;
+ 
+ 	return 0;
+ }
+@@ -31,8 +35,15 @@
+ {
+ 	struct pci_dev *port = cdev->devdata;
+ 
++	enum pci_bus_speed speed = READ_ONCE(port->subordinate->cur_bus_speed);
++
++	/* Unknown, non-PCIe or stale speeds are not cooling states. */
++	if (speed < PCIE_SPEED_2_5GT || speed > PCIE_SPEED_64_0GT ||
++	    speed - PCIE_SPEED_2_5GT > cdev->max_state)
++		return -EAGAIN;
++
+ 	/* cooling state 0 is same as the maximum PCIe speed */
+-	*state = cdev->max_state - (port->subordinate->cur_bus_speed - PCIE_SPEED_2_5GT);
++	*state = cdev->max_state - (speed - PCIE_SPEED_2_5GT);
+ 
+ 	return 0;
+ }

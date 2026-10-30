@@ -56,7 +56,7 @@
         },
         {
           "digest": "6a3433e812a1f8deac469ac30e837c7ee402ab18eb450cf3553bf7c0674544f7",
-          "last_commit": "7b7950b4",
+          "last_commit": "94b77f6c",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
@@ -79,8 +79,8 @@
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
-          "digest": "0a43064916627bcab2d0883d277e284611a091abe6a39e8872861a830e2ee7bd",
-          "last_commit": "697af71e",
+          "digest": "fad98a3a60585ec53f45394e80311344ed58601c892bfd39f779b485872e1e4b",
+          "last_commit": "94b77f6c",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
@@ -97,6 +97,12 @@
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
+          "digest": "f3c7ee4f18f768fa9964c123e07f076c544c58c0966a8a5e9571b0397bf57b06",
+          "last_commit": "",
+          "name": "omega",
+          "purpose": "Seeded Omega native modules"
+        },
+        {
           "digest": "e89066d6aa5c09de6f67671846971d09cf733e4620f713983ff29fae60321c9e",
           "last_commit": "f45d00ad",
           "name": "sig",
@@ -109,15 +115,15 @@
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:4c3d473ce20b5ec4e36aca626562e5c56d8ff02638db310424de04926f50897a",
-      "compiled_at": "2026-10-30T02:45:55Z",
+      "children_root": "sha256:1073323fe03fbd0eba8c7d6fd5e64192c9d988cbbf26926d7e2248c720392230",
+      "compiled_at": "2026-10-30T05:15:53Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:d3922ca115c0427c4221721577402156321e359849a64085c61c7b51e8d0c14f",
-      "evidence_files": 4,
-      "evidence_root": "sha256:e410b845507e00568e15b51a5797af32a97e0e4b8ab4e8487bb7c98e7e0cf335",
-      "files": 623,
-      "generated_at_commit": "180618ae4336b33d9310046b94496bd9b4f4f4c5",
-      "source_tree": "sha256:9cdf5b75ca1c6ec112501ae32dc7fc933ed27d0b66e3641916f3d45d2a199bc3"
+      "digest": "sha256:a9e7cd3ed2b33ec09a073829681c3e50d764528323e8d34ccf0c8a6a5004c2e9",
+      "evidence_files": 24,
+      "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
+      "files": 665,
+      "generated_at_commit": "94b77f6c2c3a43fbd90f7c3d08169dee1ae50fcf",
+      "source_tree": "sha256:5a2958d85af9d8dc775be29ff1e7f0e0da295845fa52d334570de1f1c809facf"
     },
     "owner_lane": "",
     "provenance": {

@@ -18,26 +18,26 @@
       "children": [
         {
           "digest": "477f9151be8ffe5662c59ab581ed6805379b4ed4da9ba10970d1864431f1cc3d",
-          "last_commit": "a088d77",
+          "last_commit": "a088d776",
           "name": "adr",
           "purpose": "Directory docs/adr. Purpose not yet described by a human."
         },
         {
           "digest": "5dc4f124f1c023aa4786f45336a671138fce9fa046478364cdc7454307d7b588",
-          "last_commit": "09e59a8",
+          "last_commit": "09e59a82",
           "name": "crumbs",
           "purpose": "Directory docs/crumbs. Purpose not yet described by a human."
         }
       ],
       "children_root": "sha256:efb4a0449db172a441d8663f55ab48d6d81405e011961fd54213541c119b6852",
-      "compiled_at": "2026-10-28T23:31:42Z",
+      "compiled_at": "2026-10-30T05:15:53Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:8c5e51a6d72160bc25e57bf3708866b206a03353a2b4de01898b06435e908d96",
+      "digest": "sha256:289309d0e431e95c5866389054925eaa880a4b02b80707e59df48de81d97d559",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 218,
-      "generated_at_commit": "42777563ed93ccda626285ce38dc208c3d169179",
-      "source_tree": "sha256:31de9e6f04a8d53148b5612ee29461d92f652a11e5ef48d501cfa0a979f8657a"
+      "generated_at_commit": "94b77f6c2c3a43fbd90f7c3d08169dee1ae50fcf",
+      "source_tree": "sha256:d8bd38d3368a69f33cf268616e6d50637b06ebc4cdaa36ba4ee3c9676101d2cc"
     },
     "owner_lane": "",
     "provenance": {
