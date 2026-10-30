@@ -37,6 +37,7 @@
 #include "../../boot/netboot_proto.h"
 #include "x86.h"
 #include "swap_proto.h"
+#include "swap_disk_read.h"
 #include "report_x86.h"
 
 #ifndef CK_X86_SWAP
@@ -288,35 +289,15 @@ extern int ck_x86_ahci_read_lba(unsigned ctrl, unsigned disk_idx, uint64_t lba,
                                  unsigned count, uint8_t *buf);
 static int disk_stage_triggered;
 
+static int swap_test_disk_sectors(uint64_t lba, unsigned count, uint8_t *buf)
+{
+    return ck_x86_ahci_read_lba(0, SWAP_TEST_DISK_INDEX, lba, count, buf);
+}
+
 /* Reads the raw slot object at SWAP_TEST_LBA. Returns 0 and the length on success. */
 static int swap_read_test_disk(uint8_t *buf, size_t cap, size_t *len_out)
 {
-    static uint8_t header[512];
-    *len_out = 0;
-    if (ck_x86_ahci_read_lba(0, SWAP_TEST_DISK_INDEX, SWAP_TEST_LBA, 1, header) != 0) {
-        ck_puts("swap_inbox: test disk not readable\n");
-        return -1;
-    }
-    if (memcmp(header, CK_SLOT_MANIFEST_MAGIC, 8) != 0) {
-        ck_puts("swap_inbox: no slot object at the test LBA\n");
-        return -1;
-    }
-    uint64_t img_len64;
-    memcpy(&img_len64, header + 48, 8);   /* manifest.image_len (u64 at offset 48) */
-    if (img_len64 > cap) {
-        ck_puts("swap_inbox: slot too large\n");
-        return -1;
-    }
-    size_t total = (size_t)CK_SLOT_UNIT + (size_t)img_len64;
-    unsigned nsectors = (unsigned)((total + 511) / 512);
-    if (ck_x86_ahci_read_lba(0, SWAP_TEST_DISK_INDEX, SWAP_TEST_LBA, nsectors, buf) != 0) {
-        ck_puts("swap_inbox: read failed\n");
-        return -1;
-    }
-    *len_out = total;
-    ck_printf("swap: inbox at LBA %u img_len=%llu total=%zu\n", SWAP_TEST_LBA,
-              (unsigned long long)img_len64, total);
-    return 0;
+    return ck_swap_disk_load(swap_test_disk_sectors, SWAP_TEST_LBA, buf, cap, len_out);
 }
 
 static void try_disk_stage(void)
