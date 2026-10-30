@@ -1371,7 +1371,8 @@ HOST_SRCS := $(KDIR)/core/fmt.c $(KDIR)/core/acpi.c $(KDIR)/core/smmu.c $(KDIR)/
 	$(KDIR)/core/line_rx.c $(KDIR)/core/klog.c $(KDIR)/core/klog_slot.c $(KDIR)/core/cpufeat.c $(KDIR)/core/unlock_req.c $(KDIR)/core/agent_cmd.c $(KDIR)/core/artifact_card.c
 TESTS := test_fmt test_frames test_pt test_acpi test_acpi_dev test_heap test_smmu test_sched test_ipc test_artifact test_osc_unit test_osc_launch test_osc_admit test_osc_receipt test_entropy test_handoff test_fbcon test_osh_op \
 	test_continuity_codec test_continuity_resolve test_continuity_commit test_continuity_recovery test_continuity_geometry \
-	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card
+	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card \
+	test_netboot_text
 HCFLAGS := -std=gnu11 -O1 -g -Wall -Wextra -Werror -I$(KDIR)/core -I$(KDIR)/mm -I$(KDIR)/tests -I$(BOOT)
 SANFLAGS := -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
 
@@ -2381,6 +2382,86 @@ $(IMACKERN_EFI): $(IMACKERN_ELF)
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-kernel: $(IMACKERN_EFI)
 
+# ---- NETLDR.EFI: the lab network loader for the 2017 iMac (x86_64) ----
+# native/boot/net_loader.c + netboot_proto.c (wire spec netboot_proto.h). Stays on the stick as
+# EFI/BOOT/BOOTX64.EFI; at every power-on it fetches a kernel from tools/ck_imac_netboot.c over
+# the LAN, verifies it with the SLOTLDR verifier (ck_slot_verify: Ed25519 manifest signature,
+# SHA-512 of the image) against the public keys baked in from CK_NETLDR_KEYS ("owner_root_ed25519
+# <64 hex>" lines; ck_imac_netboot keygen writes one) and only then starts it. No answer for
+# CK_NETLDR_FALLBACK_S seconds: it starts \EFI\AIENOS\IMACKERN.EFI from the stick instead.
+#   make imac-netldr CK_NETLDR_KEYS=<file>  -> $(OUT)/NETLDR.EFI
+#   make imac-netboot-tool                  -> $(OUT)/host/ck_imac_netboot (keygen, sign, serve)
+# QEMU test: scripts/qemu_ck_imac_netboot_test.sh (AIENOS_IMAC_NETBOOT).
+CK_NETLDR_KEYS ?=
+CK_NETLDR_FALLBACK_S ?= 30
+ifeq ($(shell echo '$(CK_NETLDR_FALLBACK_S)' | grep -xE '[1-9][0-9]{0,3}'),)
+$(error CK_NETLDR_FALLBACK_S must be a whole number of seconds, 1..9999)
+endif
+NETLDR_DIR := $(OUT)/netldr
+NETLDR_ELF := $(NETLDR_DIR)/netldr.elf
+NETLDR_EFI := $(OUT)/NETLDR.EFI
+NETLDR_KEYS_C := $(NETLDR_DIR)/netldr_keys.c
+NETLDR_C := $(BOOT)/net_loader.c $(BOOT)/netboot_proto.c $(BOOT)/slot_select.c $(NATIVE)/net/aienos_net.c \
+	$(NATIVE)/sig/sha512.c $(NATIVE)/sig/ed25519.c $(NATIVE)/sig/ct.c $(NATIVE)/argus/sha256.c \
+	$(KDIR)/core/libc_min.c $(KDIR)/core/fmt.c
+NETLDR_OBJS := $(patsubst $(NATIVE)/%.c,$(NETLDR_DIR)/obj/%.o,$(NETLDR_C)) \
+	$(NETLDR_DIR)/obj/efi_entry_x86_64.o $(NETLDR_DIR)/obj/netldr_keys.o
+NETLDR_CFLAGS := $(X86CFLAGS) $(ART_INC) -I$(NATIVE)/net -I$(NATIVE)/store
+NETLDR_HDRS := $(BOOT)/netboot_proto.h $(BOOT)/slot_format.h $(BOOT)/efi.h $(NATIVE)/net/aienos_net.h \
+	$(KDIR)/core/fmt.h $(ART_HDRS)
+$(NETLDR_DIR)/obj/%.o: $(NATIVE)/%.c $(NETLDR_HDRS)
+	@mkdir -p $(dir $@)
+	$(X86CC) $(NETLDR_CFLAGS) -c -o $@ $<
+# The fallback delay is compiled in; the stamp rebuilds the loader when it changes.
+$(NETLDR_DIR)/fallback.stamp: FORCE
+	@mkdir -p $(dir $@)
+	@[ "$$(cat $@ 2>/dev/null)" = "$(CK_NETLDR_FALLBACK_S)" ] || echo "$(CK_NETLDR_FALLBACK_S)" > $@
+$(NETLDR_DIR)/obj/boot/net_loader.o: $(BOOT)/net_loader.c $(NETLDR_HDRS) $(OUT)/commit.stamp $(NETLDR_DIR)/fallback.stamp
+	@mkdir -p $(dir $@)
+	$(X86CC) $(NETLDR_CFLAGS) -DAIENOS_COMMIT='"$(AIENOS_COMMIT)"' -DCK_NETLDR_FALLBACK_S=$(CK_NETLDR_FALLBACK_S)u -c -o $@ $<
+$(NETLDR_DIR)/obj/efi_entry_x86_64.o: $(BOOT)/efi_entry_x86_64.S
+	@mkdir -p $(dir $@)
+	$(X86CC) $(X86CFLAGS) -c -o $@ $<
+$(NETLDR_KEYS_C): $(SLOT_TOOL) FORCE
+	@[ -n "$(strip $(CK_NETLDR_KEYS))" ] || { echo "imac-netldr: give CK_NETLDR_KEYS=<public key file> (ck_imac_netboot keygen writes one)"; exit 1; }
+	@mkdir -p $(dir $@)
+	@$(SLOT_TOOL) keys-c --keys $(abspath $(CK_NETLDR_KEYS)) --out $@
+$(NETLDR_DIR)/obj/netldr_keys.o: $(NETLDR_KEYS_C)
+	@mkdir -p $(dir $@)
+	$(X86CC) $(NETLDR_CFLAGS) -c -o $@ $<
+$(NETLDR_ELF): $(NETLDR_OBJS) $(BOOT)/image_x86_64.ld
+	@if grep -nE -- '->(RuntimeServices|ExitBootServices|SetVariable|GetVariable)|RuntimeServices' $(BOOT)/net_loader.c; then \
+	  echo "net_loader.c calls a service the network loader must never call"; exit 1; fi
+	@mkdir -p $(dir $@)
+	$(X86LD) $(X86LDFLAGS) -o $@ $(NETLDR_OBJS)
+	@u=$$($(X86NM) -u $@ | grep -v ' w ' || true); \
+	if [ -n "$$u" ]; then echo "image has undefined symbols: $$u"; rm -f $@; exit 1; fi
+	@bad=$$($(X86READELF) -rW $@ | grep -E '^[0-9a-f]+ ' | grep -v R_X86_64_RELATIVE || true); \
+	if [ -n "$$bad" ]; then echo "image has non-RELATIVE relocations:"; echo "$$bad"; rm -f $@; exit 1; fi
+	@k=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_x86_kernel_entry|kernel_main|ck_printf)$$' || true); \
+	if [ -n "$$k" ]; then echo "NETLDR links kernel objects: $$k"; rm -f $@; exit 1; fi
+	@if grep -aqF "TEST-ONLY" $@; then echo "NETLDR carries a TEST-ONLY key note"; rm -f $@; exit 1; fi
+$(NETLDR_EFI): $(NETLDR_ELF)
+	$(X86OBJCOPY) -O binary $< $@
+	@sz=$$(stat -c %s $@); pad=$$(( (4096 - sz % 4096) % 4096 )); \
+	if [ $$pad -gt 0 ]; then head -c $$pad /dev/zero >> $@; fi
+	@[ "$$(head -c 2 $@)" = "MZ" ] || { echo "not a PE image"; rm -f $@; exit 1; }
+	@[ "$$(od -An -tx1 -j68 -N2 $@ | tr -d ' ')" = "6486" ] || { echo "PE Machine is not x86_64 (0x8664)"; rm -f $@; exit 1; }
+	@echo "built $@ (commit $(AIENOS_COMMIT), fallback $(CK_NETLDR_FALLBACK_S) s)"
+imac-netldr: $(NETLDR_EFI)
+NETBOOT_TOOL := $(OUT)/host/ck_imac_netboot
+NETBOOT_TOOL_SRCS := $(KDIR)/tools/ck_imac_netboot.c $(BOOT)/netboot_proto.c $(NATIVE)/net/aienos_net.c \
+	$(NATIVE)/sig/sha512.c $(NATIVE)/sig/ed25519.c $(NATIVE)/sig/ct.c
+$(NETBOOT_TOOL): $(NETBOOT_TOOL_SRCS) $(BOOT)/netboot_proto.h $(NATIVE)/net/aienos_net.h $(NATIVE)/sig/aienos_sig.h
+	@mkdir -p $(dir $@)
+	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror -I$(BOOT) -I$(NATIVE)/net -I$(NATIVE)/sig -o $@ $(NETBOOT_TOOL_SRCS)
+# Apple NetBoot answerer (BSDP + one-file TFTP): the iMac starts NETLDR.EFI from the Spark with N held.
+BSDP_TOOL := $(OUT)/host/ck_imac_bsdp
+$(BSDP_TOOL): $(KDIR)/tools/ck_imac_bsdp.c
+	@mkdir -p $(dir $@)
+	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror -o $@ $<
+imac-netboot-tool: $(NETBOOT_TOOL) $(BSDP_TOOL)
+
 # Raspberry Pi 5 board image (see CK_PI5 above): target/native-kernel-pi5/BOOTAA64.EFI
 pi5-store:
 	$(MAKE) CK_PI5_STORE=1 full
@@ -2468,7 +2549,7 @@ $(OUT)/host-san/test_pi5_rng: $(KDIR)/tests/test_pi5_rng.c $(PI5_RNG_SRCS) $(KDI
 	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -DCK_RNG200_SPINS=1000 -I$(KDIR)/dev -o $@ $< $(PI5_RNG_SRCS)
 
 FORCE:
-.PHONY: uefi-vars slot-loader slot-loader-check pi5-diag imac-diag imac-kernel
+.PHONY: uefi-vars slot-loader slot-loader-check pi5-diag imac-diag imac-kernel imac-netldr imac-netboot-tool
 .PHONY: artifact-tier-pi5 artifact-tier-mutant
 .PHONY: osc-receipt-mutants osc-receipt-release all full pi5 pi5-store pi5-infer pi5-unlock pi5-unlock-card pi5-fact pi5-agent pi5-lifecycle pi5-artifact artifact-card-mutant test sanitize context-mutant agent-cmd-mutant cortex-image handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants acpi-scan clean print-kcflags udp-echo tool store-image gpt-image cont-tool owner-gen fb-check continuity-mutants continuity-resolve-mutants FORCE
 

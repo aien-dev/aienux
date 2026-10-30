@@ -46,7 +46,11 @@ STAGE_SRCS := $(STAGE_OWN_SRCS) $(STAGE_NATIVE_SRCS) $(STAGE_KERNEL_SRCS)
 # omega.lock) over the sealed Store. Linked into the CK_SERVICE image by the
 # kernel Makefile; compiled freestanding here so stage-free proves the link.
 STAGE_CORTEX_SRCS := $(STAGE_DIR)/svc/cortex_store.c $(STAGE_DIR)/svc/cortex_journal.c
-STAGE_FREE_SRCS := $(STAGE_SRCS) $(STAGE_CORTEX_SRCS)
+# audio.output slice 1 (issue #85): USB Audio Class output pure logic. Not
+# linked into any image yet (no xHCI isochronous endpoint); compiled
+# freestanding here and host tested by usb-audio-test.
+STAGE_AUDIO_SRCS := $(STAGE_DIR)/dev/usb_audio.c
+STAGE_FREE_SRCS := $(STAGE_SRCS) $(STAGE_CORTEX_SRCS) $(STAGE_AUDIO_SRCS)
 
 STAGE_INC := -I$(STAGE_DIR)/include -I$(STAGE_DIR)/dev -I$(STAGE_DIR)/svc \
              -I$(STAGE_NATIVE)/disk -I$(STAGE_NATIVE)/store -I$(STAGE_NATIVE)/m5 -I$(STAGE_NATIVE)/crypto \
@@ -159,6 +163,25 @@ disk-part-sanitize: $(STAGE_OUT)/disk_part_test_san
 
 stage-test: disk-part-test
 stage-sanitize: disk-part-sanitize
+
+# ---- audio.output pure logic host test (dev/tests/usb_audio_test.c, issue #85) ----
+USB_AUDIO_TEST_SRCS := $(STAGE_AUDIO_SRCS) $(STAGE_DIR)/dev/tests/usb_audio_test.c
+USB_AUDIO_TEST_DEPS := $(USB_AUDIO_TEST_SRCS) $(STAGE_DIR)/dev/usb_audio.h
+$(STAGE_OUT)/usb_audio_test: $(USB_AUDIO_TEST_DEPS)
+	@mkdir -p $(@D)
+	$(STAGE_CC) $(STAGE_HOST_FLAGS) -I$(STAGE_DIR)/dev -o $@ $(USB_AUDIO_TEST_SRCS)
+$(STAGE_OUT)/usb_audio_test_san: $(USB_AUDIO_TEST_DEPS)
+	@mkdir -p $(@D)
+	$(STAGE_CC) $(STAGE_HOST_FLAGS) $(STAGE_SAN_FLAGS) -I$(STAGE_DIR)/dev -o $@ $(USB_AUDIO_TEST_SRCS)
+
+.PHONY: usb-audio-test usb-audio-sanitize
+usb-audio-test: $(STAGE_OUT)/usb_audio_test
+	$<
+usb-audio-sanitize: $(STAGE_OUT)/usb_audio_test_san
+	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1 $<
+
+stage-test: usb-audio-test
+stage-sanitize: usb-audio-sanitize
 
 # ---- AIENOS-PI5 step 3b: sealed Store over the Pi card layout (dev/tests/pi5_store_test.c) ----
 # Same sources as disk_part_test; the image build of this stage is "make pi5-store".
