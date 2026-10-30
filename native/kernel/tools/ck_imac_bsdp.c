@@ -52,6 +52,9 @@
 #define IMAGE_ID 0x81000001u
 #define DHCP_MAGIC 0x63825363u
 #define BOOTP_MIN 240
+/* Reply buffer: the worst case (255-byte client id echoed, 64-byte root path, 255-byte option 43) is
+ * about 850 bytes, past the old 576. The iMac advertises a 1500-byte DHCP maximum (option 57). */
+#define REPLY_MAX 1024
 #define BLK_MAX 1428
 
 static uint8_t *booter;
@@ -167,7 +170,7 @@ static void bsdp_packet(int s, const uint8_t *in, size_t n)
     if (rp && pl == 2 && ((rp[0] << 8) | rp[1]) >= 1024)
         port = (uint16_t)((rp[0] << 8) | rp[1]);
 
-    uint8_t out[576] = {0}, sub[255];
+    uint8_t out[REPLY_MAX] = {0}, sub[255];
     size_t sn = 0, at = BOOTP_MIN;
     out[0] = 2;
     out[1] = 1;
@@ -180,6 +183,11 @@ static void bsdp_packet(int s, const uint8_t *in, size_t n)
     uint8_t ack = 5;
     at = opt_put(out, at, sizeof out, 53, &ack, 1);
     at = opt_put(out, at, sizeof out, 54, &server_ip.s_addr, 4);
+    /* RFC 6842 section 3: a client identifier in the request is echoed byte for byte, and only then. */
+    uint8_t cl = 0;
+    const uint8_t *cid = opt_find(opts, on, 61, &cl);
+    if (cid)
+        at = opt_put(out, at, sizeof out, 61, cid, cl);
     at = opt_put(out, at, sizeof out, 60, "AAPLBSDPC", 9);
     /* Subnet mask and router, as the ISC config known to boot Intel Macs forces into the
      * answer (its parameter list 1,3,17,43,60); the iMac only asked for 43 and 60. */
@@ -220,8 +228,10 @@ static void bsdp_packet(int s, const uint8_t *in, size_t n)
         return;
     }
     at = opt_put(out, at, sizeof out, 43, sub, (uint8_t)sn);
-    if (at + 1 > sizeof out)
+    if (at + 1 > sizeof out) {
+        logf_("BSDP answer to %s does not fit in %d bytes; not sent", inet_ntoa(ci), REPLY_MAX);
         return;
+    }
     out[at++] = 255;
     struct sockaddr_in to = {.sin_family = AF_INET, .sin_port = htons(port), .sin_addr = ci};
     if (sendto(s, out, at < 300 ? 300 : at, 0, (struct sockaddr *)&to, sizeof to) < 0)

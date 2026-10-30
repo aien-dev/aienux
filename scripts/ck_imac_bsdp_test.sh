@@ -24,7 +24,9 @@ cat >"${W}/client.c" <<'EOF'
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-/* client SERVER_PORT REPLY_PORT list|select|discover -> prints the answer's fields */
+/* client SERVER_PORT REPLY_PORT list|select|discover [none|short|max] -> prints the answer's fields.
+ * The third mode argument picks the request's DHCP client identifier (option 61): none = absent,
+ * short = the iMac's 7 bytes (01 + MAC), max = 255 binary bytes (including 00 and ff). */
 int main(int argc, char **argv)
 {
     int sp = atoi(argv[1]), rp = atoi(argv[2]);
@@ -33,7 +35,7 @@ int main(int argc, char **argv)
     struct sockaddr_in to = {.sin_family = AF_INET, .sin_port = htons(sp), .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
     if (bind(s, (struct sockaddr *)&me, sizeof me) != 0)
         return 3;
-    uint8_t p[400] = {0};
+    uint8_t p[800] = {0};
     size_t n = 240;
     p[0] = 1, p[1] = 1, p[2] = 6;
     p[4] = 0xd7, p[5] = 0xfe, p[6] = 0xa7, p[7] = 0x48;
@@ -45,6 +47,14 @@ int main(int argc, char **argv)
     p[n++] = 53, p[n++] = 1, p[n++] = disc ? 1 : 8;
     p[n++] = 55, p[n++] = 2, p[n++] = 43, p[n++] = 60;
     p[n++] = 57, p[n++] = 2, p[n++] = 0x05, p[n++] = 0xdc;
+    const char *cid = argc > 4 ? argv[4] : "none";
+    if (strcmp(cid, "short") == 0) {
+        p[n++] = 61, p[n++] = 7, p[n++] = 1, memcpy(p + n, mac, 6), n += 6;
+    } else if (strcmp(cid, "max") == 0) {
+        p[n++] = 61, p[n++] = 255;
+        for (int i = 0; i < 255; i++)
+            p[n++] = (uint8_t)(i * 7 + 255); /* i=0 gives ff, i=1 gives 06, ... 00 appears too */
+    }
     p[n++] = 60, p[n++] = 23;
     memcpy(p + n, "AAPLBSDPC/i386/iMac18,3", 23), n += 23;
     if (sel) {
@@ -61,18 +71,22 @@ int main(int argc, char **argv)
         printf("no answer\n");
         return 0;
     }
-    uint8_t r[600];
+    uint8_t r[1600];
     ssize_t k = recv(s, r, sizeof r, 0);
     printf("op=%u xid=%02x%02x%02x%02x siaddr=%u.%u.%u.%u chaddr_ok=%d file=%s sname=%s\n", r[0], r[4], r[5], r[6],
            r[7], r[20], r[21], r[22], r[23], memcmp(r + 28, mac, 6) == 0, (char *)r + 108, (char *)r + 44);
-    for (ssize_t i = 240; i < k && r[i] != 255;) {
+    ssize_t i = 240;
+    for (; i + 1 < k && r[i] != 255;) {
         uint8_t c = r[i], l = r[i + 1];
+        if (i + 2 + l > k)
+            break;
         printf("opt %u:", c);
         for (int j = 0; j < l; j++)
             printf(c == 60 || c == 17 ? "%c" : " %02x", r[i + 2 + j]);
         printf("\n");
         i += 2 + l;
     }
+    printf("end=%d len=%zd\n", i < k && r[i] == 255, k);
     return 0;
 }
 EOF
@@ -81,7 +95,7 @@ head -c 45056 /dev/urandom >"${W}/booter.efi"
 printf 'MZ' | dd of="${W}/booter.efi" conv=notrunc status=none
 bp=$((41000 + RANDOM % 4000)); tp=$((bp + 1)); rp=$((bp + 2))
 "${W}/bsdp" serve --booter "${W}/booter.efi" --server-ip 127.0.0.1 --mac 78:7b:8a:bd:d0:51 \
-    --bsdp-port "${bp}" --tftp-port "${tp}" --seconds 60 >"${W}/log" 2>&1 &
+    --router 127.0.0.2 --bsdp-port "${bp}" --tftp-port "${tp}" --seconds 60 >"${W}/log" 2>&1 &
 spid=$!
 for _ in $(seq 1 50); do grep -q '^.* serving BSDP' "${W}/log" && break; sleep 0.1; done
 grep -q 'serving BSDP' "${W}/log" || fail "server did not start: $(cat "${W}/log")"
@@ -102,6 +116,29 @@ grep -q '^op=2 xid=d7fea748 siaddr=127.0.0.1 chaddr_ok=1 file=aienos/netldr.efi 
 grep -q '^opt 43: 01 01 02 08 04 81 00 00 01 82 06 41 49 45 4e 4f 53$' "${W}/sel" || fail "SELECT answer BSDP options: $(grep 'opt 43' "${W}/sel")"
 grep -q '^opt 17:tftp:127.0.0.1:/aienos/none$' "${W}/sel" || fail "SELECT answer root path"
 pass "INFORM[SELECT] answered: boot file aienos/netldr.efi from this server"
+
+# DHCP client identifier (option 61): RFC 6842 section 3 says a server that gets one must echo it
+# byte for byte; no identifier in, none out. Short = the iMac's own 7 bytes, max = 255 binary bytes.
+cid_short=" 01 78 7b 8a bd d0 51"
+cid_max=""
+for i in $(seq 0 254); do cid_max+="$(printf ' %02x' $(((i * 7 + 255) & 255)))"; done
+for kind in list select; do
+    for cid in none short max; do
+        "${W}/client" "${bp}" "${rp}" "${kind}" "${cid}" >"${W}/${kind}.${cid}"
+        f="${W}/${kind}.${cid}"
+        grep -q '^op=2 xid=d7fea748 siaddr=127.0.0.1 chaddr_ok=1 ' "${f}" || fail "${kind}/${cid}: no answer: $(head -1 "${f}")"
+        grep -q '^end=1 ' "${f}" || fail "${kind}/${cid}: answer options cut off or overran: $(tail -1 "${f}")"
+        grep -q '^opt 43: ' "${f}" || fail "${kind}/${cid}: answer lost its BSDP options"
+        [[ "${kind}" == list ]] || grep -q '^opt 17:tftp:127.0.0.1:/aienos/none$' "${f}" || fail "${kind}/${cid}: answer lost its root path"
+        n61="$(grep -c '^opt 61:' "${f}" || true)"
+        case "${cid}" in
+        none) [[ "${n61}" == 0 ]] || fail "${kind}/none: answer invented a client identifier: $(grep '^opt 61' "${f}")" ;;
+        short) [[ "$(grep '^opt 61:' "${f}")" == "opt 61:${cid_short}" && "${n61}" == 1 ]] || fail "${kind}/short: client identifier not echoed exactly: $(grep '^opt 61' "${f}")" ;;
+        max) [[ "$(grep '^opt 61:' "${f}")" == "opt 61:${cid_max}" && "${n61}" == 1 ]] || fail "${kind}/max: 255-byte client identifier not echoed exactly (${n61} copies): $(grep '^opt 61' "${f}" | cut -c1-80)" ;;
+        esac
+    done
+done
+pass "client identifier (option 61) echoed byte for byte on LIST and SELECT: absent stays absent, 7 bytes, 255 bytes, answer complete"
 
 "${W}/client" "${bp}" "${rp}" discover >"${W}/disc"
 grep -q '^no answer$' "${W}/disc" || fail "a DHCP DISCOVER got an answer (the router must stay the DHCP server)"
