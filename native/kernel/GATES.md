@@ -460,7 +460,7 @@ C-only rows are as stated. Operator key is TEST-ONLY in the oracle.
 | 91o | host `operator_auth_rejects_legacy_bare_sha256_response` (recovery.rs:299) | M4_RECOVERY (host) | HOST PASS (cut 3, `test_continuity_resolve` (`make -C native/kernel test`, real sealed Store in a file): bare SHA-256 response refused; mutant MR-8 `CR_MUTANT_BARE_SHA256` killed); gate NOT_RUN |
 | 91p | host `operator_auth_rejects_undomained_hmac_and_zero_response` (recovery.rs:311) | M4_RECOVERY (host) | HOST PASS (cut 3, `test_continuity_resolve` (`make -C native/kernel test`, real sealed Store in a file): undomained HMAC and zero response refused; mutant MR-8 `CR_MUTANT_NO_DOMAIN` killed); gate NOT_RUN |
 
-## M4 ALLEN: C-only -> CK `M4_ALLEN` (scripts/qemu_ck_allen_test.sh; OS-0018 / ARCH-0035, both PROPOSED)
+## M4 ALLEN: C-only -> CK `M4_ALLEN` (scripts/qemu_ck_allen_test.sh; OS-0018 PROPOSED / ARCH-0035 ACCEPTED)
 
 No Rust-kernel counterpart. The TEST continuity image (`make full CK_TEST_CONTINUITY=1`), a 4096-byte-LBA emulated NVMe image, one new `qemu-system-aarch64` process per boot (ESP folder and UEFI vars rebuilt every boot; only the image carries state). Plan mode 5 with `lineage=` provisions identity and genesis subject in one sealed Store transaction; `intent=` adds one standing intent; mode 6 restores. Status for every row: QEMU PASS (receipts `evidence/allen_native_qemu_cfe9aecffb8b20e0c1ff51fad54c46c522ec7d6c56c6cba7661e4b8cda1ee25a.json` and `evidence/ck_gates_1ecf5bcd303bf88422dd0542f14851c931f5d52276838fa182c812f3c73f3c1b.json`, full `ck_gates.sh` at `640522a`), hardware NOT_RUN. QEMU is not a physical cold reboot.
 
