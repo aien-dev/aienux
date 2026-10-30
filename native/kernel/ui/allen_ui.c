@@ -870,7 +870,7 @@ static void compose(const ck_rect *r)
     }
     ck_night_base(&ui.night, &ui.cv, r);
     ck_night_lights(&ui.night, &ui.cv, r, ui.shimmer, ui.level * ui.shimmer >> 9);
-    ck_flow_draw(&ui.flow, &ui.cv, r, 256);
+    /* Keep the starfield clear: flow still animates Allen, but adds no ink overlay. */
     int32_t rad;
     uint32_t a;
     if (flash(t, &rad, &a)) {
