@@ -1,0 +1,20 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-26T16:52:40Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:87907ee5c6857824b705d78468e0b6b8a0c4adf94dca0929ca39c076c3a62d02",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 2,
+      "generated_at_commit": "659ddd2d7e3e140cb9bf942c3171cbd9cf3d092e",
+      "source_tree": "sha256:9121a590add04faf36f06485ef046ea047e85429b4f9d097a956766186b08ba9"
+    }
+  },
+  "layer": "tooling",
+  "name": "spark-image",
+  "purpose": "Deterministic GPT FAT32 packaging for read-only aarch64 core boot",
+  "schema_version": "1.0.0"
+}
