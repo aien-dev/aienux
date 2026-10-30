@@ -172,10 +172,12 @@ void ck_xhci_release(void)
         ck_printf("xhci_pci: after phase command=0x%04x bus_master=%s\n", c, (c & CMD_BM) ? "on" : "off");
     }
     if (x->confined) {
+        /* A failed abort leaves the stream live in the SMMU service: it stays
+         * confined (ck_xhci_live stays 1) and a later release retries. */
         int urc = ck_dma_unconfine(x->stream_id);
-        x->confined = 0;
-        ck_printf("smmu: xhci stream 0x%x %s (rc=%d)\n", x->stream_id, urc == 0 ? "returned to abort" : "abort FAILED",
-                  urc);
+        if (urc == 0) x->confined = 0;
+        ck_printf("smmu: xhci stream 0x%x %s (rc=%d)\n", x->stream_id,
+                  urc == 0 ? "returned to abort" : "abort FAILED, stays confined", urc);
     }
 }
 
@@ -235,6 +237,10 @@ static int plat_fence_one(int idx, int *kbd_rc)
     const struct ck_platform_dev *p = &g_plat[idx];
     ck_xhci *x = &g_x;
     *kbd_rc = 1;
+    if (ck_xhci_live()) { /* never forget a stream an earlier release could not abort */
+        ck_printf("keyboard: unavailable (previous xHCI fence still live; release it first)\n");
+        return CK_XHCI_E_RELEASE;
+    }
     x->pf = 0;
     x->plat = 0;
     x->bar0 = 0;
@@ -319,6 +325,10 @@ static int plat_fence_all(void)
     for (int i = 0; i < g_nplat; i++) {
         int krc;
         rc = plat_fence_one(i, &krc);
+        if (rc == CK_XHCI_E_RELEASE || ck_xhci_live()) {
+            g_x.state = "release-failed";
+            return CK_XHCI_E_RELEASE;
+        }
         if (rc == CK_XHCI_OK) any_fenced = 1;
         if (rc == CK_XHCI_OK && krc == 0) return CK_XHCI_OK; /* keyboard found and its phase ran */
         if (ck_kbd_recovery_requested()) return rc;
@@ -420,6 +430,10 @@ int ck_xhci_fence(const pci_system *pci)
     int krc = hrc == 0 ? KBD_RUN(x->bar0, g_dma_mem, g_dma_phys, CK_XHCI_DMA_BYTES) : 1;
     x->state = hrc ? "halt-failed" : "fenced";
     ck_xhci_release();
+    if (ck_xhci_live()) { /* the stream is still confined: no platform attempt, no success */
+        x->state = "release-failed";
+        return CK_XHCI_E_RELEASE;
+    }
     /* A PCI controller without a keyboard: try the platform ones next. */
     if (krc == CK_KBD_E_NOKBD && g_nplat > 0 && !ck_kbd_recovery_requested()) {
         ck_printf("keyboard: none on the PCI xHCI; trying %d ACPI platform controller(s)\n", g_nplat);

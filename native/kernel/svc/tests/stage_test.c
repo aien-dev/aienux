@@ -869,6 +869,31 @@ static void test_nvme_bind_discovery(void)
     CHECK(ck_stage_devices() == NVME_EVS);                          /* ownership was returned: bound again, once */
     CHECK(ck_host_confine_calls == calls0 + 2 && ck_host_unconfine_calls == un0 + 2);
 
+    /* 6b. Same failed bind, but the SMMU refuses to return the stream to abort. The stream is still live in
+     *     the SMMU service, so the release must keep it confined and keep the owner: the next stage run is
+     *     refused as "already owned" without a second grant. A later release that succeeds returns the
+     *     stream and the owner, and the stage binds again. */
+    calls0 = ck_host_confine_calls;
+    un0 = ck_host_unconfine_calls;
+    ck_host_unconfine_fail = 1;
+    ck_host_capture_start();
+    CHECK(ck_stage_devices() == NVME_EVS);
+    CHECK(ck_host_confine_calls == calls0 + 1 && ck_host_unconfine_calls == un0 + 1);
+    CHECK(ck_stage_devices() == NVME_ESTATE);                       /* still owned: refused, nothing granted */
+    CHECK(ck_host_confine_calls == calls0 + 1 && ck_host_unconfine_calls == un0 + 1);
+    ck_host_capture_stop();
+    x = ck_host_capture_text();
+    CHECK(has(x, "dma_gate: nvme bus master revoked\n") && has(x, "abort FAILED, stays confined (rc="));
+    CHECK(!has(x, "returned to abort"));
+    CHECK(has(x, "nvme: bind refused, already owned by seg 0003 01:00.0 (bound=0 bm_on=0 confined=1)"));
+    ck_host_unconfine_fail = 0;
+    ck_host_capture_start();
+    ck_dev_nvme_release();                                          /* retry: the abort now succeeds */
+    ck_host_capture_stop();
+    CHECK(ck_host_unconfine_calls == un0 + 2 && has(ck_host_capture_text(), "returned to abort (rc=0)"));
+    CHECK(ck_stage_devices() == NVME_EVS);                          /* ownership returned: bound again, once */
+    CHECK(ck_host_confine_calls == calls0 + 2 && ck_host_unconfine_calls == un0 + 3);
+
     /* 7. Stage level, firmware bus master that will not clear. The bind refuses (fail closed) and the stage's
      *    release must NOT hand the owner back: the device was written and may still be a bus master. A second
      *    stage run is refused as "already owned" and its refusal must not tear anything down; only an operator

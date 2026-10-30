@@ -62,12 +62,14 @@ enum {
  * ACCESS_PLATFORM required), then ARP for the gateway and one UDP datagram to
  * CK_NET_ECHO_PORT and back, then the SMMU fence test and its recovery round
  * trip (CK_NET_E_SMMU if either fails), every wait bounded by ck_time_us.
- * Always leaves the device released (reset, bus master off, stream back to
- * abort) before returning. */
+ * Leaves the device released (reset, bus master off, stream back to abort)
+ * before returning, unless the SMMU refuses the abort: the stream then stays
+ * confined, ck_net_live stays 1 and a passing selftest returns CK_NET_E_SMMU. */
 int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps);
 
 /* Reset the device, revoke bus mastering and return the SMMU stream to
- * abort if still live; prints the dma_gate/smmu lines. Idempotent. */
+ * abort if still live; prints the dma_gate/smmu lines. Idempotent. A
+ * refused abort keeps the stream confined; calling again retries it. */
 void ck_net_release(void);
 /* 1 while the device may still DMA (bus master on or stream confined). */
 int ck_net_live(void);
