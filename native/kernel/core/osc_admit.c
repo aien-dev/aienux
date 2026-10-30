@@ -41,6 +41,21 @@ void ck_osh_all(void);
 #include "osc_unit_test_anchor.h"
 #include "osc_receipt_test_anchor.h"
 #endif
+/* Variant 3 flips one admitted code byte after admission and restores it after
+ * launch (ck_osc_receipt_test_code_flip). It is compiled only with
+ * CK_OSC_RECEIPT_TEST, which the Makefile leaves empty unless that flag is 1.
+ * A release build does not define CK_SEED0B_TEST_ANCHOR. These #errors fire
+ * for a direct -D as well as for a make variable: the image link check is the
+ * backstop when the flag arrives some other way. */
+#if defined(CK_OSC_RECEIPT_TEST) && !defined(CK_SEED0B_TEST_ANCHOR)
+#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be compiled into a release build"
+#endif
+#if defined(CK_OSC_RECEIPT_TEST) && defined(CK_HARDWARE_STAGING)
+#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be combined with CK_HARDWARE_STAGING"
+#endif
+#if defined(CK_OSC_RECEIPT_TEST) && defined(CK_SERVICE)
+#error "CK_OSC_RECEIPT_TEST (TEST-ONLY post-admission code byte flip) cannot be combined with CK_SERVICE"
+#endif
 
 static unsigned seen, accepted, refused, oversize, announced;
 static struct osc_accept acc; /* ~5 KB: static, not on the kernel stack */
@@ -255,6 +270,15 @@ static struct ck_osc_ws lt_ws[8] = { { lt_ws_mem1, 4 }, { lt_ws_mem2, 4 }, { lt_
                                       { 0, 1 }, { lt_ws_mem1 + 8, 1 }, { 0, 1 }, { lt_ws_mem2, 4 } };
 static unsigned lt_counts[5];
 
+#ifdef CK_OSC_RECEIPT_TEST
+/* TEST ONLY. One call flips one admitted code byte; the second call restores
+ * it. The launch between the two calls rehashes the private copy. */
+static __attribute__((noinline)) void ck_osc_receipt_test_code_flip(uint8_t *code_byte)
+{
+    *code_byte ^= 1;
+}
+#endif
+
 static void lt_run(const struct lt_step *s)
 {
     for (unsigned u = 0; u < lt_n; u++) {
@@ -287,13 +311,17 @@ static void lt_run(const struct lt_step *s)
         size_t rlen = 0;
         const uint8_t *rb = lt_streq(rn, "-") ? 0 : ck_osc_receipt_find(rn, &rlen);
         ck_osc_rcpt_variant = s->variant == 3 ? 0 : s->variant;
+#ifdef CK_OSC_RECEIPT_TEST
         /* Preserve the valid receipt and admitted view; alter only the bytes
          * privately copied by the launcher, exercising its final rehash. */
         if (s->variant == 3)
-            lt_unit[u].bytes[lt_unit[u].acc.code_off] ^= 1;
+            ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
+#endif
         ck_osc_launch(lt_unit[u].bytes, lt_unit[u].len, &lt_unit[u].acc, rb, rlen, &rq, &r, &info);
+#ifdef CK_OSC_RECEIPT_TEST
         if (s->variant == 3)
-            lt_unit[u].bytes[lt_unit[u].acc.code_off] ^= 1;
+            ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
+#endif
         ck_osc_rcpt_variant = 0;
         char rs[96], as[80];
         ck_osc_result_str(&r, rs, sizeof rs);
@@ -364,6 +392,7 @@ static void rt_all(void)
         { "a01_valid_min.unit", "add", 2, { 18, 19 }, 0, 0, 0, "a01.rcpt", 3 },
         { "a01_valid_min.unit", "add", 2, { 20, 22 }, 0, 0, 0, "a01.rcpt", 0 },
     };
+    ck_printf("osc_rcpt_rehash: TEST-ONLY post-admission code byte flip; QEMU (aarch64 virt), TEST signer, not physical\n");
     ck_printf("osc_rcpt_selftest: launches=%u unit=a01_valid_min.unit; QEMU (aarch64 virt), TEST signer, not physical\n",
               (unsigned)(sizeof steps / sizeof steps[0]));
     for (unsigned i = 0; i < sizeof steps / sizeof steps[0]; i++)

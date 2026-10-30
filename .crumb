@@ -28,19 +28,19 @@
         },
         {
           "digest": "289309d0e431e95c5866389054925eaa880a4b02b80707e59df48de81d97d559",
-          "last_commit": "832bcbd9",
+          "last_commit": "8182d6d3",
           "name": "docs",
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "8a9166c3eab596c2048d56ac78f6fa8c4dfdcd1bca8fc3b58c0c699c55cd0004",
-          "last_commit": "e378096a",
+          "digest": "49a2fdd4d42a2feb8ae632ae3d91142b2abe98307ce15b9460c2344e5eae201d",
+          "last_commit": "5566de42",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
-          "digest": "a22c25e0218cf3f852bf3159827af94d53020157bf441c6f6a11ba7101486391",
-          "last_commit": "e7f886a7",
+          "digest": "2eeb83a186f413cd87d904a1bff118758e10bc3921c288762c2e07d87d21e503",
+          "last_commit": "5566de42",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         },
@@ -51,15 +51,15 @@
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:81b01a0b45b45005dbb9ab7bd2561d91978bf7313241dc92209cea123eea8266",
-      "compiled_at": "2026-10-30T11:34:25Z",
+      "children_root": "sha256:0ae937b3bd74c29c0382c581587051d477e89a43e28211cfb19b15301941f60a",
+      "compiled_at": "2026-10-30T11:55:22Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:239bf0102fd8216ec423a2a3caf2069ccd7e5c4a28aca638402cbdcf1a48d331",
+      "digest": "sha256:2adb58fd2fff775bdeb0550ed6586b0def7d5019f05db4abeab5f39bcdda693a",
       "evidence_files": 236,
       "evidence_root": "sha256:55ef5621f09577ce1ada90d990955aec996d15e16a9b0f6953ecb90f3ca499df",
       "files": 3583,
-      "generated_at_commit": "97e14bae3012d80154fa30cd784b3068f1c5fb3e",
-      "source_tree": "sha256:c71ba2e9c1dbf968390c1e4647dfc39e710b61faa781bf0eba772a1aa518322b"
+      "generated_at_commit": "5566de422237b0ec4616289cd87dda907a2241b6",
+      "source_tree": "sha256:3239cb992750733001a592850f4bcd7f22b3ae09f163a0cd27b6d0b29acf8e2a"
     },
     "owner_lane": "",
     "provenance": {

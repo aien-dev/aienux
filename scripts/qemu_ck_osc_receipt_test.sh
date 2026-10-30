@@ -25,7 +25,7 @@
 #
 # One unit (a01_valid_min.unit) and fourteen receipts are written into the sealed C Store of a GPT boot disk
 # image. One boot of the qualification image built with CK_SEED0B_TEST_ANCHOR=1 CK_OSC_LAUNCH_TEST=1
-# CK_OSC_RECEIPT_TEST=1 launches a01 add(a, b) eighteen times, each time with one receipt or none, and prints one
+# CK_OSC_RECEIPT_TEST=1 launches a01 add(a, b) nineteen times, each time with one receipt or none, and prints one
 # "osc_rcpt_launch:" line each. This gate checks:
 #   with the valid receipt the unit RETURNS the exact value (first and last launch), and with the owner receipt in
 #   release mode (aienos#387);
