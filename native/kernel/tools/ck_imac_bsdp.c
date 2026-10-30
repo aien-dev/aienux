@@ -24,8 +24,17 @@
  * kernels signed with the lab key. A forged booter is not prevented here.
  *
  *   ck_imac_bsdp serve --booter FILE --server-ip A.B.C.D [--mac XX:..] [--bsdp-port N]
- *                      [--tftp-port N] [--seconds N]
+ *                      [--tftp-port N] [--reply-source-port N] [--seconds N]
  * --mac answers only that client. Ports 67/69 need CAP_NET_BIND_SERVICE (setcap) or root.
+ * --reply-source-port N sends the BSDP answers (and the --also-broadcast copy) from UDP port N
+ * instead of from the port the requests arrive on (--bsdp-port). By default the answers leave
+ * from the listening socket, source port = --bsdp-port, exactly as before. A different N binds a
+ * separate send-only socket; requests are still read on --bsdp-port and TFTP is unchanged.
+ * This is a LAN compatibility setting, not a protocol rule: on the lab LAN the packets with
+ * source port 67 to the iMac's port 68 were lost between the Spark and the iMac, while the
+ * same answers from source port 1067 arrived (confirmed on this one iMac, 2026-10-30). Do not
+ * read it as "BSDP answers must come from a port other than 67", and this is not a generic
+ * DHCP service. N must differ from --tftp-port; N equal to --bsdp-port behaves as the default.
  * Log lines go to stdout with a UTC timestamp. Exit 0 at the deadline, 2 usage, 3 socket. */
 #define _DEFAULT_SOURCE
 #include <arpa/inet.h>
@@ -367,14 +376,14 @@ static int usage(void)
 {
     fprintf(stderr, "usage: ck_imac_bsdp serve --booter FILE --server-ip A.B.C.D [--mac XX:XX:XX:XX:XX:XX]\n"
                     "                          [--netmask A.B.C.D] [--router A.B.C.D] [--also-broadcast yes|no]\n"
-                    "                          [--bsdp-port N] [--tftp-port N] [--seconds N]\n");
+                    "                          [--bsdp-port N] [--tftp-port N] [--reply-source-port N] [--seconds N]\n");
     return 2;
 }
 
 int main(int argc, char **argv)
 {
     const char *path = 0;
-    long bport = 67, tport = 69, secs = 0;
+    long bport = 67, tport = 69, rport = 0, secs = 0; /* rport 0: answers leave from the listening socket */
     netmask.s_addr = htonl(0xffffff00u);
     if (argc < 2 || strcmp(argv[1], "serve") != 0)
         return usage();
@@ -406,13 +415,18 @@ int main(int argc, char **argv)
             bport = strtol(v, 0, 10);
         else if (strcmp(a, "--tftp-port") == 0)
             tport = strtol(v, 0, 10);
-        else if (strcmp(a, "--seconds") == 0)
+        else if (strcmp(a, "--reply-source-port") == 0) {
+            char *e;
+            rport = strtol(v, &e, 10);
+            if (*v == 0 || *e != 0 || rport < 1 || rport > 65535)
+                return usage();
+        } else if (strcmp(a, "--seconds") == 0)
             secs = strtol(v, 0, 10);
         else
             return usage();
         i++;
     }
-    if (!path || !server_ip.s_addr || bport < 1 || bport > 65535 || tport < 1 || tport > 65535 || secs < 0)
+    if (!path || !server_ip.s_addr || bport < 1 || bport > 65535 || tport < 1 || tport > 65535 || secs < 0 || rport == tport)
         return usage();
     struct stat st;
     int fd = open(path, O_RDONLY | O_CLOEXEC);
@@ -430,8 +444,14 @@ int main(int argc, char **argv)
     int bs = bind_udp((uint16_t)bport, 1), ts = bind_udp((uint16_t)tport, 0);
     if (bs < 0 || ts < 0)
         return 3;
+    /* BSDP answers leave from rs: the listening socket unless --reply-source-port names another port. */
+    int rs = bs;
+    if (rport && rport != bport && (rs = bind_udp((uint16_t)rport, 1)) < 0)
+        return 3;
     logf_("serving BSDP on %ld and TFTP on %ld as %s; booter %s (%zu bytes)%s", bport, tport, inet_ntoa(server_ip),
           path, booter_len, have_mac ? "; one client only" : "");
+    if (rs != bs)
+        logf_("BSDP answers are sent from UDP source port %ld (--reply-source-port)", rport);
     time_t end = secs ? time(0) + secs : 0;
     uint8_t buf[1500];
     while (!end || time(0) < end) {
@@ -443,7 +463,7 @@ int main(int argc, char **argv)
         if (p[0].revents & POLLIN) {
             ssize_t k = recvfrom(bs, buf, sizeof buf, 0, (struct sockaddr *)&from, &fl);
             if (k > 0)
-                bsdp_packet(bs, buf, (size_t)k);
+                bsdp_packet(rs, buf, (size_t)k);
         }
         fl = sizeof from;
         if (p[1].revents & POLLIN) {

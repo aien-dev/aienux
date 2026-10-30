@@ -5,14 +5,18 @@
 # "AAPLBSDPC/i386/iMac18,3", option 43 = 01 01 01 02 02 01 01) plus a reply port, then an
 # INFORM[SELECT] for the offered image; checks every answer field; then fetches the booter
 # with curl over TFTP (blksize + tsize) and compares bytes; checks a wrong file name and a
-# DHCP DISCOVER get nothing. Loopback says nothing about the iMac firmware.
+# DHCP DISCOVER get nothing. A second and third answerer run with --reply-source-port: the answers
+# must leave from that source port (the default run: from the listening port), with the same
+# fields, client identifier echo, MAC restriction and TFTP. Loopback says nothing about the iMac
+# firmware.
 # Final line: AIENOS_IMAC_BSDP: PASS|FAIL   exit 0 / 1
 set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tag="AIENOS_IMAC_BSDP"
 W="$(mktemp -d)"
 spid=""
-trap '[[ -z "${spid}" ]] || kill "${spid}" 2>/dev/null || true; rm -rf "${W}"' EXIT
+spids=()
+trap '[[ -z "${spid}" ]] || kill "${spid}" 2>/dev/null || true; for p in "${spids[@]}"; do kill "${p}" 2>/dev/null || true; done; rm -rf "${W}"' EXIT
 fail() { echo "FAIL  $1"; echo "${tag}: FAIL"; exit 1; }
 pass() { echo "PASS  $1"; }
 command -v curl >/dev/null || { echo "${tag}: NOT_RUN (curl missing)"; exit 2; }
@@ -24,9 +28,11 @@ cat >"${W}/client.c" <<'EOF'
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-/* client SERVER_PORT REPLY_PORT list|select|discover [none|short|max] -> prints the answer's fields.
- * The third mode argument picks the request's DHCP client identifier (option 61): none = absent,
- * short = the iMac's 7 bytes (01 + MAC), max = 255 binary bytes (including 00 and ff). */
+/* client SERVER_PORT REPLY_PORT list|select|discover [none|short|max] [mac|other] -> prints the answer's fields
+ * and, last, src_port=N (the UDP source port the answer came from).
+ * The fourth argument picks the request's DHCP client identifier (option 61): none = absent,
+ * short = the iMac's 7 bytes (01 + MAC), max = 255 binary bytes (including 00 and ff).
+ * The fifth: other = a different client MAC (the server's --mac restriction must ignore it). */
 int main(int argc, char **argv)
 {
     int sp = atoi(argv[1]), rp = atoi(argv[2]);
@@ -41,6 +47,8 @@ int main(int argc, char **argv)
     p[4] = 0xd7, p[5] = 0xfe, p[6] = 0xa7, p[7] = 0x48;
     p[12] = 127, p[15] = 1; /* ciaddr 127.0.0.1 (the iMac sent its leased address) */
     uint8_t mac[6] = {0x78, 0x7b, 0x8a, 0xbd, 0xd0, 0x51};
+    if (argc > 5 && strcmp(argv[5], "other") == 0)
+        mac[5] = 0x52;
     memcpy(p + 28, mac, 6);
     p[236] = 0x63, p[237] = 0x82, p[238] = 0x53, p[239] = 0x63;
     int disc = strcmp(argv[3], "discover") == 0, sel = strcmp(argv[3], "select") == 0;
@@ -72,7 +80,9 @@ int main(int argc, char **argv)
         return 0;
     }
     uint8_t r[1600];
-    ssize_t k = recv(s, r, sizeof r, 0);
+    struct sockaddr_in from;
+    socklen_t fl = sizeof from;
+    ssize_t k = recvfrom(s, r, sizeof r, 0, (struct sockaddr *)&from, &fl);
     printf("op=%u xid=%02x%02x%02x%02x siaddr=%u.%u.%u.%u chaddr_ok=%d file=%s sname=%s\n", r[0], r[4], r[5], r[6],
            r[7], r[20], r[21], r[22], r[23], memcmp(r + 28, mac, 6) == 0, (char *)r + 108, (char *)r + 44);
     ssize_t i = 240;
@@ -87,6 +97,7 @@ int main(int argc, char **argv)
         i += 2 + l;
     }
     printf("end=%d len=%zd\n", i < k && r[i] == 255, k);
+    printf("src_port=%u\n", ntohs(from.sin_port));
     return 0;
 }
 EOF
@@ -153,5 +164,78 @@ pass "TFTP delivered the booter with the default 512-byte blocks"
 if curl -s -o "${W}/nope" "tftp://127.0.0.1:${tp}/etc/passwd"; then fail "TFTP served a file it should refuse"; fi
 grep -q 'asked for "etc/passwd" (octet): refused' "${W}/log" || fail "refusal not logged"
 pass "TFTP refused any other file"
-echo "---- server log ----"; cat "${W}/log"
+
+# Default source port: the answers leave from the listening socket, so the source port is --bsdp-port.
+for f in list sel; do
+    grep -q "^src_port=${bp}\$" "${W}/${f}" || fail "default: ${f} answer did not leave from the listening port ${bp}: $(grep '^src_port' "${W}/${f}")"
+done
+pass "default run: BSDP answers leave from the listening port (source port ${bp}), unchanged"
+"${W}/client" "${bp}" "${rp}" list none other >"${W}/other"
+grep -q '^no answer$' "${W}/other" || fail "a client with another MAC got an answer from the --mac restricted server"
+pass "--mac restriction: a client with another MAC is ignored"
+
+# --reply-source-port: same answers, from another UDP source port; requests still arrive on
+# --bsdp-port, TFTP is untouched. Run 2 uses a distinct port, run 3 names the listening port itself
+# (same as the default), then the unusable values must be refused.
+start_server() { # name bsdp-port tftp-port extra-args...
+    local name="$1" b="$2" t="$3"; shift 3
+    "${W}/bsdp" serve --booter "${W}/booter.efi" --server-ip 127.0.0.1 --mac 78:7b:8a:bd:d0:51 \
+        --router 127.0.0.2 --bsdp-port "${b}" --tftp-port "${t}" --seconds 60 "$@" >"${W}/${name}.log" 2>&1 &
+    spids+=($!)
+    for _ in $(seq 1 50); do grep -q 'serving BSDP' "${W}/${name}.log" && return 0; sleep 0.1; done
+    fail "${name}: server did not start: $(cat "${W}/${name}.log")"
+}
+check_reply_port() { # name bsdp-port tftp-port expected-source-port
+    local name="$1" b="$2" t="$3" want="$4" kind cid f
+    for kind in list select; do
+        for cid in none short max; do
+            f="${W}/${name}.${kind}.${cid}"
+            "${W}/client" "${b}" "${rp}" "${kind}" "${cid}" >"${f}"
+            grep -q '^op=2 xid=d7fea748 siaddr=127.0.0.1 chaddr_ok=1 ' "${f}" || fail "${name} ${kind}/${cid}: no answer: $(head -1 "${f}")"
+            grep -q "^src_port=${want}\$" "${f}" || fail "${name} ${kind}/${cid}: answer source port is not ${want}: $(grep '^src_port' "${f}")"
+            grep -q '^end=1 ' "${f}" || fail "${name} ${kind}/${cid}: answer options cut off or overran"
+            grep -q '^opt 53: 05$' "${f}" && grep -q '^opt 54: 7f 00 00 01$' "${f}" && grep -q '^opt 60:AAPLBSDPC$' "${f}" &&
+                grep -q '^opt 1: ff ff ff 00$' "${f}" || fail "${name} ${kind}/${cid}: ACK, server id, vendor class or mask changed"
+            if [[ "${kind}" == list ]]; then
+                grep -q '^opt 43: 01 01 01 04 02 80 00 07 04 81 00 00 01 09 0b 81 00 00 01 06 41 49 45 4e 4f 53$' "${f}" ||
+                    fail "${name} list/${cid}: BSDP options changed: $(grep 'opt 43' "${f}")"
+            else
+                grep -q '^op=2 xid=d7fea748 siaddr=127.0.0.1 chaddr_ok=1 file=aienos/netldr.efi sname=spark$' "${f}" || fail "${name} select/${cid}: boot file changed"
+                grep -q '^opt 43: 01 01 02 08 04 81 00 00 01 82 06 41 49 45 4e 4f 53$' "${f}" || fail "${name} select/${cid}: BSDP options changed"
+                grep -q '^opt 17:tftp:127.0.0.1:/aienos/none$' "${f}" || fail "${name} select/${cid}: root path changed"
+            fi
+            case "${cid}" in
+            none) [[ "$(grep -c '^opt 61:' "${f}" || true)" == 0 ]] || fail "${name} ${kind}/none: invented a client identifier" ;;
+            short) [[ "$(grep '^opt 61:' "${f}")" == "opt 61:${cid_short}" ]] || fail "${name} ${kind}/short: client identifier not echoed exactly" ;;
+            max) [[ "$(grep '^opt 61:' "${f}")" == "opt 61:${cid_max}" ]] || fail "${name} ${kind}/max: 255-byte client identifier not echoed exactly" ;;
+            esac
+        done
+    done
+    "${W}/client" "${b}" "${rp}" discover >"${W}/${name}.disc"
+    grep -q '^no answer$' "${W}/${name}.disc" || fail "${name}: a DHCP DISCOVER got an answer"
+    "${W}/client" "${b}" "${rp}" list none other >"${W}/${name}.other"
+    grep -q '^no answer$' "${W}/${name}.other" || fail "${name}: a client with another MAC got an answer"
+    curl -s --tftp-blksize 1428 -o "${W}/${name}.got" "tftp://127.0.0.1:${t}/aienos/netldr.efi" || fail "${name}: TFTP fetch failed"
+    cmp -s "${W}/${name}.got" "${W}/booter.efi" || fail "${name}: TFTP bytes differ"
+    if curl -s -o "${W}/${name}.nope" "tftp://127.0.0.1:${t}/etc/passwd"; then fail "${name}: TFTP served a file it should refuse"; fi
+}
+sp=$((bp + 3)); bp2=$((bp + 4)); tp2=$((bp + 5)); bp3=$((bp + 6)); tp3=$((bp + 7))
+start_server rport "${bp2}" "${tp2}" --reply-source-port "${sp}"
+grep -q "BSDP answers are sent from UDP source port ${sp}" "${W}/rport.log" || fail "reply source port not logged: $(cat "${W}/rport.log")"
+check_reply_port rport "${bp2}" "${tp2}" "${sp}"
+pass "--reply-source-port ${sp}: LIST and SELECT answers leave from source port ${sp} (requests read on ${bp2}), same fields and client identifier echo; DISCOVER and other MACs ignored; TFTP byte for byte"
+start_server same "${bp3}" "${tp3}" --reply-source-port "${bp3}"
+check_reply_port same "${bp3}" "${tp3}" "${bp3}"
+grep -q 'BSDP answers are sent from UDP source port' "${W}/same.log" && fail "naming the listening port opened a second socket"
+pass "--reply-source-port equal to --bsdp-port: same listening socket, source port ${bp3}"
+for bad in 0 65536 -1 abc "" "${tp2}"; do
+    set +e
+    "${W}/bsdp" serve --booter "${W}/booter.efi" --server-ip 127.0.0.1 --bsdp-port "$((bp + 8))" --tftp-port "${tp2}" \
+        --reply-source-port "${bad}" --seconds 1 >"${W}/bad.log" 2>&1
+    rc=$?
+    set -e
+    [[ "${rc}" == 2 ]] || fail "--reply-source-port '${bad}' was not refused with usage (exit ${rc})"
+done
+pass "--reply-source-port refuses 0, 65536, -1, text, empty and the TFTP port (exit 2)"
+echo "---- server log ----"; cat "${W}/log"; echo "---- reply-source-port server log ----"; cat "${W}/rport.log"
 echo "${tag}: PASS"
