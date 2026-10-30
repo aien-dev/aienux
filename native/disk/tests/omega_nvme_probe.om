@@ -1,0 +1,17 @@
+note SPDX-License-Identifier: Apache-2.0
+note Verification-only hostile caller; never composed into the read-only entrypoint.
+fn main to int
+getmanifest
+r = initialize
+if ne r 0
+report r
+ret r
+end
+clearcmd
+put sqe 0 uint man32 68
+put sqe 1 uint get st 4
+cmdptr 6 24576
+r = submit man32 60
+report r
+ret r
+end

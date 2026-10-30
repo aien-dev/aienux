@@ -1,0 +1,19 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-28T23:11:15Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:5b8954046044cd9e509cf3696330a580e8bdb515ee73f500184be22daa1dc1bb",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 8,
+      "generated_at_commit": "92e4bc688150b9754b6f37d3a701c58f7764d7ee",
+      "source_tree": "sha256:2f18a7d9ab0e0bf0b9e2a3f97a3b3d9a58ee97417a799178c906b8ac9d65b5bd"
+    }
+  },
+  "name": "platform",
+  "purpose": "Spark read-only ACPI resource readback",
+  "schema_version": "1.0.0"
+}

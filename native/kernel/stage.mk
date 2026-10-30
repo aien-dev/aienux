@@ -20,7 +20,7 @@ STAGE_OUT ?= $(abspath $(STAGE_DIR)/../../target/stage)
 
 # Own sources (image).
 STAGE_OWN_SRCS := $(STAGE_DIR)/dev/pci.c $(STAGE_DIR)/dev/mmio_window.c $(STAGE_DIR)/dev/disk_part.c $(STAGE_DIR)/dev/nvme_bind.c $(STAGE_DIR)/dev/nvme_shutdown.c $(STAGE_DIR)/dev/virtio_net.c \
-                  $(STAGE_DIR)/dev/net_bind.c $(STAGE_DIR)/dev/net_udp.c $(STAGE_DIR)/dev/xhci_fence.c \
+                  $(STAGE_DIR)/dev/net_bind.c $(STAGE_DIR)/dev/net_udp.c $(STAGE_DIR)/dev/rtl8127_bind.c $(STAGE_DIR)/dev/xhci_fence.c \
                   $(STAGE_DIR)/dev/usb_hid.c $(STAGE_DIR)/dev/usb_kbd.c \
                   $(STAGE_DIR)/dev/devices.c $(STAGE_DIR)/svc/security.c $(STAGE_DIR)/svc/store_boot.c \
                   $(STAGE_DIR)/svc/artifact_store.c $(STAGE_DIR)/svc/store_crash.c
@@ -36,7 +36,8 @@ STAGE_NATIVE_SRCS := \
   $(STAGE_NATIVE)/argus/argus_detect.c $(STAGE_NATIVE)/argus/argus_contain.c \
   $(STAGE_NATIVE)/argus/bridge/argus_aegis_bridge.c \
   $(STAGE_NATIVE)/capability/aienos_capability.c $(STAGE_NATIVE)/capability/aienos_contain.c \
-  $(STAGE_NATIVE)/net/aienos_virtio_pci.c $(STAGE_NATIVE)/net/aienos_virtio_net.c $(STAGE_NATIVE)/net/aienos_net.c
+  $(STAGE_NATIVE)/net/aienos_virtio_pci.c $(STAGE_NATIVE)/net/aienos_virtio_net.c $(STAGE_NATIVE)/net/aienos_net.c \
+  $(STAGE_NATIVE)/net/aienos_rtl8127.c $(STAGE_NATIVE)/net/aienos_report.c
 # Kernel-only glue: hosted-header stand-ins for capability/ARGUS + weak mem*.
 STAGE_KERNEL_SRCS := $(STAGE_DIR)/svc/ck_compat.c
 

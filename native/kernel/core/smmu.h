@@ -200,4 +200,16 @@ int ck_smmu_abort_ste(const struct ck_smmu_regs *r, const struct ck_smmu_tables 
  * Returns the number of records written to out. */
 int ck_smmu_read_events(const struct ck_smmu_regs *r, const struct ck_smmu_tables *t,
                         struct ck_smmu_event *out, int n, int *overflowed);
+
+/* Probe observer: visit every SID, at most one queue capacity per call.
+ * A busy producer cannot keep the final report from running. pending marks an
+ * incomplete drain; overflow marks loss even if no records remain. */
+struct ck_smmu_observation {
+    uint32_t events;
+    int overflow, pending;
+};
+struct ck_smmu_observation ck_smmu_observe_events(
+    const struct ck_smmu_regs *r, const struct ck_smmu_tables *t,
+    void (*visit)(void *ctx, const struct ck_smmu_event *e), void *ctx);
+const char *ck_smmu_event_name(uint8_t type);
 #endif
