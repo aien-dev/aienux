@@ -1,0 +1,110 @@
+note SPDX-License-Identifier: Apache-2.0
+note Spark DSDT resource reader. No AML evaluator, mapping, register access or writes.
+note Single consumer; transport supplies an acknowledged READ, never an arbitrary address.
+note State: pending,sequence,space,address,bits,raw,valid,last-sequence.
+global Pl ulong 8
+
+fn pladdr zone ulong to ulong
+if eq zone 0
+ret 472090648
+end
+if lt zone 7
+ret add 472090652 mul zone 4
+end
+ret 0
+end
+
+note CPPC fields are Linux cppc_regs indexes, excluding every writable control.
+fn ploff field ulong to ulong
+if lt field 5
+ret mul field 4
+end
+if eq field 10
+ret 40
+end
+if eq field 13
+ret 44
+end
+if and ge field 18 le field 20
+ret add 88 mul sub field 18 4
+end
+ret 4294967295
+end
+
+note kind 0 thermal, kind 1 CPPC; space 0 SystemMemory, space 127 FFixedHW.
+note Return 0 ready, 1 unsupported, 2 pending, 3 invalid sequence or ACK, 4 I/O failure.
+fn plstart kind ulong unit ulong field ulong seq ulong to uint
+if ne get Pl 0 0
+ret 2
+end
+put Pl 5 0
+put Pl 6 0
+if or eq seq 0 le seq get Pl 7
+ret 3
+end
+addr = ulong 0
+space = ulong 0
+bits = ulong 32
+if eq kind 0
+if ne field 0
+ret 1
+end
+addr = pladdr unit
+if eq addr 0
+ret 1
+end
+else
+if ne kind 1
+ret 1
+end
+if ge unit 20
+ret 1
+end
+if or eq field 11 eq field 12
+space = 127
+bits = 64
+addr = sub 12 field
+else
+off = ploff field
+if eq off 4294967295
+ret 1
+end
+addr = add add 85771268 mul unit 232 off
+end
+end
+put Pl 0 1
+put Pl 1 seq
+put Pl 2 space
+put Pl 3 addr
+put Pl 4 bits
+put Pl 7 seq
+ret 0
+end
+
+note ACK must match the complete outstanding READ descriptor. A bad ACK consumes it.
+note raw is an unsigned native word; 32-bit reads cannot smuggle high bits.
+fn plack seq ulong space ulong addr ulong bits ulong raw ulong ok ulong to uint
+put Pl 5 0
+put Pl 6 0
+if eq get Pl 0 0
+ret 3
+end
+put Pl 0 0
+if or ne seq get Pl 1 ne space get Pl 2
+ret 3
+end
+if or ne addr get Pl 3 ne bits get Pl 4
+ret 3
+end
+if ne ok 1
+ret 4
+end
+if eq bits 32
+if gt raw 4294967295
+ret 3
+end
+end
+put Pl 5 raw
+put Pl 6 1
+ret 0
+end

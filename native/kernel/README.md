@@ -1,8 +1,17 @@
 # native/kernel: AIENOS C kernel core (Lane 18)
 
-The first AIENOS kernel written in C for AArch64. It boots in QEMU through
-UEFI (AAVMF) the way the Rust kernel does and prints the same observables.
+> **Status: FROZEN (Drake, 2026-10-24; ADR 0039, program L802).** This C kernel is legacy. It takes bug
+> fixes and keeps the lab iMac booting while Aienux is rewritten in Omega (`.om`). It takes no new
+> features; feature PRs here are closed with a pointer to ADR 0039. It is archived when the Omega kernel
+> passes the full AienOS gate suite on QEMU and on the lab iMac.
+
+The AIENOS kernel written in C. The main target is AArch64: it boots in QEMU
+through UEFI (AAVMF) the way the Rust kernel does and prints the same
+observables. A first x86_64 port (`x86/`) runs on a 2017 iMac.
 QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
+Real hardware runs so far: Raspberry Pi 5 test images (records in
+`evidence/pi5_hardware_runs_2026-10-13/` and `docs/native/`) and the 2017 iMac
+(`evidence/imac_*`). The C kernel has not been booted on the DGX Spark.
 
 ## Layout
 
@@ -33,6 +42,17 @@ QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
 Toolchain: gcc, binutils (ld, objcopy, nm, readelf), make, shell. On a
 non-aarch64 host the Makefile uses the `aarch64-linux-gnu-` prefix.
 Output lands in `<repo>/target/native-kernel` (ignored by git).
+
+The attended Spark input image is `make full CK_SPARK_INPUT=1` (output
+`target/native-kernel-spark-input/spark-input/BOOTAA64.EFI`): PCI discovery,
+confined xHCI/HID bounded boot shell, then RTL8127 UDP snapshot and release,
+with no NVMe, Store or Allen stage linked. For hardware staging add
+`CK_HARDWARE_STAGING=1 CK_OWNER_PUBKEYS=... CK_MACHINE_ID=...`; the existing
+owner-material refusals are unchanged and the subdirectory is
+`spark-input-hardware-staging`. Do not use the storage-bearing
+`full CK_RTL8127=1` image instead. Sustained `CK_CONSOLE_SESSION` stays
+QEMU-only. Procedure and physical NOT_RUN (hardware-unverified) boundary:
+`docs/campaigns/SPARK-BOOT-INPUT-20261028.md` from the repository root.
 
 ## Owner provisioning (hardware staging image)
 
@@ -137,7 +157,8 @@ of them:
   checks the refusals, the generator refusals, and builds the hardware staging
   image from the labelled TEST-fixture files in `tests/fixtures/owner/`
   (public bytes only, distinct from every old TEST constant), then greps the
-  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. CI runs it.
+  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. The Spark gate
+  `AIENOS-CK-OWNER-KEYS` (`tests/gates/aienos-ck-owner-keys.gate`) runs it.
 - Not covered: the untrusted RFC 8032 TEST 1/2 public key constants
   (`artifact/format.c`, used only by the `CK_SEED0B_TEST_ANCHOR` build and the
   host tools) are still present as data in every image, including hardware
@@ -234,6 +255,17 @@ runs in ring 0 in one address space, any kernel code can change the page
 tables, and learned or generated code must never be given kernel authority.
 QEMU only; not yet run on the iMac.
 
+The Spark's Realtek RTL8127 10 GbE (10ec:8127, segment 7) has a driver core in
+`native/net/aienos_rtl8127.c` and a binding in `dev/rtl8127_bind.c` (L198): SMMU
+window first (no SMMU, no DMA), BAR 2, reset and bring-up from Realtek's Linux r8127
+v11.014.00 (no public datasheet: DOCS SILENT), link wait, then the console log
+(`core/klog.c` RAM copy) sent every 2 s for 20 s as UDP broadcasts in the iMac
+format with the tag `AIENUX-SPARK-REPORT`; the same `ck_imac_report_listen`
+writes it to `spark-<run>.txt`. Only a `make full CK_RTL8127=1` image calls it; every QEMU
+gate image is unchanged. Tested against a chip model and on the host only;
+nothing has run on the chip (hardware-unverified). What attended boot #2 must confirm is listed in
+`docs/SPARK_RTL8127.md`.
+
 ## Raspberry Pi 5 image (AIENOS-PI5 step 1)
 
     make -C native/kernel pi5            # target/native-kernel-pi5/BOOTAA64.EFI (-DCK_PI5=1 -DCK_KLOG=1)
@@ -293,18 +325,20 @@ tree with uncommitted changes to tracked files stamps `aienos_commit: <HEAD>-dir
 `run.log`, and says "NOT commit-bound (dirty build)" for a `-dirty` image. Hardware
 receipts from earlier runs are in `evidence/pi5_hardware_runs_2026-10-13/`.
 
-## Known hardware risk: disk footprint (CK gate DISK_LAYOUT: NOT_RUN)
+Later Pi images (unlock, Cortex facts, inference, agent, lifecycle, artifact
+loader, PCIe and Ethernet) each have a `make pi5-*` target and a run record in
+`docs/native/` (for example `PI5-6-INFER-RUNS.md`, `PI5-NET-3-RUNS.md`). The
+list of all eleven Pi images is in `docs/native/PI5-8-QUALIFICATION.md`.
 
-**Do not boot the C kernel on a disk holding data until CK gate `DISK_LAYOUT`
-is PASS on a forge receipt.** That gate is NOT_RUN (MISSING_IMPLEMENTATION, fix
-in progress).
+## Disk footprint (CK gate DISK_LAYOUT: QEMU PASS, hardware NOT_RUN)
 
-The kernel is partition-unaware. At every boot it writes and restores the last
-4 KiB unit of the whole NVMe namespace (`dev/nvme_bind.c:93-127`, called at
-`:224`) and uses the first 16 KiB as the anti-rollback anchor
-(`dev/disk_layout.h:3,12`; `svc/store_boot.c:164-170`). On a GPT disk those
-areas hold the protective MBR, the primary GPT and the backup GPT. Details and
-the operator-facing warning: `docs/TRUST-1-OPERATOR-STEPS.md`.
+The kernel writes only inside the AIENOS GPT partition of the boot disk (see
+"Notes for stage code" below and `dev/disk_layout.h`). Inside that partition,
+units 0 to 3 hold the anti-rollback anchor and the last unit is the scratch
+unit for the write/flush/read-back probe. The rest of the disk is only read.
+CK gate `DISK_LAYOUT` (GATES.md rows 118 to 123) passes in QEMU; it has not
+been run on a physical disk. The operator-facing warning is in
+`docs/TRUST-1-OPERATOR-STEPS.md`.
 
 ## Operator input and recovery access (C kernel)
 
@@ -534,7 +568,7 @@ a FAIL to report, not to retry.
    DMA pool.
 3. `ck_enter_el1`: EL2 -> EL1h with the MMU already on our tables.
 4. EL1: `mmu: enabled`, `mmu_switch: ...` read back from the registers,
-   heap check, guard-page self test, GICv3 from the MADT, 200 ms timer window
+   heap check, guard-page self test, GICv3 or GICv2 from the MADT, 200 ms timer window
    (INTID 30, 10 ms period; on a starved emulator the window keeps counting up to 5 s until five ticks arrived, and each interval is measured from IRQ entry, so a host stall cannot produce a short interval), `kernel: alive`, `kernel_el: EL1h`.
 5. Stages, in order, if linked: `ck_stage_devices`, `ck_stage_security`,
    `ck_stage_store`. Each prints `stage <name>: ok`, `stage <name>: FAIL
@@ -659,6 +693,10 @@ low-water free bytes.
   the EL0 return uses SPSR 0x3c5 (Rust 0x5); EL0 entry zeroes all general
   registers and TPIDR_EL0/TPIDRRO_EL0; the EL0 window uses ASID 0 with a
   full TLB flush (Rust ASID 1); context switches save x19-x30 and sp only
-  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT; no
-  secondary core is started (same as Rust). See GATES.md rows 16-20.
+  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT. See
+  GATES.md rows 16-20.
+- Secondary cores: the C kernel starts every other core through PSCI CPU_ON,
+  checks each one in and parks it in WFE (`core/smp.c`, CK gate `SMP`, GATES.md
+  rows 113-117). The Rust kernel starts none. No work runs on them yet. On the
+  Pi 5 all four cores checked in (`evidence/pi5_hardware_runs_2026-10-13/`).
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.

@@ -20,7 +20,8 @@
 /* TEST-only two-level stream table mutants (make smmu-l2-mutants): each
  * must make test_smmu FAIL. Host builds only; never part of an image. */
 #if defined(CK_SMMU_MUTANT_SPAN_OVERFLOW) || defined(CK_SMMU_MUTANT_UNGRANTED_VALID) || \
-    defined(CK_SMMU_MUTANT_BAD_L1_PTR) || defined(CK_SMMU_MUTANT_L2_NO_FILL)
+    defined(CK_SMMU_MUTANT_BAD_L1_PTR) || defined(CK_SMMU_MUTANT_L2_NO_FILL) || \
+    defined(CK_SMMU_MUTANT_DROP_EVENT)
 #if !__STDC_HOSTED__
 #error "CK_SMMU_MUTANT_* are host test mutants only"
 #endif
@@ -468,4 +469,55 @@ int ck_smmu_read_events(const struct ck_smmu_regs *r, const struct ck_smmu_table
     if (overflowed)
         *overflowed = ovf != (cons_raw & EVENTQ_OVERFLOW);
     return count;
+}
+
+const char *ck_smmu_event_name(uint8_t type)
+{
+    /* Arm IHI 0070 event IDs; unknown events keep their raw payload. */
+    switch (type) {
+    case 0x02: return "C_BAD_STREAMID";
+    case 0x03: return "F_STE_FETCH";
+    case 0x04: return "C_BAD_STE";
+    case 0x06: return "F_STREAM_DISABLED";
+    case 0x08: return "C_BAD_SUBSTREAMID";
+    case 0x09: return "F_CD_FETCH";
+    case 0x0a: return "C_BAD_CD";
+    case 0x10: return "F_TRANSLATION";
+    case 0x11: return "F_ADDR_SIZE";
+    case 0x12: return "F_ACCESS";
+    case 0x13: return "F_PERMISSION";
+    case 0x25: return "F_VMS_FETCH";
+    default: return "UNKNOWN";
+    }
+}
+
+struct ck_smmu_observation ck_smmu_observe_events(
+    const struct ck_smmu_regs *r, const struct ck_smmu_tables *t,
+    void (*visit)(void *ctx, const struct ck_smmu_event *e), void *ctx)
+{
+    struct ck_smmu_observation result = {0, 0, 0};
+#ifdef CK_SMMU_MUTANT_DROP_EVENT
+    (void)visit;
+    (void)ctx;
+#endif
+    while (result.events < t->evt_n) {
+        struct ck_smmu_event events[4];
+        uint32_t remaining = t->evt_n - result.events;
+        int overflow = 0;
+        int n = ck_smmu_read_events(r, t, events, remaining < 4 ? (int)remaining : 4,
+                                    &overflow);
+        result.overflow |= overflow;
+        for (int i = 0; i < n; i++) {
+#ifndef CK_SMMU_MUTANT_DROP_EVENT
+            visit(ctx, &events[i]);
+#endif
+        }
+        result.events += (uint32_t)n;
+        if (n < 4)
+            break;
+    }
+    struct qc prod = q_decode(rd(r, CK_SMMU_EVENTQ_PROD), t->evt_n);
+    struct qc cons = q_decode(rd(r, CK_SMMU_EVENTQ_CONS), t->evt_n);
+    result.pending = prod.index != cons.index || prod.wrap != cons.wrap;
+    return result;
 }

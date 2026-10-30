@@ -3,14 +3,16 @@
 ARGUS is the AIEN defensive plane: it observes, detects, and asks for containment.
 It never authorizes; that is AEGIS (see `../capability`). ABI: event version byte 1, ABI minor 2
 (v1.2, additive over v1.1; `argus_abi.h` is authoritative). ARGUS-0 is the
-substrate only: event ABI, bounded ring, resident deterministic state,
-hard-invariant detectors, findings.
+substrate: event ABI, bounded ring, resident deterministic state,
+hard-invariant detectors, findings. ARGUS-1 adds containment requests
+(`argus_contain.c`, ABI v1.2): ARGUS asks, and AEGIS decides.
 
 `argus_abi.h` is the shared contract and is owned by the integrator. Lanes:
 `argus_event.c` + `argus_ring.c` (ABI + transport), `argus_core.c` (state),
 `argus_detect.c` (hard invariants). `tests/` hold each lane's tests and the
-integration and determinism tests. Design: aien-architecture ADR 0017.
+integration and determinism tests. Test: `make -C native/argus test`.
+Design: aien-architecture ADR 0017 (not this repository's ADR 0017).
 
 Rule enforced by test: the authority secret-word and its length macro never
 appear under `native/argus/` (see lane B secret-negative test), and no event
-field is secret-sized except digests.
+field is secret-sized except `machine_id` and `evidence_digest`.

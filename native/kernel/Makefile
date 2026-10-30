@@ -353,6 +353,36 @@ OUT ?= $(REPO)/target/native-kernel-pi5
 CK_EXTRA_CFLAGS += -DCK_PI5=1 -DCK_KLOG=1
 endif
 
+# Storage-free attended Spark input image. Compose the existing device stage,
+# never NVMe/Store/Allen. The bounded boot shell is used; the sustained
+# CK_CONSOLE_SESSION image remains QEMU-only.
+CK_SPARK_INPUT ?=
+ifneq ($(strip $(CK_SPARK_INPUT)),)
+ifneq ($(strip $(CK_SPARK_INPUT)),1)
+$(error CK_SPARK_INPUT must be empty or 1)
+endif
+ifneq ($(strip $(CK_PI5)$(CK_SERVICE)$(CK_CONSOLE_SESSION)$(CK_B7B_PROBE)$(CK_INFER_LIB)$(CK_RUST_LIBS)$(CK_QEMU_UNSAFE_DMA)$(CK_TEST_XHCI_MUTATION)$(CK_TEST_CONSOLE_MUTATION)$(CK_TEST_FWCFG_ARTIFACTS)$(CK_TEST_STORE_CRASH)$(CK_TEST_CONTINUITY)$(CK_ARTIFACT_CARD)),)
+$(error CK_SPARK_INPUT is storage-free and cannot be combined with another image variant)
+endif
+CK_RTL8127 := 1
+OUT ?= $(REPO)/target/native-kernel-spark-input
+CK_EXTRA_CFLAGS += -DCK_SPARK_INPUT=1
+endif
+
+# Spark attended boot #2 (L198): `make full CK_RTL8127=1` ($(OUT)/full/BOOTAA64.EFI)
+# binds the Realtek RTL8127 10 GbE (dev/rtl8127_bind.c) in the devices stage and sends the console log as UDP
+# broadcasts (tag AIENUX-SPARK-REPORT, port 47031). Empty (default) in every
+# QEMU gate: the binding is compiled but never called.
+ifneq ($(strip $(CK_RTL8127)),)
+ifneq ($(strip $(CK_RTL8127)),1)
+$(error CK_RTL8127 must be empty or 1)
+endif
+ifneq ($(strip $(CK_PI5)),)
+$(error CK_RTL8127 cannot be combined with CK_PI5)
+endif
+CK_EXTRA_CFLAGS += -DCK_RTL8127=1 -DCK_KLOG=1
+endif
+
 # TEST-ONLY artifact source: CK_TEST_FWCFG_ARTIFACTS=1 compiles the QEMU fw_cfg
 # side channel (opt/aienos/artifacts) into the loader instead of the boot disk
 # Store. Every image built without it is checked to contain no fw_cfg artifact
@@ -391,6 +421,18 @@ SMP_TEST_FLAGS := -DCK_TEST_SMP_SKIP_CPU=1
 else
 SMP_TEST_FLAGS :=
 endif
+CK_B7B_PROBE ?=
+CK_B7B_EVENT_READOUT ?=
+ifneq ($(strip $(CK_B7B_EVENT_READOUT)),)
+ifneq ($(strip $(CK_B7B_EVENT_READOUT)),1)
+$(error CK_B7B_EVENT_READOUT must be empty or 1)
+endif
+ifneq ($(strip $(CK_B7B_PROBE)),1)
+$(error CK_B7B_EVENT_READOUT requires CK_B7B_PROBE=1)
+endif
+OUT ?= $(REPO)/target/native-kernel-b7b-events
+SMP_TEST_FLAGS += -DCK_B7B_EVENT_READOUT=1
+endif
 # B7b preparation probe (aienos#286, core/smmu_svc.c): CK_B7B_PROBE=1 builds an
 # image that confines PCI segment 15 requester 0x100 (the Spark's GB10) once on
 # a one-page window, prints the route and SMMU_IDR0/IDR1, and unconfines. Own
@@ -399,7 +441,6 @@ endif
 # (TEST-ONLY, needs CK_B7B_PROBE=1) probes segment 0 for the QEMU positive path
 # and is refused with CK_HARDWARE_STAGING. Default images are checked to carry
 # no probe (b7b_check). Gate: scripts/qemu_ck_b7b_probe_test.sh.
-CK_B7B_PROBE ?=
 CK_B7B_PROBE_TEST_SEGMENT0 ?=
 ifneq ($(strip $(CK_B7B_PROBE_TEST_SEGMENT0)),)
 ifneq ($(strip $(CK_B7B_PROBE_TEST_SEGMENT0)),1)
@@ -884,6 +925,9 @@ ifeq ($(strip $(CK_PI5)),1)
 CORE_C += $(BOOT)/efi_klog.c $(KDIR)/core/pi5.c $(KDIR)/core/pi5_marker.c $(KDIR)/dev/disk_part.c $(KDIR)/core/klog.c $(KDIR)/core/klog_slot.c \
 	$(KDIR)/dev/pi5_wdt.c $(KDIR)/dev/pi5_rng.c $(NATIVE)/disk/disk.c $(NATIVE)/disk/disk_sdhci.c
 endif
+ifeq ($(strip $(CK_RTL8127)),1)
+CORE_C += $(KDIR)/core/klog.c
+endif
 ifeq ($(strip $(CK_PI5_PCIE)),1)
 CORE_C += $(KDIR)/dev/pi5_pcie.c $(KDIR)/dev/dma_window.c
 endif
@@ -1036,6 +1080,12 @@ ifneq ($(strip $(CK_PI5_LIFECYCLE)),)
 # The NVMe image-slot service is not part of the Pi image: its four hooks are answered by svc/slot_service_pi5.c.
 STAGE_SRCS += $(filter-out $(KDIR)/svc/slot_service.c $(BOOT)/slot_select.c $(BOOT)/slot_control.c $(BOOT)/slot_update.c,$(SVC_STAGE_ADDED)) $(KDIR)/svc/slot_service_pi5.c
 endif
+endif
+ifeq ($(strip $(CK_SPARK_INPUT)),1)
+FULL_NAME := spark-input$(if $(strip $(CK_HARDWARE_STAGING)),-hardware-staging,)
+FULL_STAGE_SYMS := ck_stage_devices ck_stage_quiesce
+STAGE_SRCS := $(foreach m,pci devices xhci_fence usb_hid usb_kbd rtl8127_bind,$(KDIR)/dev/$(m).c) \
+  $(NATIVE)/net/aienos_rtl8127.c $(NATIVE)/net/aienos_report.c $(NATIVE)/net/aienos_net.c
 endif
 FULL_OUT := $(OUT)/$(FULL_NAME)
 STAGE_KOBJ := $(OUT)/obj/stage-$(FULL_NAME)
@@ -1230,6 +1280,11 @@ define b7b_check
 	  grep -aqF "TEST-ONLY B7b probe on PCI segment 0" $(1) || { echo "segment-0 probe image lacks its TEST-ONLY announcement"; rm -f $(1); exit 1; }; \
 	else \
 	  if grep -aqF "TEST-ONLY B7b probe" $(1); then echo "image carries the TEST-ONLY segment-0 probe"; rm -f $(1); exit 1; fi; \
+	fi
+	@if [ "$(strip $(CK_B7B_EVENT_READOUT))" = 1 ]; then \
+	  grep -aqF "b7b_events: final begin all_sids=yes" $(1) || { echo "B7b image lacks event readout"; rm -f $(1); exit 1; }; \
+	else \
+	  if grep -aqF "b7b_events:" $(1); then echo "image carries unrequested event readout"; rm -f $(1); exit 1; fi; \
 	fi
 endef
 
@@ -1466,7 +1521,8 @@ iort-mutants: $(OUT)/host/test_smmu
 # UNGRANTED_VALID: L1STDs valid before any grant; BAD_L1_PTR: misaligned L1
 # table accepted; L2_NO_FILL: a new L2 page published without abort STEs).
 # Host only (smmu.c refuses them freestanding and with CK_HARDWARE_STAGING).
-SMMU_L2_MUTANTS := CK_SMMU_MUTANT_SPAN_OVERFLOW CK_SMMU_MUTANT_UNGRANTED_VALID CK_SMMU_MUTANT_BAD_L1_PTR CK_SMMU_MUTANT_L2_NO_FILL
+# Also kills DROP_EVENT: consuming the queue without visiting its records.
+SMMU_L2_MUTANTS := CK_SMMU_MUTANT_SPAN_OVERFLOW CK_SMMU_MUTANT_UNGRANTED_VALID CK_SMMU_MUTANT_BAD_L1_PTR CK_SMMU_MUTANT_L2_NO_FILL CK_SMMU_MUTANT_DROP_EVENT
 smmu-l2-mutants: $(OUT)/host/test_smmu
 	@mkdir -p $(OUT)/host-mut; fail=0; \
 	$(OUT)/host/test_smmu > $(OUT)/host-mut/smmu-l2-base.log 2>&1 || { echo "unmutated test_smmu fails"; fail=1; }; \
