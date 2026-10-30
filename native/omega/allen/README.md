@@ -9,24 +9,23 @@ It is **not the complete iMac Allen replacement**. The old production C/Rust
 paths remain live. No service, machine, physical disk or boot path was changed.
 
 Build on Linux AArch64 from the pinned public compiler source. These are
-component build instructions, not a released interactive alpha. From this
-repository root, with a fresh `build/allen-toolchain` directory:
+component build instructions, not a released interactive alpha. The compiler is
+omega-mv branch `feat/x86efi-exit-sites` at 8da48140 (draft #977 on the x86-64
+Linux/UEFI line of draft #895): look-paint.om needs its `const` and `bitcast`,
+the firmware unit its larger trap/exit-site tables. From this repository root:
 
 ```sh
-git clone https://github.com/aien-dev/omega-bridge.git build/allen-toolchain
-git -C build/allen-toolchain checkout --detach 0fc7d8662cb799e7c206b17c18ea4c3ec2b8fea9
-sh build/allen-toolchain/tools/bootstrap.sh --offline
+git clone https://github.com/aien-dev/omega-mv.git build/allen-toolchain
+git -C build/allen-toolchain checkout --detach 8da48140
+sha256sum build/allen-toolchain/seed/out/omc     # expect a1d3217674511f38...
 ```
 
-The bootstrap reconstructs the compiler from seed source and checks its
-self-rebuild equality and fixed digest. Independent diverse compiler ancestry
-qualification is a separate claim; self-rebuild equality does not establish it.
-No private compiler folder or preinstalled Omega binary is needed. Since the
-old C look (imac/old-look) the gate pins omega-mv `feat/x86efi-exit-sites`
-8da48140 (draft #977), whose `const`, `bitcast` and larger exit-site tables
-look-paint.om and the firmware unit need; the expected compiler SHA-256 is
-`a1d3217674511f3880962cf4bfd8ec0f254104cf6cb03834b005237808f6ade4`
-(`~/work/IMacLook/omc2` on the Spark; pass it as `OMEGA_COMPILER`).
+The committed `seed/out/omc` on that branch is the pinned compiler; its
+self-rebuild (`sh seed/omega-from-seed.sh` in a disposable clone) reproduces
+the same bytes. Self-rebuild equality does not establish diverse compiler
+ancestry; that qualification is a separate claim. The expected SHA-256 is
+`a1d3217674511f3880962cf4bfd8ec0f254104cf6cb03834b005237808f6ade4`; pass the
+executable as `OMEGA_COMPILER` (on the Spark: `~/work/IMacLook/omc2`).
 
 Run the complete component gate:
 

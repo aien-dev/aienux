@@ -6,7 +6,7 @@ cd "$root"
 out=$1
 mkdir -p "$out"
 [ -z "$(ls -A "$out")" ] || { echo 'gate requires fresh output directory' >&2; exit 73; }
-compiler=${OMEGA_COMPILER:-"$root/build/allen-toolchain/build/bootstrap/omc"}
+compiler=${OMEGA_COMPILER:-"$root/build/allen-toolchain/seed/out/omc"}
 sh native/omega/allen/test-build.sh "$compiler" "$out/build-checks"
 core="$out/core.om"
 cat native/omega/allen/base.om native/omega/allen/vendor/sha256-core.om \

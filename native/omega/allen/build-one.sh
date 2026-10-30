@@ -3,7 +3,7 @@
 set -eu
 [ "$#" = 2 ] || { echo 'usage: build-one.sh SOURCE OUTPUT' >&2; exit 64; }
 root=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
-compiler=${OMEGA_COMPILER:-"$root/build/allen-toolchain/build/bootstrap/omc"}
+compiler=${OMEGA_COMPILER:-"$root/build/allen-toolchain/seed/out/omc"}
 [ -f "$compiler" ] && [ -x "$compiler" ] || {
  echo 'pinned compiler missing; follow native/omega/allen/README.md' >&2
  exit 69
