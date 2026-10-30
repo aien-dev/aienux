@@ -115,7 +115,7 @@ run() { # name, -cpu model, expected APIC mode
     fi
     chk "${name}: PCI segment and requester reported" "${txt}" '^pci: fn .* segment=0 requester=[0-9a-f]{4}$'
     chk "${name}: left boot services" "${txt}" '^exit_boot_services: ok attempts=[1-8]$'
-    chk "${name}: descriptor tables" "${txt}" '^descriptors: gdt=5 tss=yes ist1=df,nmi,mc idt=256$'
+    chk "${name}: descriptor tables" "${txt}" '^descriptors: gdt=7 tss=yes ist1=df,nmi,mc idt=256$'
     chk "${name}: handoff checked" "${txt}" '^handoff: CHANDOF3 ok$'
     chk "${name}: screen on the framebuffer" "${txt}" '^screen: gop [0-9]+x[0-9]+ .* map=wc scale=[1-4] grid=[0-9]+x[0-9]+$'
     chk "${name}: own page tables" "${txt}" '^paging: root=0x[0-9a-f]+ firmware_cr3=0x[0-9a-f]+ switched=yes top_gib=[0-9]+ pages_2m_wb=[1-9][0-9]* pages_2m_wc=[1-9][0-9]* pages_2m_uc=[1-9][0-9]* pt_frames=[0-9]+ fb=wc pat1=wc$'

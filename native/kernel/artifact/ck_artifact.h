@@ -66,6 +66,8 @@ const char *cka_stage_name(unsigned stage);
 #define CKA_CAPS_OFFSET 192u
 #define CKA_TARGET_AARCH64_LE 1u
 #define CKA_ABI_V1 1u
+#define CKA_TARGET_X86_64_LE 2u
+#define CKA_ABI_OMEGA_X86_LOCAL_V1 2u
 #define CKA_KIND_CHANNEL 2u
 #define CKA_KIND_OBJECT 3u
 #define CKA_VALID_RIGHTS 0x3fu
@@ -114,6 +116,11 @@ int cka_verify(const uint8_t *b, size_t len, const uint8_t (*anchors)[32], unsig
                struct cka_parsed *p, struct cka_ident *id, uint8_t signer_fp[32]);
 void cka_signature_message(const uint8_t id[32], uint8_t *msg, size_t *len); /* msg >= 64 */
 
+/* Explicit consumer profile; never inferred from untrusted artifact bytes. */
+int cka_parse_profile(const uint8_t *, size_t, struct cka_parsed *, uint16_t, uint16_t);
+int cka_identify_profile(const uint8_t *, size_t, struct cka_parsed *, struct cka_ident *, uint16_t, uint16_t);
+int cka_verify_profile(const uint8_t *, size_t, const uint8_t (*)[32], unsigned,
+                      struct cka_parsed *, struct cka_ident *, uint8_t [32], uint16_t, uint16_t);
 /* ---- digests ---- */
 void cka_digest_domain(const char *domain, size_t dlen, const uint8_t *b, size_t len,
                        uint8_t out[32]);

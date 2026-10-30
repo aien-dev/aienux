@@ -1,0 +1,31 @@
+target x86linux
+note Local ABI: signed operation 1 add, 2 subtract, 3 multiply, 4 divide.
+note Checked arithmetic traps retain the compiler's overflow and zero semantics.
+fn run args view long 512 out edit long 512 count ulong to ulong
+if ne count 24
+trap 3
+end
+op = get args 0
+a = get args 1
+b = get args 2
+v = long 0
+if eq op 1
+v = add a b
+else
+if eq op 2
+v = sub a b
+else
+if eq op 3
+v = mul a b
+else
+if eq op 4
+v = div a b
+else
+trap 3
+end
+end
+end
+end
+put out 0 v
+ret 8
+end

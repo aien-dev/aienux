@@ -47,6 +47,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod code;
+mod local_tools;
 
 const PORT: u16 = 47033; // x86/courier_udp.h CK_COURIER_PORT
 const HEAD: &str = "ALLEN-COURIER v=1 run=";
@@ -461,6 +462,7 @@ fn utc_now() -> (u64, String) {
 }
 
 /// One job as the kernel wrote it.
+#[derive(Clone)]
 struct Job {
     seq: u32,
     want: String,
@@ -562,6 +564,7 @@ struct Brain {
     lock: Mutex<()>,
     code_max_tokens: u32,
     code_reply: Option<PathBuf>,
+    local_pending: Mutex<HashMap<String, local_tools::Pending>>,
     code_n: Mutex<u32>, // code jobs so far (for --code-reply)
     code_history: Mutex<Vec<(String, String)>>, // the code's requests and answers, for code-more
     code_sent: Mutex<HashMap<u32, Vec<String>>>, // the last code answers' lines, for AGAIN
@@ -1278,6 +1281,13 @@ fn serial_wire(path: PathBuf, brain: Arc<Brain>) {
             }
             continue;
         }
+        if text.starts_with("RESULT ") {
+            let mut tx2 = tx.try_clone().expect("wire clone");
+            brain.local_result("serial", &text, |l| {
+                let _ = tx2.write_all(format!("{}\n", l).as_bytes());
+            });
+            continue;
+        }
         let Some(job) = Job::parse(&text) else {
             if text.starts_with("JOB") {
                 println!("courier: a job line without its parts was dropped");
@@ -1288,6 +1298,10 @@ fn serial_wire(path: PathBuf, brain: Arc<Brain>) {
         let send = |l: String| {
             let _ = tx2.write_all(format!("{}\n", l).as_bytes());
         };
+        if job.memory.iter().any(|m| m == "local-tools=v1") && !job.want.starts_with("code") {
+            brain.local_begin("serial", &job, send);
+            continue;
+        }
         let o = if job.want.starts_with("code") {
             brain.answer_code(&job, send)
         } else {
@@ -1342,7 +1356,8 @@ fn fill(sock: &UdpSocket, run: &str, s: &mut Session) {
 /// Work for the Ethernet wire's worker: a job, or a code answer to send again
 /// (the job's seq, and the seq of the datagram that asked: the lines go under it).
 enum Work {
-    Job(String, Job),
+    Job(String, u32, Job),
+    LocalResult(String, u32, String),
     Again(String, u32, u32),
 }
 
@@ -1418,8 +1433,17 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
             };
             for w in job_rx {
                 match w {
-                    Work::Job(run, job) => {
-                        let send = |body: String| line_out(&run, job.seq, body);
+                    Work::LocalResult(run, under, line) => {
+                        brain.local_result(&run, &line, |body| line_out(&run, under, body));
+                    }
+                    Work::Job(run, under, job) => {
+                        let send = |body: String| line_out(&run, under, body);
+                        if job.memory.iter().any(|m| m == "local-tools=v1")
+                            && !job.want.starts_with("code")
+                        {
+                            brain.local_begin(&run, &job, send);
+                            continue;
+                        }
                         let o = if job.want.starts_with("code") {
                             brain.answer_code(&job, send)
                         } else {
@@ -1549,6 +1573,10 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
                             let again = line
                                 .strip_prefix("AGAIN ")
                                 .and_then(|v| v.trim().parse::<u32>().ok());
+                            if line.starts_with("RESULT ") {
+                                let _ = job_tx.send(Work::LocalResult(run.clone(), seq, line));
+                                continue;
+                            }
                             match Job::parse(&line) {
                                 _ if again.is_some() => {
                                     let _ = job_tx.send(Work::Again(
@@ -1558,7 +1586,7 @@ fn udp_wire(port: u16, answer: SocketAddr, brain: Arc<Brain>) {
                                     ));
                                 }
                                 Some(job) => {
-                                    let _ = job_tx.send(Work::Job(run.clone(), job));
+                                    let _ = job_tx.send(Work::Job(run.clone(), seq, job));
                                 }
                                 None => println!(
                                     "courier: udp: a job line without its parts was dropped"
@@ -1601,6 +1629,7 @@ fn main() {
         lock: Mutex::new(()),
         code_max_tokens: a.code_max_tokens,
         code_reply: a.code_reply.clone(),
+        local_pending: Mutex::new(HashMap::new()),
         code_n: Mutex::new(0),
         code_history: Mutex::new(Vec::new()),
         code_sent: Mutex::new(HashMap::new()),
@@ -1780,6 +1809,7 @@ mod tests {
             lock: Mutex::new(()),
             code_max_tokens: 8192,
             code_reply: None,
+            local_pending: Mutex::new(HashMap::new()),
             code_n: Mutex::new(0),
             code_history: Mutex::new(Vec::new()),
             code_sent: Mutex::new(HashMap::new()),

@@ -46,6 +46,8 @@
 #include "../../boot/netboot_proto.h"
 #include "swap_x86.h"
 #include "bench_x86.h"
+#include "local_tools.h"
+#include "local_wire.h"
 
 #ifndef AIENOS_COMMIT
 #define AIENOS_COMMIT "unknown"
@@ -119,7 +121,7 @@ struct idt_gate {
 };
 _Static_assert(sizeof(struct idt_gate) == 16, "idt gate size");
 
-static uint64_t gdt[5] __attribute__((aligned(16)));
+static uint64_t gdt[7] __attribute__((aligned(16)));
 static struct tss64 tss __attribute__((aligned(16)));
 static struct idt_gate idt[256] __attribute__((aligned(16)));
 static uint8_t ist_stack[IST_BYTES] __attribute__((aligned(16)));
@@ -135,6 +137,8 @@ static void tables_load(void)
     gdt[3] = (tl & 0xffff) | (tb & 0xffffff) << 16 | 0x89ull << 40 | ((tl >> 16) & 0xf) << 48 |
              ((tb >> 24) & 0xff) << 56;
     gdt[4] = tb >> 32;
+    gdt[5] = 0x0020fa0000000000ull; /* CPL3 64-bit code, selector 0x2b */
+    gdt[6] = 0x0000f20000000000ull; /* CPL3 data, selector 0x33 */
     tss.ist[0] = (uint64_t)(uintptr_t)(ist_stack + sizeof ist_stack);
     tss.iomap = sizeof tss;
     struct dtr g = {sizeof gdt - 1, (uint64_t)(uintptr_t)gdt};
@@ -145,7 +149,7 @@ static void tables_load(void)
         idt[v].off0 = (uint16_t)a;
         idt[v].sel = SEL_CODE;
         idt[v].ist = (v == 2 || v == 8 || v == 18) ? 1 : 0;
-        idt[v].attr = 0x8e; /* present, DPL 0, 64-bit interrupt gate */
+        idt[v].attr = v == 0x80 ? 0xee : 0x8e; /* present, DPL 0, 64-bit interrupt gate */
         idt[v].off1 = (uint16_t)(a >> 16);
         idt[v].off2 = (uint32_t)(a >> 32);
         idt[v].zero = 0;
@@ -472,6 +476,7 @@ static void allen_sleep(int on)
         return;
     meter_line(on ? "awake" : "asleep");
     if (on) {
+        ck_local_wire_begin(0);
         __atomic_store_n(&allen_asleep, 1, __ATOMIC_RELEASE);
         ck_allen_ui_sleep(1, ck_rdtsc()); /* the picture goes to black first */
         panel_due = ck_rdtsc() | 1;       /* then the panel (panel_step), then the cores rest */
@@ -785,8 +790,12 @@ static void allen_line(const char *text)
         unsigned n = ck_allen_job(&allen_mind, job_seq + 1, text, job_buf, sizeof job_buf);
         if (n) /* his memory rides along: his name, the person's, the facts, the newest notes */
             n += ck_allen_job_memory(&allen_mind, 6, job_buf + n, sizeof job_buf - n);
+        if (n && n + 16 < sizeof job_buf) {
+            memcpy(job_buf + n, "\tlocal-tools=v1", 15); n += 15; job_buf[n] = 0;
+        }
         if (n && courier->send(job_buf, n) == 0) {
             job_seq++;
+            ck_local_wire_begin(job_seq);
             job_t = job_last = ck_rdtsc() | 1;
             ck_snprintf(job_asked, sizeof job_asked, "%s", text);
             ck_printf("allen: (asking the far side, job %u)\n", (unsigned)job_seq);
@@ -1104,7 +1113,12 @@ static void courier_step(void)
         said_ready = 1;
         ck_printf("courier: ready, the far side said hello\n");
     }
+    ck_local_snapshot(allen_facts.cores, ck_frames_free_bytes(&frames),
+                      hand->fb_width, hand->fb_height,
+                      ck_x86_tg3_ready() ? (ck_x86_tg3_link() ? 1 : 2) : 0);
+    ck_local_wire_step(courier);
     while (courier->take(line, sizeof line)) {
+        if (ck_local_wire_line(line)) continue;
         if (ck_x86_setup_line(line))
             continue; /* the setup wizard's key test answered */
         if (code_job) {
@@ -1155,6 +1169,7 @@ static void courier_step(void)
             ck_printf("screen: the far side answered job %u (%u characters out, %u parts, %llu ms)\n", (unsigned)seq,
                       (unsigned)strlen(said), parts, (unsigned long long)((ck_rdtsc() - job_t) * 1000 / tsc_hz));
             job_t = 0;
+            ck_local_wire_begin(0);
             if (!same_text(said, ck_allen_lost_thread)) /* no note of an exchange that got no answer */
                 allen_note_exchange(said);
         }
@@ -1178,6 +1193,7 @@ static void courier_step(void)
     }
     if (job_t && ck_rdtsc() - job_last > 30 * tsc_hz) {
         job_t = 0;
+        ck_local_wire_begin(0);
         ck_printf("allen: %s\n", ck_allen_lost_thread);
         ck_printf("screen: the far side did not answer job %u\n", (unsigned)job_seq);
         ck_allen_ui_said(0, ck_allen_lost_thread, ck_rdtsc());
@@ -1210,6 +1226,8 @@ void ck_x86_hold_step(uint64_t *end)
      * iMac with no keyboard must still take a swap or a bench command. */
     ck_x86_swap_step(hand, tramp_pa);
     ck_x86_bench_step(tsc_hz);
+    if (!allen_asleep)
+        ck_local_step();
     if (!allen_on)
         return;
     ck_x86_setup_step();
@@ -1371,6 +1389,23 @@ static void rest_boot(void)
         __asm__ volatile("sti; hlt; cli" ::: "memory");
     apic_wr(APIC_TIMER_INIT, 0);
     apic_wr(APIC_LVT_TIMER, 1u << 16 | VEC_TIMER);
+}
+
+void ck_local_machine_stack(uint64_t top) { tss.rsp[0] = top; }
+int ck_local_machine_timer(int enable)
+{
+    if (!xapic || !lapic_per_ms)
+        return -1;
+    apic_wr(APIC_TIMER_INIT, 0);
+    apic_wr(APIC_LVT_TIMER, (enable ? 0 : 1u << 16) | VEC_TIMER);
+    if (enable)
+        apic_wr(APIC_TIMER_INIT, lapic_per_ms);
+    return 0;
+}
+void ck_local_machine_eoi(uint64_t v)
+{
+    if (xapic && v >= 32 && v != 0x80 && v != VEC_SPURIOUS)
+        apic_wr(APIC_EOI, 0);
 }
 
 void ck_x86_trap(struct ck_x86_frame *f)
@@ -2303,6 +2338,9 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
             ck_x86_display(0, 0, &frames, tsc_hz);
     }
     ck_x86_swap_init(&frames);
+    ck_local_init(mm.root, tsc_hz);
+    ck_local_snapshot(sr.started + 1, ck_frames_free_bytes(&frames), h->fb_width, h->fb_height, st->net_link);
+    ck_local_selftest();
     allen_facts.cores = sr.started + 1;
     allen_facts.sata_disks = st->ahci_disks;
     allen_facts.nvme_disks = st->nvme_disks;
@@ -2332,7 +2370,7 @@ void ck_x86_kernel_entry(struct ck_handoff *h)
                   (unsigned)CK_X86_WX_MUTATE);
     ck_printf("exit_boot_services: ok attempts=%u\n", h->exit_attempts);
     cpu_line();
-    ck_puts("descriptors: gdt=5 tss=yes ist1=df,nmi,mc idt=256\n");
+    ck_puts("descriptors: gdt=7 tss=yes ist1=df,nmi,mc idt=256\n");
     const char *why;
     if (ck_handoff_check(h, &why) != 0)
         ck_panic("handoff: %s", why);

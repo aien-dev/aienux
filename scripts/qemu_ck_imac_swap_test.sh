@@ -248,7 +248,7 @@ else
 fi
 if [[ -f "${outdef}/imackern/imackern.elf" ]] \
    && ! "${cross}nm" "${outdef}/imackern/imackern.elf" \
-      | grep -qE ' [TtDdBbRr] (ck_slot_verify|aienos_ed25519_verify|ck_x86_swap_tramp|ck_x86_swap_read_inbox)$'; then
+      | grep -qE ' [TtDdBbRr] (ck_slot_verify|ck_x86_swap_tramp|ck_x86_swap_read_inbox)$'; then
     pass "9  the default image (CK_X86_REPORT=0) links no swap receiver"
 else
     fail "9  the default image links a swap receiver symbol"

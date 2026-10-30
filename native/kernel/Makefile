@@ -2308,11 +2308,19 @@ IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-HOST.EFI)
 else ifneq ($(CK_X86_HOSTDESC),0)
 $(error CK_X86_HOSTDESC must be 0 (default) or 1 (launcher image that reads the host description))
 endif
+CK_LOCAL_TEST ?= 0
+ifeq ($(CK_LOCAL_TEST),1)
+IMACKERN_DIR := $(IMACKERN_DIR)-local-test
+IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-LOCAL-TEST.EFI)
+else ifneq ($(CK_LOCAL_TEST),0)
+$(error CK_LOCAL_TEST must be 0 (release) or 1 (hostile QEMU fixtures))
+endif
 IMACKERN_ELF := $(IMACKERN_DIR)/imackern.elf
 IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net \
 	-I$(NATIVE)/argus -I$(NATIVE)/sig
 IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(IMACKERN_DIR)/efi_gop.o \
 	$(IMACKERN_DIR)/kmain_x86.o $(IMACKERN_DIR)/console_x86.o $(IMACKERN_DIR)/trap.o \
+	$(IMACKERN_DIR)/local_tools.o $(IMACKERN_DIR)/local_wire.o $(IMACKERN_DIR)/local_enter.o $(IMACKERN_DIR)/local_format.o $(IMACKERN_DIR)/ed25519.o \
 	$(IMACKERN_DIR)/fbcon.o $(IMACKERN_DIR)/fmt.o $(IMACKERN_DIR)/acpi.o $(IMACKERN_DIR)/dmar.o $(IMACKERN_DIR)/dmar_x86.o $(IMACKERN_DIR)/handoff_check.o \
 	$(IMACKERN_DIR)/frames.o $(IMACKERN_DIR)/heap.o $(IMACKERN_DIR)/libc_min.o \
 	$(IMACKERN_DIR)/ahci_x86.o $(IMACKERN_DIR)/disk_part.o $(IMACKERN_DIR)/disk.o \
@@ -2325,10 +2333,10 @@ IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(
 	$(IMACKERN_DIR)/gpu_x86.o $(IMACKERN_DIR)/swap_x86.o $(IMACKERN_DIR)/bench_x86.o \
 	$(IMACKERN_DIR)/setup_inv.o $(IMACKERN_DIR)/setup_wizard.o $(IMACKERN_DIR)/setup_store.o $(IMACKERN_DIR)/setup_x86.o
 # Lab-only objects: the report and Allen's Ethernet courier, the swap receiver's trampoline, the owner key
-# table it verifies with (generated below), and the verifier itself (slot_select.c, ed25519.c). A default
-# image links none of them.
+# table it verifies with (generated below), and slot verification. Ed25519 is shared
+# with local-tool admission in all images.
 IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o $(IMACKERN_DIR)/courier_udp_x86.o \
-	$(IMACKERN_DIR)/slot_select.o $(IMACKERN_DIR)/ed25519.o \
+	$(IMACKERN_DIR)/slot_select.o \
 	$(IMACKERN_DIR)/swap_tramp.o $(IMACKERN_DIR)/imac_slot_keys.o
 # The far side of Allen's Ethernet courier (x86/courier_udp.h): broadcast by default, a lab address overrides.
 CK_COURIER_PEER ?= 255.255.255.255
@@ -2393,6 +2401,13 @@ $(IMACKERN_DIR)/efi_gop.o: $(BOOT)/efi_gop.c $(IMACKERN_HDRS)
 $(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_intent.h $(KDIR)/svc/allen_code.h $(KDIR)/dev/usb_hid.h $(KDIR)/svc/courier.h $(X86K)/courier_udp.h $(KDIR)/svc/setup_wizard.h $(OUT)/commit.stamp
 $(IMACKERN_DIR)/console_x86.o: $(X86K)/console_x86.c $(IMACKERN_HDRS) $(KDIR)/core/fbcon.h
 $(IMACKERN_DIR)/trap.o: $(X86K)/trap.S
+$(IMACKERN_DIR)/local_tools.o: $(X86K)/local_tools.c $(X86K)/local_tools.h $(X86K)/local_bundle.h $(X86K)/local_tests.inc
+$(IMACKERN_DIR)/local_wire.o: $(X86K)/local_wire.c $(X86K)/local_wire.h $(X86K)/local_tools.h
+$(IMACKERN_DIR)/local_enter.o: $(X86K)/local_enter.S
+$(IMACKERN_DIR)/local_format.o: $(KDIR)/artifact/format.c $(KDIR)/artifact/ck_artifact.h
+ifeq ($(CK_LOCAL_TEST),1)
+IMACKERN_CFLAGS += -DCK_LOCAL_TEST=1 -DCK_X86_HOLD_S=1
+endif
 $(IMACKERN_DIR)/fbcon.o: $(KDIR)/core/fbcon.c $(KDIR)/core/fbcon.h $(KDIR)/core/font8x8.h
 $(IMACKERN_DIR)/fmt.o: $(KDIR)/core/fmt.c $(KDIR)/core/fmt.h
 $(IMACKERN_DIR)/acpi.o: $(KDIR)/core/acpi.c $(KDIR)/core/acpi.h
@@ -2507,12 +2522,14 @@ $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	  echo "$$r"; rm -f $@; exit 1; fi
 	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-REPORT" $@; then \
 	  echo "default iMac image carries the report header string"; rm -f $@; exit 1; fi
-	@if [ "$(CK_X86_REPORT)" != 1 ]; then s=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_slot_verify|aienos_ed25519_verify|ck_x86_swap_tramp|ck_x86_swap_read_inbox)$$' || true); \
+	@if [ "$(CK_X86_REPORT)" != 1 ]; then s=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_slot_verify|ck_x86_swap_tramp|ck_x86_swap_read_inbox)$$' || true); \
 	  if [ -n "$$s" ]; then echo "default iMac image links the swap receiver (lab builds only):"; echo "$$s"; rm -f $@; exit 1; fi; fi
 	@f=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] ck_x86_fwcfg_file$$' || true); s=$$(grep -aoE "opt/aienos/host|QEMU0002" $@ | sort -u | tr "\n" " "); \
 	if [ "$(CK_X86_HOSTDESC)" = 1 ]; then \
 	  [ -n "$$f" ] && grep -aqF "launcher image: the setup wizard reads the host description" $@ || { echo "launcher image lacks the host description reader or its announcement"; rm -f $@; exit 1; }; \
 	elif [ -n "$$f$$s" ]; then echo "default iMac image carries fw_cfg code (build it with CK_X86_HOSTDESC=1 only): $$f $$s"; rm -f $@; exit 1; fi
+	@if [ "$(CK_LOCAL_TEST)" != 1 ] && grep -aq 'local_test:' $@; then \
+	  echo "release image contains hostile local-tool fixtures"; rm -f $@; exit 1; fi
 $(IMACKERN_EFI): $(IMACKERN_ELF)
 	$(X86OBJCOPY) -O binary $< $@
 	@sz=$$(stat -c %s $@); pad=$$(( (4096 - sz % 4096) % 4096 )); \
