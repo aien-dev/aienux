@@ -6,9 +6,11 @@
 #     key, token and memory lines, control bytes and over-long lines never
 #     reach the exported copy or a frame; allowed lines survive byte for
 #     byte) and the frames (Ethernet broadcast, IPv4, UDP with a checksum,
-#     "v=2 auth=none" part headers).
+#     "v=2 auth=none" part headers), and the late-diagnostics boundary: an
+#     allowlisted line written after 16 KiB of console survives, conversation
+#     lines around it do not, and a full console copy ends in a truncation note.
 #  3. The receiver tools/ck_imac_report_listen.c rebuilds the report byte for
-#     byte from parts sent out of order and repeated, labels it
+#     byte from parts sent out of order and repeated (and a full 64-part report), labels it
 #     unauthenticated, and refuses every older header (the retired v=1 raw-console format and the old name).
 # Hosted only; the BCM57766 itself cannot be emulated, and nothing here
 # touches a real network interface (the round trip runs over 127.0.0.1).
@@ -30,7 +32,7 @@ X=""
 for t in "${X}gcc" "${X}ld" "${X}nm"; do
     command -v "$t" >/dev/null || { echo "AIENOS_IMAC_REPORT: NOT_RUN ($t missing)"; exit 2; }
 done
-SYMS='ck_x86_report_(hold|frame|filter|parts)|ck_x86_tg3_(send|drain)|net_udp_build'
+SYMS='ck_x86_report_(hold|frame|filter|parts|seal)|ck_x86_tg3_(send|drain)|net_udp_build'
 make -s -C $K X86_CROSS="$X" OUT="$W/build" imac-kernel >"$W/build.log" 2>&1 ||
     fail "default imac-kernel build: $(tail -3 "$W/build.log")"
 make -s -C $K X86_CROSS="$X" OUT="$W/build" CK_X86_REPORT=1 CK_TEST_SLOT_KEY=1 imac-kernel >>"$W/build.log" 2>&1 ||
@@ -39,9 +41,9 @@ d=$("${X}nm" "$W/build/imackern/imackern.elf" | grep -E " ($SYMS)\$" || true)
 [ -z "$d" ] || fail "default image has report symbols: $(echo $d)"
 grep -aq "AIENOS-REPORT" "$W/build/IMACKERN.EFI" && fail "default image carries the report header"
 l=$("${X}nm" "$W/build/imackern-lab/imackern.elf" | grep -cE " ($SYMS)\$" || true)
-[ "$l" = 7 ] || fail "lab image has $l of 7 report symbols"
+[ "$l" = 8 ] || fail "lab image has $l of 8 report symbols"
 grep -aq "AIENOS-REPORT v=2 auth=none " "$W/build/IMACKERN-LAB.EFI" || fail "lab image lacks the v=2 auth=none header"
-echo "build: default image report_symbols=0, lab image report_symbols=7"
+echo "build: default image report_symbols=0, lab image report_symbols=8"
 
 # 2. Host checks of the filter and frames.
 $CC $CF -o "$W/listen" $K/tools/ck_imac_report_listen.c || fail "listener does not build"
@@ -63,13 +65,21 @@ grep -q '^note: iMac reports are UNAUTHENTICATED UDP broadcasts (auth=none)' "$W
     fail "listener does not label reports unauthenticated"
 "$W/test" legacy $PORT >/dev/null || fail "legacy send"
 "$W/test" send $PORT "$W/sent.txt" >/dev/null || fail "send"
+"$W/test" sendfull $PORT "$W/sentfull.txt" >/dev/null || fail "send of the full 64-part report"
 i=0
 until grep -q "^complete run=0123456789abcdef auth=none " "$W/out/listen.log"; do
     i=$((i + 1)); [ $i -gt 50 ] && fail "report not completed: $(cat "$W/out/listen.log")"
     sleep 0.1
 done
 cmp -s "$W/sent.txt" "$W/out/imac-0123456789abcdef.unauthenticated.txt" || fail "rebuilt report differs"
-[ "$(grep -c '^complete ' "$W/out/listen.log")" = 1 ] || fail "report written more than once"
+i=0
+until grep -q "^complete run=0000000000000009 auth=none " "$W/out/listen.log"; do
+    i=$((i + 1)); [ $i -gt 50 ] && fail "full 64-part report not completed: $(tail -3 "$W/out/listen.log")"
+    sleep 0.1
+done
+cmp -s "$W/sentfull.txt" "$W/out/imac-0000000000000009.unauthenticated.txt" || fail "rebuilt full report differs"
+tail -1 "$W/sentfull.txt" | grep -q '^report: console_copy_full dropped_bytes=[0-9]*$' || fail "full report lacks the truncation note"
+[ "$(grep -c '^complete ' "$W/out/listen.log")" = 2 ] || fail "report written more than once"
 [ "$(grep -c '^ignored .*retired older report header$' "$W/out/listen.log")" = 1 ] ||
     fail "listener did not refuse the v=1 datagram"
 ls "$W/out" | grep -q '00000000000000ff' && fail "listener wrote the v=1 datagram"

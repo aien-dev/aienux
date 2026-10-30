@@ -91,8 +91,10 @@ int ck_x86_console_fb_on(volatile void *base, uint32_t width, uint32_t height, u
                          uint32_t format, uint32_t *scale, uint32_t *cols, uint32_t *rows);
 
 /* console_x86.c: the RAM copy of everything written so far (the first
- * 16 KiB); in the lab image, the input the network report filters. */
+ * 64 KiB); in the lab image, the input the network report filters. The
+ * second call counts the bytes written after that copy filled. */
 const char *ck_x86_console_log(size_t *len);
+size_t ck_x86_console_log_dropped(void);
 /* console_x86.c: the screen for another drawer (Allen's window). get: its
  * framebuffer (pitch in pixels, format 0 RGBX / 1 BGRX), or -1 when there is
  * none; off: console text stops drawing on it and goes on to the RAM copy and
