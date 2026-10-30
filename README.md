@@ -1,8 +1,8 @@
-# AIENOS
+# Aienux
 
 > **Status: experimental, pre-alpha. Nothing here is qualified for real use.** The C kernel has run on a Raspberry Pi 5 and on a 2017 iMac, but only in test builds with TEST keys or throwaway secrets. It has not been booted on the NVIDIA DGX Spark. There are no support, stability or compatibility promises. Expect breaking changes.
 
-AIENOS is the AIEN project's own operating system kernel. It is written to replace Linux on the NVIDIA DGX Spark (called Machine 1 in the docs). It is agent-native: an AI agent drives the machine, but the model is never the kernel and never the root of trust. The kernel stays small and deterministic, and it does not make "intelligent" decisions. Most of the kernel is C in `native/`. An older Rust kernel and tools live in `crates/`.
+Aienux is the AienOS kernel: our own operating system kernel, built to replace Linux on the DGX Spark. AienOS is the whole system built on it. It is agent-native: the agent is the control plane, and the model is never the kernel. The kernel stays small, deterministic and non-intelligent, and the agent is never the root of trust. Most of the kernel is C in `native/`. An older Rust kernel and tools live in `crates/`.
 
 ```text
 Firmware -> AIEN Boot -> AIEN Kernel -> AIEN Runtime -> AIEN Agent -> You
@@ -10,7 +10,7 @@ Firmware -> AIEN Boot -> AIEN Kernel -> AIEN Runtime -> AIEN Agent -> You
 
 ## Where this fits in AIEN
 
-AIENOS owns the trusted base: boot, kernel, memory, storage, cryptography and device access. The sibling repositories are:
+Aienux owns the trusted base: boot, kernel, memory, storage, cryptography and device access. The sibling repositories are:
 
 - [aien-dev/aien-architecture-mv](https://github.com/aien-dev/aien-architecture-mv): the whole-system architecture, ADRs and sequencing. It is the authority over plans in this repository (see [docs/PLAN_AUTHORITY.md](docs/PLAN_AUTHORITY.md)).
 - [aien-dev/omega-mv](https://github.com/aien-dev/omega-mv): Omega, the C reaction runtime and compiler. Under aien-architecture ADR 0024, Omega is where system code is headed. AIENOS carries a byte-for-byte copy of Omega's Cortex store in [native/kernel/third_party/omega/](native/kernel/third_party/omega/README.md), pinned by `omega.lock`.
@@ -24,6 +24,8 @@ AIENOS owns the trusted base: boot, kernel, memory, storage, cryptography and de
 
 Every item below names the file that holds its evidence. "QEMU" means the QEMU emulator: a QEMU pass says nothing about real hardware.
 
+**The C kernel is FROZEN** (Drake, 2026-10-24; ADR 0039, program L802): it takes bug fixes and keeps the lab iMac booting while Aienux is rewritten in Omega; it takes no new features. See [native/kernel/README.md](native/kernel/README.md).
+
 **C kernel in QEMU.** `scripts/ck_gates.sh` lists 27 emulator gates. The newest receipt committed here is [evidence/ck_gates_29ed03c9...json](evidence/ck_gates_29ed03c97454354a18676f768273dd7f7a8e15462c4be1939d9994d277d0d639.json): 24 gates, all PASS, run at commit 7f0de7e on 2026-10-09. Gates added after that date have no committed full receipt yet. What each gate checks: [native/kernel/GATES.md](native/kernel/GATES.md).
 
 **Raspberry Pi 5 (test builds only).** First runs on 2026-10-13: the kernel started all four cores, ran its timer and wrote its log to the SD card ([evidence/pi5_hardware_runs_2026-10-13/](evidence/pi5_hardware_runs_2026-10-13/README.md)). Later Pi runs, each with its own record in [docs/native/](docs/native/):
@@ -35,13 +37,15 @@ Every item below names the file that holds its evidence. "QEMU" means the QEMU e
 - One Ethernet frame sent on the wire, with device memory access kept inside a fixed window ([PI5-NET-3-RUNS.md](docs/native/PI5-NET-3-RUNS.md)). Receiving from the network is not done.
 - The owner key ceremony on a YubiKey, performed once on 2026-10-14 ([PI5-8-OWNER-CEREMONY.md](docs/native/PI5-8-OWNER-CEREMONY.md)), and reproducible Pi image builds ([PI5-8-QUALIFICATION.md](docs/native/PI5-8-QUALIFICATION.md)).
 
-**2017 iMac (x86_64).** A diagnostic boot on 2026-10-16 recorded the hardware ([evidence/imac_boot0_2026-10-16/](evidence/imac_boot0_2026-10-16/README.md)). The C kernel started on the iMac on 2026-10-16 ([evidence/imac_kernel0_2026-10-16/](evidence/imac_kernel0_2026-10-16/README.md)). On 2026-10-17 it started all four cores, read both disks without writing, and found the Ethernet chip ([evidence/imac_kernel1_2026-10-17/](evidence/imac_kernel1_2026-10-17/README.md)). Code that sends the test report over Ethernet is merged (PR [#408](https://github.com/aien-dev/aienos-mv/pull/408)); no hardware run of it is recorded in this repository.
+**2017 iMac (x86_64).** A diagnostic boot on 2026-10-16 recorded the hardware ([evidence/imac_boot0_2026-10-16/](evidence/imac_boot0_2026-10-16/README.md)). The C kernel started on the iMac on 2026-10-16 ([evidence/imac_kernel0_2026-10-16/](evidence/imac_kernel0_2026-10-16/README.md)). On 2026-10-17 it started all four cores, read both disks without writing, and found the Ethernet chip ([evidence/imac_kernel1_2026-10-17/](evidence/imac_kernel1_2026-10-17/README.md)). Code that sends the test report over Ethernet is merged (PR [#408](https://github.com/aien-dev/aienux/pull/408)); no hardware run of it is recorded in this repository.
+
+**Network boot and audio (code only).** The iMac network loader that fetches signed kernels from the Spark is merged (PR [#414](https://github.com/aien-dev/aienux/pull/414)), and so is the first step of USB audio output for the C kernel (PR [#423](https://github.com/aien-dev/aienux/pull/423)); this repository records no hardware run of either.
 
 **DGX Spark.** The first native boot on the Spark passed on 2026-09-24, using the older Rust path ([evidence/m2_first_boot_2026-09-24.md](evidence/m2_first_boot_2026-09-24.md)). The C kernel has not been booted on the Spark.
 
 **Not qualified.** The trust chain and encrypted storage on the Spark (TRUST-1 and M5) still need hardware and operator steps: [docs/TRUST-1-M5-GATE-MATRIX.md](docs/TRUST-1-M5-GATE-MATRIX.md), [docs/TRUST-1-OPERATOR-STEPS.md](docs/TRUST-1-OPERATOR-STEPS.md).
 
-**Open work.** Open tracking issues include the native OSH pipeline ([#428](https://github.com/aien-dev/aienos-mv/issues/428) to [#432](https://github.com/aien-dev/aienos-mv/issues/432)), iMac drivers ([#422](https://github.com/aien-dev/aienos-mv/issues/422)), Pi 5 networking with the Spark ([#398](https://github.com/aien-dev/aienos-mv/issues/398)), native NVMe and Store ([#31](https://github.com/aien-dev/aienos-mv/issues/31)) and TRUST-1/M5 on the Spark ([#32](https://github.com/aien-dev/aienos-mv/issues/32)).
+**Open work.** Open tracking issues include the native OSH pipeline ([#428](https://github.com/aien-dev/aienux/issues/428) to [#432](https://github.com/aien-dev/aienux/issues/432)), iMac drivers ([#422](https://github.com/aien-dev/aienux/issues/422)), Pi 5 networking with the Spark ([#398](https://github.com/aien-dev/aienux/issues/398)), native NVMe and Store ([#31](https://github.com/aien-dev/aienux/issues/31)) and TRUST-1/M5 on the Spark ([#32](https://github.com/aien-dev/aienux/issues/32)).
 
 For component status, [ROADMAP.md](ROADMAP.md) is the AIENOS plan, but its newest status block is dated 2026-10-01 and does not cover the Pi 5 or iMac work above.
 
@@ -80,7 +84,7 @@ The Rust workspace in `crates/` is checked by `bash scripts/verify_all.sh` (need
 
 ### Who judges a change
 
-Since 2026-10-18 (PR [#427](https://github.com/aien-dev/aienos-mv/pull/427)), all testing runs on the Spark, not on GitHub. The Spark runs the gate manifests in [tests/gates/](tests/gates/) (each one calls `tests/gates/run.sh <step>`) and publishes a signed result to [aien-dev/aien-receipts](https://github.com/aien-dev/aien-receipts). GitHub keeps one required check on `main`, `AIEN Verification`, which only checks that signed result.
+Since 2026-10-18 (PR [#427](https://github.com/aien-dev/aienux/pull/427)), all testing runs on the Spark, not on GitHub. The Spark runs the gate manifests in [tests/gates/](tests/gates/) (each one calls `tests/gates/run.sh <step>`) and publishes a signed result to [aien-dev/aien-receipts](https://github.com/aien-dev/aien-receipts). GitHub keeps one required check on `main`, `AIEN Verification`, which only checks that signed result.
 
 ## Where the evidence lives
 
@@ -91,8 +95,8 @@ Since 2026-10-18 (PR [#427](https://github.com/aien-dev/aienos-mv/pull/427)), al
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Good places to start are issues labelled [`good first issue`](https://github.com/aien-dev/aienos-mv/labels/good%20first%20issue) or [`emulator-ok`](https://github.com/aien-dev/aienos-mv/labels/emulator-ok); they need no special hardware. Work that needs the real Spark is labelled `needs-hardware` and is run by maintainers. Open pull requests against `main` and lead with the commands you ran and their output. Questions go in [Discussions](https://github.com/aien-dev/aienos-mv/discussions). Report security problems privately through GitHub security advisories.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Good places to start are issues labelled [`good first issue`](https://github.com/aien-dev/aienux/labels/good%20first%20issue) or [`emulator-ok`](https://github.com/aien-dev/aienux/labels/emulator-ok); they need no special hardware. Work that needs the real Spark is labelled `needs-hardware` and is run by maintainers. Open pull requests against `main` and lead with the commands you ran and their output. Questions go in [Discussions](https://github.com/aien-dev/aienux/discussions). Report vulnerabilities privately through GitHub security advisories.
 
 ## License
 
-GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE) and [NOTICE](NOTICE). Contact: aien@aienos.com.
+Licensed under the Apache License, Version 2.0 (Apache-2.0). See [LICENSE](LICENSE) and [NOTICE](NOTICE). Contact: aien@aienos.com.

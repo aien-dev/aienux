@@ -17,27 +17,27 @@
     "generated": {
       "children": [
         {
-          "digest": "54a25a2ce38d5cde54cce87582dfdcd66b3f21ba3ae18d330c8c66a7004b386a",
-          "last_commit": "2563059",
+          "digest": "cf40c4f55bcd87bdcc2d459eb0504e98ede16cd7838d6dcce683c8844cf14c4c",
+          "last_commit": "25630597",
           "name": "qemu",
           "purpose": "Directory native/disk/qemu. Purpose not yet described by a human."
         },
         {
-          "digest": "28bc8b4021cec8ccd5b90c15d11db3fe7dd396db65e062f5e1046631fa2e4755",
-          "last_commit": "2563059",
+          "digest": "a84880bebd005b831a55fa76589f0560f602e21cd87329c5f407ad877d04fff3",
+          "last_commit": "25630597",
           "name": "tests",
           "purpose": "Directory native/disk/tests. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:fb9a25a745be4f0d38936d5ff30f3fafdc68a80d6aaeff667fde54d196d6b132",
-      "compiled_at": "2026-10-19T00:56:00Z",
+      "children_root": "sha256:4aea14c4d49f640e317a523d6fe5fc9327a9d7b3b0863ecb926390bd655ac1b8",
+      "compiled_at": "2026-10-30T02:54:03Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:1ad2556a96e00565adbeabe0b4d9d60bf5c29784e6734c7acde1041a04e8d76f",
+      "digest": "sha256:6ced807687499828507389d3b3b98793f64340959e4a15868afa424889b6a64b",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 20,
-      "generated_at_commit": "f694c1b0171a9ea08266a9469276f3552f3bb9cd",
-      "source_tree": "sha256:c863734e971823153254bf33fbc8d26657f4cd764e055d252999d5695ca5d4c7"
+      "generated_at_commit": "3ab0a75872f163e488eff4ef7d9850564f5915a6",
+      "source_tree": "sha256:e040c840850707a6428caf2fa6749958751daf88d8c73535f88554a2d1e35f64"
     },
     "owner_lane": "",
     "provenance": {

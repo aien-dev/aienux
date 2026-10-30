@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* net_bind.h -- bind native/net's polled virtio-net driver
  * (aienos_virtio_net.c) to the virtio-net PCI function through ck.h services
  * and run one bounded UDP round trip (QEMU user networking).
@@ -46,12 +62,14 @@ enum {
  * ACCESS_PLATFORM required), then ARP for the gateway and one UDP datagram to
  * CK_NET_ECHO_PORT and back, then the SMMU fence test and its recovery round
  * trip (CK_NET_E_SMMU if either fails), every wait bounded by ck_time_us.
- * Always leaves the device released (reset, bus master off, stream back to
- * abort) before returning. */
+ * Leaves the device released (reset, bus master off, stream back to abort)
+ * before returning, unless the SMMU refuses the abort: the stream then stays
+ * confined, ck_net_live stays 1 and a passing selftest returns CK_NET_E_SMMU. */
 int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps);
 
 /* Reset the device, revoke bus mastering and return the SMMU stream to
- * abort if still live; prints the dma_gate/smmu lines. Idempotent. */
+ * abort if still live; prints the dma_gate/smmu lines. Idempotent. A
+ * refused abort keeps the stream confined; calling again retries it. */
 void ck_net_release(void);
 /* 1 while the device may still DMA (bus master on or stream confined). */
 int ck_net_live(void);

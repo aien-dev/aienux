@@ -1,0 +1,38 @@
+run 1 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 2 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 3 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 4 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 5 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 6 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 7 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+FAIL  tick statistics out of range: timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0
+run 10 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 11 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 12 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 13 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 14 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 15 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 16 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 17 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+FAIL  tick statistics out of range: timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=0 avg_us=0 max_us=0
+run 18 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 19 rc=1
+FAIL  timer IRQ delivered fewer than five ticks
+run 20 rc=1
+FAIL  timer IRQ delivered fewer than five ticks

@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # qemu_ck_imac_kernel_test.sh -- QEMU test for IMACKERN.EFI (AIENOS-IMAC-KERNEL-0,
 # native/kernel/x86). QEMU is an emulator: a PASS here qualifies nothing about a
 # 2017 iMac or any other real x86_64 machine.
@@ -125,6 +140,12 @@ run() { # name, -cpu model, expected APIC mode
         echo "FAIL  ${name}: panic or failed power off"; fails=$((fails + 1))
     else
         echo "PASS  ${name}: no panic"
+    fi
+    # The default image carries no network report (lab-only, CK_X86_REPORT=1).
+    if grep -aqE '^report: ' "${txt}"; then
+        echo "FAIL  ${name}: default image ran the lab-only network report"; fails=$((fails + 1))
+    else
+        echo "PASS  ${name}: no network report in the default image"
     fi
     [[ ${self_exit} == 1 ]] && echo "PASS  ${name}: QEMU powered off by itself" || { echo "FAIL  ${name}: QEMU still running"; fails=$((fails + 1)); }
     echo "---- ${name} serial ----"; cat "${txt}"; echo "----"

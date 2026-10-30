@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* devices.c -- ck_stage_devices: PCI (with the post-exit bus-master sweep),
  * NVMe, virtio-net, xHCI DMA fence. Freestanding. */
 #include "devices.h"
@@ -75,11 +91,13 @@ void ck_dev_nvme_release(void)
     }
     if (g_nvme.confined) {
         /* Bus mastering is off (or never came on); return the stream to
-         * abort as well, independently of the bus master state. */
+         * abort as well, independently of the bus master state. A failed
+         * abort leaves the stream live in the SMMU service, so it stays
+         * confined here too: ownership is kept and a later release retries. */
         int urc = ck_dma_unconfine(g_nvme.stream_id);
-        g_nvme.confined = 0;
+        if (urc == 0) g_nvme.confined = 0;
         ck_printf("smmu: nvme stream 0x%x %s (rc=%d)\n", g_nvme.stream_id,
-                  urc == 0 ? "returned to abort" : "abort FAILED", urc);
+                  urc == 0 ? "returned to abort" : "abort FAILED, stays confined", urc);
     }
     /* Ownership is given back only once DMA is fully off (bus master and stream). */
     if (!g_nvme.bm_on && !g_nvme.confined && !g_nvme.stuck) g_nvme.claimed = 0;

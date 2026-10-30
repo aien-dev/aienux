@@ -13,21 +13,21 @@
     "generated": {
       "children": [
         {
-          "digest": "9c1c32b183b9272d26de382e1327aac1da7373f79096fb3e421f795b36d17c8b",
-          "last_commit": "362cba9",
+          "digest": "f2ce8b630299a2cf9af5a544c16fc91794729926c743461ee0c882bb39646766",
+          "last_commit": "621c9e6f",
           "name": "src",
           "purpose": "Directory crates/aienos-capability/src. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:ec5b8bc5ec1d665dcfbecf32ea2408e5d3c84ec78e9d4623554ffc9a32d6970d",
-      "compiled_at": "2026-10-11T21:20:24Z",
+      "children_root": "sha256:e21f96d48be32b7eaa1b588d5cb776dfd03c17a697c15915eb01a4a1a56c230d",
+      "compiled_at": "2026-10-24T04:15:32Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:ca15c2b9ae570b0aa2c7859672de2c976d6ce046188c09b7c74b5ccbee350136",
+      "digest": "sha256:4d2b17a9d26ddec69d05b85f7119c83f5aae0d7d3fe01e238af3214f928a1030",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 2,
-      "generated_at_commit": "362cba9653c8021996a21b17ead00d5d1140b371",
-      "source_tree": "sha256:a435f6cea762e4c709af5e49797c27aeedc468b7003993e72cf5f429dcf5e5b0"
+      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
+      "source_tree": "sha256:caf27be6f27206ca44edd224aff5595ad4310eb09b8b684237839bc2f29cbfac"
     },
     "owner_lane": "",
     "provenance": {
