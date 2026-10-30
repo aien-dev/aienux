@@ -9,7 +9,7 @@
  * authorized peer, never this broadcast.
  *
  * What is sent: ck_x86_report_filter's copy of the console's RAM copy
- * (console_x86.c, the first 16 KiB), which keeps only complete, printable,
+ * (console_x86.c, the first 64 KiB), which keeps only complete, printable,
  * bounded lines that start with a fixed kernel diagnostic key and drops
  * everything else whole. The raw console is never sent. The copy is cut into
  * parts of CK_X86_REPORT_CHUNK bytes; each part is one UDP datagram from
@@ -35,6 +35,10 @@
 #endif
 #include "aienos_net.h"
 #include "report_x86.h"
+#include "console_log.h"
+
+_Static_assert(CK_X86_REPORT_MAX >= CK_X86_LOG_BYTES, "the report must hold a full console copy");
+_Static_assert(CK_X86_REPORT_MAX / CK_X86_REPORT_CHUNK <= 64, "the listener rebuilds at most 64 parts");
 
 #define REPORT_HDR "AIENOS-REPORT v=2 auth=none "
 
@@ -115,6 +119,18 @@ static size_t dec(char *out, unsigned v)
     while (n)
         out[k++] = t[--n];
     return k;
+}
+
+size_t ck_x86_report_seal(char *out, size_t len, size_t cap, size_t dropped)
+{
+    static const char head[] = "report: console_copy_full dropped_bytes=";
+    if (!out || !dropped || cap - len < sizeof head + 11) /* digits of a 32-bit count, '\n' */
+        return len;
+    memcpy(out + len, head, sizeof head - 1);
+    len += sizeof head - 1;
+    len += dec(out + len, dropped > 0xffffffffu ? 0xffffffffu : (unsigned)dropped);
+    out[len++] = '\n';
+    return len;
 }
 
 unsigned ck_x86_report_parts(size_t len)
@@ -214,7 +230,8 @@ unsigned ck_x86_report_hold(uint64_t tsc_hz, unsigned seconds)
          * the machine; the raw console never does. */
         size_t raw_len;
         const char *raw = ck_x86_console_log(&raw_len);
-        size_t n_len = ck_x86_report_filter(raw, raw_len, report, sizeof report);
+        size_t n_len = ck_x86_report_filter(raw, raw_len, report, sizeof report - CK_X86_REPORT_NOTE_MAX);
+        n_len = ck_x86_report_seal(report, n_len, sizeof report, ck_x86_console_log_dropped());
         if (n_len != len || !run) {
             len = n_len;
             parts = ck_x86_report_parts(len);
