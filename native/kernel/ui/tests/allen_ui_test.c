@@ -768,6 +768,53 @@ int main(int argc, char **argv)
         free(parts);
     }
 
+    {
+        /* The ink is a smooth field: on the dark sky it must not show as
+         * flat 8-bit rings, and its colour must not step along grid cells
+         * (the concentric bands and squares seen on the iMac). */
+        const int32_t w = 1920, h = 1080;
+        uint32_t *px = calloc((size_t)w * h, sizeof(uint32_t));
+        static ck_flow water;
+        ck_canvas cv = {px, w, h};
+        ck_rect all = {0, 0, w, h};
+        ck_flow_init(&water, w, h, w / 2, h / 2, 118, w / 2, h, 0);
+        for (unsigned j = 0; j < CK_FLOW_H + 2; j++)
+            for (unsigned i = 0; i < CK_FLOW_W + 2; i++) {
+                water.shown[i + (CK_FLOW_W + 2) * j] = (int32_t)(65536u * 55 / 100 * i / (CK_FLOW_W + 1));
+                water.shown_warm[i + (CK_FLOW_W + 2) * j] = 0;
+            }
+        ck_flow_draw(&water, &cv, &all, 256);
+        unsigned flat = 0, longest = 0;
+        for (int32_t y = 100; y < h; y += 97) {
+            unsigned run = 1;
+            for (int32_t x = w / 3 + 1; x < w; x++) { /* where the ink is bright enough to step whole levels */
+                run = px[(size_t)y * w + x] == px[(size_t)y * w + x - 1] ? run + 1 : 1;
+                if (run > longest)
+                    longest = run;
+                flat += run == 12;
+            }
+        }
+        /* undithered, a level is one flat band (28 px here, 803 runs of 12); the dither leaves only chance runs */
+        CHECK(flat < 60 && longest < 20, "flow: a smooth ink ramp on black is dithered, not ringed into flat 8-bit bands");
+        printf("note: flow ramp longest equal run %u px, runs reaching 12: %u\n", longest, flat);
+        for (unsigned j = 0; j < CK_FLOW_H + 2; j++)
+            for (unsigned i = 0; i < CK_FLOW_W + 2; i++) {
+                water.shown[i + (CK_FLOW_W + 2) * j] = 65536 / 2;
+                water.shown_warm[i + (CK_FLOW_W + 2) * j] = (i + j) & 1 ? 256 : 0;
+            }
+        memset(px, 0, (size_t)w * h * sizeof(uint32_t));
+        ck_flow_draw(&water, &cv, &all, 256);
+        unsigned step = 0;
+        for (int32_t y = 100; y < h; y += 97)
+            for (int32_t x = 200; x < w - 200; x++) {
+                int32_t a = (int32_t)(px[(size_t)y * w + x] >> 16 & 255u), b = (int32_t)(px[(size_t)y * w + x - 1] >> 16 & 255u);
+                step = (unsigned)(a > b ? a - b : b - a) > step ? (unsigned)(a > b ? a - b : b - a) : step;
+            }
+        CHECK(step < 24, "flow: warm and cool water blend between cells, no hard colour step");
+        printf("note: flow colour largest neighbour step %u levels\n", step);
+        free(px);
+    }
+
     /* Display bytes are sRGB; coverage must weigh decoded light. These
      * checks distinguish the transfer-table path from encoded-byte scaling. */
     {

@@ -359,6 +359,38 @@ void ck_flow_mark(ck_flow *f, void (*mark)(ck_rect))
         }
 }
 
+/* The warm weight (0..256) between cells, blended the way the ink is. A
+ * nearest-cell lookup gave the colour hard steps along the cell edges. */
+static uint32_t sample_warm(const uint16_t *x, int32_t gx, int32_t gy)
+{
+    gx = ck_clamp(gx - HALF, 0, (W + 1) * Q - 1);
+    gy = ck_clamp(gy - HALF, 0, (H + 1) * Q - 1);
+    int32_t i = gx >> 16, j = gy >> 16, s1 = gx & 0xffff, t1 = gy & 0xffff, s0 = Q - s1, t0 = Q - t1;
+    int64_t a = (int64_t)x[IX(i, j)] * t0 + (int64_t)x[IX(i, j + 1)] * t1;
+    int64_t b = (int64_t)x[IX(i + 1, j)] * t0 + (int64_t)x[IX(i + 1, j + 1)] * t1;
+    return (uint32_t)((a * s0 + b * s1) >> 32);
+}
+
+/* Ink below this is not drawn; the weight ramps up from zero at it, so the
+ * edge of the ink has no step. */
+#define INK_FLOOR (Q / 256)
+
+/* Add the light of colour (cool at 256 - warm_w, warm at warm_w, in 256ths)
+ * with weight w/65536 to the sRGB pixel d. The sum is encoded with the
+ * sky's ordered dither at the pixel (x, y): each 8-bit level then shows as
+ * a fine pattern, not a ring. */
+static uint32_t add_ink(uint32_t d, uint32_t cool, uint32_t warm, uint32_t warm_w, uint32_t w, int32_t x, int32_t y)
+{
+    static const uint8_t bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+    uint32_t dither = bayer[(y & 3) * 4 + (x & 3)], out = 0;
+    for (int s = 16; s >= 0; s -= 8) {
+        uint32_t lit = (ck_sky_lin[ck_ch(cool, s)] * (256 - warm_w) + ck_sky_lin[ck_ch(warm, s)] * warm_w) >> 8;
+        uint32_t l = ck_sky_lin[ck_ch(d, s)] + (lit * w >> 16);
+        out = out << 8 | ((ck_sky_srgb16[l >= 32767u ? 4095u : l >> 3] + dither) >> 4);
+    }
+    return out;
+}
+
 void ck_flow_draw(const ck_flow *f, ck_canvas *out, const ck_rect *r, uint32_t gain)
 {
     ck_rect c = *r;
@@ -382,15 +414,14 @@ void ck_flow_draw(const ck_flow *f, ck_canvas *out, const ck_rect *r, uint32_t g
             if (rx >= f->cw)
                 rx -= f->cw, gx++;
             int32_t ink = sample(f->shown, (int32_t)gx, gy);
-            if (ink < Q / 512)
+            if (ink < INK_FLOOR)
                 continue;
-            uint32_t a = (uint32_t)(((int64_t)ink * gain) >> 16);
-            a = a > 230 ? 230 : a;
+            /* the weight in 1/65536 (230/256 at most), kept fine: the
+             * light is added at its true size, not rounded to 1/256 */
+            uint32_t w = (uint32_t)(((int64_t)(ink - INK_FLOOR) * gain) >> 8);
+            w = w > 230u * 256u ? 230u * 256u : w;
             /* the colour: still water deep blue, moving water lit from within */
-            int32_t gxx = ck_clamp((int32_t)gx - HALF, 0, (W + 1) * Q - 1), gyy = ck_clamp(gy - HALF, 0, (H + 1) * Q - 1);
-            uint32_t w = f->shown_warm[IX(gxx >> 16, gyy >> 16)];
-            uint32_t col = ck_mix(cool, warm, w);
-            px[x] = ck_add(px[x], col, a);
+            px[x] = add_ink(px[x], cool, warm, sample_warm(f->shown_warm, (int32_t)gx, gy), w, x, y);
         }
     }
 }
