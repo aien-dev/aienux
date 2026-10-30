@@ -1,0 +1,187 @@
+UEFI firmware (version 2024.02-2ubuntu0.10 built at 15:40:28 on Sep 23 2026)
+[2J[01;01H[=3h[2J[01;01H[2J[01;01H[=3h[2J[01;01HBdsDxe: loading Boot0001 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x1,0x0)
+BdsDxe: starting Boot0001 "UEFI Misc Device" from PciRoot(0x0)/Pci(0x1,0x0)
+
+report_version: 1
+aienos_commit: 98676f2960de23d9210e33c737acb853a42998cf
+report_kind: pre_exit
+last_stage: firmware_entry
+gop: ok from=conout handles=2 mode=1/3 800x600 pitch=800 format=1 base=0xbc7a0000 size=0x300000
+model_map: absent (no \EFI\AIENOS\MODEL.MAP on the boot volume)
+kernel_impl: c (native/kernel, Lane 18)
+firmware_vendor: Ubuntu distribution of EDK II
+firmware_revision: 0x10000
+firmware_el: EL2
+counter_frequency_hz: 62500000
+acpi_rsdp: 0xbc460018
+uart: pl011 spcr type=0x3 base=0x9000000
+image: 0xbc325000-0xbc460000
+exiting firmware boot services
+screen: gop 800x600 pitch=800 format=bgrx base=0xbc7a0000 bytes=0x1d4c00 scale=1 grid=100x60 font=8x8 mode=half-scroll
+
+report_version: 1
+aienos_commit: 98676f2960de23d9210e33c737acb853a42998cf
+report_kind: kernel
+last_stage: kernel_el1
+mmu: enabled
+pt_frames_used: 21
+mmu_switch: firmware=EL2 firmware_mmu=on firmware_ttbr0=0x47fff000 aienos_root=0x40000000 ttbr0_el1=0x40000000 switched=yes
+mmu_regs: mair=0x4404ff tcr=0x580903510 sctlr=0x30d01805
+memory: ram_ranges=30 free_bytes=2034098176 stack=0x40010000-0x40050000 heap=0x48001000-0x4c001000 dma=0x40200000-0x40a00000 exit_attempts=1
+guard_page: ok fault=contained (stack=0x4000f000 heap_lo=0x48000000 heap_hi=0x4c001000) [C kernel addition, not in the Rust kernel]
+gic: v3
+timer_irq: 19 ticks in 200 ms
+gic_madt: gicd=0x8000000 gicr=0x80a0000 arch_rev=3 icc_sre=1
+gic_redistributor: frame=0x80a0000
+timer_stats: intid=30 freq_hz=62500000 period_us=10000 min_us=10029 avg_us=10112 max_us=10200
+exception_level: EL1
+kernel: alive
+kernel_el: EL1h
+cpu_features: dotprod=1 i8mm=1 bf16=1 fhm=1 fp16=1 sve=1 rndr=1
+entropy: rndr feat_rng=yes probe_words=2 retries=0 stuck_test=ok
+smp: boot_mpidr=0x0 madt_cpus=4 conduit=smc psci_version=1.1
+smp_cpu_on: target=0x1 psci_rc=0 (SUCCESS)
+smp_cpu_on: target=0x2 psci_rc=0 (SUCCESS)
+smp_cpu_on: target=0x3 psci_rc=0 (SUCCESS)
+smp_cpu: target=0x1 checked_in=yes seen_mpidr=0x1 el=1 mmu=on ttbr0_match=yes stack_ok=yes parked=wfe
+smp_cpu: target=0x2 checked_in=yes seen_mpidr=0x2 el=1 mmu=on ttbr0_match=yes stack_ok=yes parked=wfe
+smp_cpu: target=0x3 checked_in=yes seen_mpidr=0x3 el=1 mmu=on ttbr0_match=yes stack_ok=yes parked=wfe
+smp: cpus=4 started=4 checked_in=4 psci_errors=0 distinct_mpidrs=4 wait_us=59 result=ok
+threads: ok interleave=ABABABABAB
+el0 user: hello
+el0: ok write=granted forged=denied fault=contained exit=0
+preempt: ok a=13039143 b=8720141 switches=4
+placement: worker0=class0/core0 worker1=class0/core1
+ipc: ok message=delivered cap=delegated rights=attenuated forged=denied revoked=denied
+ipc_detail: exit_a=0x0 exit_b0=0x0 exit_b1=0x0 child=0x100000001 revoke=0
+pci: ecam base=0x4010000000 seg=0 bus=0-255
+pci: 00:00.0 1b36:0008 class=060000 host-bridge
+pci: 00:01.0 1af4:1001 class=010000 scsi
+pci: 00:02.0 1b36:0010 class=010802 nvme
+pci: 3 functions, 0 bridges followed, bars assigned_here=0 unassigned=0 (window: QEMU virt mmio32, QEMU-only assumption)
+pci_disc: seg 0000 bus 00-ff functions=3 bridges=0 rc=0
+pci_disc: 0000:00:00.0 1b36:0008 class=060000 rev=00
+pci_disc: 0000:00:01.0 1af4:1001 class=010000 rev=00
+pci_disc: 0000:00:02.0 1b36:0010 class=010802 rev=02
+pci_disc: segments=1 functions=3 (read-only, no config writes)
+mmio_win: 0000:00:02.0 bar0 addr=0x8000004000 size=0x1000 create=0 read(VS)=0 value=0x10400 past-end=-504 shared-map-refused=1 revoke=0 after-revoke=-2 unmapped=1 (read-only, report-only)
+dma_sweep: seg 0000 bus 00-ff functions=3 bridges=0 bridges_bme=0 endpoints_bme_found=2 still_enabled=0
+dma_sweep: bme cleared 0000:00:01.0 command 0x0005 -> 0x0001
+dma_sweep: bme cleared 0000:00:02.0 command 0x0007 -> 0x0003
+nvme: firmware left bus master on, cleared before the DMA gate (ok)
+nvme: discovery 00:02.0 vid=0x1b36 did=0x0010 bar0=0x8000004000 size=0x4000 (firmware)
+smmu: stream table 2-level log2size=16 split=6 (spans allocated per grant)
+smmu: enabled base=0x9050000 stream_id=0x10
+smmu_dma_window: nvme only, translation active iova=0x40200000 len=0x26000 rid=0x10
+dma_gate: nvme granted (Confined), bus master on
+nvme: identify ok vs=0x00010400 nn=256 nsid=1 mdts=7 vwc=1 max_xfer=131072
+nvme: geometry nsid=1 block_count=131072 block_size=512
+nvme: atomicity block_size=512 awupf_raw=0 nawupf_raw=0 nabspf_raw=0 nabo_blocks=0
+nvme: bounds read lba=131072 -> refused (rc=-2)
+nvme: read lba=0 blocks=1 ok (rc=0)
+disk: gpt ok primary+backup crc32 entries=128 used=3 aienos_index=1 first_lba=18432 last_lba=116735 blocks=98304
+disk: xlate part_lba=0 -> disk_lba=18432 (rc=0)
+disk: write past partition end part_lba=98304 -> refused (xlate rc=-2,-2,-2)
+nvme: rw probe part_lba=98296 disk_lba=116728 bytes=4096 write+flush+readback match (rc=0)
+smmu_negative: refused dma outside window iova=0x40230000 faults=16 type=0x10 sid=0x10 addr=0x40230000 page=intact cmd_rc=0 recovery_read=ok
+nvme_disc: candidate seg 0000 00:02.0 bar0=0x8000004000 decode=1 (bound: same)
+nvme_disc: candidates=1
+virtio_net: not bound (no virtio-net function)
+devices: pci=ok nvme=bound virtio_net=absent
+acpi_scan: tables=1 refused=0 first_refusal=0 devices=46 (static scan; _STA not evaluated)
+acpi_scan: control ARMH0011 COM0 mmio=0x9000000+0x1000
+xhci_acpi: 0 platform controller(s)
+keyboard: no PCI xHCI controller; trying 0 ACPI platform controller(s)
+keyboard: unavailable (no xHCI controller)
+devices: xhci=absent (rc=1)
+recovery_access: unavailable (no operator keyboard: xhci=absent); choice=normal reason=no-keyboard
+stage devices: ok
+argus: TEST machine id 0xA1 (fixed label, not a real machine identity, not production)
+caps: ok granted=yes attenuated=yes amplify=denied forged=denied revoked=denied office_token=rndr
+argus: ok narrow_revoke=1 revoked=denied unrelated=granted authority=unchanged
+stage security: ok
+store: TEST identity, TEST keys (public label, not secret, not production); anchor lba=0 store lba=32 units=12283
+store: opened generation=5 boot_count=1 prev_commit=ck_store_image anchor=valid-resume
+store: committed generation=6 boot_count=2
+store: security manifest sequence=2 generation=6 keyslot=none previous=linked
+store: limit: anchor shares this disk, so a whole-disk rollback is not detectable (needs TPM NV or another external counter)
+artifact_disk: index generation=5 entries=15 chunks_used=15 chunks_ignored=0 sha256=98cac6a997d67cb4db336341a6b243cbe24ac9b7d9cc6651e41e88af9aecbf49
+artifact_disk: a01_valid_min.unit bytes=872 sha256=5711ca0a71062f7df709bde41ed80c8e724f4826b886ecc9b0ceb55f80682da4
+artifact_disk: a01.rcpt bytes=416 sha256=613e1cece39535842e2b3e406147b837b4bb1ed91628caf54735c7c09cb70996
+artifact_disk: l01.rcpt bytes=416 sha256=8330c39a4142e03fcce68bdff096dfc01dfcbb899ad03ef09b54342e7eeea403
+artifact_disk: n_altered.rcpt bytes=416 sha256=5c89817dc900fee1b945e2e1bcb43f81f0d157dcc0a1838da73b1d0cc674da94
+artifact_disk: n_stale.rcpt bytes=416 sha256=00521d58131e8ead78dcdc31446c0078b4c7332bfca9d6d32bf0c4f7d6a41ede
+artifact_disk: n_revoked_id.rcpt bytes=416 sha256=e45212d1ea6956e4ef65b9a839da20af3ff9bd53c566cd233a6ae26cad658ff3
+artifact_disk: n_expired.rcpt bytes=416 sha256=b6fd9994615e42ae252ace7b1667a41482bd024be3f77835cb091519ca4a5b5b
+artifact_disk: n_future.rcpt bytes=416 sha256=d91b9803b39727492d835f2e2e1a3bd87e540fa1d28449f615122ec5cd87d365
+artifact_disk: n_target.rcpt bytes=416 sha256=b05e59f36066b28069d6a1085dc5f22d27f80441729924315e1cb5aa616ec36f
+artifact_disk: n_program.rcpt bytes=416 sha256=425adde14903f34672bf626c4162e9230da45dc0c503c52cdf6369a51535ad92
+artifact_disk: n_length.rcpt bytes=417 sha256=26a9a5565bd4742ba640d6ab6ddafdc0962d669250086bc5291e3a84496e1b83
+artifact_disk: n_firmware.rcpt bytes=416 sha256=be9b831461eaf5d450321c1320372f32ca3f52c3db01ccac6d6f0e89cea20449
+artifact_disk: n_deps.rcpt bytes=416 sha256=de49adf3d0c35d6d1782eaa7fd8c35074b3fbf9d230ae414b439761dad62d162
+artifact_disk: n_checker.rcpt bytes=416 sha256=5c9e707051daf1244985ef16cb18956f372686d3c5d9704142b2d44a68a762bb
+artifact_disk: a01.owner.rcpt bytes=416 sha256=1348e78b0f88a5054f2b78b0a8d7c998ba70d166c711a2341528824685776034
+nvme: shutdown normal cc=0x00460001->0x00464001 csts=0x00000009 shst=complete waited_us=0
+dma_gate: nvme bus master revoked
+smmu: nvme stream 0x10 returned to abort (rc=0)
+stage store: ok
+artifact_trust: seed0b-test qualification build — TEST ONLY
+artifact_source: nvme_store generation=5 candidates=15 (read by the store stage; bytes untrusted until verified)
+artifact_candidates: 15
+artifact_receipt_tier: SEED-0B-QEMU
+artifact_verifier_identity: 13851dc5561e67b09460a1af7f38d60f8ea7eb07290052ae0ce36360f84f0cc8
+artifact_policy_digest: 99a8bc78011c33dd6d98a1b9b64eb0a0a5828a2ce2a283cef8ff33bfaf185982
+artifact_frames_free_before: 496589
+osc_policy: mode=qualification test_anchors=1 (throwaway TEST key, TEST ONLY) owner_anchors=0 domains=1 gen_width=32; QEMU, not physical
+osc_receipt_policy: mode=qualification receipt_test_anchors=1 receipt_owner_anchors=1 (the owner root) checkers=1 target=aienos-ck-aarch64-el0 epoch_floor=10 epoch_now=20 revoked_ids=1 revoked_keys=0 firmware=none dependencies=none producer=none; launch requires a valid receipt; QEMU, not physical
+osc_unit: a01_valid_min.unit ACCEPT unit_digest=c21c7d9b92433f29d588bd14eab2be4754fe39c05c7a926f1cb29b4388c68787 program_id=084803c232dc44effcc44704c9ed0600dec1231451e0b76693633e98a48d1a1d funcs=2 caps=0 signer=TEST
+osc_receipt: a01.rcpt STORED bytes=416 id=613e1cece39535842e2b3e406147b837b4bb1ed91628caf54735c7c09cb70996 (verified at launch against the unit launched)
+osc_receipt: l01.rcpt STORED bytes=416 id=8330c39a4142e03fcce68bdff096dfc01dfcbb899ad03ef09b54342e7eeea403 (verified at launch against the unit launched)
+osc_receipt: n_altered.rcpt STORED bytes=416 id=5c89817dc900fee1b945e2e1bcb43f81f0d157dcc0a1838da73b1d0cc674da94 (verified at launch against the unit launched)
+osc_receipt: n_stale.rcpt STORED bytes=416 id=00521d58131e8ead78dcdc31446c0078b4c7332bfca9d6d32bf0c4f7d6a41ede (verified at launch against the unit launched)
+osc_receipt: n_revoked_id.rcpt STORED bytes=416 id=e45212d1ea6956e4ef65b9a839da20af3ff9bd53c566cd233a6ae26cad658ff3 (verified at launch against the unit launched)
+osc_receipt: n_expired.rcpt STORED bytes=416 id=b6fd9994615e42ae252ace7b1667a41482bd024be3f77835cb091519ca4a5b5b (verified at launch against the unit launched)
+osc_receipt: n_future.rcpt STORED bytes=416 id=d91b9803b39727492d835f2e2e1a3bd87e540fa1d28449f615122ec5cd87d365 (verified at launch against the unit launched)
+osc_receipt: n_target.rcpt STORED bytes=416 id=b05e59f36066b28069d6a1085dc5f22d27f80441729924315e1cb5aa616ec36f (verified at launch against the unit launched)
+osc_receipt: n_program.rcpt STORED bytes=416 id=425adde14903f34672bf626c4162e9230da45dc0c503c52cdf6369a51535ad92 (verified at launch against the unit launched)
+osc_receipt: n_length.rcpt STORED bytes=417 id=- (verified at launch against the unit launched)
+osc_receipt: n_firmware.rcpt STORED bytes=416 id=be9b831461eaf5d450321c1320372f32ca3f52c3db01ccac6d6f0e89cea20449 (verified at launch against the unit launched)
+osc_receipt: n_deps.rcpt STORED bytes=416 id=de49adf3d0c35d6d1782eaa7fd8c35074b3fbf9d230ae414b439761dad62d162 (verified at launch against the unit launched)
+osc_receipt: n_checker.rcpt STORED bytes=416 id=5c9e707051daf1244985ef16cb18956f372686d3c5d9704142b2d44a68a762bb (verified at launch against the unit launched)
+osc_receipt: a01.owner.rcpt STORED bytes=416 id=1348e78b0f88a5054f2b78b0a8d7c998ba70d166c711a2341528824685776034 (verified at launch against the unit launched)
+osc_receipts: seen=14 stored=14 dropped=0 (each is verified when a launch presents it)
+osc_units: seen=1 accepted=1 refused=0 oversize=0 (admission; launches follow)
+osc_rcpt_rehash: TEST-ONLY post-admission code byte flip; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_selftest: launches=19 unit=a01_valid_min.unit; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(1,2) receipt=a01.rcpt policy=qualification -> RETURNED value=3 receipt_id=613e1cece3953584 revoked=- ticks=0 pages_mapped=20 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(2,3) receipt=none policy=qualification -> REFUSED_AT_ADMISSION code=64 name=RECEIPT_MISSING receipt_id=- revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(3,4) receipt=n_altered.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=75 name=RECEIPT_BAD_SIGNATURE receipt_id=5c89817dc900fee1 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(4,5) receipt=n_stale.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=77 name=RECEIPT_STALE_EPOCH receipt_id=00521d58131e8ead revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(5,6) receipt=n_revoked_id.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=76 name=RECEIPT_REVOKED receipt_id=e45212d1ea6956e4 revoked=receipt_id ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(6,7) receipt=a01.rcpt policy=revoked_test_key -> REFUSED_AT_ADMISSION code=76 name=RECEIPT_REVOKED receipt_id=613e1cece3953584 revoked=signer_key ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(7,8) receipt=n_expired.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=78 name=RECEIPT_EXPIRED receipt_id=b6fd9994615e42ae revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(8,9) receipt=n_future.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=79 name=RECEIPT_NOT_YET_VALID receipt_id=d91b9803b3972749 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(9,10) receipt=n_target.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=80 name=RECEIPT_WRONG_TARGET receipt_id=b05e59f36066b280 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(10,11) receipt=l01.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=83 name=RECEIPT_EXECUTABLE_MISMATCH receipt_id=8330c39a4142e03f revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(11,12) receipt=n_program.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=82 name=RECEIPT_PROGRAM_MISMATCH receipt_id=425adde14903f346 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(12,13) receipt=n_length.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=65 name=RECEIPT_SIZE receipt_id=- revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(13,14) receipt=a01.rcpt policy=release -> REFUSED_AT_ADMISSION code=73 name=RECEIPT_TEST_SIGNER_IN_PRODUCTION receipt_id=613e1cece3953584 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(14,15) receipt=n_firmware.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=81 name=RECEIPT_WRONG_FIRMWARE receipt_id=be9b831461eaf5d4 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(15,16) receipt=n_deps.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=88 name=RECEIPT_DEPENDENCIES_MISMATCH receipt_id=de49adf3d0c35d6d revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(16,17) receipt=n_checker.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=86 name=RECEIPT_UNTRUSTED_CHECKER receipt_id=5c9e707051daf124 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(17,18) receipt=a01.owner.rcpt policy=release -> RETURNED value=35 receipt_id=1348e78b0f88a505 revoked=- ticks=0 pages_mapped=20 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(18,19) receipt=a01.rcpt policy=qualification -> REFUSED_AT_ADMISSION code=16 name=CODE_HASH_MISMATCH receipt_id=613e1cece3953584 revoked=- ticks=0 pages_mapped=0 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launch: a01_valid_min.unit add(20,22) receipt=a01.rcpt policy=qualification -> RETURNED value=42 receipt_id=613e1cece3953584 revoked=- ticks=0 pages_mapped=20 page_tables_zeroed=1 slot_free=1; QEMU (aarch64 virt), TEST signer, not physical
+osc_rcpt_launches: returned=3 trapped=0 refused=16 unknown=0; QEMU (aarch64 virt), TEST signer, not physical
+artifact_frames_free_after: 496589
+artifact_disk: released heap copies artifacts=15 bytes=6697
+mm_usage: stack_bytes=262144 stack_used=69312 heap_bytes=67108864 heap_free=64924640 heap_min_free=64879680
+
+report_version: 1
+aienos_commit: 98676f2960de23d9210e33c737acb853a42998cf
+report_kind: final
+last_stage: final
+artifact_trust: seed0b-test qualification build — TEST ONLY
+artifacts: candidates=15 admitted=0 rejected=0
+note: QEMU qualifies nothing physical
+devices: quiesce before reset nvme=already-released
