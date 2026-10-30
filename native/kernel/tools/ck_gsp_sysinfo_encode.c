@@ -20,11 +20,13 @@
  *   ck_gsp_sysinfo_encode selftest                layout anchors, a known encoding, every refusal
  * Hosted C, no outside libraries. Never part of an image. */
 #include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define SI_ACPI_MAX_DISPLAYS 16
 
@@ -268,7 +270,10 @@ int main(int argc, char **argv)
         uint8_t out[936];
         if (!src) { printf("REFUSED: cannot read %s\n", argv[2]); return 2; }
         if (encode(src, out, why, sizeof why, stdout)) { printf("REFUSED: %s\n", why); return 2; }
-        FILE *f = fopen(argv[3], "wb");
+        /* 0644, not fopen's 0666 & ~umask: the payload goes into the window-1 package and must not be world-writable. */
+        int fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+        FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
+        if (fd >= 0 && !f) close(fd);
         if (!f || fwrite(out, 1, sizeof out, f) != sizeof out || fclose(f)) { printf("REFUSED: cannot write %s\n", argv[3]); return 2; }
         printf("RESULT OK %s 936 bytes\n", argv[3]);
         return 0;
