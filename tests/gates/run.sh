@@ -132,7 +132,7 @@ case "$step" in
     ;;
   # ci.yml (disabled on GitHub since the CK workflow took over): the suites it still names
   store-native)      make -C native/store test mutants ;;
-  verify-all)        bash scripts/verify_all.sh ;;
+  verify-all)        AIENOS_STRICT=1 bash scripts/verify_all.sh ;;
   zero-disk-secrets)
     echo "Auditing repository for prohibited plaintext secret files..."
     if find . -maxdepth 4 -name ".env*" -not -path "*/.git/*" -not -path "*/target/*" -not -path "*/vendor/*" | grep -q .; then
