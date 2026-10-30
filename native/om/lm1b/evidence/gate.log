@@ -1,0 +1,29 @@
+PASS omc-sha
+PASS model-sha
+PASS gen-in-sync
+PASS host-words
+PASS compile
+PASS svc-numbers
+PASS manifest-oracle
+PASS main-exit
+PASS main-load
+PASS job1-vs-ref
+PASS job2-vs-ref
+PASS job3-eq-job1
+PASS job1-status
+PASS job3-acct
+PASS flip-refused
+PASS wrongtype-edited
+PASS wrongtype-refused
+PASS neg-exit
+PASS over-limit
+PASS over-context
+PASS bad-id
+PASS malformed
+PASS budget-cancel
+PASS after-cancel
+PASS fault-exit
+PASS fault-no-reply
+RC=0
+gate wall 501.75 s
+exit=0
