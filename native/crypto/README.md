@@ -45,8 +45,11 @@ RFC 4231 HMAC cases 1 and 2, and every vector in the Rust crate's unit tests.
 
 ## Limitations
 
-- Host-tested port only: run on the build machine, not in the AIENOS kernel,
-  not under QEMU, not on bare metal.
+- This library's own tests run on the build machine only. The C kernel links
+  it through the sealed Store (`native/kernel/Makefile`, `native/kernel/stage.mk`), so it also
+  runs in the QEMU Store gates and in the Pi 5 Store runs with throwaway
+  secrets (`docs/native/PI5-4-UNLOCK-RUNS.md`). No timing or side-channel
+  measurement was made in any of those runs.
 - Constant-time by construction (computed S-box, no tables; masks instead of
   branches behind compiler barriers). Checked by reading the source and
   spot-checking AArch64 `-O2` disassembly. Not measured with timing tools and
