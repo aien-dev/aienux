@@ -2,7 +2,7 @@
 # ck_imac_security_test.sh -- regression tests for the iMac security fixes (L872):
 #   F1  the wizard's API key must never be queued on, nor stay in, the unencrypted Ethernet courier;
 #   F2  the kernel must verify the owner's signature before it writes a boot section.
-# Four small programs are built from the REAL production sources and run:
+# Three small programs are built from the REAL production sources and run:
 #   courier_secret_test  x86/courier_udp_x86.c (host build, mocked clock, link and frames)
 #   setup_secret_test    svc/setup_wizard.c plus x86/setup_x86.c (the adapter), mocked kernel services
 #   boot_verify_test     x86/memory_x86.c boot_section, mocked disk and GPT, real ck_slot_verify and Ed25519

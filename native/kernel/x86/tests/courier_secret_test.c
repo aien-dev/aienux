@@ -135,7 +135,8 @@ static int all_zero(void)
 static void keytest_refused(void)
 {
     static const char *const forms[] = {"KEYTEST", "KEYTEST ", "KEYTEST 1 openai https://api.example " SECRET,
-                                        "KEYTEST 7 anthropic - " SECRET "\nmore"};
+                                        "KEYTEST 7 anthropic - " SECRET "\nmore", "KEYTESTS x",
+                                        "KEYTEST\t1 " SECRET, "KEYTEST\n1 " SECRET};
     /* with an earlier job held, and with nothing held */
     for (int held = 0; held < 2; held++) {
         for (unsigned f = 0; f < sizeof forms / sizeof *forms; f++) {
@@ -161,9 +162,9 @@ static void keytest_refused(void)
             EXPECT(memmem(job, sizeof job, SECRET, sizeof SECRET - 1) == 0, "KEYTEST form %u: the key is in the buffer", f);
         }
     }
-    /* near misses are ordinary lines, not refused */
+    /* Unrelated protocol lines keep their existing behavior. */
     fresh();
-    EXPECT(c->send("KEYTESTS x", 10) == 0 && c->send("keytest 1", 9) == 0, "an ordinary line starting like it was refused");
+    EXPECT(c->send("STATUS x", 8) == 0 && c->send("keytest 1", 9) == 0, "an ordinary line starting like it was refused");
 }
 
 static void resend_and_clear(void)
