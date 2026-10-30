@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /// Diagnostic banner emitted while UEFI boot services are still available.
 pub const FIRMWARE_BANNER: &str = "AIENOS firmware entry: aarch64";
 
