@@ -50,7 +50,7 @@ static const char *const allowed_keys[] = {
     "acpi_rsdp", "ahci", "ahci_disk", "ahci_gpt", "ahci_part", "ahci_port", "ahci_read", "ahci_write",
     "aienos_commit", "allen-code", "allen_memory", "apic", "bench", "boot_disk", "boot_time", "courier", "cpu", "descriptors", "dmar", "exit_boot_services",
     "firmware_cpl", "firmware_revision", "firmware_vendor", "gop", "guard_page", "handoff", "image", "kernel",
-    "kernel_impl", "keyboard", "madt", "net", "net_tg3", "note", "nvme", "nvme_disk", "nvme_gpt", "nvme_read", "paging",
+    "kernel_impl", "keyboard", "local_model", "local_tools", "madt", "net", "net_tg3", "note", "nvme", "nvme_disk", "nvme_gpt", "nvme_read", "paging",
     "panic", "pci", "power", "ram", "report", "report_kind", "screen", "smp", "sound", "stack", "storage", "summary",
     "timebase", "timer_irq", "timer_stats", "usb", "wizard", "xhci",
 };

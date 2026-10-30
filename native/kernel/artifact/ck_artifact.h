@@ -68,6 +68,8 @@ const char *cka_stage_name(unsigned stage);
 #define CKA_ABI_V1 1u
 #define CKA_TARGET_X86_64_LE 2u
 #define CKA_ABI_OMEGA_X86_LOCAL_V1 2u
+/* Closed model experiment: four args, immutable external weights, 4 MiB scratch. */
+#define CKA_ABI_OMEGA_X86_MODEL_V1 3u
 #define CKA_KIND_CHANNEL 2u
 #define CKA_KIND_OBJECT 3u
 #define CKA_VALID_RIGHTS 0x3fu
@@ -106,6 +108,7 @@ int cka_cap_decode(const uint8_t b[CKA_CAP_SIZE], struct cka_cap *c);
 int cka_cap_validate(const struct cka_cap *c);
 int cka_cap_is_attenuation_of(const struct cka_cap *g, const struct cka_cap *r);
 void cka_env_encode(const struct cka_env *e, uint8_t out[CKA_ENV_SIZE]);
+int cka_env_validate_profile(const struct cka_env *, unsigned, uint16_t, uint16_t);
 int cka_env_validate(const struct cka_env *e, unsigned ncaps);
 
 /* format.rs parse; parse_and_identify adds the 16 MiB bound and the digests. */

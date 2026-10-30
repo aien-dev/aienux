@@ -2315,6 +2315,13 @@ IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-LOCAL-TEST.EFI)
 else ifneq ($(CK_LOCAL_TEST),0)
 $(error CK_LOCAL_TEST must be 0 (release) or 1 (hostile QEMU fixtures))
 endif
+CK_LOCAL_MODEL ?= 0
+ifeq ($(CK_LOCAL_MODEL),1)
+IMACKERN_DIR := $(IMACKERN_DIR)-model
+IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-MODEL.EFI)
+else ifneq ($(CK_LOCAL_MODEL),0)
+$(error CK_LOCAL_MODEL must be 0 or 1)
+endif
 IMACKERN_ELF := $(IMACKERN_DIR)/imackern.elf
 IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net \
 	-I$(NATIVE)/argus -I$(NATIVE)/sig
@@ -2401,7 +2408,17 @@ $(IMACKERN_DIR)/efi_gop.o: $(BOOT)/efi_gop.c $(IMACKERN_HDRS)
 $(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_intent.h $(KDIR)/svc/allen_code.h $(KDIR)/dev/usb_hid.h $(KDIR)/svc/courier.h $(X86K)/courier_udp.h $(KDIR)/svc/setup_wizard.h $(OUT)/commit.stamp
 $(IMACKERN_DIR)/console_x86.o: $(X86K)/console_x86.c $(IMACKERN_HDRS) $(KDIR)/core/fbcon.h
 $(IMACKERN_DIR)/trap.o: $(X86K)/trap.S
+ifeq ($(CK_LOCAL_MODEL),1)
+IMACKERN_CFLAGS += -DCK_LOCAL_MODEL=1
+IMACKERN_OBJS += $(IMACKERN_DIR)/model_assets.o
+$(IMACKERN_DIR)/model_assets.o: $(X86K)/model/assets.S $(CK_LOCAL_MODEL_FILE) $(CK_LOCAL_TOKENIZER_FILE)
+	@mkdir -p $(@D)
+	$(X86CC) $(IMACKERN_CFLAGS) -DCK_MODEL_FILE='"$(CK_LOCAL_MODEL_FILE)"' -DCK_TOKENIZER_FILE='"$(CK_LOCAL_TOKENIZER_FILE)"' -c $< -o $@
+endif
 $(IMACKERN_DIR)/local_tools.o: $(X86K)/local_tools.c $(X86K)/local_tools.h $(X86K)/local_bundle.h $(X86K)/local_tests.inc
+ifeq ($(CK_LOCAL_MODEL),1)
+$(IMACKERN_DIR)/local_tools.o: $(X86K)/model/model_bundle.h $(X86K)/model/runtime.inc $(X86K)/model/tests.inc
+endif
 $(IMACKERN_DIR)/local_wire.o: $(X86K)/local_wire.c $(X86K)/local_wire.h $(X86K)/local_tools.h
 $(IMACKERN_DIR)/local_enter.o: $(X86K)/local_enter.S
 $(IMACKERN_DIR)/local_format.o: $(KDIR)/artifact/format.c $(KDIR)/artifact/ck_artifact.h
@@ -2492,7 +2509,7 @@ $(IMACKERN_DIR)/fwcfg_x86.o: $(X86K)/fwcfg_x86.c $(IMACKERN_HDRS) $(KDIR)/core/a
 $(IMACKERN_DIR)/report_x86.o: $(X86K)/report_x86.c $(X86K)/report_x86.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h
 $(IMACKERN_DIR)/courier_udp_x86.o: $(X86K)/courier_udp_x86.c $(X86K)/courier_udp.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h $(KDIR)/svc/courier.h
 $(IMACKERN_DIR)/aienos_net.o: $(NATIVE)/net/aienos_net.c $(NATIVE)/net/aienos_net.h
-$(sort $(filter-out %/swap_tramp.o,$(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS))):
+$(sort $(filter-out %/swap_tramp.o %/model_assets.o,$(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS))):
 	@mkdir -p $(dir $@)
 	$(X86CC) $(IMACKERN_CFLAGS) -DAIENOS_COMMIT='"$(AIENOS_COMMIT)"' -c -o $@ $<
 $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld

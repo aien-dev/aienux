@@ -51,7 +51,7 @@
           "purpose": "Directory native/kernel/arch. Purpose not yet described by a human."
         },
         {
-          "digest": "99da46518bbad3d8eb00b622e6dfc12c8bcb0c91e8c9b4337cee80754049ac4e",
+          "digest": "5e5ad53f59c18be6649e61cf64e37464df05317af6f5fcbe6955ba700c6b6f34",
           "last_commit": "c759f01f",
           "name": "artifact",
           "purpose": "Directory native/kernel/artifact. Purpose not yet described by a human."
@@ -93,21 +93,21 @@
           "purpose": "Directory native/kernel/tests. Purpose not yet described by a human."
         },
         {
-          "digest": "6694ea06c28f9d5b5dedd169b99b5adf1b0533bc8b358398537e68f65005b385",
+          "digest": "0eb4d7914303da5742688665e44ee09f050c7336b0b8cdcd8f78204f44d077e6",
           "last_commit": "c759f01f",
           "name": "tools",
           "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothin"
         }
       ],
-      "children_root": "sha256:2da2aa2feb18307317613d46ef762b25a6a2513dda9f9351ddccdbf4f3f6db13",
-      "compiled_at": "2026-10-30T01:11:22Z",
+      "children_root": "sha256:58e0d7555272f01541c0b8954d5aca90512d8a15cdc2770b2aa19f377bc7a346",
+      "compiled_at": "2026-10-30T01:20:01Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:672bf1f98f7288d0198c9cbaa55027bcf0fdabc41b2c7458b7140d52720c168f",
+      "digest": "sha256:58d028678fe23a1758e5c76fcd517c1106e7c7a5ed6c5aa27dce665b32675183",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 552,
-      "generated_at_commit": "c759f01f0e2e25ae703865b0c27c7b74f7e423e0",
-      "source_tree": "sha256:976dd6eaa0c094762182d46cb1356118426222196d0156a9ecd6de1958570a9e"
+      "generated_at_commit": "86e422b46b2189b1a4371a8de7ed8231dcfa5a31",
+      "source_tree": "sha256:fd1f1b2434ac9ef10dfd720ce2b468ac46fa5b7f63c6e18bb3d0b7d3be7f56bb"
     },
     "owner_lane": "",
     "provenance": {

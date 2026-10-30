@@ -26,6 +26,8 @@ void ck_local_cancel(void);
 void ck_local_snapshot(uint64_t cores, uint64_t ram, uint64_t width, uint64_t height, uint64_t network);
 void ck_local_trap(struct ck_x86_frame *f);
 void ck_local_selftest(void);
+/* Once-per-boot public model experiment; never submits a private conversation. */
+const char *ck_local_model_demo_step(void);
 /* kmain owns BSP TSS and APIC. All entry/exit paths have interrupts disabled. */
 void ck_local_machine_stack(uint64_t top);
 int ck_local_machine_timer(int enable);

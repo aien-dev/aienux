@@ -323,7 +323,7 @@ static struct buf pack(const struct manifest *m, const uint8_t *code, size_t cle
     for (unsigned i = 0; !e && i < pa.ncaps; i++)
         e = cka_cap_validate(&pa.caps[i]);
     if (!e)
-        e = cka_env_validate(&pa.env, pa.ncaps);
+        e = cka_env_validate_profile(&pa.env, pa.ncaps, pack_target, pack_abi);
     if (e) {
         fprintf(stderr, "error: packed artifact refused: %s\n", cka_error_name((unsigned)e));
         exit(1);
@@ -706,6 +706,37 @@ static void cbytes(FILE *f, const uint8_t *p, size_t n)
 
 int main(int argc, char **argv)
 {
+    if (argc == 7 && !strcmp(argv[1], "model-bundle")) {
+        struct buf key = readf(argv[2]), raw = readf(argv[3]);
+        struct buf weights = readf(argv[4]), tokenizer = readf(argv[5]);
+        if (key.n != 32 || !raw.n || raw.n > 131072 || weights.n != 60816028)
+            die("model bundle requires owner seed, bounded code, pinned 15M weights");
+        uint8_t bindings[64], digest[32], pk[32];
+        sha256_hash(weights.p, weights.n, bindings);
+        sha256_hash(tokenizer.p, tokenizer.n, bindings + 32);
+        if (aienos_ed25519_public_key(pk, key.p)) die("public key");
+        pack_target = CKA_TARGET_X86_64_LE; pack_abi = CKA_ABI_OMEGA_X86_MODEL_V1;
+        struct manifest m = {0};
+        m.env = (struct cka_env){.code_pages=32, .data_pages=1024, .stack_pages=16,
+            .cpu=120000000, .elapsed=180000000, .syscalls=1};
+        struct buf art = pack(&m, raw.p, raw.n, bindings, sizeof bindings);
+        sign_with(&art, key.p); sha256_hash(art.p, art.n, digest);
+        FILE *f = fopen(argv[6], "w");
+        if (!f) die("model bundle output");
+        fputs("/* Generated owner-signed native Omega model. Public bytes only. */\n", f);
+        fputs("static const uint8_t ck_model_key[32] = ", f); cbytes(f, pk, 32); fputs(";\n", f);
+        fputs("static const uint8_t ck_model_art_bytes[] = ", f);
+        cbytes(f, art.p, art.n); fputs(";\n", f);
+        fputs("static const struct ck_local_artifact ck_model_artifact = {ck_model_art_bytes, sizeof ck_model_art_bytes, ", f);
+        cbytes(f, digest, 32); fputs("};\n", f);
+        volatile uint8_t *wipe = key.p;
+        for (unsigned i = 0; i < 32; i++) wipe[i] = 0;
+        free(key.p); free(raw.p); free(weights.p); free(tokenizer.p); free(art.p);
+        if (fclose(f)) die("model bundle close");
+        puts("MODEL_BUNDLE: PASS owner-signed code and weight/tokenizer bindings");
+        return 0;
+    }
+
     /* Explicit owner-signed build bundle, no runtime upload mechanism. */
     if (argc == 7 && !strcmp(argv[1], "local-bundle")) {
         struct buf key = readf(argv[2]);

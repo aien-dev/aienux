@@ -1230,6 +1230,10 @@ void ck_x86_hold_step(uint64_t *end)
         ck_local_step();
     if (!allen_on)
         return;
+    if (!allen_asleep) {
+        const char *sample = ck_local_model_demo_step();
+        if (sample) ck_allen_ui_said(0, sample, ck_rdtsc());
+    }
     ck_x86_setup_step();
     if (!__atomic_load_n(&draw_on, __ATOMIC_ACQUIRE) && !__atomic_test_and_set(&draw_lock, __ATOMIC_ACQUIRE)) {
         ck_allen_ui_tick(ck_rdtsc()); /* no secondary core draws: this one does */

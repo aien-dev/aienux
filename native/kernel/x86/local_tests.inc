@@ -58,6 +58,9 @@ static void access_probe(uint64_t address, int write, int execute)
     b[12] = 0x00; b[13] = 0xc3;
     raw(b, 14, CK_LOCAL_ABNORMAL, CK_LOCAL_FAULT);
 }
+#ifdef CK_LOCAL_MODEL
+#include "model/tests.inc"
+#endif
 void ck_local_selftest(void)
 {
     check(approved[0].ok && approved[1].ok && approved[2].ok, "signed tools admitted");
@@ -202,6 +205,9 @@ void ck_local_selftest(void)
         check(r->state == CK_LOCAL_RETURNED && value == -42, "repeated successful cleanup");
     }
     ck_local_begin(0);
+    #ifdef CK_LOCAL_MODEL
+    model_selftest();
+    #endif
     ck_printf("local_test: PASS checks=%u repeated=1000 real_cpl3=yes\n", local_checks);
     /* Optional COM2 fixture is exercised by the full courier oracle. The
      * model selects calls; every result comes from this real CPL3 runner. */

@@ -34,6 +34,7 @@ uint64_t ck_local_kernel_sp;
 extern void ck_local_enter(struct ck_x86_frame *);
 static struct ck_x86_frame frame;
 static uint64_t kernel_root, hz, active_request, started, slice_start, cpu_used;
+static uint64_t cpu_limit, elapsed_limit;
 static uint64_t snapshot[5];
 static unsigned used;
 static struct {
@@ -45,6 +46,24 @@ static struct {
 static struct ck_local_result refusal;
 static struct ck_local_result *running;
 static struct { const uint8_t *code; size_t len; uint8_t hash[32]; int ok; } approved[3];
+
+#ifdef CK_LOCAL_MODEL
+#include "model/model_bundle.h"
+#define MODEL_WORK (BASE + 2 * 1024 * 1024)
+#define MODEL_CODE (BASE + 7 * 1024 * 1024)
+#define MODEL_WEIGHTS (BASE + 8 * 1024 * 1024)
+static uint64_t model_pt[34][512] ALIGNED;
+static uint8_t model_code[32 * PAGE] ALIGNED, model_work[1024 * PAGE] ALIGNED;
+extern const uint8_t ck_model_weights[], ck_model_weights_end[];
+extern const uint8_t ck_model_tokenizer[], ck_model_tokenizer_end[];
+static const uint8_t *model_bytes;
+static size_t model_len;
+static int model_ok, model_running, model_demo_state;
+static uint64_t model_cpu_ms, model_elapsed_ms;
+static uint8_t model_code_hash[32];
+static struct ck_local_result model_result;
+static void model_init(void);
+#endif
 
 static void wipe(void *p, size_t n)
 {
@@ -66,6 +85,14 @@ static void clear_task(void)
     wipe(&frame, sizeof frame); wipe(ck_local_user_fp, sizeof ck_local_user_fp);
     wipe(irqstack, sizeof irqstack);
     ck_local_machine_stack(0);
+#ifdef CK_LOCAL_MODEL
+    if (model_running) {
+        model_cpu_ms = cpu_used / (hz / 1000);
+        model_elapsed_ms = (ck_rdtsc() - started) / (hz / 1000);
+        wipe(model_pt, sizeof model_pt); wipe(model_code, sizeof model_code);
+        wipe(model_work, sizeof model_work); model_running = 0;
+    }
+#endif
     running = 0;
 }
 static void finish(unsigned state, unsigned reason)
@@ -87,6 +114,11 @@ void ck_local_cancel(void)
 void ck_local_begin(uint64_t request)
 {
     ck_local_cancel();
+#ifdef CK_LOCAL_MODEL
+    /* A new question also suppresses a demo that returned just before polling
+     * delivered the question. Never paint its sample over the new exchange. */
+    if (request && model_demo_state == 1) model_demo_state = 2;
+#endif
     wipe(calls, sizeof calls);
     wipe(&refusal, sizeof refusal);
     active_request = request;
@@ -122,6 +154,9 @@ static int admit(const struct ck_local_artifact *a, const uint8_t **bytes, size_
 void ck_local_init(uint64_t kr, uint64_t frequency)
 {
     kernel_root = kr; hz = frequency;
+#ifdef CK_LOCAL_MODEL
+    model_init();
+#endif
     for (unsigned i = 0; i < 3; i++) {
         approved[i].ok = !admit(&ck_local_artifacts[i], &approved[i].code, &approved[i].len);
         if (approved[i].ok)
@@ -171,9 +206,16 @@ static int prepare(const uint8_t *bytes, size_t n, const void *in, size_t length
     ck_local_user_fp[0] = 0x7f; ck_local_user_fp[1] = 3; /* FCW=037f, empty tags */
     ck_local_user_fp[24] = 0x80; ck_local_user_fp[25] = 0x1f; /* MXCSR=1f80 */
     started = ck_rdtsc(); cpu_used = 0;
+    cpu_limit = hz / 10; elapsed_limit = hz / 2;
     ck_local_machine_stack((uint64_t)(uintptr_t)(irqstack + sizeof irqstack));
     return 0;
 }
+#ifdef CK_LOCAL_MODEL
+#include "model/runtime.inc"
+#else
+const char *ck_local_model_demo_step(void) { return 0; }
+#endif
+
 static const struct ck_local_result *refuse(uint64_t request, uint64_t invocation, unsigned why)
 {
     wipe(&refusal, sizeof refusal);
@@ -240,12 +282,16 @@ void ck_local_trap(struct ck_x86_frame *f)
     /* Prevent user NT/VM/TF/IOPL/AC from changing the next kernel IRET. */
     frame.rflags = (f->rflags & 0xcd5ull) | 0x202;
     frame.cs = 0x2b; frame.ss = 0x33;
-    if (cpu_used >= hz / 10) finish(CK_LOCAL_ABNORMAL, CK_LOCAL_CPU);
-    else if (now - started >= hz / 2) finish(CK_LOCAL_ABNORMAL, CK_LOCAL_ELAPSED);
+    if (cpu_used >= cpu_limit) finish(CK_LOCAL_ABNORMAL, CK_LOCAL_CPU);
+    else if (now - started >= elapsed_limit) finish(CK_LOCAL_ABNORMAL, CK_LOCAL_ELAPSED);
     else if (f->vector == 0x80) {
         if (f->rip == STUB + 7 && f->rdx == 1 && f->rax <= CK_LOCAL_OUTPUT) {
             running->length = (unsigned)f->rax;
-            memcpy(running->output, workspace, running->length);
+            const uint8_t *result = workspace;
+#ifdef CK_LOCAL_MODEL
+            if (model_running) result = model_work;
+#endif
+            memcpy(running->output, result, running->length);
             finish(CK_LOCAL_RETURNED, 0);
         } else if (f->rip == STUB + 16 && f->rdx == 2 && f->rsi >= 1 && f->rsi <= 14) {
             finish(CK_LOCAL_TRAPPED, (unsigned)f->rsi);
@@ -256,7 +302,7 @@ void ck_local_trap(struct ck_x86_frame *f)
 void ck_local_step(void)
 {
     if (!running) return;
-    if (ck_rdtsc() - started >= hz / 2) {
+    if (ck_rdtsc() - started >= elapsed_limit) {
         finish(CK_LOCAL_ABNORMAL, CK_LOCAL_ELAPSED); clear_task(); return;
     }
     uint64_t cr0 = ck_rd_cr0(), cr4 = ck_rd_cr4(), efer = ck_rdmsr(0xc0000080);

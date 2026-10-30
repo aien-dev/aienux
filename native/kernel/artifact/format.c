@@ -152,7 +152,19 @@ int cka_env_validate(const struct cka_env *e, unsigned ncaps)
     return CKA_OK;
 }
 
-static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e)
+int cka_env_validate_profile(const struct cka_env *e, unsigned ncaps, uint16_t target, uint16_t abi)
+{
+    if (target == CKA_TARGET_X86_64_LE && abi == CKA_ABI_OMEGA_X86_MODEL_V1) {
+        if (ncaps || e->max_caps || e->ipc_msgs || e->ipc_bytes || e->code_pages != 32 ||
+            e->data_pages != 1024 || e->stack_pages != 16 || e->cpu != 120000000 ||
+            e->elapsed != 180000000 || e->syscalls != 1)
+            return CKA_RESOURCE_LIMIT;
+        return CKA_OK;
+    }
+    return cka_env_validate(e, ncaps);
+}
+
+static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e, uint16_t target, uint16_t abi)
 {
     if (cka_rd16(b + 14) || cka_rd32(b + 44))
         return CKA_RESERVED_NONZERO;
@@ -165,7 +177,7 @@ static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e)
     e->cpu = cka_rd64(b + 24);
     e->elapsed = cka_rd64(b + 32);
     e->syscalls = cka_rd32(b + 40);
-    return cka_env_validate(e, ncaps);
+    return cka_env_validate_profile(e, ncaps, target, abi);
 }
 
 /* ---- parse (format.rs) ---- */
@@ -261,7 +273,7 @@ int cka_parse_profile(const uint8_t *b, size_t len, struct cka_parsed *p,
         if (!(a->kind < z->kind || (a->kind == z->kind && a->id < z->id)))
             return CKA_MALFORMED_CAP;
     }
-    int rc = env_decode(b + p->res_off, p->ncaps, &p->env);
+    int rc = env_decode(b + p->res_off, p->ncaps, &p->env, target, abi);
     if (rc)
         return rc;
     if ((uint64_t)c->mlen > (uint64_t)p->env.code_pages * 4096u ||
