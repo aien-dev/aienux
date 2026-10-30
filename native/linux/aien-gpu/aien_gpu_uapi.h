@@ -19,7 +19,8 @@ struct aien_gpu_info {
 };
 
 /* One 32-bit BAR0 register. Only the GSP start-up registers of gpu/contract/gb10_gsp.devc (plus the two
- * identity registers, for reads) are reachable; anything else is -EPERM. Writes need allow_boot=1. */
+ * identity registers, for reads) are reachable; anything else is -EPERM. Writes need allow_boot=1 and
+ * CAP_SYS_RAWIO. After remove, INFO and register ioctls return -ENODEV. */
 struct aien_gpu_reg {
 	__u32 off, val;
 };

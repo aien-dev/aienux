@@ -234,6 +234,12 @@ static void test_allocator(void)
     CHECK(ck_gmem_alloc(&gm, 5000, CK_GMEM_CACHED, 0, &a) == CK_GMEM_OK);
     CHECK(a && a->size == 8192 && a->pa == DATA_PA && a->gpu_va == VA_BASE);
     CHECK((uint64_t)(uintptr_t)a->cpu != a->gpu_va && a->cpu == mem + (DATA_PA - PA_BASE));
+    {
+        int dirty = 0;
+        for (uint64_t i = 0; i < a->size; i++)
+            dirty |= a->cpu[i];
+        CHECK(!dirty); /* alloc zeros, including a window poisoned with 0xA5 */
+    }
     /* Host-polled must be uncached: refused when asked cached. */
     CHECK(ck_gmem_alloc(&gm, 4, CK_GMEM_CACHED, CK_GMEM_HOST_POLLED, &flag) == CK_GMEM_EINVAL);
     CHECK(ck_gmem_alloc(&gm, 4, CK_GMEM_UNCACHED, CK_GMEM_HOST_POLLED, &flag) == CK_GMEM_OK);
@@ -264,6 +270,12 @@ static void test_allocator(void)
     CHECK(ck_gmem_free(&gm, (struct ck_gmem_buf *)((uint8_t *)&gm.buf[0] + 1)) == CK_GMEM_ESTATE); /* not a slot */
     CHECK(ck_gmem_count(&gm, CK_GMEM_FREE) == 2);
     CHECK(ck_gmem_alloc(&gm, 8192, CK_GMEM_CACHED, 0, &a) == CK_GMEM_OK && a->pa == DATA_PA); /* reused */
+    {
+        int dirty = 0;
+        for (uint64_t i = 0; i < a->size; i++)
+            dirty |= a->cpu[i];
+        CHECK(!dirty); /* reused pages do not keep the previous buffer */
+    }
     /* Invalidate that never completes: the buffer is quarantined, not reused. */
     sim.inval_stuck = 1;
     CHECK(ck_gmem_free(&gm, b) == CK_GMEM_ETIMEDOUT);

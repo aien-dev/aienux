@@ -84,17 +84,24 @@ int ck_gmem_alloc(struct ck_gmem *m, uint64_t size, uint32_t cache, uint32_t fla
         return CK_GMEM_ENOMEM;
 
     uint64_t off = (uint64_t)start * CK_GMEM_PAGE;
+    uint64_t bytes = (uint64_t)n * CK_GMEM_PAGE;
     uint32_t ro = (flags & CK_GMEM_GPU_RO) ? 1u : 0u;
     uint32_t pcf = cache == CK_GMEM_UNCACHED ? (ro ? CK_GMMU_PCF_RO_UNCACHED : CK_GMMU_PCF_RW_UNCACHED)
                                              : (ro ? CK_GMMU_PCF_RO_CACHED : CK_GMMU_PCF_RW_CACHED);
-    if (ck_gmmu_map(m->as, m->va_base + off, m->pa_base + off, (uint64_t)n * CK_GMEM_PAGE, CK_GMMU_SZ_4K,
+    /* Zero before the GPU mapping exists, so a reused page cannot show the previous buffer. */
+    {
+        volatile uint8_t *cpu = m->as->win->cpu + (m->pa_base + off - m->as->win->pa_base);
+        for (uint64_t i = 0; i < bytes; i++)
+            cpu[i] = 0;
+    }
+    if (ck_gmmu_map(m->as, m->va_base + off, m->pa_base + off, bytes, CK_GMMU_SZ_4K,
                     CK_GMMU_PTE_AP_SYS_COH, pcf) != CK_GMMU_OK)
         return CK_GMEM_EMAP;
 
     b->pa = m->pa_base + off;
     b->gpu_va = m->va_base + off;
     b->cpu = m->as->win->cpu + (b->pa - m->as->win->pa_base);
-    b->size = (uint64_t)n * CK_GMEM_PAGE;
+    b->size = bytes;
     b->cache = cache;
     b->flags = flags;
     b->state = CK_GMEM_LIVE;

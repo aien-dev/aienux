@@ -14,8 +14,11 @@
  *   - AIEN_GPU_INFO ioctl returns what it read;
  *   - window 1: a second DMA-coherent buffer for the GSP sysmem heap (heap_mib, default 0, never mapped to user space)
  *     and AIEN_GPU_REG_RD / AIEN_GPU_REG_WR for exactly the registers of the GSP start-up contract
- *     (gpu/contract/gb10_gsp.devc). Writes need a second switch, allow_boot=1, and the SEC2 doorbell (QUEUE_HEAD(0))
- *     can be rung once per load: a failed start-up is never retried without a reset.
+ *     (gpu/contract/gb10_gsp.devc). Writes need a second switch, allow_boot=1, and CAP_SYS_RAWIO. The SEC2
+ *     doorbell (QUEUE_HEAD(0)) can be rung once per load: a failed start-up is never retried without a reset.
+ *     remove sets gone under the device lock first. After that, register access, INFO and mmap return -ENODEV.
+ *     A live arena VMA or an open fd keeps the arena (leak until reboot) instead of freeing it. sysfs unbind
+ *     is not offered (suppress_bind_attrs).
  * The start-up logic itself (gpu/gsp_mmio.c, dev/gb10_gsp_boot.c) runs in user space (aien_gsp_boot) over these two
  * ioctls, so the driver core stays AGPL and outside this GPL module. GB10B has no FSP: SEC2 takes the start-up packet.
  * What comes next (not here): the RPC subset (docs/numeric/DRIVER_FLOOR.md), the channel from
@@ -29,7 +32,9 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/capability.h>
 
 #include "aien_gpu_uapi.h"
 
@@ -80,8 +85,10 @@ static struct {
 	dma_addr_t heap_iova;
 	size_t heap_bytes;
 	struct aien_gpu_info info;
-	struct mutex lock;      /* register access and the doorbell latch */
-	atomic_t open;          /* one opener at a time */
+	struct mutex lock;      /* register access, the doorbell latch, and gone */
+	atomic_t open;          /* one opener at a time; stays set until the last file ref drops */
+	atomic_t maps;          /* live arena VMAs (mmap counts; vm_ops open/close track splits) */
+	bool gone;              /* set at the start of remove; register, INFO and mmap then return -ENODEV */
 } g;
 
 static bool aien_gpu_listed(const u32 *list, size_t n, u32 off)
@@ -102,12 +109,15 @@ static long aien_gpu_reg(unsigned int cmd, struct aien_gpu_reg __user *u)
 	if (copy_from_user(&r, u, sizeof(r)))
 		return -EFAULT;
 	mutex_lock(&g.lock);
-	if (cmd == AIEN_GPU_REG_RD) {
+	if (g.gone || !g.bar0) {
+		rc = -ENODEV;
+	} else if (cmd == AIEN_GPU_REG_RD) {
 		if (!aien_gpu_listed(aien_gpu_rd_ok, ARRAY_SIZE(aien_gpu_rd_ok), r.off))
 			rc = -EPERM;
 		else
 			r.val = ioread32(g.bar0 + r.off);
-	} else if (!allow_boot || !aien_gpu_listed(aien_gpu_wr_ok, ARRAY_SIZE(aien_gpu_wr_ok), r.off)) {
+	} else if (!capable(CAP_SYS_RAWIO) || !allow_boot ||
+		   !aien_gpu_listed(aien_gpu_wr_ok, ARRAY_SIZE(aien_gpu_wr_ok), r.off)) {
 		rc = -EPERM;
 	} else if (r.off == AIEN_GPU_SEC2_DOORBELL && g.info.doorbells) {
 		rc = -EALREADY;         /* one start-up attempt per load: never retried without a reset */
@@ -127,8 +137,18 @@ static long aien_gpu_reg(unsigned int cmd, struct aien_gpu_reg __user *u)
 static long aien_gpu_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
-	case AIEN_GPU_INFO:
-		return copy_to_user((void __user *)arg, &g.info, sizeof(g.info)) ? -EFAULT : 0;
+	case AIEN_GPU_INFO: {
+		struct aien_gpu_info info;
+
+		mutex_lock(&g.lock);
+		if (g.gone) {
+			mutex_unlock(&g.lock);
+			return -ENODEV;
+		}
+		info = g.info;
+		mutex_unlock(&g.lock);
+		return copy_to_user((void __user *)arg, &info, sizeof(info)) ? -EFAULT : 0;
+	}
 	case AIEN_GPU_REG_RD:
 	case AIEN_GPU_REG_WR:
 		return aien_gpu_reg(cmd, (struct aien_gpu_reg __user *)arg);
@@ -138,22 +158,66 @@ static long aien_gpu_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 static int aien_gpu_open(struct inode *i, struct file *f)
 {
-	return atomic_cmpxchg(&g.open, 0, 1) ? -EBUSY : 0;
+	int rc = 0;
+
+	mutex_lock(&g.lock);
+	if (g.gone)
+		rc = -ENODEV;
+	else if (atomic_cmpxchg(&g.open, 0, 1))
+		rc = -EBUSY;
+	mutex_unlock(&g.lock);
+	return rc;
 }
 
 static int aien_gpu_release(struct inode *i, struct file *f)
 {
+	mutex_lock(&g.lock);
 	atomic_set(&g.open, 0);
+	mutex_unlock(&g.lock);
 	return 0;
 }
+
+/* mmap does not call ->open. Splits do. VM_DONTCOPY keeps fork from copying the arena. */
+static void aien_gpu_vma_open(struct vm_area_struct *vma)
+{
+	atomic_inc(&g.maps);
+	(void)vma;
+}
+
+static void aien_gpu_vma_close(struct vm_area_struct *vma)
+{
+	atomic_dec(&g.maps);
+	(void)vma;
+}
+
+static const struct vm_operations_struct aien_gpu_vm_ops = {
+	.open = aien_gpu_vma_open,
+	.close = aien_gpu_vma_close,
+};
 
 static int aien_gpu_mmap(struct file *f, struct vm_area_struct *vma)
 {
 	size_t len = vma->vm_end - vma->vm_start;
+	int rc;
 
-	if (!g.arena || vma->vm_pgoff || len > g.arena_bytes)
-		return -EINVAL;
-	return dma_mmap_coherent(&g.pdev->dev, vma, g.arena, g.arena_iova, len);
+	mutex_lock(&g.lock);
+	if (g.gone || !g.pdev) {
+		rc = -ENODEV;
+		goto out;
+	}
+	if (!g.arena || vma->vm_pgoff || len > g.arena_bytes) {
+		rc = -EINVAL;
+		goto out;
+	}
+	rc = dma_mmap_coherent(&g.pdev->dev, vma, g.arena, g.arena_iova, len);
+	if (!rc) {
+		vma->vm_ops = &aien_gpu_vm_ops;
+		vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND);
+		atomic_inc(&g.maps);
+	}
+out:
+	mutex_unlock(&g.lock);
+	return rc;
 }
 
 static const struct file_operations aien_gpu_fops = {
@@ -243,11 +307,28 @@ free_arena:
 
 static void aien_gpu_remove(struct pci_dev *pdev)
 {
+	bool leak;
+
+	/* gone is published before any free, under the same lock register access, INFO, mmap and open take.
+	 * An fd or VMA that is already live cannot start a new register or map access afterwards. */
+	mutex_lock(&g.lock);
+	g.gone = true;
+	g.bar0 = NULL;
+	leak = g.info.doorbells || atomic_read(&g.open) || atomic_read(&g.maps);
+	mutex_unlock(&g.lock);
+
 	misc_deregister(&aien_gpu_misc);
-	if (g.info.doorbells) {
-		/* GSP may still read and write the arena and the heap: keep both (leaked until reboot) rather than hand
-		 * memory back to Linux under a running DMA master. The window-1 runbook reboots afterwards. */
-		dev_warn(&pdev->dev, "aien-gpu: GSP start-up was attempted; arena and heap kept until reboot\n");
+	if (leak) {
+		/* Same leak-until-reboot path as a rung doorbell. gone is already set, so no new map or
+		 * register access starts. A VMA that was already live still points at the arena pages (the
+		 * mapping outlives the fd), and an fd that was already open keeps its reference. Freeing the
+		 * pages under either is a use after free. GSP may also still DMA the arena and the heap after
+		 * the doorbell. The window-1 runbook reboots afterwards. Hardware behaviour of this path is
+		 * unverified: this tree does not load the module. */
+		if (g.info.doorbells)
+			dev_warn(&pdev->dev, "aien-gpu: GSP start-up was attempted; arena and heap kept until reboot\n");
+		else
+			dev_warn(&pdev->dev, "aien-gpu: removed while the fd is open or the arena is mapped; arena and heap kept until reboot\n");
 		g.heap = NULL;
 		g.arena = NULL;
 	}
@@ -271,6 +352,8 @@ static struct pci_driver aien_gpu_driver = {
 	.id_table = aien_gpu_ids,
 	.probe = aien_gpu_probe,
 	.remove = aien_gpu_remove,
+	/* sysfs unbind does not take the fd's module reference. No bind/unbind attributes. */
+	.driver.suppress_bind_attrs = true,
 };
 module_pci_driver(aien_gpu_driver);
 
