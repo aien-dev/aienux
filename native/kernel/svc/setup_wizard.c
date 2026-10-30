@@ -370,7 +370,7 @@ static void llm_view(sw_wizard *w)
             at = si_cat(s, at, " AI models. The first one fits best.", SW_SAY);
         }
         if (w->listing == 2)
-            at = si_cat(s, at, " I can't keep a key safely here yet, so I can't connect a service.", SW_SAY);
+            at = si_cat(s, at, " I can't keep a key safely here yet. Set it up on the host instead.", SW_SAY);
         say(w, s);
         unsigned shown = w->ncand < SW_CHOICES - 1 ? w->ncand : SW_CHOICES - 1;
         for (unsigned i = 0; i < shown; i++)
@@ -384,7 +384,7 @@ static void llm_view(sw_wizard *w)
     } else {
         at = si_cat(s, at, "I didn't find an AI model on this computer or nearby.", SW_SAY);
         if (w->listing == 2)
-            at = si_cat(s, at, " I can't keep a key safely here yet, so I can't connect a service.", SW_SAY);
+            at = si_cat(s, at, " I can't keep a key safely here yet. Set it up on the host instead.", SW_SAY);
         say(w, s);
         choice(w, "Get one for me");
         if (connect_ok)
