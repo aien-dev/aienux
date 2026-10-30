@@ -23,11 +23,17 @@
 #include "mmio_window.h"
 #include "virtio_net.h"
 #include "net_bind.h"
+#include "rtl8127_bind.h"
+#if CK_RTL8127
+#include "aienos_report.h"
+#include "../core/klog.h"
+#endif
 #include "xhci_fence.h"
 #include "usb_kbd.h"
 #include "../../boot/slot_format.h"
 
 static pci_system g_pci;
+#if !CK_SPARK_INPUT
 static ck_nvme g_nvme;
 
 /* Later stages get only the AIENOS partition view (dev/disk_part.h), never the
@@ -91,15 +97,18 @@ void ck_dev_nvme_release(void)
     }
     if (g_nvme.confined) {
         /* Bus mastering is off (or never came on); return the stream to
-         * abort as well, independently of the bus master state. */
+         * abort as well, independently of the bus master state. A failed
+         * abort leaves the stream live in the SMMU service, so it stays
+         * confined here too: ownership is kept and a later release retries. */
         int urc = ck_dma_unconfine(g_nvme.stream_id);
-        g_nvme.confined = 0;
+        if (urc == 0) g_nvme.confined = 0;
         ck_printf("smmu: nvme stream 0x%x %s (rc=%d)\n", g_nvme.stream_id,
-                  urc == 0 ? "returned to abort" : "abort FAILED", urc);
+                  urc == 0 ? "returned to abort" : "abort FAILED, stays confined", urc);
     }
     /* Ownership is given back only once DMA is fully off (bus master and stream). */
     if (!g_nvme.bm_on && !g_nvme.confined && !g_nvme.stuck) g_nvme.claimed = 0;
 }
+#endif
 
 int ck_stage_devices(void)
 {
@@ -108,8 +117,10 @@ int ck_stage_devices(void)
     /* Report-only multi-segment discovery for the boot log (aienos#286); the
      * result is ignored, nothing below depends on it. */
     (void)pci_stage_discover_report();
+#if !CK_SPARK_INPUT
     /* Report-only read-only MMIO window on a discovered NVMe BAR0 (aienos#286, cut B3); result ignored. */
     (void)ck_mmio_stage_report();
+#endif
     /* Post-exit bus-master sweep (Rust dma_gate::sweep_bus_master): before any
      * device is given DMA, clear BME on every endpoint firmware left with it
      * set, so each device starts with DMA off. */
@@ -123,6 +134,7 @@ int ck_stage_devices(void)
      * enumeration above is only used for the other devices and for log wording. */
     uint32_t dn = 0;
     const pci_found *df = pci_stage_disc_found(&dn);
+#if !CK_SPARK_INPUT
     int was_owned = g_nvme.claimed; /* a refusal as "already owned" must not tear the owner down */
     int nrc = ck_nvme_bind(&g_nvme, df, dn, &g_pci);
     if (nrc && !was_owned) ck_dev_nvme_release(); /* a failed bind never keeps DMA */
@@ -136,6 +148,9 @@ int ck_stage_devices(void)
     int netrc = (vrc == 0 && vf) ? ck_net_bind_selftest(vf, &caps) : 1;
     ck_printf("devices: pci=ok nvme=%s virtio_net=%s\n", g_nvme.bound ? "bound" : "unbound",
               vrc != 0 ? "caps-refused" : !vf ? "absent" : netrc == 0 ? "selftest-ok" : "selftest-failed");
+#else
+    ck_printf("devices: storage-free Spark input candidate (NVMe/Store/Allen not linked)\n");
+#endif
     /* xHCI: DMA fence (bus master off before the gate, SMMU-confined grant or
      * fail-closed deny, halt, revoke, stream back to abort) with the operator
      * keyboard phase inside the grant (usb_kbd.c). Reported, never a
@@ -146,15 +161,41 @@ int ck_stage_devices(void)
     if (ck_kbd_recovery_requested()) {
         /* Recovery access chosen: the xHCI is already revoked; release every
          * other device's DMA before the stub halts (no Store stage runs). */
+#if !CK_SPARK_INPUT
         if (ck_net_live()) ck_net_release();
         ck_dev_nvme_release();
+#endif
+#if CK_SPARK_INPUT
+        ck_printf("devices: recovery halt nvme=not-linked virtio_net=not-linked xhci=%s\n",
+                  ck_xhci_live() ? "LIVE" : "released");
+        if (!ck_xhci_live()) ck_recovery_console_stub();
+#else
         ck_printf("devices: recovery halt nvme=%s virtio_net=%s xhci=%s\n", g_nvme.bm_on || g_nvme.confined ? "LIVE" : "released",
                   ck_net_live() ? "LIVE" : "released", ck_xhci_live() ? "LIVE" : "released");
         if (!g_nvme.bm_on && !g_nvme.confined && !ck_net_live() && !ck_xhci_live()) ck_recovery_console_stub();
+#endif
         ck_panic("recovery access: device DMA still live, refusing to halt with it");
     }
+#if CK_RTL8127
+    /* Spark attended boot (L198): the RTL8127 report. Reported, never a
+     * devices-stage failure; the chip is released again before this returns. */
+    {
+        static pci_func rf;
+        static char rlog[NET_REPORT_MAX];
+        int rrc = ck_rtl8127_find(df, dn, &rf);
+        if (rrc == CK_RTL_OK) {
+            size_t rn = ck_klog_read(rlog, sizeof rlog);
+            rrc = ck_rtl8127_report(&rf, rlog, rn, 20);
+        }
+        ck_printf("devices: rtl8127=%s (rc=%d)\n", rrc == CK_RTL_OK ? "report-sent" : rrc == CK_RTL_ABSENT ? "absent" : "failed", rrc);
+    }
+#endif
+#if CK_SPARK_INPUT
+    return ck_xhci_live() || ck_rtl8127_live() ? -1 : 0;
+#else
     if (nrc == -1) return 0;  /* no NVMe present: not a devices failure; Store reports it */
     return nrc;
+#endif
 }
 
 /* Called by the core's ck_reset (PSCI reset/off after the final report, a
@@ -163,17 +204,24 @@ int ck_stage_devices(void)
  * only reports that; after a panic mid-stage it does the full halt order. */
 void ck_stage_quiesce(void)
 {
+#if !CK_SPARK_INPUT
     int net_live = ck_net_live();
     if (net_live) ck_net_release();
+#endif
+    int rtl_live = ck_rtl8127_live();
+    if (rtl_live) ck_rtl8127_release();
     int xhci_live = ck_xhci_live();
     if (xhci_live) ck_xhci_release();
+#if !CK_SPARK_INPUT
     int was_live = g_nvme.pf && (g_nvme.bm_on || g_nvme.confined);
     if (was_live)
         ck_dev_nvme_release();
     ck_printf("devices: quiesce before reset nvme=%s\n",
               !g_nvme.pf ? "none" : was_live ? "released-now" : "already-released");
     if (net_live) ck_printf("devices: quiesce before reset virtio_net=released-now\n");
-    if (xhci_live) ck_printf("devices: quiesce before reset xhci=released-now\n");
+#endif
+    if (rtl_live) ck_printf("devices: quiesce before reset rtl8127=%s\n", ck_rtl8127_live() ? "LIVE" : "released-now");
+    if (xhci_live) ck_printf("devices: quiesce before reset xhci=%s\n", ck_xhci_live() ? "LIVE" : "released-now");
 }
 
 #if defined(CK_CONSOLE_SESSION) && CK_CONSOLE_SESSION

@@ -143,6 +143,9 @@ void ck_smp_run(void);
 #ifdef CK_B7B_PROBE
 /* Cut B7b preparation probe (core/smmu_svc.c), probe build only. */
 void ck_b7b_probe(void);
+#ifdef CK_B7B_EVENT_READOUT
+void ck_b7b_event_readout(void);
+#endif
 #endif
 void ck_fpu_run(void); /* core/fpu.c: probe build only (CK_RUST_LIBS), else a no-op */
 void ck_infer_run(void); /* core/infer.c: probe build only (CK_INFER_LIB), else a no-op */

@@ -120,10 +120,12 @@ void ck_net_release(void)
             ck_printf("dma_gate: virtio_net bus master revoke FAILED (command register still has BME)\n");
     }
     if (n->confined) {
+        /* A failed abort leaves the stream live in the SMMU service: it stays
+         * confined (ck_net_live stays 1) and a later release retries. */
         int urc = ck_dma_unconfine(n->stream_id);
-        n->confined = 0;
+        if (urc == 0) n->confined = 0;
         ck_printf("smmu: virtio_net stream 0x%x %s (rc=%d)\n", n->stream_id,
-                  urc == 0 ? "returned to abort" : "abort FAILED", urc);
+                  urc == 0 ? "returned to abort" : "abort FAILED, stays confined", urc);
     }
 }
 
@@ -393,6 +395,7 @@ int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps)
         if (!n->win[i] && i != VNET_WIN_ISR) { /* ISR is unused (polled driver) */
             ck_printf("virtio_net: not bound (capability window %d outside its BAR)\n", i);
             ck_net_release();
+            if (n->confined) return CK_NET_E_SMMU; /* abort refused: stream still confined */
             return CK_NET_E_ARG;
         }
     }
@@ -407,6 +410,7 @@ int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps)
     if (e != VNET_OK) {
         ck_printf("virtio_net: init FAIL (%s)\n", vnet_err_name(e));
         ck_net_release();
+        if (n->confined) return CK_NET_E_SMMU; /* abort refused: stream still confined */
         return CK_NET_E_INIT;
     }
     const uint8_t *m = n->dev.mac;
@@ -426,5 +430,8 @@ int ck_net_bind_selftest(const pci_func *f, const virtio_pci_caps *caps)
     if (!n->dev.has_mac) ck_printf("net: no MAC offered by the device; round trip not attempted\n");
     ck_printf("net: selftest %s (rc=%d)\n", rc == CK_NET_OK ? "PASS" : "FAIL", rc);
     ck_net_release();
+    /* A refused abort leaves the stream confined. A passing selftest whose
+     * bus master is still on is not released either. */
+    if (n->confined || (rc == CK_NET_OK && ck_net_live())) rc = CK_NET_E_SMMU;
     return rc;
 }

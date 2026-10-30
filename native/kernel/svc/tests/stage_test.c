@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include "ck.h"
@@ -41,6 +42,7 @@
 #include "cortex_journal.h"
 #include "sha256.h"
 #include "net_bind.h"
+#include "rtl8127_bind.h"
 #include "net_udp.h"
 #include "xhci_fence.h"
 #include "usb_hid.h"
@@ -868,6 +870,31 @@ static void test_nvme_bind_discovery(void)
     CHECK(has(x, "nvme_disc: candidate seg 0003 01:00.0") && has(x, "(bound: none)\n"));
     CHECK(ck_stage_devices() == NVME_EVS);                          /* ownership was returned: bound again, once */
     CHECK(ck_host_confine_calls == calls0 + 2 && ck_host_unconfine_calls == un0 + 2);
+
+    /* 6b. Same failed bind, but the SMMU refuses to return the stream to abort. The stream is still live in
+     *     the SMMU service, so the release must keep it confined and keep the owner: the next stage run is
+     *     refused as "already owned" without a second grant. A later release that succeeds returns the
+     *     stream and the owner, and the stage binds again. */
+    calls0 = ck_host_confine_calls;
+    un0 = ck_host_unconfine_calls;
+    ck_host_unconfine_fail = 1;
+    ck_host_capture_start();
+    CHECK(ck_stage_devices() == NVME_EVS);
+    CHECK(ck_host_confine_calls == calls0 + 1 && ck_host_unconfine_calls == un0 + 1);
+    CHECK(ck_stage_devices() == NVME_ESTATE);                       /* still owned: refused, nothing granted */
+    CHECK(ck_host_confine_calls == calls0 + 1 && ck_host_unconfine_calls == un0 + 1);
+    ck_host_capture_stop();
+    x = ck_host_capture_text();
+    CHECK(has(x, "dma_gate: nvme bus master revoked\n") && has(x, "abort FAILED, stays confined (rc="));
+    CHECK(!has(x, "returned to abort"));
+    CHECK(has(x, "nvme: bind refused, already owned by seg 0003 01:00.0 (bound=0 bm_on=0 confined=1)"));
+    ck_host_unconfine_fail = 0;
+    ck_host_capture_start();
+    ck_dev_nvme_release();                                          /* retry: the abort now succeeds */
+    ck_host_capture_stop();
+    CHECK(ck_host_unconfine_calls == un0 + 2 && has(ck_host_capture_text(), "returned to abort (rc=0)"));
+    CHECK(ck_stage_devices() == NVME_EVS);                          /* ownership returned: bound again, once */
+    CHECK(ck_host_confine_calls == calls0 + 2 && ck_host_unconfine_calls == un0 + 3);
 
     /* 7. Stage level, firmware bus master that will not clear. The bind refuses (fail closed) and the stage's
      *    release must NOT hand the owner back: the device was written and may still be a bus master. A second
@@ -1711,6 +1738,70 @@ static void test_net_udp(void)
     CHECK(ck_net_bind_selftest(NULL, &caps) == CK_NET_E_ARG);
 }
 
+
+/* RTL8127 binding (L198): absent device, and no SMMU in the host shim, both
+ * fail closed before the function gets memory decode or bus master. */
+static void test_rtl8127_bind(void)
+{
+    printf("  [rtl8127 bind without SMMU, host, not hardware]\n");
+    static pci_func rf;
+    static pci_found fd[2];
+    memset(fd, 0, sizeof fd);
+    fd[0].vendor = 0x1af4;
+    fd[0].device = 0x1041;
+    CHECK(ck_rtl8127_find(fd, 1, &rf) == CK_RTL_ABSENT);
+    CHECK(ck_rtl8127_find(NULL, 0, &rf) == CK_RTL_ABSENT);
+    CHECK(ck_rtl8127_find(fd, 1, NULL) == CK_RTL_E_ARG);
+    fd[1].vendor = 0x10ec;
+    fd[1].device = 0x8127;
+    fd[1].segment = 7;
+    fd[1].bus = 1;
+    CHECK(ck_rtl8127_find(fd, 2, &rf) == CK_RTL_E_ARG); /* no mapped ECAM for segment 7 in the host shim */
+
+    static uint8_t cfg[4096];
+    memset(cfg, 0, sizeof cfg);
+    memset(&rf, 0, sizeof rf);
+    rf.vendor = 0x10ec;
+    rf.device = 0x8127;
+    rf.segment = 7;
+    rf.bus = 1;
+    rf.cfg = cfg;
+    const char log[] = "boot report line\n";
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_ARG); /* BAR 2 missing */
+    rf.bar[2].addr = 0x6e900000u;
+    rf.bar[2].size = 0x40000u;
+    rf.bar[2].is64 = 1;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_DENIED);
+    CHECK((pci_r16(rf.cfg, 4) & 0x6u) == 0); /* no MEM, no BM */
+    CHECK(ck_rtl8127_live() == 0);
+    ck_rtl8127_release(); /* idempotent */
+    CHECK(ck_rtl8127_report(NULL, log, 1, 1) == CK_RTL_E_ARG);
+    CHECK(ck_rtl8127_report(&rf, log, 0, 1) == CK_RTL_E_ARG);
+    rf.bar[2].size = 0x100u; /* the vendor minimum, below the registers this driver uses */
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_ARG);
+
+    /* A wrong-chip MMIO fixture fails identification without chip writes.
+     * A refused unconfine must retain the old grant and forbid a new grant. */
+    static uint8_t mmio[0x40000];
+    rf.bar[2].addr = (uintptr_t)mmio;
+    rf.bar[2].size = sizeof mmio;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_INIT);
+    CHECK(ck_rtl8127_live() == 1);
+    CHECK((pci_r16(rf.cfg, 4) & 0x4u) == 0); /* BM revoked even when abort fails */
+    unsigned grants = ck_host_confine_calls;
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_RELEASE);
+    CHECK(ck_host_confine_calls == grants);
+    CHECK(ck_rtl8127_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_rtl8127_release();
+    CHECK(ck_rtl8127_live() == 0);
+    CHECK(ck_rtl8127_report(&rf, log, sizeof log - 1, 1) == CK_RTL_E_INIT);
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(ck_rtl8127_live() == 0);
+    ck_host_confine_rc = CK_SMMU_ABSENT;
+}
 
 /* ---------------- post-exit bus-master sweep + xHCI DMA fence ---------------- */
 
@@ -2613,6 +2704,220 @@ static void test_cortex_journal(void)
     unlink(img);
 }
 
+/* A tiny xHCI: HCRST completes and Run/Stop clears HCH, so the keyboard phase
+ * can reach "no device" instead of a register or reset timeout. Host only. */
+static uint8_t *volatile xhci_watch_bar[2];
+static volatile int xhci_watch_on;
+static uint32_t xhci_ld32(volatile uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+static void xhci_st32(volatile uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+static void *xhci_watch(void *arg)
+{
+    (void)arg;
+    while (xhci_watch_on) {
+        for (int i = 0; i < 2; i++) {
+            volatile uint8_t *bar = xhci_watch_bar[i];
+            if (!bar) continue;
+            uint32_t op = xhci_ld32(bar) & 0xffu;
+            if (op + 8u > 0x4000u) continue;
+            uint32_t cmd = xhci_ld32(bar + op), sts = xhci_ld32(bar + op + 4);
+            if (cmd & 2u) { /* HCRST: complete, leave the controller halted */
+                xhci_st32(bar + op, cmd & ~2u);
+                xhci_st32(bar + op + 4, (sts & ~0x800u) | 1u);
+            } else if (cmd & 1u) { /* RS: running */
+                if (sts & 1u) xhci_st32(bar + op + 4, sts & ~1u);
+            } else if (!(sts & 1u)) {
+                xhci_st32(bar + op + 4, sts | 1u);
+            }
+        }
+        usleep(20);
+    }
+    return 0;
+}
+
+/* Failed DMA release. Host shim only: nothing here is a real xHCI or SMMU.
+ * The PCI xHCI path already returns CK_XHCI_E_RELEASE. The platform fallback
+ * used to overwrite that with "fenced" and CK_XHCI_OK. virtio-net used to
+ * return CK_NET_E_INIT from a failed init even when the abort was refused. */
+static void test_xhci_release_refused(void)
+{
+    printf("  [xHCI release refused, host, not hardware]\n");
+    static uint8_t cfg[4096];
+    static uint8_t bar[0x4000] __attribute__((aligned(4096)));
+    static pci_system s;
+    memset(cfg, 0, sizeof cfg);
+    memset(bar, 0, sizeof bar);
+    put32(bar + 4, 1u); /* caplength 0, so op is 0 and this is USBSTS.HCH */
+    memset(&s, 0, sizeof s);
+    s.n = 1;
+    s.f[0].class_code = CK_XHCI_CLASS;
+    s.f[0].cfg = cfg;
+    s.f[0].bar[0].addr = (uint64_t)(uintptr_t)bar;
+    s.f[0].bar[0].size = sizeof bar;
+    s.f[0].bar[0].is64 = 1;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    unsigned grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    int rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    CHECK(rc == CK_XHCI_E_RELEASE && strcmp(ck_xhci_state(), "release-failed") == 0 && ck_xhci_live() == 1);
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(has(ck_host_capture_text(), "abort FAILED, stays confined"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_xhci_fence(&s) == CK_XHCI_E_ARG && ck_host_confine_calls == grants && ck_xhci_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_xhci_release();
+    CHECK(ck_xhci_live() == 0);
+
+    /* PCI controller the keyboard phase can finish on (no device, so NOKBD),
+     * then one ACPI platform controller whose abort is refused. */
+    printf("  [xHCI platform fallback release refused, host, not hardware]\n");
+    static uint8_t pbar[0x4000] __attribute__((aligned(4096)));
+    memset(bar, 0, sizeof bar);
+    put32(bar + 0x00, 0x01000020u); /* caplength 0x20 */
+    put32(bar + 0x10, 0x1u);        /* AC64 */
+    put32(bar + 0x14, 0x2000u);     /* doorbell */
+    put32(bar + 0x18, 0x1000u);     /* runtime */
+    put32(bar + 0x24, 1u);          /* USBSTS.HCH at op 0x20 */
+    put32(bar + 0x28, 1u);          /* pagesize bit 0 */
+    memset(pbar, 0, sizeof pbar);
+    put32(pbar + 0x00, 0x10u); /* caplength too small: keyboard phase returns at once */
+    put32(pbar + 0x14, 1u);    /* USBSTS.HCH at op 0x10, so the pre-grant halt succeeds */
+    CHECK(ck_xhci_host_forget() == 0);
+    ck_host_plat_set("USB0", "PNP0D10", (uint64_t)(uintptr_t)pbar, sizeof pbar);
+    ck_host_try_map_ok = 1;
+    ck_host_try_map_fail = 0;
+    ck_host_confine_named_rc = 0;
+    ck_host_unconfine_fail = 1;
+    ck_host_unconfine_allow = 1; /* PCI abort succeeds; the platform abort is the one refused */
+    pthread_t watch;
+    int watching = 0;
+    xhci_watch_bar[0] = bar;
+    xhci_watch_bar[1] = pbar;
+    xhci_watch_on = 1;
+    watching = pthread_create(&watch, 0, xhci_watch, 0) == 0;
+    CHECK(watching);
+    grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    const char *x = ck_host_capture_text();
+    printf("  platform fallback rc=%d state=%s live=%d\n", rc, ck_xhci_state(), ck_xhci_live());
+    CHECK(rc == CK_XHCI_E_RELEASE);
+    CHECK(strcmp(ck_xhci_state(), "release-failed") == 0);
+    CHECK(ck_xhci_live() == 1);
+    CHECK(ck_host_confine_calls == grants + 2); /* PCI requester, then the ACPI name */
+    CHECK(has(x, "abort FAILED, stays confined"));
+    CHECK(has(x, "trying 1 ACPI platform controller"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_xhci_fence(&s) == CK_XHCI_E_ARG && ck_host_confine_calls == grants);
+    ck_host_unconfine_fail = 0;
+    ck_host_unconfine_allow = 0;
+    ck_xhci_release();
+    CHECK(ck_xhci_live() == 0);
+
+    /* A platform controller that is denied never holds a stream. The PCI
+     * fence already succeeded, so that error stays CK_XHCI_OK / "fenced". */
+    printf("  [xHCI platform fallback denied, host, not hardware]\n");
+    if (watching) {
+        xhci_watch_on = 0;
+        pthread_join(watch, 0);
+        watching = 0;
+    }
+    memset(bar, 0, sizeof bar);
+    put32(bar + 0x00, 0x01000020u);
+    put32(bar + 0x10, 0x1u);
+    put32(bar + 0x14, 0x2000u);
+    put32(bar + 0x18, 0x1000u);
+    put32(bar + 0x24, 1u);
+    put32(bar + 0x28, 1u);
+    memset(pbar, 0, sizeof pbar);
+    put32(pbar + 0x00, 0x10u);
+    put32(pbar + 0x14, 1u);
+    xhci_watch_on = 1;
+    watching = pthread_create(&watch, 0, xhci_watch, 0) == 0;
+    CHECK(watching);
+    ck_host_confine_named_rc = CK_SMMU_ABSENT;
+    ck_host_capture_start();
+    rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    x = ck_host_capture_text();
+    CHECK(rc == CK_XHCI_OK && strcmp(ck_xhci_state(), "fenced") == 0 && ck_xhci_live() == 0);
+    CHECK(has(x, "denied (NoSmmu)"));
+    if (watching) {
+        xhci_watch_on = 0;
+        pthread_join(watch, 0);
+    }
+    xhci_watch_bar[0] = xhci_watch_bar[1] = 0;
+    ck_host_plat_clear();
+    CHECK(ck_xhci_host_forget() == 0);
+    ck_host_try_map_ok = 0;
+    ck_host_mmio_reset();
+    ck_host_confine_rc = CK_SMMU_ABSENT;
+    ck_host_confine_named_rc = CK_SMMU_ABSENT;
+    ck_host_unconfine_fail = 0;
+    ck_host_unconfine_allow = 0;
+}
+
+static void test_net_release_refused(void)
+{
+    printf("  [virtio-net release refused, host, not hardware]\n");
+    static uint8_t cfg[4096];
+    static uint8_t bar[0x4000] __attribute__((aligned(4096)));
+    static pci_func vf;
+    memset(cfg, 0, sizeof cfg);
+    memset(bar, 0, sizeof bar);
+    memset(&vf, 0, sizeof vf);
+    vf.vendor = 0x1af4;
+    vf.device = 0x1041;
+    vf.cfg = cfg;
+    vf.bar[4].addr = (uint64_t)(uintptr_t)bar;
+    vf.bar[4].size = sizeof bar;
+    virtio_pci_caps caps;
+    memset(&caps, 0, sizeof caps);
+    caps.common_cfg = (virtio_pci_region){1, 4, 0, 0x1000};
+    caps.isr_cfg = (virtio_pci_region){1, 4, 0x1000, 0x1000};
+    caps.device_cfg = (virtio_pci_region){1, 4, 0x2000, 0x1000};
+    caps.notify_cfg = (virtio_pci_region){1, 4, 0x3000, 0x1000};
+    caps.has_notify_off_multiplier = 1;
+    caps.notify_off_multiplier = 4;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    unsigned grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    int rc = ck_net_bind_selftest(&vf, &caps);
+    ck_host_capture_stop();
+    const char *x = ck_host_capture_text();
+    printf("  virtio-net release rc=%d live=%d\n", rc, ck_net_live());
+    CHECK(rc == CK_NET_E_SMMU);
+    CHECK(ck_net_live() == 1);
+    CHECK((pci_r16(cfg, 4) & 0x4u) == 0); /* bus master revoked even though the abort failed */
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(has(x, "abort FAILED, stays confined"));
+    CHECK(!has(x, "returned to abort"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_net_bind_selftest(&vf, &caps) == CK_NET_E_ARG); /* still live: release it first */
+    CHECK(ck_host_confine_calls == grants && ck_net_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_host_capture_start();
+    ck_net_release();
+    ck_host_capture_stop();
+    CHECK(ck_net_live() == 0 && has(ck_host_capture_text(), "returned to abort"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_net_bind_selftest(&vf, &caps) == CK_NET_E_INIT && ck_net_live() == 0);
+    CHECK(ck_host_confine_calls == grants + 1);
+    ck_host_confine_rc = CK_SMMU_ABSENT;
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
@@ -2643,7 +2948,10 @@ int main(void)
     test_security();
     test_nvme_shutdown();
     test_net_udp();
+    test_rtl8127_bind();
     test_xhci_fence();
+    test_xhci_release_refused();
+    test_net_release_refused();
     test_usb_hid();
     printf("CK_STAGE_HOST: %s checks=%d failures=%d\n", failures ? "FAIL" : "PASS", checks, failures);
     return failures ? 1 : 0;

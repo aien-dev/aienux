@@ -74,6 +74,7 @@ enum {
     CK_XHCI_E_DENIED = -603,  /* no SMMU confinement: controller left off */
     CK_XHCI_E_DMA = -604,     /* DMA region allocation failed */
     CK_XHCI_E_HALT = -605,    /* controller would not halt (still released) */
+    CK_XHCI_E_RELEASE = -606, /* stream could not be returned to abort: stays confined and live */
 };
 
 /* TEST-ONLY mutation numbers (CK_TEST_XHCI_MUTATION). */
@@ -82,16 +83,19 @@ enum {
 #define CK_XHCI_MUT_GRANT_NO_SMMU 3
 #define CK_XHCI_MUT_NO_SWEEP 4
 
-/* Steps 1-5 above. Always leaves the controller released (bus master off,
- * stream back to abort) before returning, except under the TEST-ONLY
- * no-revoke mutation. Returns CK_XHCI_OK, CK_XHCI_ABSENT or a CK_XHCI_E_*. */
+/* Steps 1-5 above. Leaves the controller released (bus master off, stream
+ * back to abort) before returning, except under the TEST-ONLY no-revoke
+ * mutation or when the SMMU refuses the abort (CK_XHCI_E_RELEASE: the stream
+ * stays confined, ck_xhci_live stays 1, no other controller is tried).
+ * Returns CK_XHCI_OK, CK_XHCI_ABSENT or a CK_XHCI_E_*. */
 int ck_xhci_fence(const pci_system *pci);
 #if defined(CK_CONSOLE_SESSION) && CK_CONSOLE_SESSION
 /* Console session (TEST-ONLY QEMU image): the same fence as ck_xhci_fence, with
  * ck_kbd_session_phase as the operator phase. Same release, same rows. */
 int ck_xhci_session(const pci_system *pci);
 #endif
-/* Halt, bus master off, stream back to abort if still live. Idempotent. */
+/* Halt, bus master off, stream back to abort if still live. Idempotent. A
+ * refused abort keeps the stream confined; calling again retries it. */
 void ck_xhci_release(void);
 /* 1 while the controller may still DMA (bus master on or stream confined). */
 int ck_xhci_live(void);
@@ -103,4 +107,8 @@ int ck_xhci_sweep_enabled(void);
 void ck_xhci_after_sweep(const pci_system *pci);
 /* Short state for the devices summary line: absent, fenced, denied, ... */
 const char *ck_xhci_state(void);
+#ifdef CK_HOST_TEST
+/* Host tests only: forget the one-shot ACPI scan. -1 while a stream is live. */
+int ck_xhci_host_forget(void);
+#endif
 #endif
