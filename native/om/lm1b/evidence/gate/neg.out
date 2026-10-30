@@ -1,0 +1,12 @@
+load ok bytes 807694368 tensors 147 sha256 3f5a22426976ab26cfe84dba63c1d08391717abb1af893e10f1b2968d862dcc1 passes 0
+job big status refused reason toomany
+job ctx status refused reason context
+job bad status refused reason badid
+job ? status refused reason syntax
+job ? status refused reason syntax
+job b1 status cancelled passes 5 tokens
+bits
+acct job b1 rowbytes 2920620240 passes 5
+job b2 status ok passes 20 tokens 12379 10539
+bits 1104246371 1104525585
+acct job b2 rowbytes 12113421120 passes 20
