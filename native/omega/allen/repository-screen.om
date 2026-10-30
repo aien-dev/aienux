@@ -7,7 +7,7 @@ note Gh view README0/files1/details2. Unsupported Unicode glyphs render one ? pe
 global Ghr ulong 8
 global Ghlines ulong 262145
 global Ghnumb uchar 20
-text Ghlabs "Allen / GitHub\nREADME\nFiles\nRefresh [R]\nBack [B]\nLIVE HTTPS / api.github.com\nLoading live GitHub response...\nNo current response. Refresh to retry.\nAsk me to find Allen's GitHub repository.\nUnsupported request. I can open Allen's repository.\nHTTP / transport error\nResponse exceeds bounded capacity\nInvalid response, identity, path or text\nAccess denied or GitHub rate limit\nRequest generation or path limit\nDefault branch:\nCommit:\nCommit time:\nRetrieved epoch seconds:\nRetrieval clock unavailable; session response:\nREADME not present at this commit (HTTP 404).\nEmpty README.\nEmpty directory.\nPath:\nBytes:\nObject SHA:\nDirectory\nFile\nOther object (not followed)\nText only; links and instructions are not executed.\nUp/Down scroll | PgUp/PgDn | Tab views | Enter open\nSource: github.com/aien-dev/allen\n"
+text Ghlabs "Allen / GitHub\nREADME\nFiles\nRefresh [R]\nBack [B]\nLIVE HTTPS / api.github.com\nLoading live GitHub response...\nNo current response. Refresh to retry.\nAsk me to find Allen's GitHub repository.\nUnsupported request. I can open Allen's repository.\nHTTP / transport error\nResponse exceeds bounded capacity\nInvalid response, identity, path or text\nAccess denied or GitHub rate limit\nRequest generation or path limit\nDefault branch:\nCommit:\nCommit time:\nRetrieved epoch seconds:\nRetrieval clock unavailable; session response:\nREADME not present at this commit (HTTP 404).\nEmpty README.\nEmpty directory.\nPath:\nBytes:\nObject SHA:\nDirectory\nFile\nOther object (not followed)\nText only; links and instructions are not executed.\nUp/Down scroll | PgUp/PgDn | Tab views | Enter open\nSource: github.com/\n"
 fn ghscalar p ulong to ulong
 c = get Ghread p
 if lt c 128
@@ -451,6 +451,8 @@ end
 fn ghheader to void
 ghlabel 0 16 24
 ghlabel 31 16 44
+note The repository is whatever discovery validated; until then the line shows only the host.
+ghtext 0 720 get Ghlen 5 206 44 15132654
 if eq get Gh 0 2
 ghlabel 5 16 64
 ghtext 0 320 get Ghlen 2 16 84 15132654
