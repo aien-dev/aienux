@@ -50,79 +50,79 @@
       "children": [
         {
           "digest": "50aa2fbd6ca356b7703517bc7ecf439f7b6e0a6b935d0ca6ca4c6f7caf23ce34",
-          "last_commit": "09e59a8",
+          "last_commit": "09e59a82",
           "name": "argus",
           "purpose": "Directory native/argus. Purpose not yet described by a human."
         },
         {
           "digest": "e98806cbea0fcd38d29760c3e6ddf8ddfcedcd29bcf68a4675cb74dce68963a8",
-          "last_commit": "2eef482",
+          "last_commit": "2eef482f",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
         {
           "digest": "750c519c466783ed6330a6a2c8fcb2153efdaadb9d65b38a6a85e8463d78b68d",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "capability",
           "purpose": "Directory native/capability. Purpose not yet described by a human."
         },
         {
           "digest": "0a3e98a5f36f528eb7ae6e1611d466343068780b9029621286b292ec1c796950",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "crypto",
           "purpose": "Directory native/crypto. Purpose not yet described by a human."
         },
         {
           "digest": "99bc55e79695290b65ae08a38e5731e3ed976d79cdb3b6c9bc21c706b1ddab22",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "disk",
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
           "digest": "88a9203cf661b18c57c0a600f6d47753327cd1792015ff235223709cd6b5aa84",
-          "last_commit": "03f493a",
+          "last_commit": "03f493a3",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
         {
           "digest": "a805df7e3af4b8a2ef345223523b54e7e47565204ec8f8e598f6dcaf53b07419",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "m5",
           "purpose": "Directory native/m5. Purpose not yet described by a human."
         },
         {
           "digest": "ff5c88f5e9bf86e7ff836d24c048dd2d4efc94f6f19a21a0caf72ae9c402deaf",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "net",
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
           "digest": "0679f5feb081e76e913560255409b429fecef847d9de03360757cd9ec466e1ab",
-          "last_commit": "a30cb01",
+          "last_commit": "f8f9f8b5",
           "name": "omega",
           "purpose": "Native Omega components, composed directly by the seeded compiler"
         },
         {
           "digest": "135fd1edbe2388764de7dc755611b483b0c61adab858718c390b7745d141635c",
-          "last_commit": "7db773a",
+          "last_commit": "7db773a8",
           "name": "sig",
           "purpose": "Directory native/sig. Purpose not yet described by a human."
         },
         {
           "digest": "f75197d76b7daaeee8223cf25353251824cd4497400a439724a3a424e014a229",
-          "last_commit": "e5e8f08",
+          "last_commit": "e5e8f080",
           "name": "store",
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
       "children_root": "sha256:d85a1a4ab725097d310af03b35c667a6bcdfb1e2f12abd45fa1e20724d7bd672",
-      "compiled_at": "2026-10-28T18:59:56Z",
+      "compiled_at": "2026-10-30T02:57:57Z",
       "compiler": "crumb-compile/1",
       "digest": "sha256:5e3b61fdaa975948c700004d68ba8fe881198ef18910c2d1b7493475afd43d3f",
       "evidence_files": 4,
       "evidence_root": "sha256:e410b845507e00568e15b51a5797af32a97e0e4b8ab4e8487bb7c98e7e0cf335",
       "files": 837,
-      "generated_at_commit": "a30cb01d3940d4d8c681c768d11da219391e7d06",
+      "generated_at_commit": "f8f9f8b51263af0486a41bd748e22cb8c9e7df6d",
       "source_tree": "sha256:02db3da1371729d75b1c349187ffee3b9e09b2a612f69fe91b623e57ddbfefea"
     },
     "owner_lane": "",
