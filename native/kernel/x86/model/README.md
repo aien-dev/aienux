@@ -36,12 +36,12 @@ x86_64-linux-gnu-gcc -static -O2 -Wall -Wextra -Werror \
   -o "$OUT/omega-model-probe"
 cc -O2 -ffp-contract=off -DCK_LLAMA_REFERENCE="\"$REF/run.c\"" \
   native/kernel/x86/model/reference_probe.c -lm -o "$OUT/reference-probe"
-python3 scripts/check_local_model.py "$OUT"
+bash scripts/check_local_model.sh "$OUT"
 LOCAL_MODEL_OUT="$OUT" LOCAL_MODEL_WEIGHTS="$OUT/stories15M.bin" \
   LOCAL_MODEL_TOKENIZER="$REF/tokenizer.bin" bash scripts/qemu_ck_local_model_test.sh
 ```
 
-The host oracle checks exact greedy IDs and every final logit against an independent reference, with the preselected tolerance `1e-3 + 1e-4 * abs(reference)`. Invalid inputs must trap. `admission_test.c` checks copied code, asset hashes, signatures, mutation refusal and unchanged old profile limits. `tests.inc` exercises actual CPL3 inference, immutable weights/code, NX, guards, inaccessible kernel memory, cancellation, deadlines, cleanup and a successful old tool after model faults. Test fixtures are excluded from release images.
+The host oracle checks exact greedy IDs and every final logit against an independent reference, with the preselected tolerance `1e-3 + 1e-4 * abs(reference)`. It is `check_local_model.c`, built and run by `scripts/check_local_model.sh`. Invalid inputs must trap. `admission_test.c` checks copied code, asset hashes, signatures, mutation refusal and unchanged old profile limits. `tests.inc` exercises actual CPL3 inference, immutable weights/code, NX, guards, inaccessible kernel memory, cancellation, deadlines, cleanup and a successful old tool after model faults. Test fixtures are excluded from release images.
 
 A deployable image uses `CK_LOCAL_MODEL=1`, `CK_LOCAL_MODEL_FILE`, `CK_LOCAL_TOKENIZER_FILE`, `CK_LOCAL_TEST=0`, and the same owner-key/lab flags as the current iMac. It has a distinct `-MODEL.EFI` output. The approximately 62 MB image fits the existing 64 MiB signed network-loader limit. Stage with `scripts/ck_imac_netboot_push.sh`; keep the previous image for rollback. Apple firmware must start the existing network booter before it can receive the queued image. A queued image, emulator result, or unauthenticated diagnostic alone does not prove physical execution.
 
