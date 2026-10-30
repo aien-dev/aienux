@@ -532,10 +532,11 @@ int gsp_boot_build(gsp_arena *a, const gsp_boot_in *in, gsp_boot_plan *out, cons
     out->tx_seq = q.tx_seq;
     out->cmdq_write_ptr = rd32(cmdq + TXH(writePtr));
 
-    /* SEC2 packet: MCTP dword (SOM|EOM, SEQ 0, SEID 0), NVDM dword (type 0x7e, vendor 0x10de,
-     * NVDM type COT 0x14), then the 860-byte payload; tail = padded length - 4. */
+    /* SEC2 packet: MCTP dword, NVDM dword (type 0x7e, vendor 0x10de, NVDM type COT 0x14), then the
+     * 860-byte payload; tail = padded length - 4. The MCTP dword on GB10B is the constant 1, not SOM|EOM:
+     * kernel_sec2.c:320 via ksec2CreateMctpHeader_HAL; on GB10B the HAL is ksec2CreateMctpHeader_539ab4 = `return 1;` (g_kernel_sec2_nvoc.c:786-788, g_kernel_sec2_nvoc.h:853-855); only GB20B/GB20C build SOM|EOM (kernel_sec2_gb20b.c:206-219). */
     uint8_t *pk = out->cot_packet;
-    wr32(pk, (1u << 31) | (1u << 30));
+    wr32(pk, 1u);
     wr32(pk + 4, 0x7eu | (0x10deu << 8) | (0x14u << 24));
     uint8_t *cot = pk + 8;
 #define CO(f) OFF(gsp_mirror_cot, f)

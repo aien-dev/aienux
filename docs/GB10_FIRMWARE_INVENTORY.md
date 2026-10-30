@@ -15,8 +15,13 @@ the driver on the box; fetched read-only into a scratch directory, not vendored)
 
 ## 1. Plain-English summary
 
-- The GPU in the Spark is NVIDIA's "GB10B" chip (the integrated variant of the
-  GB10 family). To run it, three pieces of NVIDIA code have to be put in place
+- This inventory assumes the GPU in the Spark is NVIDIA's "GB10B" chip. Correction 2026-10-26 (NoNvDriver
+  review): that was never measured (PMC_BOOT_42 is unread), and the evidence points at GB20B instead. In
+  580.173.02, GB10B is Thor ("T264/GB10B", uvm_va_space.c:817; Thor is sm_110, the Spark is sm_121), and
+  GB10B's class list has BLACKWELL_COMPUTE_A only (g_gpu_class_list.c:2418-2487) while CUDA++ refuses to run
+  without BLACKWELL_COMPUTE_B and has passing chip receipts on this Spark (CUDApp
+  evidence/FB1-CUT5-HD128-7dd92dc). COMPUTE_B appears only for GB202-GB207, GB20B and GB20C. window1-pre.sh
+  now refuses unless window 0 reads CHIP_ID 0x1AB. To run it, three pieces of NVIDIA code have to be put in place
   in a fixed order: a small signed "first stage" (GSP-FMC) that the SEC2
   security engine on the chip verifies and starts, which then unpacks and starts
   the big GSP-RM firmware (the GPU's own resource manager, 75 MB on disk), after
@@ -437,7 +442,7 @@ Transport. NVDM (NVIDIA Data Model) over MCTP over SEC2 EMEM channel 0,
 
 | dword | field | value for the boot message | source |
 |---|---|---|---|
-| 0 | MCTP transport header: SOM bit 31, EOM bit 30, SEQ 29:28, TO 27, TAG 26:24, SEID 23:16, DEID 15:8, RSVD 7:4, VERSION 3:0 | `0xC0000000` (SOM=1, EOM=1, SEQ=0, SEID=0; the driver sets only those four) | `fsp_mctp_format.h:8-16`; `kernel_sec2.c:319-321`; SEID 0 for GB10B `g_kernel_sec2_nvoc.c:879-888`, `g_kernel_sec2_nvoc.h:907-909` |
+| 0 | MCTP transport header. Layout (GB20B form): SOM bit 31, EOM bit 30, SEQ 29:28, TO 27, TAG 26:24, SEID 23:16, DEID 15:8, RSVD 7:4, VERSION 3:0 | **GB10B: `0x00000001`**, the HAL constant; the driver does not build SOM/EOM on GB10B. (GB20B/GB20C: `0xC0000000` = SOM=1, EOM=1, SEQ=0, SEID=0.) Corrected 2026-10-26; this row said `0xC0000000` for GB10B | `kernel_sec2.c:320` calls `ksec2CreateMctpHeader_HAL`; GB10B binds `ksec2CreateMctpHeader_539ab4` = `return 1;` (`g_kernel_sec2_nvoc.c:786-788`, `g_kernel_sec2_nvoc.h:853-855`); GB20B/GB20C bind `ksec2CreateMctpHeader_GB20B` (`kernel_sec2_gb20b.c:206-219`) |
 | 1 | NVDM header: TYPE 6:0 = 0x7e (vendor PCI), IC 7 = 0, VENDOR_ID 23:8 = 0x10de, NVDM_TYPE 31:24 | `0x1410DE7E` (NVDM_TYPE_COT = 0x14) | `fsp_mctp_format.h:17-22`; `fsp_nvdm_format.h:14`; `kernel_sec2_gb10b.c:391-402` |
 
 A message longer than 1016 bytes would continue in packets that carry only
@@ -753,7 +758,7 @@ WprMeta page, libos init-argument page, the seven GB10B log buffers with their P
 GSP-RM ELF, the GspRmBoot bootloader, the signature (size rounded up to 256), the GSP-FMC
 image and `GSP_FMC_BOOT_PARAMS`. It queues the two pre-boot RPCs (`GSP_SET_SYSTEM_INFO` with the
 caller's 936 bytes, then `SET_REGISTRY` when entries are given; both async, sequence 0,
-element seqNum 0 and 1) and returns the SEC2 EMEM packet (MCTP dword `0xC0000000`, NVDM dword
+element seqNum 0 and 1) and returns the SEC2 EMEM packet (MCTP dword `0x00000001` on GB10B, NVDM dword
 `0x1410de7e`, 860-byte `NVDM_PAYLOAD_COT`, 868 bytes, QUEUE_TAIL 864). The firmware bytes,
 the 512 MiB sysmem heap address, `GspSystemInfo` and the registry are inputs; the builder never
 reads a file or a device.
