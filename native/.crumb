@@ -56,7 +56,7 @@
         },
         {
           "digest": "7569388becee7cad7f289570ed6dbb48be5350ccca1a4e31e4dc74fdfef6e963",
-          "last_commit": "41119ceb",
+          "last_commit": "89e296db",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
@@ -80,7 +80,7 @@
         },
         {
           "digest": "af9c20e112a872adfc6cb80aea08c21e708300af748541de22ebb33ba754e102",
-          "last_commit": "cace14c1",
+          "last_commit": "9fcb5df6",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
@@ -110,14 +110,14 @@
         }
       ],
       "children_root": "sha256:5df49187f1ea94aaf1b6fdfb70e2196372ccb0a35075c96c0562c95ac4a5462c",
-      "compiled_at": "2026-10-30T02:50:28Z",
+      "compiled_at": "2026-10-30T02:54:44Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:9d21202ca658c85ba55ed80471b792596c78b1bd94848eae217a5a1fb0b5b415",
-      "evidence_files": 4,
-      "evidence_root": "sha256:e410b845507e00568e15b51a5797af32a97e0e4b8ab4e8487bb7c98e7e0cf335",
-      "files": 615,
-      "generated_at_commit": "cace14c1446ae2227580d60e1ee775f2e4ce1dca",
-      "source_tree": "sha256:9221648b854aea890019cde1bc06e118d70cbe98dad53e10289b3fa2b0c149fc"
+      "digest": "sha256:fe2b10c42fec881447dca457474a9f82dad9db7f6a0108a70350f85919a1ff54",
+      "evidence_files": 24,
+      "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
+      "files": 649,
+      "generated_at_commit": "9fcb5df607850a03d60a9fbcc45ac0c0457d7b20",
+      "source_tree": "sha256:3ad2166620b1b69f2f44cdffc7fb3d075a8e1c4bfddc06f0025d2295be5f419c"
     },
     "owner_lane": "",
     "provenance": {
