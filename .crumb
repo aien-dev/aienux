@@ -28,32 +28,32 @@
         },
         {
           "digest": "491fff9b0890580c813039f7360bb3158109e56d05914fdb3946cde55a6dab1e",
-          "last_commit": "03f493a3",
+          "last_commit": "6f4c6e8b",
           "name": "docs",
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "cc0c0fe3396d969d263660cfbca8914908227abea3d2dcf3d0e3c3fa78c28723",
-          "last_commit": "a4bb064c",
+          "digest": "6049f1338140cacbb5e391df3ac53815f9900d7cf036235821a5c4a58a6560f5",
+          "last_commit": "32c31dbf",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
-          "digest": "b1ef98eb8fd5893dd2d82cc49b0245cd3036356aadd380ede11ccd6897e95355",
-          "last_commit": "a4bb064c",
+          "digest": "b55898be8e56dcc5f75e282f3c50fc2430f03bf05eacd798f93f3679d591eee1",
+          "last_commit": "32c31dbf",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:1ce2acc14160cf0a85a4107518dd81a0ca6890a5576c1d45b166935857c176cd",
-      "compiled_at": "2026-10-28T18:17:51Z",
+      "children_root": "sha256:8b399299677686d51e7cf0f2c5d8682698fc5cc16bfbc5485b67e54b01968dc2",
+      "compiled_at": "2026-10-30T00:18:48Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:fe52fc87d3390f0a27d508b26750ad9e68223b3b13de98ba112de13f9638471c",
+      "digest": "sha256:f30ebbaad6bffef1723d00e3d209dfd96bcde19a431ab1d0e4cc7e61a7285c7c",
       "evidence_files": 329,
       "evidence_root": "sha256:2f305ce415677b0474ed4fe982f52be56de84cfd6cafef08cfe10417ebce8258",
-      "files": 3862,
-      "generated_at_commit": "735c40bff7270cc4d2a88f663ba4b663986b468c",
-      "source_tree": "sha256:4696c7ce85df4a470d14d1ce43ee6e2b409a80f6005815d443d699486c025797"
+      "files": 3863,
+      "generated_at_commit": "32c31dbf73e4e6c6ff925be42966f2f6def36c23",
+      "source_tree": "sha256:9ca07108fcd5aed8d41389dc473908c317530a2f5e5f0ebdc8622c370957cb4d"
     },
     "owner_lane": "",
     "provenance": {
