@@ -107,4 +107,8 @@ int ck_xhci_sweep_enabled(void);
 void ck_xhci_after_sweep(const pci_system *pci);
 /* Short state for the devices summary line: absent, fenced, denied, ... */
 const char *ck_xhci_state(void);
+#ifdef CK_HOST_TEST
+/* Host tests only: forget the one-shot ACPI scan. -1 while a stream is live. */
+int ck_xhci_host_forget(void);
+#endif
 #endif

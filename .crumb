@@ -33,14 +33,14 @@
           "purpose": "Directory docs. Purpose not yet described by a human."
         },
         {
-          "digest": "1f02102b90f85ebe5f0adbf744447263e1731feb1e6182185382e630698f50dc",
-          "last_commit": "b49f84eb",
+          "digest": "871748acc4c06434293d833e95acc5ca0063361e71a75c4cc545bd5028af50b6",
+          "last_commit": "d41d5c2b",
           "name": "native",
           "purpose": "Directory native. Purpose not yet described by a human."
         },
         {
           "digest": "2eeb83a186f413cd87d904a1bff118758e10bc3921c288762c2e07d87d21e503",
-          "last_commit": "d288a845",
+          "last_commit": "8182d6d3",
           "name": "scripts",
           "purpose": "Directory scripts. Purpose not yet described by a human."
         },
@@ -51,15 +51,15 @@
           "purpose": "First-party host artifact preparation tools"
         }
       ],
-      "children_root": "sha256:7c5deeeae4fe5eb1611e24cd00c6059f931140e4d331fa93be5decee6019e889",
-      "compiled_at": "2026-10-30T12:55:07Z",
+      "children_root": "sha256:d1820360796b68a79c143355fa8c7b6d36b1886d7d8dd6bf54c593e83106e8fc",
+      "compiled_at": "2026-10-30T13:06:28Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:c0e132c3e3a85983b035d63af5c24fed0cd9e8e2345232f6e9dd7fdd61a01325",
+      "digest": "sha256:7ae6b69a0de99da6a409490cd158f041a6fed957be1c0d47b1328f90cd373795",
       "evidence_files": 238,
       "evidence_root": "sha256:7a2a6f0fd6318a14bc86b8707a3bf324f2ed8e5c55403e5a01ab2e8df45ff308",
       "files": 3586,
-      "generated_at_commit": "df4352e4c8ff118ebce8c01f77897158ad5795ae",
-      "source_tree": "sha256:845a5188c28f7a14af7cc3ea19238576fe38a8ed8a6167b690731815f0bc8215"
+      "generated_at_commit": "595140e5bd22ebbe9b14d5c9abb683f44a0fa11c",
+      "source_tree": "sha256:902ecdc8c89ba8ebd84862899c737b08ac45e3d7c5e1dc8e11ea23bcc9c98c5a"
     },
     "owner_lane": "",
     "provenance": {
