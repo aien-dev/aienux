@@ -318,7 +318,8 @@ meet and measure; they are not measurements. Each build reports its observed tim
 - Draft 3 (2026-10-20): wording from L282's mockups taken (docs/design/screens/README.md, 9 changes: screens 3, 4, 6, 7b, 7c, 8)
   and the L267 build notes: no mouse in kernel images, letters outside the intent screen ignored. Also, from
   L267: the AI pick runs on the games path too (the driver builder needs an AI); an API key lives in kernel RAM
-  only (no sealed store on x86 yet), crosses once to the host relay as a key test, is wiped, and `llm.conf` names
+  only (no sealed store on x86 yet). The current courier is unencrypted, so key tests are refused locally
+  and the key is wiped. Configure service credentials on the host and select its local model here. `llm.conf` names
   the key variable only; https services cannot be tested yet (no TLS in the relay, none hand-rolled);
   the host description reader is only in the launcher image.
 - Draft 2 (2026-10-20): default local AI is the 27B + 30B pair when the network has it (L267 note); section 5

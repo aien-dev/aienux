@@ -131,10 +131,22 @@ static int ready(void)
     return io->now(io->ctx) - hi_at < 30 * hz;
 }
 
+/* This courier is unencrypted. Secret-bearing key tests must never be queued. */
+static void clear_job(void)
+{
+    volatile char *p = job;
+    for (unsigned i = 0; i < sizeof job; i++) p[i] = 0;
+    job_n = job_parts = 0;
+    job_out = 0;
+}
+
 static int send(const char *line, unsigned n)
 {
     if (!line || !n || n > sizeof job || !io->link(io->ctx))
         return -1;
+    if (n >= 7 && !memcmp(line, "KEYTEST", 7) && (n == 7 || line[7] == ' '))
+        return -1;
+    clear_job();
     memcpy(job, line, n);
     for (unsigned i = 0; i < n; i++)
         if (job[i] == '\n')
@@ -190,16 +202,20 @@ static void on_datagram(const char *h, unsigned hn, const char *body, unsigned b
         return;
     }
     if (kind_is(h, hn, "ACK")) {
-        if (seq == job_seq)
+        if (seq == job_seq) {
             job_acked = 1;
+            clear_job();
+        }
         return;
     }
     if (!kind_is(h, hn, "LINE")) {
         st_dropped++;
         return;
     }
-    if (seq == job_seq)
+    if (seq == job_seq) {
         job_acked = 1; /* an answer line says the job arrived */
+        clear_job();
+    }
     if (seq != line_seq) {
         line_seq = seq;
         line_part = 0;
@@ -312,7 +328,8 @@ const ck_courier *ck_courier_udp_init(const ck_netio *dev, const uint8_t m[6], c
     hi = 0;
     hi_at = hello_at = job_sent = 0;
     hello_sent = job_out = 0;
-    job_n = job_parts = 0;
+    clear_job();
+    job_acked = 0;
     job_seq = 0;
     line_head = line_count = 0;
     line_seq = 0;

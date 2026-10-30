@@ -12,10 +12,9 @@
  *      its step. Saved after every step;
  *   3. keys come here before the line editor while the wizard is up, so
  *      nothing typed into it is echoed or logged (the key above all);
- *   4. the key test goes down the courier (COM2) to the relay on the host as
- *      "KEYTEST <seq> <kind> <base_url> <key>", the only place the key ever
- *      leaves this struct; the line is wiped as soon as it is sent and the
- *      wizard wipes the key when the answer ("KEYOK" / "KEYBAD") comes back.
+ *   4. API keys are never submitted to the unencrypted courier. A requested
+ *      key test fails locally and erases the key; configure credentials on
+ *      the host instead. The discovered local model needs no key here.
  *
  * The console (COM1) gets "wizard: <event>" lines only (sw_event: steps and
  * choices, never what was typed). */
@@ -38,19 +37,12 @@ static int on;
 static int pending;       /* open, waiting for Allen to form before the first word */
 static unsigned saved_n;  /* the saved record to carry on from (0: a first start) */
 static unsigned said = ~0u, gen = ~0u;
-static uint32_t test_seq;
 static char text[CK_SETUP_TEXT + 1];
 #if CK_X86_HOSTDESC
 static char host[4096];
 #endif
 
 static uint32_t now_ms(void) { return (uint32_t)((ck_rdtsc() - t0) * 1000u / hz); }
-
-static void wipe(volatile char *p, unsigned n)
-{
-    while (n--)
-        *p++ = 0;
-}
 
 /* The processor's own name (CPUID 0x80000002..4), leading spaces dropped. */
 static void cpu_name(char out[49])
@@ -236,29 +228,10 @@ int ck_x86_setup_key(int kind, char c)
     return 1;
 }
 
-/* Answers to the key test: "KEYOK <seq> <model>" or "KEYBAD <seq> <why>". */
+/* Old courier key-test replies cannot change setup: no key test is sent. */
 int ck_x86_setup_line(const char *line)
 {
-    int ok = line[0] == 'K' && line[1] == 'E' && line[2] == 'Y' && line[3] == 'O' && line[4] == 'K' && line[5] == ' ';
-    int bad = line[0] == 'K' && line[1] == 'E' && line[2] == 'Y' && line[3] == 'B' && line[4] == 'A' &&
-              line[5] == 'D' && line[6] == ' ';
-    if (!ok && !bad)
-        return 0;
-    const char *p = line + (ok ? 6 : 7);
-    uint32_t seq = 0;
-    while (*p >= '0' && *p <= '9')
-        seq = seq * 10u + (uint32_t)(*p++ - '0');
-    if (*p == ' ')
-        p++;
-    if (!on || pending || seq != test_seq)
-        return 1;
-    int step = sw_step_of(&wiz);
-    sw_test_done(&wiz, ok, ok ? 0 : p, now_ms());
-    events();
-    if (sw_step_of(&wiz) != step)
-        save();
-    show();
-    return 1;
+    return !strncmp(line, "KEYOK ", 6) || !strncmp(line, "KEYBAD ", 7);
 }
 
 void ck_x86_setup_step(void)
@@ -273,23 +246,7 @@ void ck_x86_setup_step(void)
     sw_tick(&wiz, now_ms());
     const char *kind, *url, *model, *key;
     if (sw_test_wanted(&wiz, &kind, &url, &model, &key)) {
-        static char out[64 + SI_URL + SW_TEXT];
-        unsigned n = 0;
-        int sent = -1;
-        if (wire && wire->ready()) {
-            test_seq++;
-            /* the wire ends the line itself (courier.h) */
-            n = (unsigned)ck_snprintf(out, sizeof out, "KEYTEST %u %s %s %s", (unsigned)test_seq, kind,
-                                      url[0] ? url : "-", key[0] ? key : "-");
-            if (n < sizeof out)
-                sent = wire->send(out, n);
-            wipe(out, sizeof out);
-        }
-        if (sent)
-            sw_test_done(&wiz, 0, wire ? "the helper on the host is not answering yet" : "there is no wire to the host",
-                         now_ms());
-        else
-            ck_printf("wizard: key test %u sent (%s)\n", (unsigned)test_seq, kind);
+        sw_test_done(&wiz, 0, "Set the service key on the host, then choose its local model here.", now_ms());
     }
     events();
     if (sw_step_of(&wiz) != step)
