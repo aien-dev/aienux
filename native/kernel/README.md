@@ -545,9 +545,10 @@ this computer first (Allen's own 27B + 30B pair if it answers, else an installed
 running model), then peers, then "connect my own" (OpenAI-style or Anthropic
 service, key typed once). One found model is offered with "Use it / Choose another"
 and starts by itself after 10 s; two or more are never picked for the person. The
-key stays in kernel RAM and is wiped when the test is refused locally. The current
-courier is unencrypted, so the iMac never submits `KEYTEST` or a service credential
-through it. Configure the credential on the host and select its local model. Only
+iMac refuses “connect my own” before opening a key-entry screen, because the
+current courier is unencrypted. Configure the credential on the host and select
+its local model instead. The transport also refuses `KEYTEST`, and a stale test
+state is refused locally with its key wiped. Only
 `llm.conf` (`kind`, `base_url`, `model`, `key_env`, never the key) and a consent
 record are kept, with the wizard's place, in fixed records inside Allen's memory
 section (`svc/setup_store.c`), so a power cut resumes where it stopped and a
