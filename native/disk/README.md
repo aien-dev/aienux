@@ -103,3 +103,19 @@ SDSC, block for SDHC), and any unaligned or out-of-window register access.
 Not done yet: high-speed (50 MHz) and UHS modes, 1.8 V signalling, ADMA, card
 removal while running, and the Pi 5 binding (base address and base clock come
 from the ACPI tables dumped by AIENOS-PI5-ACPI-0).
+
+## Forward seeded Omega NVMe read path
+
+`omega_nvme.om` is the bounded, read-only protocol engine for aienux #31.
+The existing C driver/model are unchanged verification oracles, not a runtime
+implementation behind the Omega interface. The hosted transport exercises real
+QEMU NVMe admin/IO queues, exact identity/extent approval, phase/head/tail wrap,
+completion correlation, two-page PRPs and fail-stop DMA retention. Host fixtures,
+disposable-QEMU refusals and guard-removal mutants are filed in
+`tests/omega_nvme_receipt.txt`.
+
+See [OMEGA_NVME_READ.md](OMEGA_NVME_READ.md) for the pinned compiler, the explicit
+manifest byte layout, repeatable gate and exact measurement-first physical
+procedure. Physical and native transport qualification remain **NOT_RUN**.
+The QTest transport must not be mistaken for a kernel/VFIO adapter or permission
+to open/reset the live root NVMe. The existing recovery USB remains read-only.
