@@ -58,13 +58,13 @@
         },
         {
           "digest": "e6a371afcab6664b74ed49199722a013c18d962fc48b5907eeb18e14b3c35ba1",
-          "last_commit": "7d555ade",
+          "last_commit": "f45d00ad",
           "name": "core",
           "purpose": "Directory native/kernel/core. Purpose not yet described by a human."
         },
         {
-          "digest": "41794b17b28a7290757288202b665a2d71f09a041f05058a13e55a080710ae18",
-          "last_commit": "832bcbd9",
+          "digest": "c943647976dcb5c770e04fc9da06f921c581866c680449cb5a483de3226e4483",
+          "last_commit": "94b77f6c",
           "name": "dev",
           "purpose": "Directory native/kernel/dev. Purpose not yet described by a human."
         },
@@ -81,33 +81,33 @@
           "purpose": "Directory native/kernel/mm. Purpose not yet described by a human."
         },
         {
-          "digest": "4e5184ce714a8b0c5d16019337b7d77f57792a3f4a592d92cd8545dce2042dea",
-          "last_commit": "832bcbd9",
+          "digest": "007a51e72c3f3064b7ad4c12575067a8db6c71d9820d057ab7aa101e129e431a",
+          "last_commit": "697af71e",
           "name": "svc",
           "purpose": "Directory native/kernel/svc. Purpose not yet described by a human."
         },
         {
-          "digest": "f0db5439404db6ec096059fd2e3e18a2c8c70e75f78251e499746cad2c457a99",
-          "last_commit": "7d555ade",
+          "digest": "c90db8713d6ae7ec55d252ef3cc96f168804c0fa7e77509a1ef4f6b41bf5cc78",
+          "last_commit": "94b77f6c",
           "name": "tests",
           "purpose": "Directory native/kernel/tests. Purpose not yet described by a human."
         },
         {
-          "digest": "7863ced57b54d23a2e3c2aa02ab53468462616b44cf256f71a530a35f6ecb25d",
-          "last_commit": "41119ceb",
+          "digest": "b9e7c05043b82668b22343765e7ca61d06f5132dacbb623bd333e3e9e577eafc",
+          "last_commit": "94b77f6c",
           "name": "tools",
           "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothin"
         }
       ],
-      "children_root": "sha256:bb228f1b90360a64ddc23c4f19b6342913a9c4124b1e4e80d31773e4848f1477",
-      "compiled_at": "2026-10-30T02:45:39Z",
+      "children_root": "sha256:e8a52b62f13d23bb776650e0c2ea134772a550b993d55c08c6e59201b1625a02",
+      "compiled_at": "2026-10-30T05:15:53Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:bb06d8754682e7e2387983efa0195ac12eaa40221a8524c4b56512e8c8c8d086",
+      "digest": "sha256:fad98a3a60585ec53f45394e80311344ed58601c892bfd39f779b485872e1e4b",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 427,
-      "generated_at_commit": "7112a008703b16ea79c1ccdbf1afca0c78aa51e2",
-      "source_tree": "sha256:40d078387cfd4316be975f4f87e9a0c0114143b5103b20b8510be4abcb3f25bb"
+      "files": 429,
+      "generated_at_commit": "94b77f6c2c3a43fbd90f7c3d08169dee1ae50fcf",
+      "source_tree": "sha256:53a8e56e594c9896728c703821767beebf34691f5bd4eae5281d6e83d77598cf"
     },
     "owner_lane": "",
     "provenance": {
