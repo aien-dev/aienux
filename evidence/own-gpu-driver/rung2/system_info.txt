@@ -1,0 +1,111 @@
+# GspSystemInfo for window 1 (L332 rung 2): what NVIDIA's driver 580.173.02 would send in GSP_SET_SYSTEM_INFO on this
+# Spark (GB10 at PCI 000f:01:00.0). Encoded by native/kernel/tools/ck_gsp_sysinfo_encode; every field not listed is 0.
+# Driver source: rpcGspSetSystemInfo_v17_00 (src/nvidia/src/kernel/vgpu/rpc.c:10493-) and clSyncWithGsp_IMPL
+# (src/nvidia/src/kernel/platform/chipset/chipset.c:760-815). Tags: DOCUMENTED = driver line, OBSERVED = read on this box
+# 2026-10-21, ASSUMED = not settled, reason given. $O = ~/workspace/_ext/open-gpu-kernel-modules-580.173.02.
+
+# Bus addresses. The GB10 has one memory BAR: BAR0 0x24000000, 64 MiB (sysfs resource, lspci; OBSERVED). nv-pci.c:1495-1508
+# fills nv->bars[] with valid memory BARs in order, so nv->fb (bars[1]) and bars[2] (IMEM) stay zero (DOCUMENTED).
+# osinit.c:737-742 -> gpu_mgr.c (non-SOC branch): gpuPhysAddr = BAR0, gpuPhysFbAddr = 0, gpuPhysIoAddr = 0, and with no
+# IMEM BAR gpuPhysInstAddr = BAR0 + 0x700000 (NV_PRAMIN, gpu_mgr.c ~1994).
+gpuPhysAddr                 0x24000000
+gpuPhysInstAddr             0x24700000
+# gpuEncodeDomainBusDevice (g_gpu_nvoc.h:502-507, fields 63:32 domain, 15:8 bus, 7:0 device; function not encoded),
+# via nv_encode_pci_info (osinit.c:144-147): domain 0xf, bus 1, device 0.
+nvDomainBusDeviceFunc       0x0000000f00000100
+
+# PCI identity, as the GB100-family HAL reads config space (kern_gpu_gb100.c:940-967): DEVICE_VENDOR_ID dword,
+# SUBSYSTEM_ID_AND_VENDOR_ID dword, revision byte of dword 8. OBSERVED: 10de:2e12, subsystem 10de:0000, revision 0xa1.
+PCIDeviceID                 0x2e1210de
+PCISubDeviceID              0x000010de
+PCIRevisionID               0xa1
+
+# OS: TASK_SIZE (os-interface.c:1128-1131) with CONFIG_ARM64_VA_BITS=48 (OBSERVED /boot/config); osGetPageSize = 4096
+# (CONFIG_ARM64_4K_PAGES=y, getconf PAGESIZE, OBSERVED).
+maxUserVa                   0x1000000000000
+hostPageSize                4096
+
+# PCIe link capabilities register of the GPU (config 0x6c = Express cap 0x60 + 0xc), OBSERVED setpci 6c.l.
+pcieConfigReg.linkCap       0x00457901
+
+# CPU architecture: enum g_gpu_nvoc.h:361-366 (X86_64 0, PPC64LE 1, ARM 2, AARCH64 3), assigned gpu_mgr.c:1539. DOCUMENTED.
+oorArch                     0x3
+
+# Chipset: the root port 000f:00:00.0 is 10de:22d1 (OBSERVED). nvcst.h:300 maps NVIDIA 0x22D1 to CS_NVIDIA_T254; its enum
+# value printed by a probe compiled against nvdevid.h on 2026-10-21: T254=0x106d (DOCUMENTED, compiled).
+Chipset                     0x106d
+# First host bridge and chipset id: chipset.c:253-368 copies the upstream port's ids; config bytes de 10 d1 22, class
+# 0x0604, no subsystem capability on the type-1 bridge (OBSERVED lspci -xxx), so subsystem and revision fields stay 0.
+# INFERRED (path read, not run).
+FHBBusInfo.deviceID         0x22d1
+FHBBusInfo.vendorID         0x10de
+chipsetIDInfo.deviceID      0x22d1
+chipsetIDInfo.vendorID      0x10de
+# Chipset property bits 0, 6, 7, 13, 23, 27, 32 (clSyncWithGsp_IMPL chipset.c:760-815; each bit's setter read by the
+# L332 research pass 2026-10-21): sum calc:9bed9176ce8fde2e4e1720279ef0388df38e8af58d36851fa354482d1dec7e4f = 4437582017.
+# INFERRED (which setters fire on this box was read from source, not observed from NVIDIA's driver).
+clPdbProperties             0x1088020c1
+
+# GPU PCIe features. FLR: kernel_bif_gh100.c:1099 tests bit 28 of config 0x64, the GPU reads 0x10008021 (OBSERVED).
+# 64-bit BAR0: kernel_bif_gh100.c:1131, BAR0 dword 0x2400000c (OBSERVED). MNOC: kbifCacheMnocSupport is GB100/102/110/112
+# only, GB10B takes the no-op (DOCUMENTED). L1SS: the root port has no L1 PM Substates capability (OBSERVED lspci).
+bFlrSupported               1
+b64bBar0Supported           1
+bMnocAvailable              0
+chipsetL1ssEnable           0
+# Config-space mirror: GB10B uses kbifGetPciConfigSpacePriMirror_GH100 (g_kernel_bif_nvoc.c:966-969, ChipHal list
+# "GH100 | GB10B | GB202 ..."), which returns DEVICE_BASE/EXTENT of NV_EP_PCFGM = 0x92FFF:0x92000 (kernel_bif_gh100.c:593-604,
+# dev_xtl_ep_pri.h:26). The rpc.c:10544 "mirror removed on Blackwell+" comment covers GB100/102/110/112 (the _48d5a7 stub),
+# not GB10B. DOCUMENTED.
+pciConfigMirrorBase         0x92000
+pciConfigMirrorSize         0x1000
+# Atomics: requester mask NVBIT(0..2) from kbifProbePcieReqAtomicCaps_GH100 (kernel_bif_gh100.c:620) via os-pci.c:151;
+# root port DevCap2 0x80711ba0 has atomic completer bits 7-9, GPU DevCtl2 shows AtomicOpsCtl ReqEn+ (OBSERVED). INFERRED.
+# Completer mask: kernel_bif_gb10b.c:30-66 reads the GPU's own DevCap2 0x00670813, bits 7-9 clear (OBSERVED) -> 0.
+pcieAtomicsOpMask           0x7
+
+# Hypervisor: OS_HYPERVISOR_UNKNOWN = 4 is the constructor default (nv-hypervisor.h:32-38, hypervisor.c:58); bare metal
+# (SMBIOS 0x13 byte 0x0D, VM bit clear, OBSERVED). No SR-IOV capability (lspci, OBSERVED): gspVFInfo stays 0.
+hypervisorType              4
+
+# ACPI: _acpiCacheMethodData (acpi_common.c:1120-1180) sets bValid unconditionally, sets acpiIdListLen to
+# sizeof(acpiIdList) = 16 x 4 = 64 before calling _DOD, and stores each call's status (DOCUMENTED). The GPU's ACPI node
+# \_SB_.PCIF.RP0_.IGPU exists (sysfs firmware_node/path, OBSERVED) with only _ADR and _CRS, so _DOD fails and
+# nv_acpi_dod_method returns NV_ERR_GENERIC 0xFFFF (nv-acpi.c:1026-1032; nvstatuscodes.h:28), list length untouched.
+# JT and Optimus caps go through checkDsmCall, whose not-present paths return NV_ERR_NOT_SUPPORTED 0x56
+# (acpi_common.c checkDsmCall; nvstatuscodes.h:115): INFERRED (no _DSM on the node; which exit fires was not run).
+# With _DOD failed the mux table stays empty (tableLen 0). Without these, 0 would read as NV_OK (success).
+acpiMethodData.bValid       1
+acpiMethodData.dodMethodData.status 0xffff
+acpiMethodData.dodMethodData.acpiIdListLen 64
+acpiMethodData.jtMethodData.status 0x56
+acpiMethodData.capsMethodData.status 0x56
+
+# Upstream port: the GPU sits directly under the root port (bGpuBehindBridge 0, chipset_pcie.c:1313-1322, INFERRED);
+# upstreamAddressValid set by chipset_pcie.c:1205-1212 (DOCUMENTED). ASPM POR flags are Intel-only, stay 0 (INFERRED).
+upstreamAddressValid        1
+
+# Display: GB10B has DISPv0501 (g_chips2halspec_nvoc.h:148-149), so KernelDisplay exists and its constructor value
+# bWindowChannelAlwaysMapped = 1 (g_kern_disp_nvoc.c:305) is sent (INFERRED). HDMI FRL compliance flag is set
+# unconditionally (g_gpu_nvoc.c:350, DOCUMENTED).
+bWindowChannelAlwaysMapped  1
+bIsUnixHdmiFrlComplianceEnabled 1
+
+# Fields left 0 on purpose (every unlisted field is 0):
+# - simAccessBufPhysAddr: not a simulator (DOCUMENTED). isGridBuild/gridBuildCsp: not a GRID build (INFERRED).
+# - bPreserveVideoMemoryAllocations: GB10B's bUseVirtualCopyOnSuspend HAL default is TRUE (g_mem_mgr_nvoc.c:466-482),
+#   which blocks osinit.c:842 (INFERRED). bEnableDynamicGranularityPageArrays, bFeatureStretchVblankCapable,
+#   bClockBoostSupported, bIsCmcBasedHws, bGspNocatEnabled: constructor/no-op/Windows-only (DOCUMENTED). bTdrEventSupported:
+#   no setter (INFERRED). bS0ixSupport: regkey EnableS0ixPowerManagement 0 (OBSERVED).
+# - notifyOpSharedSurfacePhysAddr: left 0 HERE on purpose; aien_gsp_boot fills it with the zeroed first page of the arena,
+#   as NVIDIA's _kgspAllocNotifyOpSharedSurface (kernel_gsp.c:3489-3526) does, and saves what it sent as
+#   system_info.sent.bin in the run directory.
+#
+# UNKNOWN (said out loud; window 1 shows whether any of them matters):
+# - consoleMemSize: 0 chosen. NVIDIA preserves the console only when the framebuffer sits in a GPU BAR (nv.c:6172-6308);
+#   here the framebuffer is at 0x300000000, outside BAR0, and GB10 has no FB BAR, so 0 is most likely (INFERRED).
+# - bIsPrimary: 0 chosen. Follows primary_vga (nv.c:5105-5121), false on arm64 in the reading; boot_vga reads 1 (OBSERVED),
+#   so not settled.
+# - sysTimerOffsetNs: 0 chosen. NVIDIA computes OS ns minus GPU PTIMER ns just before the call (timer_gb10b.c:36-79);
+#   PTIMER is not on the module's allowlist. 0 makes GSP log timestamps PTIMER time instead of wall time. ASSUMED harmless
+#   for INIT_DONE; window 2 adds the read if it is not.

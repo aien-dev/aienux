@@ -1426,7 +1426,8 @@ HOST_SRCS := $(KDIR)/core/fmt.c $(KDIR)/core/acpi.c $(KDIR)/core/smmu.c $(KDIR)/
 TESTS := test_fmt test_frames test_pt test_acpi test_acpi_dev test_heap test_smmu test_sched test_ipc test_artifact test_osc_unit test_osc_launch test_osc_admit test_osc_receipt test_entropy test_handoff test_fbcon test_osh_op \
 	test_continuity_codec test_continuity_resolve test_continuity_commit test_continuity_recovery test_continuity_geometry \
 	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card \
-	test_netboot_text
+	test_netboot_text test_gb10_gsp_boot
+TESTS += test_gpu_sim test_gsp_mmio
 HCFLAGS := -std=gnu11 -O1 -g -Wall -Wextra -Werror -I$(KDIR)/core -I$(KDIR)/mm -I$(KDIR)/tests -I$(BOOT)
 SANFLAGS := -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
 
@@ -1579,8 +1580,8 @@ smmu-l2-mutants: $(OUT)/host/test_smmu
 	else echo "mutant flag refused under CK_HARDWARE_STAGING"; fi; \
 	if [ $$fail = 0 ]; then echo "CK_SMMU_L2_MUTANTS: PASS"; else echo "CK_SMMU_L2_MUTANTS: FAIL"; exit 1; fi
 
-test: $(addprefix $(OUT)/host/,$(TESTS)) osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test slot-test slot-free package-test slot-loader-check
-	@fail=0; for t in $(filter-out osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test slot-test slot-free package-test slot-loader-check,$^); do $$t || fail=1; done; \
+test: $(addprefix $(OUT)/host/,$(TESTS)) osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check
+	@fail=0; for t in $(filter-out osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check,$^); do $$t || fail=1; done; \
 	if [ $$fail = 0 ]; then echo "CK_CORE_HOST: PASS"; else echo "CK_CORE_HOST: FAIL"; exit 1; fi
 
 sanitize: $(addprefix $(OUT)/host-san/,$(TESTS))
@@ -2215,6 +2216,84 @@ gsp-rpc-test: $(GSP_RPC_TOOL)
 	$(GSP_RPC_TOOL) selftest | grep -E '^CK_GSP_RPC_ENCODE_SELFTEST: (PASS|FAIL)' | grep -q PASS || { $(GSP_RPC_TOOL) selftest | grep -E 'FAIL|SELFTEST'; exit 1; }
 	@$(GSP_RPC_TOOL) selftest | tail -1
 
+# ---- GspSystemInfo encoder (L332 rung 2 window 1): the 936 bytes of GSP_SET_SYSTEM_INFO from a
+# "field value" text file. gsp-sysinfo-test = anchors, a known encoding, every refusal.
+# gsp-sysinfo-nvhdr-test = our field list against NVIDIA's own struct text, cut out of the pinned
+# tree (OGKM_DIR) at build time by line range; each cut is checked to start and end where expected.
+GSP_SI_TOOL := $(OUT)/host/ck_gsp_sysinfo_encode
+$(GSP_SI_TOOL): $(KDIR)/tools/ck_gsp_sysinfo_encode.c
+	@mkdir -p $(dir $@)
+	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror -o $@ $<
+gsp-sysinfo-test: $(GSP_SI_TOOL)
+	$(GSP_SI_TOOL) selftest | grep -E '^CK_GSP_SYSINFO_ENCODE_SELFTEST: (PASS|FAIL)' | grep -q PASS || { $(GSP_SI_TOOL) selftest | grep -E 'FAIL|SELFTEST'; exit 1; }
+	@$(GSP_SI_TOOL) selftest | tail -1
+GSP_SI_NV := $(OUT)/host/gsp_sysinfo_nvidia.h
+gsp-sysinfo-nvhdr-test: $(KDIR)/tools/ck_gsp_sysinfo_encode.c
+	@test -d $(OGKM_SRC) || { echo "GSP_SYSINFO_NVHDR: FAIL (no open-gpu-kernel-modules 580.173.02 tree at OGKM_DIR=$(OGKM_DIR))"; exit 1; }
+	@mkdir -p $(OUT)/host
+	@cut() { sed -n "$$2,$$3p" "$(OGKM_SRC)/$$1" > $(GSP_SI_NV).part; \
+	  head -1 $(GSP_SI_NV).part | grep -q "$$4" && tail -1 $(GSP_SI_NV).part | grep -q "$$5" || \
+	  { echo "GSP_SYSINFO_NVHDR: FAIL ($$1:$$2-$$3 is not $$4 .. $$5)"; exit 1; }; cat $(GSP_SI_NV).part >> $(GSP_SI_NV); }; \
+	: > $(GSP_SI_NV); \
+	cut common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073system.h 747 747 'NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS' '(16U)' && \
+	cut nvidia/inc/kernel/gpu/gpu_acpi_data.h 72 115 'typedef struct DOD_METHOD_DATA' '} ACPI_METHOD_DATA;' && \
+	cut nvidia/generated/g_chipset_nvoc.h 220 227 'typedef struct' '} BUSINFO;' && \
+	cut nvidia/inc/kernel/gpu/gsp/gsp_static_config.h 45 62 'typedef struct GSP_VF_INFO' '} GSP_PCIE_CONFIG_REG;' && \
+	cut nvidia/inc/kernel/gpu/gsp/gsp_static_config.h 172 227 'typedef struct GspSystemInfo' '} GspSystemInfo;'
+	$(HOSTCC) -std=gnu11 -O2 -Wall -Wextra -Werror $(OGKM_INC) -DCK_SYSINFO_NVHDR='"$(GSP_SI_NV)"' \
+	  -o $(OUT)/host/ck_gsp_sysinfo_nvhdr $(KDIR)/tools/ck_gsp_sysinfo_encode.c
+	$(OUT)/host/ck_gsp_sysinfo_nvhdr nvhdr
+
+# ---- GB10 GSP boot builder, freestanding (L192, aienos#286 cut C host side) ----
+# dev/gb10_gsp_boot.c composes every block above into one arena plus the SEC2 COT packet and the
+# post-init RPCs (GSP_RM_ALLOC / CONTROL / FREE, GET_GSP_STATIC_INFO). Bytes in memory only: no
+# MMIO, no firmware load. Not linked into any image yet. docs/GB10_FIRMWARE_INVENTORY.md section 14.
+#   test_gb10_gsp_boot (in TESTS): layout, cross-links, ring, refusals, decoded at hand-written offsets
+#   gb10-gsp-free:        compiles with KCFLAGS, no undefined symbols, every frame <= 4 KiB of stack
+#   gb10-gsp-nvhdr-test:  mirrors vs the NVIDIA headers themselves (OGKM_DIR, MIT); FAILS if absent
+#   gb10-gsp-nvhdr-check: same, NOT_RUN when OGKM_DIR is absent (used by make test)
+#   gb10-gsp-mutants:     each test-only mutant must make test_gb10_gsp_boot or the nvhdr test FAIL
+GSPB_SRCS := $(KDIR)/dev/gb10_gsp_boot.c
+GSPB_DEPS := $(KDIR)/tests/test_gb10_gsp_boot.c $(GSPB_SRCS) $(KDIR)/dev/gb10_gsp_boot.h $(KDIR)/tests/ck_test.h
+$(OUT)/host/test_gb10_gsp_boot: $(GSPB_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/dev -o $@ $< $(GSPB_SRCS)
+$(OUT)/host-san/test_gb10_gsp_boot: $(GSPB_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/dev -o $@ $< $(GSPB_SRCS)
+test-gb10-gsp-boot: $(OUT)/host/test_gb10_gsp_boot
+	$<
+gb10-gsp-free: $(GSPB_SRCS) $(KDIR)/dev/gb10_gsp_boot.h
+	@mkdir -p $(OUT)/free
+	$(KCC) $(KCFLAGS) -Wstack-usage=4096 -c $(GSPB_SRCS) -o $(OUT)/free/gb10_gsp_boot.o
+	@bad=$$($(CROSS)nm -u $(OUT)/free/gb10_gsp_boot.o | awk '{print $$2}' | grep -vxF -e _GLOBAL_OFFSET_TABLE_ || true); \
+	if [ -n "$$bad" ]; then echo "GB10_GSP_FREE: FAIL unexpected undefined symbols: $$bad"; exit 1; fi; \
+	echo "GB10_GSP_FREE: PASS (no undefined symbols, stack <= 4096 per function)"
+OGKM_DIR ?= $(HOME)/workspace/_ext/open-gpu-kernel-modules-580.173.02
+OGKM_SRC := $(OGKM_DIR)/src
+OGKM_INC := -I$(OGKM_SRC)/common/sdk/nvidia/inc -I$(OGKM_SRC)/nvidia/arch/nvalloc/common/inc \
+	-I$(OGKM_SRC)/common/uproc/os/common/include -I$(OGKM_SRC)/nvidia/inc/kernel -I$(OGKM_SRC)/nvidia/inc \
+	-I$(OGKM_SRC)/nvidia/generated -I$(OGKM_SRC)/common/shared/msgq/inc -I$(OGKM_SRC)/nvidia/interface \
+	-I$(OGKM_SRC)/common/inc
+GSPB_NV_DEPS := $(KDIR)/tests/test_gb10_gsp_nvhdr.c $(GSPB_SRCS) $(KDIR)/dev/gb10_gsp_boot.h $(KDIR)/tests/ck_test.h
+gb10-gsp-nvhdr-test: $(GSPB_NV_DEPS)
+	@test -r $(OGKM_SRC)/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h || \
+	  { echo "GB10_GSP_NVHDR: FAIL (no open-gpu-kernel-modules 580.173.02 tree at OGKM_DIR=$(OGKM_DIR))"; exit 1; }
+	@mkdir -p $(OUT)/host-san
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/dev $(OGKM_INC) -o $(OUT)/host-san/test_gb10_gsp_nvhdr $< $(GSPB_SRCS)
+	$(OUT)/host-san/test_gb10_gsp_nvhdr
+gb10-gsp-nvhdr-check:
+	@if [ -r $(OGKM_SRC)/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h ]; then $(MAKE) --no-print-directory gb10-gsp-nvhdr-test; \
+	else echo "GB10_GSP_NVHDR: NOT_RUN (no open-gpu-kernel-modules 580.173.02 tree at OGKM_DIR=$(OGKM_DIR))"; fi
+GSPB_MUTANTS := SWAPRX CKSUM RADIX ALLOCLEN
+gb10-gsp-mutants: $(GSPB_DEPS) $(GSPB_NV_DEPS)
+	@mkdir -p $(OUT)/host
+	@fail=0; for m in $(GSPB_MUTANTS); do \
+	  $(HOSTCC) $(HCFLAGS) -DGSP_MUTANT_HOST -DGSP_MUTANT_$$m -I$(KDIR)/dev -o $(OUT)/host/test_gb10_gsp_boot_mut_$$m $(KDIR)/tests/test_gb10_gsp_boot.c $(GSPB_SRCS) || exit 1; \
+	  if $(OUT)/host/test_gb10_gsp_boot_mut_$$m >/dev/null; then echo "MUTANT SURVIVED: $$m"; fail=1; else echo "mutant killed: $$m"; fi; \
+	done; test $$fail -eq 0
+.PHONY: test-gb10-gsp-boot gb10-gsp-free gb10-gsp-nvhdr-test gb10-gsp-nvhdr-check gb10-gsp-mutants
+
 # ---- native image slots: host tool + freestanding check (native v1 plan P11 cut 1, gate N7) ----
 # native/boot/slot_format.h + slot_select.c: the A/B slot manifest, control record and the
 # loader's selection rules (bounded candidate tries, generation floor, no boot loop, an
@@ -2743,6 +2822,127 @@ dma-window-mutants:
 	  if $(OUT)/host/test_dma_window_mut_$$m >/dev/null; then echo "MUTANT SURVIVED: $$m"; fail=1; else echo "mutant killed: $$m"; fi; \
 	done; test $$fail -eq 0
 .PHONY: test-dma-window dma-window-mutants
+
+# AIENOS-GB10 cut D, host side: GPU page tables, allocator and channel over a simulated GB10
+# (gpu/gpu_sim.c). Host test only, not linked into any image (dependency map: kernel-side D code waits for #163/B).
+GPU_SIM_SRCS := $(KDIR)/gpu/gmmu.c $(KDIR)/gpu/gpu_mem.c $(KDIR)/gpu/gpu_chan.c $(KDIR)/gpu/gpu_sim.c
+GPU_SIM_HDRS := $(KDIR)/gpu/gmmu.h $(KDIR)/gpu/gpu_mem.h $(KDIR)/gpu/gpu_chan.h $(KDIR)/gpu/gpu_sim.h
+GPU_SIM_DEPS := $(KDIR)/tests/test_gpu_sim.c $(GPU_SIM_SRCS) $(GPU_SIM_HDRS) $(KDIR)/tests/ck_test.h
+$(OUT)/host/test_gpu_sim: $(GPU_SIM_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS)
+$(OUT)/host-san/test_gpu_sim: $(GPU_SIM_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS)
+test-gpu-sim: $(OUT)/host/test_gpu_sim
+	$<
+# The three files that would run in the kernel must build with the kernel compiler and KCFLAGS and need no symbol from outside.
+gpu-freestanding:
+	@mkdir -p $(OUT)/host/gpu-fs
+	@for f in gmmu gpu_mem gpu_chan; do \
+	  $(KCC) $(KCFLAGS) -I$(KDIR)/gpu -c -o $(OUT)/host/gpu-fs/$$f.o $(KDIR)/gpu/$$f.c || exit 1; \
+	done; \
+	$(CROSS)ld -r -o $(OUT)/host/gpu-fs/gpu.o $(OUT)/host/gpu-fs/gmmu.o $(OUT)/host/gpu-fs/gpu_mem.o $(OUT)/host/gpu-fs/gpu_chan.o || exit 1; \
+	if nm -u $(OUT)/host/gpu-fs/gpu.o | grep -v " _GLOBAL_OFFSET_TABLE_$$" | grep -q .; then nm -u $(OUT)/host/gpu-fs/gpu.o; echo "gpu-freestanding: FAIL (undefined symbols)"; exit 1; fi; \
+	echo "gpu-freestanding: PASS (gmmu gpu_mem gpu_chan built with KCC/KCFLAGS, linked -r, no undefined symbol except the PIE GOT)"
+# Each mutant removes one check; test_gpu_sim must FAIL for every one.
+GPU_SIM_MUTANTS := NO_OVERLAP NO_PA_RANGE NO_VA_BITS NO_POOL_COUNT NO_INVAL_POLL NO_TIMEOUT_LATCH NO_QUARANTINE \
+	NO_POLLED_UNCACHED NO_GP_VA40 NO_RING_FULL NO_IDLE_QUARANTINE NO_MIXED_PAGES NO_INST_PDB NO_CHID_WIDTH NO_USERD_WIDTH NO_DISABLE
+gpu-sim-mutants:
+	@mkdir -p $(OUT)/host
+	@fail=0; for m in $(GPU_SIM_MUTANTS); do \
+	  $(HOSTCC) $(HCFLAGS) -DCK_GPU_MUTANT_$$m -I$(KDIR)/gpu -o $(OUT)/host/test_gpu_sim_mut_$$m $(KDIR)/tests/test_gpu_sim.c $(GPU_SIM_SRCS) || exit 1; \
+	  if $(OUT)/host/test_gpu_sim_mut_$$m >/dev/null; then echo "MUTANT SURVIVED: $$m"; fail=1; else echo "mutant killed: $$m"; fi; \
+	done; test $$fail -eq 0
+.PHONY: test-gpu-sim gpu-freestanding gpu-sim-mutants
+
+# L332 rung 1: the same channel as a device contract (gpu/contract/gb10_chan.devc, ADR 0021 class gpu-chan), compiled by
+# crates/aienos-devc into gpu/contract/gen/gch_contract.c (committed; the kernel build never runs cargo). The generated twin
+# must pass test_gpu_sim like the hand one, and the differential trace (every register access and a hash of all simulated
+# memory after each of ~330 operations) must be byte-identical between the two.
+GPU_CONTRACT_C := $(KDIR)/gpu/contract/gen/gch_contract.c
+GPU_SIM_SRCS_CONTRACT := $(filter-out $(KDIR)/gpu/gpu_chan.c,$(GPU_SIM_SRCS)) $(GPU_CONTRACT_C)
+$(OUT)/host/test_gpu_sim_contract: $(KDIR)/tests/test_gpu_sim.c $(GPU_SIM_SRCS_CONTRACT) $(GPU_SIM_HDRS) $(KDIR)/tests/ck_test.h
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS_CONTRACT)
+$(OUT)/host-san/test_gpu_sim_contract: $(KDIR)/tests/test_gpu_sim.c $(GPU_SIM_SRCS_CONTRACT) $(GPU_SIM_HDRS) $(KDIR)/tests/ck_test.h
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS_CONTRACT)
+$(OUT)/host/gpu_chan_trace_hand: $(KDIR)/tests/gpu_chan_trace.c $(GPU_SIM_SRCS) $(GPU_SIM_HDRS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS)
+$(OUT)/host/gpu_chan_trace_contract: $(KDIR)/tests/gpu_chan_trace.c $(GPU_SIM_SRCS_CONTRACT) $(GPU_SIM_HDRS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GPU_SIM_SRCS_CONTRACT)
+test-gpu-contract: $(OUT)/host/test_gpu_sim_contract $(OUT)/host-san/test_gpu_sim_contract
+	$(OUT)/host/test_gpu_sim_contract
+	$(OUT)/host-san/test_gpu_sim_contract
+gpu-contract-trace: $(OUT)/host/gpu_chan_trace_hand $(OUT)/host/gpu_chan_trace_contract
+	@$(OUT)/host/gpu_chan_trace_hand > $(OUT)/host/gpu_chan_trace_hand.txt
+	@$(OUT)/host/gpu_chan_trace_contract > $(OUT)/host/gpu_chan_trace_contract.txt
+	@cmp $(OUT)/host/gpu_chan_trace_hand.txt $(OUT)/host/gpu_chan_trace_contract.txt \
+	  && echo "gpu-contract-trace: PASS ($$(wc -l < $(OUT)/host/gpu_chan_trace_hand.txt) lines identical, hand vs contract)"
+gpu-contract-freestanding:
+	@mkdir -p $(OUT)/host/gpu-fs
+	@$(KCC) $(KCFLAGS) -I$(KDIR)/gpu -c -o $(OUT)/host/gpu-fs/gch_contract.o $(GPU_CONTRACT_C) || exit 1; \
+	if nm -u $(OUT)/host/gpu-fs/gch_contract.o | grep -v " _GLOBAL_OFFSET_TABLE_$$" | grep -vE " ck_gmem_(alloc|free|quarantine)$$" | grep -q .; then \
+	  nm -u $(OUT)/host/gpu-fs/gch_contract.o; echo "gpu-contract-freestanding: FAIL"; exit 1; fi; \
+	echo "gpu-contract-freestanding: PASS (gch_contract.c with KCC/KCFLAGS, needs only the ck_gmem allocator)"
+.PHONY: test-gpu-contract gpu-contract-trace gpu-contract-freestanding
+
+# L332 / L346: the GB10B GSP start-up on BAR0 (gpu/gsp_mmio.c, steps and driver-source lines in gsp_mmio.h) against a
+# simulated SEC2 + GSP falcon (gpu/gsp_sim.c). Host only. gsp-mmio-freestanding: gsp_mmio.c with KCC/KCFLAGS, no symbol needed.
+GSP_MMIO_SRCS := $(KDIR)/gpu/gsp_mmio.c $(KDIR)/gpu/gsp_sim.c
+GSP_MMIO_DEPS := $(KDIR)/tests/test_gsp_mmio.c $(GSP_MMIO_SRCS) $(KDIR)/gpu/gsp_mmio.h $(KDIR)/gpu/gsp_sim.h $(KDIR)/gpu/gmmu.h $(KDIR)/tests/ck_test.h
+$(OUT)/host/test_gsp_mmio: $(GSP_MMIO_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(GSP_MMIO_SRCS)
+$(OUT)/host-san/test_gsp_mmio: $(GSP_MMIO_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GSP_MMIO_SRCS)
+test-gsp-mmio: $(OUT)/host/test_gsp_mmio $(OUT)/host-san/test_gsp_mmio
+	$(OUT)/host/test_gsp_mmio
+	$(OUT)/host-san/test_gsp_mmio
+gsp-mmio-freestanding:
+	@mkdir -p $(OUT)/host/gpu-fs
+	@$(KCC) $(KCFLAGS) -I$(KDIR)/gpu -c -o $(OUT)/host/gpu-fs/gsp_mmio.o $(KDIR)/gpu/gsp_mmio.c || exit 1; \
+	if nm -u $(OUT)/host/gpu-fs/gsp_mmio.o | grep -v " _GLOBAL_OFFSET_TABLE_$$" | grep -q .; then \
+	  nm -u $(OUT)/host/gpu-fs/gsp_mmio.o; echo "gsp-mmio-freestanding: FAIL"; exit 1; fi; \
+	echo "gsp-mmio-freestanding: PASS (gsp_mmio.c with KCC/KCFLAGS, no undefined symbol)"
+.PHONY: test-gsp-mmio gsp-mmio-freestanding
+# The same start-up written from gpu/contract/gb10_gsp.devc (aienos-devc class gpu-boot, branch feat/devc-gpu):
+# gen/gsb_contract.c has the gsp_mmio.h API with the contract's own offsets. It must pass test_gsp_mmio and match
+# the hand twin access for access in every gsp_boot_trace scenario.
+GSP_CONTRACT_C := $(KDIR)/gpu/contract/gen/gsb_contract.c
+GSP_TRACE_DEPS := $(KDIR)/tests/gsp_boot_trace.c $(KDIR)/gpu/gsp_sim.c $(KDIR)/gpu/gsp_mmio.h $(KDIR)/gpu/gsp_sim.h $(KDIR)/gpu/gmmu.h
+$(OUT)/host/test_gsp_mmio_contract: $(GSP_MMIO_DEPS) $(GSP_CONTRACT_C)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(GSP_CONTRACT_C) $(KDIR)/gpu/gsp_sim.c
+$(OUT)/host-san/test_gsp_mmio_contract: $(GSP_MMIO_DEPS) $(GSP_CONTRACT_C)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -I$(KDIR)/gpu -o $@ $< $(GSP_CONTRACT_C) $(KDIR)/gpu/gsp_sim.c
+$(OUT)/host/gsp_boot_trace_hand: $(GSP_TRACE_DEPS) $(KDIR)/gpu/gsp_mmio.c
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(KDIR)/gpu/gsp_mmio.c $(KDIR)/gpu/gsp_sim.c
+$(OUT)/host/gsp_boot_trace_contract: $(GSP_TRACE_DEPS) $(GSP_CONTRACT_C)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -I$(KDIR)/gpu -o $@ $< $(GSP_CONTRACT_C) $(KDIR)/gpu/gsp_sim.c
+test-gsp-contract: $(OUT)/host/test_gsp_mmio_contract $(OUT)/host-san/test_gsp_mmio_contract
+	$(OUT)/host/test_gsp_mmio_contract
+	$(OUT)/host-san/test_gsp_mmio_contract
+gsp-contract-trace: $(OUT)/host/gsp_boot_trace_hand $(OUT)/host/gsp_boot_trace_contract
+	@$(OUT)/host/gsp_boot_trace_hand > $(OUT)/host/gsp_boot_trace_hand.txt
+	@$(OUT)/host/gsp_boot_trace_contract > $(OUT)/host/gsp_boot_trace_contract.txt
+	@cmp $(OUT)/host/gsp_boot_trace_hand.txt $(OUT)/host/gsp_boot_trace_contract.txt \
+	  && echo "gsp-contract-trace: PASS ($$(wc -l < $(OUT)/host/gsp_boot_trace_hand.txt) lines identical, hand vs contract)"
+gsp-contract-freestanding:
+	@mkdir -p $(OUT)/host/gpu-fs
+	@$(KCC) $(KCFLAGS) -I$(KDIR)/gpu -c -o $(OUT)/host/gpu-fs/gsb_contract.o $(GSP_CONTRACT_C) || exit 1; \
+	if nm -u $(OUT)/host/gpu-fs/gsb_contract.o | grep -v " _GLOBAL_OFFSET_TABLE_$$" | grep -q .; then \
+	  nm -u $(OUT)/host/gpu-fs/gsb_contract.o; echo "gsp-contract-freestanding: FAIL"; exit 1; fi; \
+	echo "gsp-contract-freestanding: PASS (gsb_contract.c with KCC/KCFLAGS, no undefined symbol)"
+.PHONY: test-gsp-contract gsp-contract-trace gsp-contract-freestanding
+
 
 # AIENOS-PI5 PCIe root complex / RP1 enumerator logic over a fake register file. Not the hardware.
 PI5PCIE_SRCS := $(KDIR)/dev/pi5_pcie.c

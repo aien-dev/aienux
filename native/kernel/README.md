@@ -21,6 +21,7 @@ Real hardware runs so far: Raspberry Pi 5 test images (records in
 | `arch/` | Vectors, EL2 -> EL1h entry (ADR 0009), recoverable probe, exception and IRQ dispatch, GICv3 or GICv2 (picked from the MADT; GICv2 is the Raspberry Pi 5 GIC-400 shape, QEMU gate `AIENOS_QEMU_GIC=2 scripts/qemu_ck_boot_test.sh`), EL1 physical timer. |
 | `mm/` | Frame allocator (UEFI map), 4 KiB-granule page-table builder, heap, the kernel address space (`mmu.c`). |
 | `core/` | Console, printf, ACPI, reports/panic/PSCI reset, M3 (threads, scheduler, EL0, capabilities, IPC), `kmain.c`. |
+| `gpu/` | GB10 GPU memory side, cut D, host only: GPU page tables in the format the NVIDIA driver uses for GB10, a bounded GPU buffer allocator with per-buffer cache policy and quarantine, one compute channel (ring, USERD, instance block, doorbell), and a simulated GB10 to test them on. Not linked into any image; never run on the chip. See "GB10 GPU memory (simulated)" below. |
 | `tests/` | Host unit tests. |
 | `third_party/omega/` | The canonical Omega Cortex store, byte for byte from the omega commit in `omega.lock` (checked by `scripts/omega_lock_check.sh`); built freestanding by `svc/cortex_store.c` over the sealed Store through `svc/cortex_journal.c` (native v1 plan P06). |
 | `x86/` | x86_64 port, first cut (AIENOS-IMAC-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
@@ -329,6 +330,24 @@ Later Pi images (unlock, Cortex facts, inference, agent, lifecycle, artifact
 loader, PCIe and Ethernet) each have a `make pi5-*` target and a run record in
 `docs/native/` (for example `PI5-6-INFER-RUNS.md`, `PI5-NET-3-RUNS.md`). The
 list of all eleven Pi images is in `docs/native/PI5-8-QUALIFICATION.md`.
+
+## GB10 GPU boot package builder (host only, not in any image)
+
+`dev/gb10_gsp_boot.c` builds, in plain memory, everything NVIDIA's Linux driver
+(open-gpu-kernel-modules 580.173.02) hands the GB10 to start its GPU management
+processor (GSP): the WprMeta page, libos arguments, log buffers, RPC queues with the two
+pre-boot messages, the radix-3 firmware table, the bootloader, signature and FMC copies,
+the FMC boot parameters, the one SEC2 chain-of-trust packet, and the messages a native
+kernel sends after GSP is up (object alloc, control, free, static info) plus a reader for
+GSP's replies. It is freestanding kernel C but writes no register and loads nothing; no
+part of it has run on the GB10. Host checks:
+
+    make -C native/kernel test-gb10-gsp-boot   # layout, ring, refusals (also in make test)
+    make -C native/kernel gb10-gsp-nvhdr-test  # every field vs the NVIDIA headers (needs OGKM_DIR)
+    make -C native/kernel gb10-gsp-free        # kernel flags, no hidden library calls, small stack
+    make -C native/kernel gb10-gsp-mutants     # four broken variants, each must fail
+
+What is known and what still needs the chip: `docs/GB10_FIRMWARE_INVENTORY.md` section 14.
 
 ## Disk footprint (CK gate DISK_LAYOUT: QEMU PASS, hardware NOT_RUN)
 
@@ -700,3 +719,51 @@ low-water free bytes.
   rows 113-117). The Rust kernel starts none. No work runs on them yet. On the
   Pi 5 all four cores checked in (`evidence/pi5_hardware_runs_2026-10-13/`).
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.
+
+## GB10 GPU memory (simulated)
+
+`gpu/` holds the part of a native GB10 GPU driver that the Linux NVIDIA
+driver (RM and UVM) does for us today: GPU page tables, the GPU TLB
+invalidate, GPU-visible buffers, and the memory and doorbell of one compute
+channel. It is cut D of `docs/GB10_NATIVE_DEPENDENCY_MAP.md`, host side only.
+
+- `gmmu.c`: GB10 page tables (57-bit GPU addresses, 4 KiB, 64 KiB and
+  2 MiB pages) and the TLB invalidate register sequence, as
+  open-gpu-kernel-modules 580.173.02 programs them for GB10B.
+- `gpu_mem.c`: a bounded GPU buffer allocator. Each buffer has a CPU address
+  and a separate GPU address. A buffer the CPU polls must be GPU-uncached
+  (the allocator refuses otherwise). Freed memory is reused only after the
+  GPU confirms the invalidate; if it never does, the memory is quarantined.
+- `gpu_chan.c`: one compute channel: ring, USERD, instance block with the
+  page-directory pointer, runlist USERD pointer, work-submit token, doorbell.
+  A channel that does not go idle on teardown has its memory quarantined.
+- `gpu_sim.c`: a simulated GB10 for the tests (memory array, logged
+  registers, a page walker written separately from `gmmu.c`, a TLB that only
+  an invalidate empties, fault records). Test only.
+
+Run: `make -C native/kernel test-gpu-sim` (also part of `make test`),
+`gpu-sim-mutants` (each mutant removes one check; all must be caught) and
+`gpu-freestanding` (the three driver files build with the kernel compiler
+and flags). What this shows: the code follows the driver's layouts and
+refuses what it should, on a simulator. What it does not show: anything on
+the real chip. Which register sequences still need the chip is listed in the
+`gpu_chan.h` and `gmmu.h` header comments (UNKNOWN / UNVERIFIED).
+
+### The channel as a device contract (L332)
+
+`gpu/contract/gb10_chan.devc` is the same compute channel written as a device
+contract (ADR 0021, class `gpu-chan`): constants, the doorbell register, the
+packed formats (doorbell token, GPFIFO entry, runlist USERD pointer, instance
+block page directory), the three buffers with their cache policy, and the
+steps of create, submit and teardown. Each number cites a line of NVIDIA's
+driver source. `crates/aienos-devc` (branch feat/devc-gpu) compiles it into
+`gpu/contract/gen/gch_contract.c`, which has the API of `gpu_chan.h`. The
+compiler refuses unsafe contracts (doorbell before publish, no fence between
+them, no ring-room check, GPU-cached memory the CPU writes or polls, a
+channel id bound wider than its token field, teardown that frees before idle).
+
+Run: `make -C native/kernel test-gpu-contract` (test_gpu_sim against the
+generated twin, plain and sanitized), `gpu-contract-trace` (every register
+access and a hash of all simulated memory after each of ~390 operations,
+hand vs generated, must be byte-identical), `gpu-contract-freestanding`.
+Mutants of the contract itself: `evidence/own-gpu-driver/rung1/contract_mutants.sh`.

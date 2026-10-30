@@ -1,0 +1,60 @@
+# window1_sim_test.sh, plain and ASan/UBSan builds of aien_gsp_boot (sim), run under quiet-build 2026-10-22T01:2xZ
+PASS init: INIT-DONE (exit 0)
+PASS seq: SEQUENCER-REQUESTED (exit 1)
+PASS silent: NO-INIT-DONE (exit 1)
+PASS junk: STATUS-QUEUE-ERROR (exit 1)
+PASS busy: STOPPED-AT E_BUSY (exit 1)
+PASS fmcerr: STOPPED-AT E_FMC (exit 1)
+PASS dead: STOPPED-AT E_RISCV (exit 1)
+PASS planonly: PLAN-ONLY (exit 0)
+PASS small: BUILD-REFUSED (exit 2)
+PASS arena too small: no register touched
+PASS init wrote plan.txt
+PASS init wrote result.txt
+PASS init wrote messages.txt
+PASS init wrote regs.txt
+PASS init wrote cot_packet.bin
+PASS init wrote log-LOGINIT.bin
+PASS init wrote rpc-shared.bin
+PASS INIT_DONE recorded in messages.txt
+PASS COT packet 868 bytes
+PASS result.txt carries the verdict
+PASS package notify address sent unchanged
+PASS zero notify field filled with the zeroed first arena page
+PASS no other GspSystemInfo byte changed
+PASS 935-byte GspSystemInfo refused, no register touched
+PASS every read the tool made is on the module read list (8 registers)
+PASS every write the tool made is on the module write list (5 registers)
+PASS write list has one register the start-up does not use: GSP QHEAD0 (notify, after INIT_DONE)
+PASS one SEC2 doorbell per start-up
+WINDOW1_SIM_TEST: PASS
+PASS init: INIT-DONE (exit 0)
+PASS seq: SEQUENCER-REQUESTED (exit 1)
+PASS silent: NO-INIT-DONE (exit 1)
+PASS junk: STATUS-QUEUE-ERROR (exit 1)
+PASS busy: STOPPED-AT E_BUSY (exit 1)
+PASS fmcerr: STOPPED-AT E_FMC (exit 1)
+PASS dead: STOPPED-AT E_RISCV (exit 1)
+PASS planonly: PLAN-ONLY (exit 0)
+PASS small: BUILD-REFUSED (exit 2)
+PASS arena too small: no register touched
+PASS init wrote plan.txt
+PASS init wrote result.txt
+PASS init wrote messages.txt
+PASS init wrote regs.txt
+PASS init wrote cot_packet.bin
+PASS init wrote log-LOGINIT.bin
+PASS init wrote rpc-shared.bin
+PASS INIT_DONE recorded in messages.txt
+PASS COT packet 868 bytes
+PASS result.txt carries the verdict
+PASS package notify address sent unchanged
+PASS zero notify field filled with the zeroed first arena page
+PASS no other GspSystemInfo byte changed
+PASS 935-byte GspSystemInfo refused, no register touched
+PASS every read the tool made is on the module read list (8 registers)
+PASS every write the tool made is on the module write list (5 registers)
+PASS write list has one register the start-up does not use: GSP QHEAD0 (notify, after INIT_DONE)
+PASS one SEC2 doorbell per start-up
+WINDOW1_SIM_TEST: PASS
+sim-rc=0
