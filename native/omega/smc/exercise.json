@@ -1,0 +1,139 @@
+{
+  "schema": "smc-protocol-exercise-1",
+  "scope": "transport-independent protocol; no hardware executor",
+  "base_repository": "https://github.com/aien-dev/aienux",
+  "base_commit": "4a6bcf2580d6f8918a762daea384a3fc176d8bd9",
+  "compiler_repository": "https://github.com/aien-dev/omega-mv",
+  "compiler_commit": "d9144676c5938f877a1d89f0e246842a760c62a7",
+  "compiler_sha256": "7d5b824f0c854063b851b7f1002ea9cb735c9f9e3ce96e3393ca6f4a46f5bfb9",
+  "protocol_sha256": "cf7f708c303aa9ff8178412d12f6a38cc641f2ff6ecce6b5d5ea7e9d57ce54c7",
+  "diagnostic_sha256": "fd2099f914bd5bd9081d45df27d4a25430912eeb8ed9dcf7111843ff1e193872",
+  "composition": "target prefix (empty for ARM; target x86linux newline for x86) + protocol.om + newline + diagnostic.om",
+  "compile_command": "PINNED_OMC < composed.om > fresh-output",
+  "run_commands": {
+    "aarch64": "./fresh-output",
+    "x86_64": "qemu-x86_64 ./fresh-output"
+  },
+  "mutations": {
+    "wrong-type-mutant": [
+      "if ne get Smbuf add i 1 get Smtypes add mul sub role 1 4 i",
+      "if false"
+    ],
+    "ready-without-busy-mutant": [
+      "if eq and status 5 5",
+      "if eq and status 1 1"
+    ],
+    "stale-generation-mutant": [
+      "if ne gen get Sm 18\nret SMREF\nend\n",
+      ""
+    ]
+  },
+  "physical": "NOT_RUN",
+  "kernel_integration": "NOT_RUN: missing native discovery/transport/exclusion",
+  "checks": [
+    {
+      "case": "clean",
+      "target": "aarch64",
+      "source_sha256": "c2829d8ec54ef42df5d2d1d2a7c68c2466becb04456f4e9f46d3037ef12522bd",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "3e2932070f316b69478e01dec74e1e21918abb07116967a556a10802b9f7f314",
+      "run_exit": 0,
+      "stdout": "SMC protocol fixtures PASS; physical NOT_RUN\n",
+      "stderr": "",
+      "executor": "host"
+    },
+    {
+      "case": "wrong-type-mutant",
+      "target": "aarch64",
+      "source_sha256": "38d2d4f121b6f3cca4be640205152380d721cbcee4bb423191dcce1f445da920",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "0263d1fb1bc7edf56a3875a5b647ba9b27eb67e2a20185bb90e78b473b09eb12",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "host"
+    },
+    {
+      "case": "ready-without-busy-mutant",
+      "target": "aarch64",
+      "source_sha256": "bd1248746df99f6c95f900ed331e5dd177549ab1351e9644aa16a1c05ac577ff",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "07780b843ef8250082c490ae696ad9c3e6d1ca23230dfb348b5d4cac110d2ab2",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "host"
+    },
+    {
+      "case": "stale-generation-mutant",
+      "target": "aarch64",
+      "source_sha256": "a50768722df975226b3e1bcd163d2a30aa7ccc5a564733dd52277bafd1618844",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "7a96d9292a3c4a51d327dd074c9adb359f3ff6b07d8d2a0f4fb0fed7a00f3c6f",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "host"
+    },
+    {
+      "case": "clean",
+      "target": "x86_64",
+      "source_sha256": "dcbb56bbaa9e84195526ad87fe4c600fd02cc3a3df80810464c98eb803a1d9a0",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "6ff8e5d9570e59202f114ec8cd3771c8b1eb2c39de2159c9b2bebb5376dc1f3b",
+      "run_exit": 0,
+      "stdout": "SMC protocol fixtures PASS; physical NOT_RUN\n",
+      "stderr": "",
+      "executor": "qemu-x86_64 8.2.2 user-mode"
+    },
+    {
+      "case": "wrong-type-mutant",
+      "target": "x86_64",
+      "source_sha256": "7312585deb3b9a1691f75828bceca728d49f519b372325227041d4005eb77e1e",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "d68470065ea1258e84d5a97c349b239714cdcb0f5ea2048e9f169a5daf6d1b09",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "qemu-x86_64 8.2.2 user-mode"
+    },
+    {
+      "case": "ready-without-busy-mutant",
+      "target": "x86_64",
+      "source_sha256": "9210f63d804b8cc660444a89798f30275ee5f5a75e629ece56bdf072474898b1",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "177a5177f9c7c8ba349ab8710ddc76ee9464f47baf4b99fcacb4d7ad5d910f2e",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "qemu-x86_64 8.2.2 user-mode"
+    },
+    {
+      "case": "stale-generation-mutant",
+      "target": "x86_64",
+      "source_sha256": "6389865118b1dbd413e764bc7fde6a49a37a54ca8f25dc7723540f88ed8aefc4",
+      "compile_exit": 0,
+      "compile_stderr": "",
+      "binary_sha256": "406f7b8366c45bef2b4b132d069556afbb832330ffb95abc38281e4c1aeccd7b",
+      "run_exit": 1,
+      "stdout": "SMC protocol fixtures FAIL\n",
+      "stderr": "",
+      "executor": "qemu-x86_64 8.2.2 user-mode"
+    },
+    {
+      "case": "unsupported-port",
+      "target": "x86efi",
+      "source_sha256": "b4f5afcc56a4a44e55a0615ab551f2296c88b19615288366faa980ccfb3f077f",
+      "compile_exit": 25,
+      "compile_stderr": "omc: line 6: error 25\n",
+      "run": "NOT_RUN"
+    }
+  ]
+}

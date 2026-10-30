@@ -1,0 +1,173 @@
+note SPDX-License-Identifier: Apache-2.0
+note Pure supplied-byte ACPI 6.5 resource decoder. No address, port, firmware or ownership primitive.
+note Compose protocol.om, resource.om, discovery.om, then a caller. All outputs are candidates only.
+const DSOK uint 0
+const DSABS uint 1
+const DSMAL uint 2
+const DSUNSUP uint 3
+const DSAMBIG uint 4
+const DSDIS uint 5
+const DSLIMIT uint 6
+global Acpi uchar 65536
+note Dsres is private scratch: base, length, decode width. Never a capability.
+global Dsres ulong 3
+note Private per-template counters: found I/O, IRQ, memory, next offset.
+global Dsrstate ulong 4
+
+fn dsword pos ulong to ulong
+ret or ulong get Acpi pos shl ulong get Acpi add pos 1 8
+end
+
+fn dsdword pos ulong to ulong
+ret or dsword pos shl dsword add pos 2 16
+end
+
+fn dssum start ulong size ulong to bool
+sum = ulong 0
+for i ulong size
+sum = and add sum ulong get Acpi add start i 255
+end
+ret eq sum 0
+end
+
+fn dsio tag uchar p ulong n ulong to uint
+if ne get Dsrstate 0 0
+ret DSAMBIG
+end
+put Dsrstate 0 1
+if eq tag 71
+if ne n 7
+ret DSMAL
+end
+if gt get Acpi p 1
+ret DSMAL
+end
+put Dsres 0 dsword add p 1
+if ne get Dsres 0 dsword add p 3
+ret DSUNSUP
+end
+put Dsres 1 ulong get Acpi add p 6
+put Dsres 2 10
+if eq get Acpi p 1
+put Dsres 2 16
+end
+else
+if ne n 3
+ret DSMAL
+end
+put Dsres 0 dsword p
+put Dsres 1 ulong get Acpi add p 2
+put Dsres 2 10
+end
+if eq get Dsres 1 0
+ret DSMAL
+end
+if gt get Dsres 1 sub ulong 65536 get Dsres 0
+ret DSMAL
+end
+ret DSOK
+end
+fn dsirq tag uchar p ulong to uint
+if ne get Dsrstate 1 0
+ret DSAMBIG
+end
+put Dsrstate 1 1
+if eq dsword p 0
+ret DSMAL
+end
+if eq tag 35
+if ne and get Acpi add p 2 198 0
+ret DSMAL
+end
+end
+ret DSOK
+end
+fn dsmem p ulong n ulong to uint
+if or ne n 9 ne get Dsrstate 2 0
+ret DSMAL
+end
+put Dsrstate 2 1
+if gt get Acpi p 1
+ret DSMAL
+end
+base = dsdword add p 1
+span = dsdword add p 5
+if eq span 0
+ret DSMAL
+end
+if gt span sub ulong 4294967296 base
+ret DSMAL
+end
+ret DSOK
+end
+
+fn dsitem pos ulong limit ulong to uint
+tag = get Acpi pos
+n = ulong and tag 7
+hdr = ulong 1
+if ne and tag 128 0
+if lt sub limit pos 3
+ret DSMAL
+end
+n = dsword add pos 1
+hdr = 3
+end
+if gt n sub sub limit pos hdr
+ret DSMAL
+end
+p = add pos hdr
+put Dsrstate 3 add p n
+if or eq tag 71 eq tag 75
+ret dsio tag p n
+end
+if or eq tag 34 eq tag 35
+ret dsirq tag p
+end
+if eq tag 134
+ret dsmem p n
+end
+note Includes dependent alternatives, address-space and vendor descriptors: no approximation.
+ret DSUNSUP
+end
+
+fn dsresource start ulong size ulong to uint
+for i ulong 3
+put Dsres i 0
+end
+for i ulong 4
+put Dsrstate i 0
+end
+if or gt start 65536 gt size sub ulong 65536 start
+ret DSMAL
+end
+limit = add start size
+pos = start
+while lt pos limit bound 65536
+if eq get Acpi pos 121
+if ne sub limit pos 2
+ret DSMAL
+end
+if ne get Acpi add pos 1 0
+if not dssum start size
+ret DSMAL
+end
+end
+if ne get Dsrstate 0 1
+ret DSABS
+end
+if ne get Dsres 2 16
+ret DSUNSUP
+end
+if or ne get Dsres 0 768 ne get Dsres 1 32
+ret DSUNSUP
+end
+ret DSOK
+end
+rc = dsitem pos limit
+if ne rc DSOK
+ret rc
+end
+pos = get Dsrstate 3
+end
+ret DSMAL
+end

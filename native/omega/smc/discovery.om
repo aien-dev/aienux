@@ -1,0 +1,660 @@
+note SPDX-License-Identifier: Apache-2.0
+note Restricted structural AML discovery over supplied DSDT/SSDT bytes; not a live namespace evaluator.
+note Unknown namespace effects refuse. Names/Scope/Device resolve root,parent,dual,multi paths.
+note Constant Name values, opaque unrelated Methods and exact Return(literal) _STA/_CRS only.
+note Explicit _STA required. Unsupported semantics are never interpreted as absent hardware.
+global Dsc ulong 5
+note Dsc: sticky status, table count, candidate count, declaration count, stack depth.
+global Dsout ulong 7
+note Published only by dsseal: base,length,decode,table ordinal,Device offset,resource offset,STA.
+global Dscand ulong 7
+global Dsframe ulong 160
+note Frame cells: end,path bytes,device,offset,HID match,STA present,STA,CRS present,offset,size.
+global Dspath uchar 64
+global Dsfpath uchar 1024
+global Dsdecls uchar 8192
+global Dssizes ulong 128
+global Dsnm ulong 2
+note Name result: next input offset, canonical path byte count.
+global Dspkg ulong 2
+note Package result: first content byte, exclusive end.
+global Dsv ulong 4
+note Literal result: kind (integer,string,buffer), value or start, next offset, byte size.
+text Dshid "_HID"
+text Dssta "_STA"
+text Dscrs "_CRS"
+text Dsapp "APP0001"
+text Dsdsdt "DSDT"
+text Dsssdt "SSDT"
+
+fn dsbegin to void
+for i ulong 5
+put Dsc i 0
+end
+for i ulong 7
+put Dsout i 0
+put Dscand i 0
+end
+end
+
+fn dsfail code uint to uint
+put Dsc 0 ulong code
+for i ulong 7
+put Dsout i 0
+put Dscand i 0
+end
+ret code
+end
+
+fn dspkbyte pos ulong i ulong to ulong
+p = add add pos 1 i
+value = ulong get Acpi p
+shift = add 4 mul i 8
+ret shl value shift
+end
+
+fn dscopyseg p ulong size ulong to void
+for j ulong 4
+put Dspath add size j get Acpi add p j
+end
+end
+
+fn dssame index ulong size ulong to bool
+base = mul index 64
+for j ulong size
+if ne get Dspath j get Dsdecls add base j
+ret false
+end
+end
+ret true
+end
+
+fn dssavepath depth ulong size ulong to void
+base = mul depth 64
+for i ulong size
+put Dsfpath add base i get Dspath i
+end
+end
+
+fn dspackage pos ulong limit ulong to uint
+if ge pos limit
+ret DSMAL
+end
+first = get Acpi pos
+follow = ulong shr first 6
+if gt add follow 1 sub limit pos
+ret DSMAL
+end
+size = ulong and first 63
+if ne follow 0
+if ne and first 48 0
+ret DSMAL
+end
+size = ulong and first 15
+for i ulong follow
+size = or size dspkbyte pos i
+end
+end
+if or lt size add follow 1 gt size sub limit pos
+ret DSMAL
+end
+put Dspkg 0 add add pos follow 1
+put Dspkg 1 add pos size
+ret DSOK
+end
+
+fn dssegment pos ulong to bool
+for i ulong 4
+c = get Acpi add pos i
+ok = or eq c 95 and ge c 65 le c 90
+if ne i 0
+ok = or ok and ge c 48 le c 57
+end
+if not ok
+ret false
+end
+end
+ret true
+end
+
+fn dsname pos ulong limit ulong parent ulong to uint
+if ge pos limit
+ret DSMAL
+end
+p = pos
+size = parent
+if eq get Acpi p 92
+size = 0
+p = add p 1
+else
+while lt p limit bound 16
+if ne get Acpi p 94
+break
+end
+if lt size 4
+ret DSUNSUP
+end
+size = sub size 4
+p = add p 1
+end
+end
+if ge p limit
+ret DSMAL
+end
+count = ulong 1
+if eq get Acpi p 46
+count = 2
+p = add p 1
+else
+if eq get Acpi p 47
+p = add p 1
+if ge p limit
+ret DSMAL
+end
+count = ulong get Acpi p
+p = add p 1
+if eq count 0
+ret DSMAL
+end
+end
+end
+if gt count div sub limit p 4
+ret DSMAL
+end
+if gt count div sub ulong 64 size 4
+ret DSLIMIT
+end
+for i ulong count
+if not dssegment p
+ret DSMAL
+end
+dscopyseg p size
+size = add size 4
+p = add p 4
+end
+put Dsnm 0 p
+put Dsnm 1 size
+ret DSOK
+end
+
+fn dsdeclare size ulong to uint
+count = get Dsc 3
+for i ulong count
+if eq get Dssizes i size
+if dssame i size
+ret DSAMBIG
+end
+end
+end
+if ge count 128
+ret DSLIMIT
+end
+for j ulong size
+put Dsdecls add mul count 64 j get Dspath j
+end
+put Dssizes count size
+put Dsc 3 add count 1
+ret DSOK
+end
+
+fn dsisint op uchar to bool
+if eq op 0
+ret true
+end
+if eq op 1
+ret true
+end
+if eq op 10
+ret true
+end
+if eq op 11
+ret true
+end
+if eq op 12
+ret true
+end
+ret eq op 14
+end
+
+fn dsint p ulong limit ulong width ulong to uint
+if gt width sub limit p
+ret DSMAL
+end
+value = ulong 0
+for i ulong width
+part = ulong get Acpi add p i
+part = shl part mul i 8
+value = or value part
+end
+put Dsv 0 1
+put Dsv 1 value
+put Dsv 2 add p width
+ret DSOK
+end
+
+fn dsbuffer p ulong limit ulong to uint
+rc = dspackage p limit
+if ne rc DSOK
+ret rc
+end
+finish = get Dspkg 1
+if ge get Dspkg 0 finish
+ret DSMAL
+end
+if not dsisint get Acpi get Dspkg 0
+ret DSUNSUP
+end
+rc = dsliteral get Dspkg 0 finish
+if ne rc DSOK
+ret rc
+end
+start = get Dsv 2
+if ne get Dsv 1 sub finish start
+ret DSUNSUP
+end
+put Dsv 0 3
+put Dsv 1 start
+put Dsv 2 finish
+put Dsv 3 sub finish start
+ret DSOK
+end
+
+fn dsliteral pos ulong limit ulong to uint
+if ge pos limit
+ret DSMAL
+end
+op = get Acpi pos
+p = add pos 1
+if or eq op 0 eq op 1
+put Dsv 0 1
+put Dsv 1 ulong op
+put Dsv 2 p
+ret DSOK
+end
+if eq op 10
+ret dsint p limit 1
+end
+if eq op 11
+ret dsint p limit 2
+end
+if eq op 12
+ret dsint p limit 4
+end
+if eq op 14
+ret dsint p limit 8
+end
+if eq op 13
+start = p
+while lt p limit bound 65536
+if eq get Acpi p 0
+put Dsv 0 2
+put Dsv 1 start
+put Dsv 2 add p 1
+put Dsv 3 sub p start
+ret DSOK
+end
+if or lt get Acpi p 32 gt get Acpi p 126
+ret DSUNSUP
+end
+p = add p 1
+end
+ret DSMAL
+end
+if eq op 17
+ret dsbuffer p limit
+end
+ret DSUNSUP
+end
+
+fn dsfield frame ulong nameoff ulong to uint
+kind = ulong 0
+same = true
+for j ulong 4
+if ne get Acpi add nameoff j get Dshid j
+same = false
+end
+end
+if same
+kind = 1
+end
+same = true
+for j ulong 4
+if ne get Acpi add nameoff j get Dssta j
+same = false
+end
+end
+if same
+kind = 2
+end
+same = true
+for j ulong 4
+if ne get Acpi add nameoff j get Dscrs j
+same = false
+end
+end
+if same
+kind = 3
+end
+if eq kind 0
+ret DSOK
+end
+if eq get Dsframe add frame 2 0
+ret DSUNSUP
+end
+if eq kind 1
+if ne get Dsv 0 2
+ret DSUNSUP
+end
+match = eq get Dsv 3 7
+if match
+for j ulong 7
+if ne get Acpi add get Dsv 1 j get Dsapp j
+match = false
+end
+end
+end
+put Dsframe add frame 4 2
+if match
+put Dsframe add frame 4 1
+end
+end
+if eq kind 2
+if ne get Dsv 0 1
+ret DSUNSUP
+end
+put Dsframe add frame 5 1
+put Dsframe add frame 6 get Dsv 1
+end
+if eq kind 3
+if ne get Dsv 0 3
+ret DSUNSUP
+end
+put Dsframe add frame 7 1
+put Dsframe add frame 8 get Dsv 1
+put Dsframe add frame 9 get Dsv 3
+end
+ret DSOK
+end
+
+fn dsclose frame ulong to uint
+if ne get Dsframe add frame 4 1
+ret DSOK
+end
+if ne get Dsc 2 0
+ret DSAMBIG
+end
+put Dsc 2 1
+if or eq get Dsframe add frame 5 0 eq get Dsframe add frame 7 0
+ret DSUNSUP
+end
+status = get Dsframe add frame 6
+if ne and status 11 11
+ret DSDIS
+end
+if ne and status 18446744073709551584 0
+ret DSUNSUP
+end
+rc = dsresource get Dsframe add frame 8 get Dsframe add frame 9
+if ne rc DSOK
+ret rc
+end
+for i ulong 3
+put Dscand i get Dsres i
+end
+put Dscand 3 get Dsc 1
+put Dscand 4 get Dsframe add frame 3
+put Dscand 5 get Dsframe add frame 8
+put Dscand 6 status
+ret DSOK
+end
+
+fn dsmethod nameoff ulong p ulong last ulong to uint
+if ge p last
+ret DSMAL
+end
+note Unrelated method bodies are opaque; never parse declarations in their payload.
+isfield = false
+for k ulong 2
+same = true
+for j ulong 4
+c = get Dssta j
+if eq k 1
+c = get Dscrs j
+end
+if ne get Acpi add nameoff j c
+same = false
+end
+end
+isfield = or isfield same
+end
+if not isfield
+same = true
+for j ulong 4
+if ne get Acpi add nameoff j get Dshid j
+same = false
+end
+end
+if same
+ret DSUNSUP
+end
+put Dsv 0 0
+put Dsv 2 last
+ret DSOK
+end
+if ne get Acpi p 0
+ret DSUNSUP
+end
+p = add p 1
+if ge p last
+ret DSMAL
+end
+if ne get Acpi p 164
+ret DSUNSUP
+end
+rc = dsliteral add p 1 last
+if ne rc DSOK
+ret rc
+end
+if ne get Dsv 2 last
+ret DSUNSUP
+end
+ret DSOK
+end
+
+global Dsnext ulong 1
+
+fn dsscope pos ulong frame ulong to uint
+device = eq get Acpi pos 91
+p = add pos 1
+finish = get Dsframe frame
+if device
+if ge p finish
+ret DSMAL
+end
+if ne get Acpi p 130
+ret DSUNSUP
+end
+p = add p 1
+end
+rc = dspackage p finish
+if ne rc DSOK
+ret rc
+end
+last = get Dspkg 1
+rc = dsname get Dspkg 0 last get Dsframe add frame 1
+if ne rc DSOK
+ret rc
+end
+rc = dsdeclare get Dsnm 1
+if ne rc DSOK
+ret rc
+end
+if ge get Dsc 4 16
+ret DSLIMIT
+end
+next = mul get Dsc 4 10
+for i ulong 10
+put Dsframe add next i 0
+end
+put Dsframe next last
+put Dsframe add next 1 get Dsnm 1
+if device
+put Dsframe add next 2 1
+end
+put Dsframe add next 3 pos
+dssavepath get Dsc 4 get Dsnm 1
+put Dsc 4 add get Dsc 4 1
+put Dsnext 0 get Dsnm 0
+ret DSOK
+end
+
+fn dsterm pos ulong frame ulong to uint
+op = get Acpi pos
+p = add pos 1
+last = get Dsframe frame
+if eq op 20
+rc = dspackage p last
+if ne rc DSOK
+ret rc
+end
+p = get Dspkg 0
+last = get Dspkg 1
+end
+nameoff = p
+note Only local unprefixed single-segment fields are supported, never aliases to another Device.
+if lt sub last p 4
+ret DSMAL
+end
+if not dssegment p
+ret DSUNSUP
+end
+rc = dsname p last get Dsframe add frame 1
+if ne rc DSOK
+ret rc
+end
+rc = dsdeclare get Dsnm 1
+if ne rc DSOK
+ret rc
+end
+p = get Dsnm 0
+if eq op 20
+rc = dsmethod nameoff p last
+else
+rc = dsliteral p last
+end
+if ne rc DSOK
+ret rc
+end
+if ne get Dsv 0 0
+rc = dsfield frame nameoff
+if ne rc DSOK
+ret rc
+end
+end
+put Dsnext 0 get Dsv 2
+ret DSOK
+end
+
+fn dswalk limit ulong to uint
+put Dsc 4 1
+for i ulong 10
+put Dsframe i 0
+end
+put Dsframe 0 limit
+pos = ulong 36
+while ne get Dsc 4 0 bound 65536
+frame = mul sub get Dsc 4 1 10
+finish = get Dsframe frame
+if eq pos finish
+if ne get Dsframe add frame 2 0
+rc = dsclose frame
+if ne rc DSOK
+ret rc
+end
+end
+put Dsc 4 sub get Dsc 4 1
+continue
+end
+if gt pos finish
+ret DSMAL
+end
+path = mul sub get Dsc 4 1 64
+for i ulong get Dsframe add frame 1
+put Dspath i get Dsfpath add path i
+end
+op = get Acpi pos
+rc = DSUNSUP
+if or eq op 16 eq op 91
+rc = dsscope pos frame
+end
+if or eq op 8 eq op 20
+rc = dsterm pos frame
+end
+if ne rc DSOK
+ret rc
+end
+pos = get Dsnext 0
+end
+ret DSOK
+end
+
+fn dsadd avail ulong to uint
+for i ulong 7
+put Dsout i 0
+end
+if ne get Dsc 0 0
+ret uint get Dsc 0
+end
+if ge get Dsc 1 16
+ret dsfail DSLIMIT
+end
+if or lt avail 36 gt avail 65536
+ret dsfail DSMAL
+end
+same = true
+other = true
+for i ulong 4
+if ne get Acpi i get Dsdsdt i
+same = false
+end
+if ne get Acpi i get Dsssdt i
+other = false
+end
+end
+if not or same other
+ret dsfail DSMAL
+end
+size = dsdword 4
+if or lt size 36 gt size avail
+ret dsfail DSMAL
+end
+sum = ulong 0
+for i ulong size
+sum = and add sum ulong get Acpi i 255
+end
+if ne sum 0
+ret dsfail DSMAL
+end
+put Dsc 1 add get Dsc 1 1
+rc = dswalk size
+if ne rc DSOK
+ret dsfail rc
+end
+ret DSOK
+end
+
+fn dsseal to uint
+for i ulong 7
+put Dsout i 0
+end
+if ne get Dsc 0 0
+ret uint get Dsc 0
+end
+if eq get Dsc 2 0
+ret DSABS
+end
+for i ulong 7
+put Dsout i get Dscand i
+end
+ret DSOK
+end

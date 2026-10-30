@@ -1,0 +1,51 @@
+note SPDX-License-Identifier: Apache-2.0
+note Host-only verification caller. Input: u32le table count, then u32le length and table bytes.
+note Reads only supplied stdin bytes. No candidate is admitted as a trusted protocol descriptor.
+fn dsread count ulong to bool
+pos = ulong 0
+while lt pos count bound 65536
+n = read 0 Acpi pos sub count pos
+if le n 0
+ret false
+end
+pos = add pos ulong n
+end
+ret true
+end
+
+fn main to int
+packet = new uchar 57 0
+dsbegin
+if not dsread 4
+ret 90
+end
+count = dsdword 0
+if or eq count 0 gt count 17
+ret 90
+end
+for i ulong count
+if not dsread 4
+ret 90
+end
+size = dsdword 0
+if or lt size 1 gt size 65536
+ret 90
+end
+if not dsread size
+ret 90
+end
+rc = dsadd size
+end
+rc = dsseal
+for i ulong 7
+for j ulong 8
+put packet add mul i 8 j uchar and shr get Dsout i mul j 8 255
+end
+end
+put packet 56 uchar smphysical
+n = write 1 packet 0 57
+if ne n 57
+ret 90
+end
+ret int rc
+end
