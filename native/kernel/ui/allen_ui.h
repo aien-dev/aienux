@@ -4,8 +4,8 @@
  * black holes circle and merge, and from the light of the merger Allen
  * gathers (ui/mind.c): a mind drawn as light, in the middle of the screen.
  * The person is his guest. A quiet bar at the bottom takes what they type;
- * Allen's answers appear under him, word by word, while the galaxies in the
- * sky shimmer with his voice. Nothing else is on the screen unless it is in
+ * Allen's answers appear under him, word by word. Small lights within his
+ * geometry respond to his voice; the surrounding stars stay quiet. Nothing else is on the screen unless it is in
  * use: the bar fades away when the conversation rests (a key brings it
  * back), Allen's words fade once they have been read, and the map of his
  * notes (a small constellation) shows only when a note is saved or handed
@@ -22,7 +22,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* RAM for a w x h screen (two full-screen layers, the picture kept for the dusk with its smaller copies, and
+/* RAM for a w x h screen (two full-screen layers, the frozen exit picture, and
  * the glyph masks). */
 size_t ck_allen_ui_mem_bytes(uint32_t w, uint32_t h);
 /* Takes over the screen and starts the night: fb = the framebuffer (pitch in
@@ -47,8 +47,7 @@ void ck_allen_ui_input(const char *buf, unsigned len, uint64_t now);
  * welcome after a restart). */
 void ck_allen_ui_said(const char *line, const char *reply, uint64_t now);
 /* A line was entered and the answer is coming from further off: the line
- * rises into him and he keeps thinking (the water round him turns, deeper
- * the longer it takes) until ck_allen_ui_said(NULL, reply) brings the words. */
+ * rises into him and his geometry keeps moving until ck_allen_ui_said(NULL, reply) brings the words. */
 void ck_allen_ui_think(const char *line, uint64_t now);
 /* The name Allen goes by, for the bar's "Speak to ..." hint ("Allen" until called). */
 void ck_allen_ui_named(const char *name);
@@ -61,12 +60,12 @@ int ck_allen_ui_help(void);
 /* The whole screen is drawn again by the next frame, at once (after
  * something else wrote to it). */
 void ck_allen_ui_refresh(void);
-/* Allen sleeps (asleep = 1): the dusk. Everything on the screen (the stars, the galaxies, the water's
- * light, Allen, his words) falls in a spiral into a black hole where he was; an accretion disk glows as the
- * light arrives, then dims, and the horizon closes to pure black over about four seconds, after which nothing
- * moves and ck_allen_ui_asleep() is 1, only after all drawing cores have presented the final black frame
- * (the panel can then be switched off). A new sleep/wake request clears that acknowledgement immediately.
- * asleep = 0 brings the sky back, calmly, in under a second. */
+/* Allen sleeps (asleep = 1): the stationary starfield fades as his geometry
+ * folds into a narrow cool line. The line closes to a point and black over
+ * 2.8 seconds. No spiral or full-screen resampling. ck_allen_ui_asleep() is 1
+ * only after all drawing cores finish and the final black frame is presented.
+ * A new sleep/wake request clears that acknowledgement immediately.
+ * asleep = 0 brings the sky back calmly in under a second. */
 void ck_allen_ui_sleep(int asleep, uint64_t now);
 int ck_allen_ui_asleep(void);
 /* Frames drawn, the slowest and the average (microseconds). */

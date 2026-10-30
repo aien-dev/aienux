@@ -878,7 +878,7 @@ static void help_loop(void)
             ck_pause(); /* one PAUSE per strip: see draw_loop */
             continue;
         }
-        if (__atomic_load_n(&allen_asleep, __ATOMIC_ACQUIRE))
+        if (ck_allen_ui_asleep()) /* keep helping until the final black frame is presented */
             rest_wait(g);
         else
             ck_pause();

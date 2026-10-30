@@ -3,8 +3,7 @@
  * (ui/allen_font.c) and his first answers (svc/allen_reply.c). Runs the
  * startup at 3840 x 2160 BGRX on a hand-moved clock, wakes Allen, types
  * "Hello Allen", lets him answer, leaves him alone, saves a note, says goodbye
- * (the dusk: everything falls into the black hole, the disk glows, the horizon
- * closes to black) and wakes him; checks the pixels at each step, checks that drawing only the changed parts gives the
+ * (the stars fade, Allen folds to a line of light and it closes to black) and wakes him; checks the pixels at each step, checks that drawing only the changed parts gives the
  * same picture as drawing everything, runs 1280 x 800 RGBX with and without
  * three helper threads (the frames must match exactly), and writes PNG
  * pictures to the directory given as argv[1] (if any) for a person to look at.
@@ -25,6 +24,7 @@
 #include "../flow.h"
 #include "../mind.h"
 #include "../night.h"
+#include "../sky_real.h"
 #include "../setup_view.h"
 
 static int checks, fails;
@@ -942,7 +942,26 @@ int main(int argc, char **argv)
         CHECK(!memcmp(copy, bare_night.sky, (size_t)W * H * 4) &&
                   ck_night_faded(&bare_night, 0, 0, 0) == 256 &&
                   ck_night_faded(&bare_night, (int32_t)W - 1, (int32_t)H - 1, 255) == 256,
-              "night: settled 4K stars and diffuse sky are native, unscaled and fully unfaded");
+              "night: settled 4K stars are native, unscaled and fully unfaded");
+    }
+    /* A catalogue-only reference catches diffuse fog both initially and
+     * after changing sky region. Keep the actual star positions and colour. */
+    {
+        ck_night_star tw[CK_NIGHT_TWINKLES];
+        unsigned ntw;
+        ck_canvas reference = {copy, (int32_t)W, (int32_t)H};
+        ck_sky_view original = bare_night.view, other;
+        ck_sky_view_at(&other, 83822000, -5391000, 80000, 0);
+        for (unsigned pass = 0; pass < 2; pass++) {
+            if (pass)
+                ck_night_view(&bare_night, &other);
+            memset(copy, 0, (size_t)W * H * 4);
+            ck_sky_draw_stars(&reference, bare_night.cx, bare_night.cy,
+                             &bare_night.view, tw, CK_NIGHT_TWINKLES, &ntw);
+            CHECK(!memcmp(copy, bare_night.sky, (size_t)W * H * 4),
+                  "night: exactly catalogue stars on black, no diffuse fog");
+        }
+        ck_night_view(&bare_night, &original);
     }
     uint64_t t_init = real_us();
     CHECK(ck_allen_ui_start(fb, W, H, W, 1, mem, need, 1000000, 0, real_us) == 0, "ui: starts at 3840x2160");
@@ -964,7 +983,7 @@ int main(int argc, char **argv)
     uint32_t cx = W / 2, cy = H * 40 / 100, R = 236;
     run_to(8000);
     CHECK(count(&P, cx - 800, cy - 500, 1600, 1000, BLACK) > 2000, "night: two black holes, their shadows");
-    CHECK(count(&P, 0, 0, W, H, BLACK) < 200000, "night: and only the holes are black");
+    CHECK(count(&P, 0, 0, W, H, BLACK) > W * H * 9 / 10, "night: clear black space between the stars and holes");
     CHECK(stale(fb, copy, W, W, H) < 40, "night: the bent starlight round the holes is redrawn as they move");
     if (dir) {
         snprintf(path, sizeof path, "%s/night-2-holes.png", dir);
@@ -983,7 +1002,7 @@ int main(int argc, char **argv)
         png(path, fb, W, 1, 0, 0, W, H, 2);
     }
     run_to(16500);
-    CHECK(count(&P, 0, 0, W, H, BLACK) == 0, "night: the last black hole has dissolved");
+    CHECK(count(&P, 0, 0, W, H, LIT) > 4000, "night: point stars remain when the last black hole dissolves");
     CHECK(cool_added(&P, sky, cx - R, cy - R, 2 * R, 2 * R) > 5000,
           "allen: formed, a visible cool network over the actual sky");
     uint32_t bx = W / 2 - 720, by = H - 300, bw = 1440, bh = 108;
@@ -1041,7 +1060,20 @@ int main(int argc, char **argv)
         png(path, fb, W, 1, 0, 0, W, H, 2);
     }
     run_to(said + 1300);
-    CHECK(stale(fb, copy, W, W, H) < 40, "talk: the galaxies' shimmer is redrawn while he speaks");
+    CHECK(stale(fb, copy, W, W, H) < 40, "talk: speaking redraws the geometry and words cleanly");
+    {
+        ck_canvas reference = {copy, (int32_t)W, (int32_t)H};
+        ck_rect whole = {0, 0, (int32_t)W, (int32_t)H};
+        ck_night_at(&bare_night, (uint32_t)(now_us / 1000) - 16);
+        ck_night_base(&bare_night, &reference, &whole);
+        ck_night_lights(&bare_night, &reference, &whole, 0, 0);
+        unsigned changed = 0;
+        for (uint32_t y = 0; y < H; y++)
+            for (uint32_t x = 0; x < W; x++)
+                if (x < W / 4 || x >= W * 3 / 4)
+                    changed += fb[(size_t)y * W + x] != copy[(size_t)y * W + x];
+        CHECK(changed == 0, "talk: side sky stays identical to quiet stars, with no voice glare or fog");
+    }
     run_to(said + 2600);
     CHECK(added(&P, sky, W / 4, wy, W / 2, wh) > 3000, "talk: Allen's answer appears under him");
     CHECK(count(&P, bx, by, bw, bh, BRIGHT) < 500, "talk: the bar is cleared for the next line");
@@ -1122,80 +1154,67 @@ int main(int argc, char **argv)
         run_to(m0 + 15000);
         CHECK(added(&P, sky, mx, my, mw, mh) < 400, "map: it goes again after a while");
     }
-    /* ---- sleep: the dusk. Everything falls into the black hole, the disk glows and dims, the horizon closes
-     * to pure black and nothing moves; waking brings the sky back calmly ---- */
+    /* ---- sleep: fixed stars fade; Allen folds into a line, which closes to black ---- */
     {
+        memcpy(copy, fb, (size_t)W * H * 4);
         ck_allen_ui_sleep(1, now_us);
         uint32_t s0 = (uint32_t)(now_us / 1000);
-        static const uint32_t at[6] = {600, 1300, 2000, 2700, 3200, 3700}; /* the pictures, ms into the dusk */
-        static uint64_t whole[320], middle[320];                            /* the light in each frame, and in the middle */
-        static uint32_t when[320];
-        unsigned nf = 0, saved = 0, lit600 = 0;
-        int mid_ok = 1;
-        for (; now_us <= (uint64_t)(s0 + 4300) * 1000u; now_us += 16000) {
+        static const uint32_t at[6] = {400, 900, 1300, 1800, 2200, 2600};
+        unsigned nf = 0, saved = 0, lit400 = 0, displaced = 0;
+        unsigned widths[3] = {0}, outside_line = 0;
+        uint64_t tail_light = UINT64_MAX;
+        unsigned rises = 0;
+        for (; now_us <= (uint64_t)(s0 + 3000) * 1000u; now_us += 16000) {
             black_probe = !ck_allen_ui_asleep();
             int drawn = ck_allen_ui_tick(now_us);
             black_probe = 0;
             if (!drawn)
                 continue;
             uint32_t d = (uint32_t)(now_us / 1000) - s0;
-            if (nf < 320) {
-                when[nf] = d;
-                whole[nf] = light(&P, 0, 0, W, H);
-                middle[nf] = light(&P, cx - 350, cy - 350, 700, 700);
-                nf++;
+            nf++;
+            if (d >= 1800) {
+                uint64_t v = light(&P, 0, 0, W, H);
+                rises += v > tail_light;
+                tail_light = v;
             }
             if (saved < 6 && d >= at[saved]) {
-                if (saved == 0)
-                    for (uint32_t y = 0; y < H; y += 4)
-                        for (uint32_t x = 0; x < W; x += 4)
-                            lit600 += (fb[(size_t)y * W + x] & 0xffffffu) != 0;
-                if (saved == 2 || saved == 3) { /* mid-dusk: the disk is there, brighter than the edges of the screen */
-                    uint64_t c = light(&P, cx - 350, cy - 350, 700, 700) / (700 * 700 / 16);
-                    uint64_t e = (light(&P, 0, 0, W, 200) + light(&P, 0, H - 200, W, 200) + light(&P, 0, 200, 200, H - 400) +
-                                  light(&P, W - 200, 200, 200, H - 400)) /
-                                 ((2 * (uint64_t)W * 200 + 2 * (uint64_t)(H - 400) * 200) / 16);
-                    printf("note: dusk %u ms: the middle's light %llu, the edges' %llu (per pixel, r + g + b)\n", d,
-                           (unsigned long long)c, (unsigned long long)e);
-                    mid_ok &= c > 2 * e + 10;
+                if (saved == 0) {
+                    for (uint32_t y = 0; y < H; y++)
+                        for (uint32_t x = 0; x < W; x++) {
+                            uint32_t v = fb[(size_t)y * W + x] & 0xffffffu;
+                            lit400 += v != 0;
+                            if (abs((int)x - (int)cx) > 2 * (int)R || abs((int)y - (int)cy) > 2 * (int)R)
+                                displaced += v != 0 && !(copy[(size_t)y * W + x] & 0xffffffu);
+                        }
+                }
+                if (saved >= 3) {
+                    for (uint32_t x = 0; x < W; x++)
+                        widths[saved - 3] += (fb[(size_t)cy * W + x] & 255u) > 4;
+                    for (uint32_t y = 0; y < H; y++)
+                        if (abs((int)y - (int)cy) > 8)
+                            for (uint32_t x = 0; x < W; x++)
+                                outside_line += (fb[(size_t)y * W + x] & 0xffffffu) != 0;
                 }
                 if (dir) {
-                    snprintf(path, sizeof path, "%s/allen-8-horizon-%u.png", dir, saved + 1);
+                    snprintf(path, sizeof path, "%s/allen-8-exit-%u.png", dir, saved + 1);
                     png(path, fb, W, 1, 0, 0, W, H, 2);
-                    if (saved == 3) {
-                        snprintf(path, sizeof path, "%s/allen-8-horizon-%u-detail.png", dir, saved + 1);
-                        png(path, fb, W, 1, cx - 800, cy - 500, 1600, 1000, 1);
-                    }
                 }
                 saved++;
             }
         }
-        CHECK(saved == 6 && nf >= 200, "dusk: six pictures and the light of every frame through it");
-        CHECK(lit600 > 4000, "dusk: the sky is still on screen early in the dusk, falling, not cut to black");
-        /* the disk's height: the most light in the middle once the disk has begun (from 700 ms; before that the
-         * middle's light is Allen's own, going into the hole) */
-        unsigned peak = 0;
-        for (unsigned i = 0; i < nf; i++)
-            if (when[i] >= 1000 && (!peak || middle[i] > middle[peak]))
-                peak = i;
-        printf("note: dusk: the disk is brightest %u ms in (frame %u of %u)\n", when[peak], peak, nf);
-        CHECK(when[peak] > 1500 && when[peak] < 3600, "dusk: the disk comes to its height in the second half");
-        unsigned rises = 0; /* a thousandth is the noise of summing every fourth pixel while the picture turns */
-        for (unsigned i = peak; i + 1 < nf; i++)
-            if (whole[i + 1] > whole[i] + whole[i] / 1000) {
-                if (rises < 5)
-                    printf("  the light rose again at %u ms: %llu after %llu\n", when[i + 1],
-                           (unsigned long long)whole[i + 1], (unsigned long long)whole[i]);
-                rises++;
-            }
-        CHECK(rises == 0, "dusk: after the disk's height the light only falls, frame by frame (within a thousandth)");
-        CHECK(mid_ok, "dusk: in the middle of the dusk the middle of the screen is brighter than its edges");
+        CHECK(saved == 6 && nf >= 170, "exit: all six phases rendered on the animation timeline");
+        CHECK(lit400 > 4000, "exit: stars remain visible early rather than cutting to black");
+        CHECK(displaced == 0, "exit: fading stars stay in place, with no whirlpool warp");
+        CHECK(widths[0] > widths[1] && widths[1] > widths[2] && widths[2] > 0,
+              "exit: the light line closes smoothly toward a visible final point");
+        CHECK(outside_line == 0, "exit: after the star fade only the thin central line remains");
+        CHECK(rises == 0, "exit: the closing line never flashes brighter again");
         CHECK(black_probe_calls > 0 && black_probe_early == 0,
               "dusk: frame-begin/end observers cannot see unpublished black completion");
-        CHECK(ck_allen_ui_asleep(), "dusk: asleep once the horizon has closed");
-        CHECK(count(&P, 0, 0, W, H, BLACK) == W * H, "dusk: the closed horizon is pure black, every pixel");
+        CHECK(ck_allen_ui_asleep(), "exit: asleep once the light line has closed");
+        CHECK(count(&P, 0, 0, W, H, BLACK) == W * H, "exit: final frame is pure black, every pixel");
         if (dir) {
-            snprintf(path, sizeof path, "%s/allen-8-horizon-closed.png", dir);
+            snprintf(path, sizeof path, "%s/allen-8-exit-closed.png", dir);
             png(path, fb, W, 1, 0, 0, W, H, 2);
         }
         memcpy(copy, fb, (size_t)W * H * 4);
@@ -1205,7 +1224,7 @@ int main(int argc, char **argv)
         ck_allen_ui_dusk_stats(&df, &ds, &da);
         printf("note: the dusk: %u frames at 3840x2160 on one core of this host: average %u us, slowest %u us (%s)\n",
                df, da, ds, cpu_clock ? "CPU time of this thread" : "wall clock");
-        CHECK(df >= 200 && da > 0, "dusk: its frames are counted");
+        CHECK(df >= 170 && da > 0, "exit: its frames are counted");
         /* the dawn: not a cut, and the sky is back in under a second, with nothing of the dusk left */
         ck_allen_ui_sleep(1, now_us);
         CHECK(!ck_allen_ui_asleep(), "sleep: a new request clears the previous black acknowledgement immediately");

@@ -119,7 +119,9 @@ int ck_night_init(ck_night *n, uint32_t w, uint32_t h, uint32_t k, int32_t cx, i
     p += (size_t)(w / 4 + 1) * (h / 4 + 1);
     n->view = ck_sky_the_view; /* default view: GW150914 region */
     ck_canvas cv = {n->sky, n->w, n->h};
-    ck_sky_draw_milkyway(&cv, cx, cy, &n->view);
+    /* Point stars on black: no diffuse fog behind Allen. */
+    for (size_t i = 0; i < (size_t)w * h; i++)
+        n->sky[i] = 0;
     ck_sky_draw_stars(&cv, cx, cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
     for (unsigned i = 0; i < CK_NIGHT_GALAXIES; i++) {
         ck_night_galaxy *g = &n->gal[i];
@@ -720,12 +722,13 @@ void ck_night_lights(const ck_night *n, ck_canvas *out, const ck_rect *r, uint32
 }
 /* ---- rebuilding the sky for a new view ---- */
 
-/* Rebuild the diffuse sky and catalogue directly at native resolution. */
+/* Rebuild point stars on black at native resolution, without diffuse fog. */
 void ck_night_view(ck_night *n, const ck_sky_view *v)
 {
     n->view = *v;
     ck_canvas cv = {n->sky, n->w, n->h};
-    ck_sky_draw_milkyway(&cv, n->cx, n->cy, &n->view);
+    for (size_t i = 0; i < (size_t)n->w * n->h; i++)
+        n->sky[i] = 0;
     /* redraw stars over the new Milky Way */
     ck_sky_draw_stars(&cv, n->cx, n->cy, &n->view, n->tw, CK_NIGHT_TWINKLES, &n->ntw);
     /* recompute galaxy boxes (some may enter or leave the view) */

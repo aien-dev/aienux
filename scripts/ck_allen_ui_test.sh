@@ -13,11 +13,9 @@
 #     match drawing everything. 1280x800 RGBX with a padded pitch: red and
 #     blue swap, nothing past the visible width, and three helper threads
 #     draw exactly the same frames as one.
-#  4. Goodbye, the dusk: six pictures through it (allen-8-horizon-1..6.png)
-#     and the closed horizon; the light only falls after the disk's height,
-#     the middle of the screen is brighter than its edges mid-dusk, the last
-#     frame is pure black; then the dawn brings the sky back. The dusk's own
-#     frame times are printed next to the whole run's.
+#  4. Goodbye: stationary stars fade while Allen folds into a thin line of light,
+#     then a point and black. Six phase captures; no displaced stars, shrinking
+#     line width, no late flash, completed black acknowledgement and safe wake.
 #  5. Coordinates typed to Allen become his place (allen_place_test.c).
 #  6. Every mind mode and replayed activity phase: no newly introduced warm or
 #     white interior hot spots, bounded geometry, and meaningful visibility;
@@ -42,6 +40,12 @@ $CC -std=gnu11 -O2 -Wall -Wextra -Werror -pthread -o "$W/test" $K/ui/tests/allen
     $K/svc/setup_wizard.c $K/svc/setup_inv.c || fail "test does not build"
 "$W/test" "$OUT" || fail "window checks"
 echo "pictures: $OUT"
+$CC -std=gnu11 -O2 -Wall -Wextra -Werror -o "$W/exit" $K/ui/tests/allen_exit_test.c $K/svc/allen_code.c \
+    $K/ui/paint.c $K/ui/night.c $K/ui/sky_real.c $K/ui/sky_data.c $K/ui/mind.c $K/ui/flow.c \
+    $K/ui/allen_font.c $K/ui/canvas.c $K/svc/allen_scene.c $K/svc/allen_reply.c $K/svc/allen_notes.c $K/svc/allen_intent.c \
+    $K/svc/setup_wizard.c $K/svc/setup_inv.c || fail "exit test does not build"
+"$W/exit" || fail "exit lifecycle checks"
+
 # 5. Coordinates typed to Allen ("35 north 90 west", "35.1, -90.0") become his place; lines that are no place
 #    (arithmetic, names, a bare pair of numbers) do not (native/kernel/svc/tests/allen_place_test.c).
 $CC -std=gnu11 -O2 -Wall -Wextra -Werror -I $K/svc -o "$W/place" $K/svc/tests/allen_place_test.c $K/svc/allen_reply.c \

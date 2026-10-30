@@ -326,10 +326,11 @@ for every function it finds, before the drivers claim theirs. On the real machin
 the ground truth for which drivers are still missing (lab report allowlist: `pci:`).
 
 **Rest.** "goodbye", a tap of the power button, or the idle time without a key rests the
-computer; it never restarts (the lab image included). First the dusk (`ui/allen_ui.c`): over four
-seconds everything on the screen (the stars, the galaxies, the water's light, Allen, his words)
-falls in a spiral into a black hole where he was, an accretion disk glows as the light arrives and
-dims again, and the horizon closes to pure black; then nothing moves and nothing is typed. Once it
+computer; it never restarts (the lab image included). First the exit (`ui/allen_ui.c`): over 2.8 seconds the stationary stars fade, Allen's
+geometry folds into a thin cool line, and that line closes to a point and pure black.
+The fade uses a captured background and per-frame colour lookup tables rather than
+resampling the whole screen. Helper cores keep drawing until the completed black
+frame is presented; then nothing moves and nothing is typed. Once it
 is black, the display panel is switched off through the existing guarded AMD path
 (`x86/panel_x86.c`, below). Only after a successful panel-off does the computer rest
 with any-key or power-button wake: the panel comes on before the sky returns, and
@@ -424,7 +425,7 @@ moves, cool blue when still and warm white when fast. Idle, it turns slowly and
 breathes; while a line is typed a current runs from the bar up to him; while he
 thinks a vortex deepens over four seconds and ink wells up in a ring round him;
 each word he says pushes a ring out; asleep it stills and clears. Every change
-of state is a blend of eased weights over 0.7 s, the dusk takes 4.2 s (see
+of state is a blend of eased weights over 0.7 s, the exit takes 2.8 s (see
 `docs/ALLEN_PRESENCE_RESEARCH.md`, section 3.3) and the dawn 0.9 s, so nothing on
 the screen cuts. Cost, measured by the host window test:
 a 3840 by 2160 frame takes 18.1 ms on average on one host core (9.2 ms before
@@ -1069,3 +1070,5 @@ plus `ui/boot_show.c`, which counts every frame against a 60 Hz beat and prints 
   (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT; no
   secondary core is started (same as Rust). See GATES.md rows 16-20.
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.
+
+The iMac light-line build uses catalogue point stars on black: no flow-ink overlay, diffuse Milky Way layer, or voice-driven galaxy light sweep. The compact lights within Allen remain animated.

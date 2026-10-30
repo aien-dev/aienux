@@ -73,7 +73,7 @@ static const int32_t sky_region_dec_udeg[SKY_NREGIONS] = {
 #define FORMED_MS (BORN_MS + CK_MIND_FORM_MS)
 #define LETTER_MS 35u
 #define BAR_REST_MS 9000u /* the bar fades this long after the last thing happened */
-#define DUSK_MS 4200u /* goodbye: everything falls into the black hole, the disk glows, the horizon closes */
+#define DUSK_MS 2800u /* the stars fade, Allen folds to a light line, then the line closes */
 #define DAWN_MS 900u  /* waking: the sky comes back, calmly */
 #define MAP_SHOW_MS 9000u
 #define PANEL_STEP_MS 600u /* the panel's lines ease in this far apart */
@@ -142,10 +142,13 @@ static struct {
     ck_mind mind;
     ck_flow flow;     /* the water and the ink round him */
     uint32_t dim;     /* 0 the sky, DIM_FULL dark (1/256 steps of 1/256): how far the dusk has gone, or how much of the dawn is left */
-    uint32_t dusk_t;  /* when the dusk began (ms; 0: no dusk) */
-    void *keep;       /* the picture as it was when the dusk began, with its smaller copies (ck_night_picture_take) */
-    ck_night_picture kept;
-    int32_t far16;    /* from the hole to the farthest corner of the screen, 16ths of a pixel */
+    uint32_t dusk_t;  /* when the exit began (ms; zero is a valid start) */
+    void *keep;       /* the frozen full-resolution scene used during the exit */
+    int dusk_active;
+    ck_mind exit_origin, exit_mind;
+    uint8_t exit_lut[16][256];
+    uint32_t exit_keep, exit_line_alpha;
+    int32_t exit_half;
     uint32_t dusk_frames, dusk_slowest, dusk_ticks; /* the dusk's own frame times (microseconds) */
     int thinking;     /* an answer is on its way from further off; he thinks until it arrives */
     ck_af_face voice, body, small;
@@ -183,7 +186,7 @@ static struct {
     unsigned hint_len;
     int32_t guest_x;
     uint32_t guest_t; /* when the guest's line began to rise (0: none) */
-    uint32_t shimmer, shimmer_was, level, word_t; /* level: the voice, 0..256 */
+    uint32_t level, word_t; /* level: the voice inside Allen, 0..256 */
     ck_rect guest_box, words_was;
     /* the notes constellation */
     unsigned n, ne, total, links;
@@ -814,7 +817,6 @@ static void dark(const ck_rect *r)
     for (int32_t y = r->y; y < r->y + r->h; y++)
         for (int32_t x = 0; x < r->w; x++)
             ui.back[(size_t)y * (size_t)ui.w + r->x + x] = 0;
-    present(r);
 }
 
 /* Dawn: the picture comes back from black over DAWN_MS, everything already moving under it. */
@@ -828,32 +830,82 @@ static void dawn(const ck_rect *r)
     }
 }
 
-/* The dusk at d ms: how far everything has fallen, the hole, the disk, the closing. Slow at first and then
- * inevitable: the hole opens where Allen was over the first two seconds; the pull eases in (the cube of a
- * smooth step, so the sky barely stirs at first) and by 3400 ms a pixel at the hole shows what was at the
- * farthest corner (past the screen's edges the sky is mirrored, so the stars keep coming); the disk brightens
- * as the light arrives and is brightest from 2800 to 3100 ms. From 2800 the picture's light is let go, quickly
- * at first and gently at the end, the edges of the screen ahead of the middle; the disk dims from 3100 to
- * 3900 while the shadow grows over it, and at DUSK_MS the screen is black. */
-static void horizon_at(uint32_t d)
+/* Smooth Q16 progress avoids the coarse position steps of the former Q8 warp. */
+static uint32_t exit_ease(uint32_t t, uint32_t begin, uint32_t end)
 {
-    ck_night_dusk k = {0};
-    uint32_t q = ck_smooth(ck_prog(d, 0, 3400));
-    q = (q * q >> 8) * q >> 8;
-    k.fallen = (int64_t)ui.far16 * ui.far16 * (int64_t)q >> 8;
-    k.swirl = 65536u * 6 / 10; /* near the hole: six tenths of a turn for each doubling of the distance fallen from */
-    k.calm = S(120) * 16;      /* further out the turning eases off, so the edges of the picture barely turn */
-    k.crowd = 256 + (768 * ck_smooth(ck_prog(d, 300, 2400)) >> 8);
-    k.e = (int32_t)((int64_t)S(90) * 16 * ck_smooth(ck_prog(d, 0, 2000)) >> 8);
-    int32_t rs0 = (int32_t)((int64_t)S(60) * 16 * ck_smooth(ck_prog(d, 0, 2000)) >> 8);
-    k.rs = rs0 + (int32_t)((int64_t)S(60) * 16 * ck_smooth(ck_prog(d, 3400, 4200)) >> 8);
-    uint32_t rise = ck_smooth(ck_prog(d, 900, 2800)), fall = 256 - ck_smooth(ck_prog(d, 3100, 3900));
-    k.disk = rise < fall ? rise : fall;
-    k.beam = 16384u + d * 65536u / 9000u; /* the bright side comes slowly round, one turn in nine seconds */
-    k.keep = 256 - ck_ease_out(ck_prog(d, 2800, 4000));
-    k.near = S(260) * 16, k.far = ui.far16;
-    k.shade = 230 * ck_smooth(ck_prog(d, 400, 2600)) >> 8;
-    ck_night_fall(&ui.night, &k);
+    if (t <= begin)
+        return 0;
+    if (t >= end)
+        return 65536;
+    uint64_t q = (uint64_t)(t - begin) * 65536u / (end - begin);
+    return (uint32_t)(q * q * (196608u - 2u * q) >> 32);
+}
+
+/* Freeze the current scene once. Remove only the original figure from that
+ * backing picture; its actual geometry is drawn separately as it folds. */
+static void exit_capture(void)
+{
+    for (size_t i = 0; i < (size_t)ui.w * ui.h; i++)
+        ((uint32_t *)ui.keep)[i] = ui.back[i];
+    ui.exit_origin = ui.mind;
+    ck_canvas backdrop = {(uint32_t *)ui.keep, ui.w, ui.h};
+    ck_rect all = {0, 0, ui.w, ui.h}, box = ck_grow(ui.mind.box, 2);
+    if (ck_clip(&box, &all)) {
+        ck_night_base(&ui.night, &backdrop, &box);
+        ck_night_lights(&ui.night, &backdrop, &box, 0, 0);
+    }
+}
+
+static void exit_at(uint32_t d)
+{
+    static const uint8_t bayer[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+    ui.exit_keep = 65536u - exit_ease(d, 0, 1600);
+    /* Per-frame lookup tables, not per-pixel transfer functions. Stable ordered
+     * dithering retains the faint stars without adding a new banded veil. */
+    for (unsigned phase = 0; phase < 16; phase++)
+        for (unsigned c = 0; c < 256; c++) {
+            uint32_t light = (uint32_t)((uint64_t)ck_sky_lin[c] * ui.exit_keep >> 16);
+            uint32_t encoded = ck_sky_srgb16[light >= 32767u ? 4095u : light >> 3];
+            ui.exit_lut[phase][c] = ui.exit_keep == 65536 ? (uint8_t)c :
+                ui.exit_keep == 0 ? 0 : (uint8_t)ck_min((encoded + bayer[phase]) >> 4, 255);
+        }
+    uint32_t flat = 65536u - exit_ease(d, 100, 1200);
+    uint32_t width = 65536u - exit_ease(d, 1200, 2450);
+    ui.exit_mind = ui.exit_origin;
+    ck_mind *m = &ui.exit_mind;
+    int32_t cx = ui.cx * 16, cy = ui.cy * 16;
+    for (unsigned i = 0; i < CK_MIND_NODES; i++) {
+        m->px[i] = cx + (int32_t)((int64_t)(m->px[i] - cx) * width / 65536);
+        m->py[i] = cy + (int32_t)((int64_t)(m->py[i] - cy) * flat / 65536);
+    }
+    m->hx = cx + (int32_t)((int64_t)(m->hx - cx) * width / 65536);
+    m->hy = cy + (int32_t)((int64_t)(m->hy - cy) * flat / 65536);
+    m->alpha = (uint32_t)((uint64_t)m->alpha * (65536u - exit_ease(d, 1000, 1450)) >> 16);
+    /* All points move inward, so the original bounds still contain them. */
+    ui.exit_half = ck_max(8, (int32_t)((int64_t)ui.exit_origin.R * 16 * width / 65536));
+    ui.exit_line_alpha = (uint32_t)((uint64_t)exit_ease(d, 850, 1250) *
+                                  (65536u - exit_ease(d, 2300, 2700)) >> 24);
+}
+
+static void exit_draw(const ck_rect *r)
+{
+    const uint32_t *saved = ui.keep;
+    for (int32_t y = r->y; y < r->y + r->h; y++) {
+        size_t row = (size_t)y * ui.w;
+        for (int32_t x = r->x; x < r->x + r->w; x++) {
+            uint32_t c = saved[row + x];
+            const uint8_t *lut = ui.exit_lut[(y & 3) * 4 + (x & 3)];
+            ui.back[row + x] = (uint32_t)lut[c >> 16 & 255] << 16 |
+                              (uint32_t)lut[c >> 8 & 255] << 8 | lut[c & 255];
+        }
+    }
+    ck_mind_draw(&ui.exit_mind, &ui.cv, r);
+    if (ui.exit_line_alpha) {
+        int32_t x = ui.cx * 16, y = ui.cy * 16;
+        ck_thread(&ui.cv, r, x - ui.exit_half, y, x + ui.exit_half, y,
+                  ck_max(16, S(2) * 16), CK_RGB(112, 188, 255),
+                  ui.exit_line_alpha, ui.exit_line_alpha);
+    }
 }
 
 static void compose(const ck_rect *r)
@@ -863,13 +915,13 @@ static void compose(const ck_rect *r)
         dark(r);
         return;
     }
-    if (ui.asleep && ui.dusk_t) { /* the dusk: the kept picture falling into the hole */
-        ck_night_base_from(&ui.night, &ui.kept, &ui.cv, r);
-        present(r);
+    if (ui.asleep && ui.dusk_active) {
+        exit_draw(r);
         return;
     }
     ck_night_base(&ui.night, &ui.cv, r);
-    ck_night_lights(&ui.night, &ui.cv, r, ui.shimmer, ui.level * ui.shimmer >> 9);
+    /* Keep small star twinkles; speech never lights up the surrounding sky. */
+    ck_night_lights(&ui.night, &ui.cv, r, 0, 0);
     /* Keep the starfield clear: flow still animates Allen, but adds no ink overlay. */
     int32_t rad;
     uint32_t a;
@@ -978,6 +1030,15 @@ int ck_allen_ui_help(void)
             return 1;
         }
     }
+}
+
+/* Present only after all shutdown strips are composed. This bounds mixed
+ * frames; it is a CPU copy to GOP, not a vblank/page-flip guarantee. */
+static void present_exit(unsigned n)
+{
+    for (unsigned i = 0; i < n; i++)
+        present(&ui.jobs[i]);
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
 }
 
 /* ---- the frame ---- */
@@ -1122,26 +1183,32 @@ static void advance(uint32_t t)
     take_notes(t);
     if (dt > 100)
         dt = 100; /* after a long sleep the first frame moves things on by a moment, not by the whole sleep */
-    /* the dusk: the picture as it stands is kept and falls into the black hole; then nothing moves */
+    /* A frozen background fade and a small geometry fold; no full-screen warp. */
     uint32_t dim_was = ui.dim;
     if (ui.asleep) {
-        if (!ui.dusk_t) {
-            ui.dusk_t = t ? t : 1;
-            ck_night_picture_take(&ui.night, ui.back, ui.keep, &ui.kept);
+        if (!ui.dusk_active) {
+            ui.dusk_active = 1;
+            ui.dusk_t = t;
+            exit_capture();
         }
         uint32_t d = t - ui.dusk_t;
         ui.dim = d >= DUSK_MS ? DIM_FULL : (uint32_t)((uint64_t)DIM_FULL * d / DUSK_MS);
-        mark_all(); /* the whole screen moves every frame of the dusk; the black is drawn once */
+        if (ui.dim != DIM_FULL || dim_was != DIM_FULL) {
+            if (d <= 1600 || prev - ui.dusk_t < 1600)
+                mark_all(); /* erase the last stars once before limiting work to the line */
+            else
+                mark((ck_rect){ui.cx - ui.exit_origin.R - 4, ui.cy - 4,
+                               2 * ui.exit_origin.R + 8, 8});
+        }
         if (ui.dim == DIM_FULL)
             return;
-        ck_night_at(&ui.night, t);
-        horizon_at(d);
+        exit_at(d);
         return;
     }
     /* the dawn: the sky comes back over DAWN_MS with everything moving under it. Woken during the dusk, it
      * starts from the dark rather than from the falling picture. */
-    if (ui.dusk_t)
-        ui.dusk_t = 0, ui.dim = DIM_FULL;
+    if (ui.dusk_active)
+        ui.dusk_active = 0, ui.dusk_t = 0, ui.dim = DIM_FULL;
     uint32_t dim_step = (uint32_t)((uint64_t)DIM_FULL * dt / DAWN_MS);
     ui.dim = ui.dim > dim_step ? ui.dim - dim_step : 0;
     if (ui.dim != dim_was || ui.dim)
@@ -1203,7 +1270,7 @@ static void advance(uint32_t t)
     for (unsigned i = 0; i < ui.night.ntw; i++)
         mark(ck_night_star_box(&ui.night, i));
 
-    /* the conversation: speaking starts, words reach the mind and the galaxies */
+    /* the conversation: speaking starts, words reach the mind */
     if (ui.speak_t && t >= ui.speak_t) {
         ui.now = ui.next;
         ui.now.from = ui.speak_t;
@@ -1232,13 +1299,6 @@ static void advance(uint32_t t)
         ck_mind_mode(&ui.mind, CK_MIND_THINK, t); /* far off, still at it: he goes on thinking */
     if (ui.mind.mode != CK_MIND_THINK && ui.mind.mode != CK_MIND_SPEAK)
         ck_mind_mode(&ui.mind, ui.input_len && t - ui.key_t < 4000 ? CK_MIND_LISTEN : CK_MIND_IDLE, t);
-    uint32_t rise = w->len ? ck_smooth(ck_prog(t, w->from, w->from + 600)) : 0;
-    uint32_t fall = w->len ? 256 - ck_smooth(ck_prog(t, last_letter + 300, last_letter + 2800)) : 0;
-    ui.shimmer = rise < fall ? rise : fall;
-    if (ui.shimmer || ui.shimmer_was)
-        for (unsigned i = 0; i < CK_NIGHT_GALAXIES; i++)
-            mark(ui.night.gal[i].box);
-    ui.shimmer_was = ui.shimmer;
     if (w->len && (t < w->done + 40 || words_alpha(w, t) != words_alpha(w, prev)))
         mark(w->box);
     if (ui.words_was.w && (ui.words_was.x != w->box.x || ui.words_was.w != w->box.w || ui.words_was.h != w->box.h))
@@ -1249,7 +1309,6 @@ static void advance(uint32_t t)
 
     /* the water, and Allen floating on it: he sways a little with the current under him */
     ck_flow_at(&ui.flow, t);
-    ck_flow_mark(&ui.flow, mark);
     int32_t vx, vy;
     ck_flow_velocity(&ui.flow, ui.cx, ui.cy, &vx, &vy);
     ui.mind.cx = ui.cx + ck_clamp(vx * S(10) / 1000, -S(10), S(10));
@@ -1310,6 +1369,8 @@ int ck_allen_ui_tick(uint64_t now)
 {
     if (!ui.started)
         return 0;
+    if (ck_allen_ui_asleep() && !__atomic_load_n(&note.refresh, __ATOMIC_ACQUIRE))
+        return 0;
     uint32_t t = ms(now);
     if (ui.frames && t - ui.last < FRAME_MS && !__atomic_load_n(&note.refresh, __ATOMIC_ACQUIRE))
         return 0;
@@ -1324,6 +1385,8 @@ int ck_allen_ui_tick(uint64_t now)
         ;
     while (__atomic_load_n(&ui.done, __ATOMIC_ACQUIRE) < n)
         relax();
+    if (ui.asleep)
+        present_exit(n);
     ui.last = t;
     ui.frames++;
     if (ui.clock) {
@@ -1332,7 +1395,7 @@ int ck_allen_ui_tick(uint64_t now)
         ui.total_ticks += us;
         if (us > ui.slowest)
             ui.slowest = us;
-        if (ui.asleep && ui.dusk_t && ui.dim < DIM_FULL) {
+        if (ui.asleep && ui.dusk_active && ui.dim < DIM_FULL) {
             ui.dusk_frames++;
             ui.dusk_ticks += us;
             if (us > ui.dusk_slowest)
@@ -1387,7 +1450,7 @@ static uint32_t scale_for(uint32_t w, uint32_t h)
 size_t ck_allen_ui_mem_bytes(uint32_t w, uint32_t h)
 {
     uint32_t k = scale_for(w, h);
-    return (size_t)w * h * 4 + ck_night_mem_bytes(w, h, k) + ck_night_picture_bytes(w, h) +
+    return (size_t)w * h * 4 + ck_night_mem_bytes(w, h, k) + (size_t)w * h * 4 +
            face_bytes(CAP_VOICE * k / 256) + face_bytes(CAP_BODY * k / 256) + face_bytes(CAP_SMALL * k / 256) + 64;
 }
 
@@ -1422,12 +1485,7 @@ int ck_allen_ui_start(volatile uint32_t *fb, uint32_t w, uint32_t h, uint32_t pi
         return -1;
     p += nb;
     ui.keep = p;
-    p += ck_night_picture_bytes(w, h);
-    for (int i = 0; i < 4; i++) { /* the dusk pulls the picture in from as far as the farthest corner */
-        int64_t dx = (i & 1 ? ui.w : 0) - ui.cx, dy = (i & 2 ? ui.h : 0) - ui.cy;
-        int32_t d = (int32_t)ck_isqrt((uint64_t)(dx * dx + dy * dy)) * 16;
-        ui.far16 = ck_max(ui.far16, d);
-    }
+    p += (size_t)w * h * 4;
     uint32_t caps[3] = {CAP_VOICE * ui.k / 256, CAP_BODY * ui.k / 256, CAP_SMALL * ui.k / 256};
     ck_af_face *faces[3] = {&ui.voice, &ui.body, &ui.small};
     unsigned weights[3] = {1000, 1150, 1250};

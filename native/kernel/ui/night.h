@@ -3,18 +3,15 @@
  *
  * The sky is made once, into RAM, and it is the real sky (ui/sky_real.h):
  * by default the piece of it GW150914, the first black-hole merger ever
- * heard, came from; the Milky Way from Gaia DR3 integrated light, the
- * catalogue's stars at their true places, brightness and colour, and
- * the galaxies in the view the eye can see (there: the Large and Small
- * Magellanic Clouds). Each galaxy also keeps, per pixel, how bright it is
+ * heard, came from; catalogue stars at their true places, brightness and colour
+ * on a black background. Diffuse Milky Way light is omitted from this UI. Each galaxy also keeps, per pixel, how bright it is
  * and where along its long axis that pixel sits, so a band of light can
  * later sweep along it (while Allen answers) without the galaxy itself
  * changing.
  *
  * The startup, on the clock from ck_night_init (ms):
  *   0 to CK_NIGHT_FADE_END_MS  the eyes adjust to the dark: the brightest
- *                              stars first, then the fainter ones, then the
- *                              Milky Way, in slow patches across the sky.
+ *                              stars first, then the fainter ones, in slow patches across the sky.
  *   CK_NIGHT_HOLES_MS          two black holes start to bend the starlight
  *                              (gravitational lensing: stars behind them are
  *                              pulled into arcs), then show their shadows,
