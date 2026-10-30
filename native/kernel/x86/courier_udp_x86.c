@@ -144,7 +144,7 @@ static int send(const char *line, unsigned n)
 {
     if (!line || !n || n > sizeof job || !io->link(io->ctx))
         return -1;
-    if (n >= 7 && !memcmp(line, "KEYTEST", 7) && (n == 7 || line[7] == ' '))
+    if (n >= 7 && !memcmp(line, "KEYTEST", 7))
         return -1;
     clear_job();
     memcpy(job, line, n);

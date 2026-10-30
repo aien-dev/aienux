@@ -231,7 +231,8 @@ int ck_x86_setup_key(int kind, char c)
 /* Old courier key-test replies cannot change setup: no key test is sent. */
 int ck_x86_setup_line(const char *line)
 {
-    return !strncmp(line, "KEYOK ", 6) || !strncmp(line, "KEYBAD ", 7);
+    size_t n = strlen(line);
+    return (n >= 6 && !memcmp(line, "KEYOK ", 6)) || (n >= 7 && !memcmp(line, "KEYBAD ", 7));
 }
 
 void ck_x86_setup_step(void)
