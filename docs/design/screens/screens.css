@@ -1,0 +1,98 @@
+/* screens.css -- the first-run screens, on the 1920 x 1080 design grid, using only the generated tokens.
+   Every value here is a token or a layout fact from allen_ui.c (centre at 40% down, words 250 px below it,
+   bar 720 x 54 with its bottom 96 px above the screen's bottom). */
+@import url("../tokens/allen-tokens.css");
+
+html, body { margin: 0; height: 100%; background: var(--allen-colors-night); overflow: hidden; }
+body { color: var(--allen-colors-primary); }
+
+/* the artboard is the design grid, scaled to fit the window like the kernel's k */
+.board { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: 0 0;
+         background: var(--allen-colors-night) center / cover no-repeat; overflow: hidden; }
+.board.sky { background-image: url("assets/allen-formed.jpg"); }
+.board.night { background-image: url("assets/night-settled.jpg"); }
+
+/* the stroke font: the drawing is shown, the real text is kept for screen readers */
+.af-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.af-svg { display: block; overflow: visible; }
+[data-af] { margin: 0; }
+.center { text-align: center; }
+.center .af-svg { margin: 0 auto; }
+
+/* what Allen says: under his light */
+.says { position: absolute; left: 510px; width: 900px; top: 640px; color: var(--allen-colors-primary); }
+.says + .says { top: 690px; }
+.says.low { top: 600px; }
+
+/* the bar */
+.bar { position: absolute; left: 600px; top: 930px; width: 720px; height: 54px; box-sizing: border-box;
+       border-radius: var(--allen-rounded-pill); background: rgb(var(--allen-colors-night-rgb) / .55);
+       border: 1px solid rgb(var(--allen-colors-glow-rgb) / .16); display: flex; align-items: center;
+       padding: 0 26px; color: var(--allen-colors-hint); }
+.bar.focus { border-color: rgb(var(--allen-colors-mist-rgb) / .55); box-shadow: 0 0 28px rgb(var(--allen-colors-sky-glow-rgb) / .22); }
+.bar .typed { color: var(--allen-colors-primary); }
+.caret { width: 2px; height: 24px; margin-left: 4px; background: var(--allen-colors-glow);
+         animation: breathe var(--allen-motion-caret-breath) var(--allen-motion-ease-smooth) infinite alternate; }
+@keyframes breathe { from { opacity: .25; } to { opacity: .95; } }
+.under-bar { position: absolute; left: 0; right: 0; top: 1018px; color: var(--allen-colors-faint); }
+
+/* choices: one is always lit */
+.choices { position: absolute; left: 580px; width: 760px; top: 712px; display: grid; gap: 8px; }
+.choice { height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 22px; padding: 0 24px;
+          border-radius: var(--allen-rounded-md); background: rgb(var(--allen-colors-panel-rgb) / .62);
+          border: 1px solid rgb(var(--allen-colors-glow-rgb) / .10); color: var(--allen-colors-mist);
+          transition: background var(--allen-motion-choice-lit) var(--allen-motion-ease-out),
+                      border-color var(--allen-motion-choice-lit) var(--allen-motion-ease-out); cursor: pointer; }
+.choice .what { color: var(--allen-colors-hint); }
+.choice .key { margin-left: auto; color: var(--allen-colors-faint); opacity: 0; }
+.choice.lit { background: linear-gradient(rgb(var(--allen-colors-glow-rgb) / .34), rgb(84 104 224 / .30));
+              border-color: rgb(var(--allen-colors-mist-rgb) / .45); color: var(--allen-colors-primary);
+              box-shadow: 0 0 28px rgb(var(--allen-colors-sky-glow-rgb) / .18); }
+.choice.lit .what { color: var(--allen-colors-mist); }
+.choice.lit .key { opacity: 1; }
+.choice:focus-visible { outline: none; border-color: var(--allen-colors-mist); }
+
+/* a row of buttons: the lit one is the default */
+.buttons { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 16px; }
+.button { height: 52px; box-sizing: border-box; padding: 0 30px; display: flex; align-items: center;
+          border-radius: var(--allen-rounded-pill); border: 1px solid rgb(var(--allen-colors-mist-rgb) / .35);
+          background: rgb(var(--allen-colors-panel-rgb) / .62); color: var(--allen-colors-mist); cursor: pointer; }
+.button.lit { background: linear-gradient(rgb(var(--allen-colors-glow-rgb) / .34), rgb(84 104 224 / .30));
+              border-color: rgb(var(--allen-colors-mist-rgb) / .6); color: var(--allen-colors-primary); }
+.button.lit:hover { border-color: var(--allen-colors-warm-soft); color: var(--allen-colors-warm-soft);
+                    box-shadow: 0 0 24px rgb(var(--allen-colors-warm-rgb) / .22); }
+.not-now { position: absolute; left: 0; right: 0; color: var(--allen-colors-hint); cursor: pointer; }
+
+/* found lines: label right-aligned in hint, value left-aligned in primary, on one column */
+.found { position: absolute; left: 0; right: 0; top: 700px; display: grid; grid-template-columns: 860px 1000px;
+         column-gap: 20px; row-gap: 6px; }
+.found .label { text-align: right; color: var(--allen-colors-hint); }
+.found .label .af-svg { margin-left: auto; }
+.found .value { color: var(--allen-colors-primary); }
+.state { color: var(--allen-colors-glow); }
+.state.needs-you { color: var(--allen-colors-warm); }
+
+/* a glass panel, only where a group needs holding together */
+.panel { position: absolute; box-sizing: border-box; padding: 24px 32px; border-radius: var(--allen-rounded-panel);
+         background: rgb(var(--allen-colors-panel-rgb) / .72); border: 1px solid rgb(var(--allen-colors-glow-rgb) / .15);
+         backdrop-filter: blur(18px) saturate(130%);
+         box-shadow: 0 30px 80px rgb(0 0 0 / .45), 0 0 40px rgb(var(--allen-colors-sky-glow-rgb) / .06); }
+
+/* waiting: a small moving light, never a bar that jumps */
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--allen-colors-glow);
+       box-shadow: 0 0 10px var(--allen-colors-glow); animation: dot 1.1s var(--allen-motion-ease-smooth) infinite alternate; }
+@keyframes dot { from { transform: translateX(0); opacity: .35; } to { transform: translateX(26px); opacity: 1; } }
+
+/* entrances rise: opacity 0, 10 px lower, 3 px blurred, to rest (DESIGN.md Motion) */
+.rise { animation: rise var(--allen-motion-word-rise) var(--allen-motion-ease-enter) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(var(--allen-motion-enter-rise)); filter: blur(var(--allen-motion-enter-blur)); }
+                  to { opacity: 1; transform: none; filter: none; } }
+
+/* the screen's name, for reviewers; hidden when ?clean=1 */
+.tag { position: absolute; left: 28px; top: 22px; color: var(--allen-colors-faint); font: 500 14px/1 ui-monospace, monospace;
+       letter-spacing: .04em; opacity: .8; }
+.clean .tag { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .dot, .caret { animation: none; }
+}

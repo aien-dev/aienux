@@ -1,0 +1,23 @@
+# scripts/gpu_ucode_sha256.txt -- pinned SHA-256 for polaris11 firmware blobs
+# Source: linux-firmware tag 20231211 (annotated tag 47441ff7f2ef705bb645967ff18320510897425d,
+#         commit LINUX_FW_COMMIT below)
+# AMD redistributable firmware license; see THIRD_PARTY_NOTICES
+# URL: https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+#
+# Each blob is fetched at that commit (plain/amdgpu/<name>?id=LINUX_FW_COMMIT), so
+# upstream master moving cannot change what gets embedded. Hashes computed on the
+# Spark from those downloads (sha256sum), 2026-10-19. polaris11_mec2.bin is byte-identical
+# to polaris11_mec.bin upstream at this commit (same hash, same size).
+# SMC and SDMA1 are fetched and pinned; the build embeds PFP/ME/CE/MEC/MEC2/RLC only.
+#
+# Verify by hand: sh scripts/fetch_gpu_ucode.sh (the script refuses any mismatch).
+LINUX_FW_COMMIT=f2e52a1c5861fde69aee517ffaf798b630bdf36b
+SHA_PFP=ad2ca7d837f09f94491056af88e2d03de55d773a0f86fac238ebb9e13a0a88f8
+SHA_ME=784ecf696e9a59b0baec4f010631c32f6bb0971a7965705660ca9244e728992b
+SHA_CE=d1664bd98b69bf21c2fb4e6654860e6648d2a202eeb2175e718982ffb7be1dc5
+SHA_MEC=7ad4a0b49e07f1ac9acf1a468385b6fb40f3cf078d048339ff42fbe896306333
+SHA_MEC2=7ad4a0b49e07f1ac9acf1a468385b6fb40f3cf078d048339ff42fbe896306333
+SHA_RLC=29fa9e98117f3ade4471987af3398c9d106df04605f8287f045e0950fe6a1fa1
+SHA_SDMA=e27b3ec976f87e32883b9190e653b20d27f9e77da8dd2d77eeb10c35ee9f1e61
+SHA_SDMA1=23dd73eb1316d40a681841b4d3d116c5cae6d8317cebe8f5e1f9e5dec6de5c87
+SHA_SMC=20142b588ada975151efb15e8f3efde254f6e7a453204d99659c314e43954aca

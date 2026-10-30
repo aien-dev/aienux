@@ -1,0 +1,3 @@
+mood clear still
+say The Odyssey is traditionally attributed to Homer, an ancient Greek poet.
+quote right: Sing in me, Muse, and through her tell the story | Homer

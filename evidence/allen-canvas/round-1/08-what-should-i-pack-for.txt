@@ -1,0 +1,3 @@
+mood clear slow
+say A weekend by the water calls for layers and comfort. Here is a simple list to start with.
+list left: Lake Weekend | Swimsuit and towel | Light jacket for evenings | Sunscreen and hat | Books or music

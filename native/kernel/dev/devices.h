@@ -19,10 +19,13 @@
 #ifndef AIENOS_CK_DEVICES_H
 #define AIENOS_CK_DEVICES_H
 #include "disk.h"
+#include "pci.h"
 /* The AIENOS partition of the bound NVMe disk (a bounds-checked partition
  * view, dev/disk_part.h), or NULL when the devices stage bound no disk or the
  * disk has no valid AIENOS partition. */
 const disk_dev *ck_dev_boot_disk(void);
+/* The PCI functions the devices stage enumerated (the boot sequence finds the VM screen and speakers there). */
+const pci_system *ck_dev_pci(void);
 /* The AIENOS image slots partition of the same bound NVMe disk (a second
  * bounds-checked partition view, P11 cut 2b), or NULL; *rc_out (optional) is
  * 0, the CK_GPT_* refusal, or CK_DEV_NO_BOOT_DISK. */

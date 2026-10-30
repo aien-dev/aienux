@@ -1,0 +1,117 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/debug/deps/aienos_crypto-5af790ab185ac4fb)
+
+running 10 tests
+test aes::tests::test_aes_256_fips_197_c2 ... ok
+test sha256::tests::test_hmac_sha256_rfc4231_case_1 ... ok
+test aes::tests::test_constant_time_sbox_matches_fips197_table ... ok
+test aes_gcm_siv::tests::public_derived_keys_are_guarded_and_redacted ... ok
+test polyval::tests::test_polyval_rfc8452_section_7_dot ... ok
+test sha256::tests::test_sha256_empty ... ok
+test aes_gcm_siv::tests::test_rfc8452_appendix_c_aes256_16byte_pt_0byte_aad ... ok
+test sha256::tests::test_sha256_abc ... ok
+test polyval::tests::test_polyval_rfc8452_appendix_a_worked_example ... ok
+test aes_gcm_siv::tests::test_rfc8452_appendix_c_aes256_8byte_pt_1byte_aad ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_crypto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/aienos_kernel-c19eefd3db0dd907)
+
+running 13 tests
+test crypto::hmac::tests::compare_tags ... ok
+test crypto::hkdf::tests::rfc5869_cases_1_to_3 ... ok
+test crypto::hmac::tests::rfc4231_cases_1_to_7 ... ok
+test crypto::envelope::tests::test_hostile_header_huge_total_rejected_before_alloc ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_empty ... ok
+test crypto::envelope::tests::test_hostile_header_at_bound_hits_length_check ... ok
+test crypto::envelope::tests::test_expected_envelope_len_overflow_is_error ... ok
+test crypto::envelope::tests::test_hostile_header_chunk_size_one_huge_count_rejected ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_small ... ok
+test crypto::envelope::tests::test_envelope_cross_store_and_kind_binding ... ok
+test crypto::hkdf::tests::length_limit_and_compare ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_multi_chunk ... ok
+test crypto::envelope::tests::tampered_late_chunk_rejects_the_entire_plaintext ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 400 filtered out; finished in 0.54s
+
+     Running tests/nvme_completion.rs (target/debug/deps/nvme_completion-bcb82f6e513087bf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/nvme_flush.rs (target/debug/deps/nvme_flush-90f9d915bdbed519)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/nvme_identify.rs (target/debug/deps/nvme_identify-e5190528de5f7f6a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/nvme_prp.rs (target/debug/deps/nvme_prp-b7a168bff1b2c2da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/nvme_write.rs (target/debug/deps/nvme_write-598ed377406c97e4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/nvme_write_completion.rs (target/debug/deps/nvme_write_completion-18d2387a1abfff80)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/nvme_write_prp.rs (target/debug/deps/nvme_write_prp-0d3e5f0655ea204b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/store_v1_golden_vectors.rs (target/debug/deps/store_v1_golden_vectors-ac64db918d0d46e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/store_v1_negative.rs (target/debug/deps/store_v1_negative-8f9cdd10465afb1b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+   Compiling generic-array v0.14.7
+    Checking typenum v1.20.1
+    Checking cfg-if v1.0.5
+    Checking subtle v2.6.1
+    Checking signature v2.2.0
+    Checking cpufeatures v0.2.17
+    Checking aienos-crypto v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-crypto)
+    Checking aienos-accel v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-accel)
+    Checking aienos-capability v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-capability)
+   Compiling curve25519-dalek v4.1.3
+    Checking ed25519 v2.2.3
+    Checking block-buffer v0.10.4
+    Checking crypto-common v0.1.7
+    Checking digest v0.10.7
+    Checking sha2 v0.10.9
+    Checking ed25519-dalek v2.2.0
+    Checking aienos-artifact v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-artifact)
+    Checking aienos-kernel v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-kernel)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.94s

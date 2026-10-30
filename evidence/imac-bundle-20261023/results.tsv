@@ -1,0 +1,13 @@
+courier-tests 0
+memory 0
+code-host 0
+ui 0
+keyboard 0
+bootdisk 1
+bootdisk-fixed 0
+courier-qemu 0
+code-qemu 0
+swap 0
+bench 0
+courier-live 0
+code-live 0

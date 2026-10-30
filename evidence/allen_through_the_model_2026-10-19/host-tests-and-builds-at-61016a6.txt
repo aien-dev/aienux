@@ -1,0 +1,60 @@
+head: 61016a65debec62ecef118665f1f5b8a957e727d  rustc: rustc 1.98.1 (48a229cea 2026-09-01)  cargo: cargo 1.98.1 (797e8a9bc 2026-08-05)  cc: cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+== fmt
+fmt rc=0
+== clippy
+    Checking allen-courier v0.1.0 (/home/drakestapleton/workspace/aienos-allen-model/crates/allen-courier)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.08s
+clippy rc=0
+== cargo test
+test plain_tests::typographic_marks_become_plain_ones ... ok
+test tests::a_busy_server_is_asked_again_with_growing_waits ... ok
+test plain_tests::a_cut_answer_stays_within_the_room_with_its_mark ... ok
+test tests::a_job_line_carries_the_memory_fields ... ok
+test tests::a_sentence_end_too_early_is_not_used ... ok
+test tests::dates_are_civil ... ok
+test tests::what_was_already_said_in_parts_is_kept ... ok
+test tests::chunked_bodies_are_joined ... ok
+test tests::datagram_heads_round_trip ... ok
+test tests::json_strings_round_trip ... ok
+test tests::short_answers_pass_whole_with_whitespace_folded ... ok
+test tests::long_answers_are_cut_at_a_sentence_end ... ok
+test tests::the_assistant_text_is_found_in_a_chat_completion ... ok
+test tests::words_on_the_wire ... ok
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+== courier udp host test (stand-in model)
+[clean] courier test: the relay said hello after 4 ms
+[clean] courier test: first part after 251 ms, whole after 797 ms, 4 parts, 0 waits; datagrams in 6 out 6, lines taken 4, job resends 0, dropped 0; lost out 0 in 0
+[clean] COURIER_UDP: PASS (4 parts, first 251 ms, whole 797 ms, drop every 0)
+[lossy] courier test: the relay said hello after 2005 ms
+[lossy] courier test: first part after 629 ms, whole after 1461 ms, 4 parts, 0 waits; datagrams in 10 out 9, lines taken 4, job resends 0, dropped 3; lost out 3 in 3
+[lossy] COURIER_UDP: PASS (4 parts, first 629 ms, whole 1461 ms, drop every 3)
+[lossy2] courier test: the relay said hello after 6008 ms
+[lossy2] courier test: first part after 2246 ms, whole after 3180 ms, 4 parts, 0 waits; datagrams in 5 out 10, lines taken 4, job resends 1, dropped 0; lost out 5 in 6
+[lossy2] COURIER_UDP: PASS (4 parts, first 2246 ms, whole 3180 ms, drop every 2)
+[busy] courier test: the relay said hello after 5 ms
+[busy] courier test: first part after 2249 ms, whole after 2796 ms, 4 parts, 1 waits; datagrams in 7 out 7, lines taken 5, job resends 0, dropped 0; lost out 0 in 0
+[busy] COURIER_UDP: PASS (4 parts, first 2249 ms, whole 2796 ms, drop every 0)
+[busy] relay waited out the busy answers: first in 2003 ms, whole in 2794 ms, waits 2, status 200
+[slow] courier test: the relay said hello after 5 ms
+[slow] courier test: first part after 4245 ms, whole after 4792 ms, 4 parts, 2 waits; datagrams in 8 out 8, lines taken 6, job resends 0, dropped 0; lost out 0 in 0
+[slow] COURIER_UDP: PASS (4 parts, first 4245 ms, whole 4792 ms, drop every 0)
+[slow] the relay sent WAIT while the model sat silent: 2 waits
+AIENOS_COURIER_UDP: PASS
+== memory test
+allen memory: 189 checks, 0 failures
+AIENOS_ALLEN_MEMORY: PASS
+== ui test
+ALLEN_UI_TEST: PASS (91 checks)
+pictures: target/native-kernel-allen-ui
+AIENOS_ALLEN_UI: PASS
+== imac-kernel CK_X86_REPORT=0
+built /home/drakestapleton/workspace/aienos-allen-model/target/imac-model-lab0/IMACKERN.EFI (commit 61016a65debec62ecef118665f1f5b8a957e727d)
+make rc=0
+-rw-rw-r-- 1 drakestapleton drakestapleton 278528 Oct 19 14:51 target/imac-model-lab0/IMACKERN.EFI
+baeac8cc6aee5faf754e002620ab0f7fd03695c2d10197497cb7d3ddd7a24206  target/imac-model-lab0/IMACKERN.EFI
+== imac-kernel CK_X86_REPORT=1
+built /home/drakestapleton/workspace/aienos-allen-model/target/imac-model-lab1/IMACKERN-LAB.EFI (commit 61016a65debec62ecef118665f1f5b8a957e727d)
+make rc=0
+-rw-rw-r-- 1 drakestapleton drakestapleton 294912 Oct 19 14:51 target/imac-model-lab1/IMACKERN-LAB.EFI
+3bd791167355bd7970f07d2dd464ac3a2c72b8e3ad3a0ac0d7d531314454fc57  target/imac-model-lab1/IMACKERN-LAB.EFI
+== done

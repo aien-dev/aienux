@@ -1,0 +1,14 @@
+start 2026-10-19T21:14:59Z load 10.04 14.58 19.67 3/2166 1948494
+allen-scene: model qwen3.8-27b-fp8 at 127.0.0.1:18091
+allen-scene: 01-whats-the-weather-like-for already answered, kept
+allen-scene: 02-remind-me-to-call-mom -> 147 chars, 43 tokens, 103994 ms (18 busy)
+allen-scene: 03-show-me-something-beautiful already answered, kept
+allen-scene: 04-whats-17-of-240 -> 72 chars, 41 tokens, 417107 ms (122 busy)
+allen-scene: 05-tell-my-friend-sam-im -> 123 chars, 34 tokens, 167562 ms (52 busy)
+allen-scene: 06-play-a-video-about-black -> 139 chars, 35 tokens, 280673 ms (90 busy)
+allen-scene: 07-give-me-25-minutes-to -> 119 chars, 33 tokens, 220664 ms (70 busy)
+allen-scene: 08-what-should-i-pack-for -> 219 chars, 52 tokens, 194396 ms (57 busy)
+allen-scene: 09-who-wrote-the-odyssey -> 163 chars, 37 tokens, 80295 ms (23 busy)
+allen-scene: 10-i-feel-a-bit-lonely -> 126 chars, 33 tokens, 119000 ms (36 busy)
+allen-scene: 10 of 10 questions answered
+end 2026-10-19T21:41:31Z load 53.24 41.56 28.28 64/3906 2703403 rc=0

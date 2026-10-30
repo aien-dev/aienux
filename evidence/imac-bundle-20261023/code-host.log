@@ -1,0 +1,10 @@
+ok      short: 6 pieces, 768 bytes, 29 lines, crc a75a7df7, "Here is a small calculator you can run with python3 calc.py."
+ok      long: 142 pieces, 18056 bytes, 730 lines, crc 17ab737c, "Here is a long C program with many small steps, built with cc steps.c."
+ok      lost piece 72 of 142: missing said, whole after AGAIN
+ok      a spoiled piece: the checksum refuses the whole
+ok      17 hostile lines refused, a disagreeing head refused, 801 lines refused, 32768 bytes taken
+ok      the wait: slow once at 20 s, gone after 30 s of silence, kept while the Spark says WAIT
+ok      rows wrap at a space within reach, numbered by line; the scroll stays in the code
+ok      coding requests told from talk (17 kinds), changes to shown code, the job lines
+AIENOS_ALLEN_CODE: PASS (391 checks, 0 failed)
+AIENOS_ALLEN_CODE: PASS

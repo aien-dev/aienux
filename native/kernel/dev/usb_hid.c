@@ -23,29 +23,41 @@
 #define USAGE_BACKSPACE 0x2au
 #define USAGE_SPACE 0x2cu
 #define USAGE_MINUS 0x2du
-#define USAGE_PERIOD 0x37u
 #define USAGE_SLASH 0x38u
 #define MOD_ANY_SHIFT 0x22u /* left shift bit 1, right shift bit 5 */
 
 ck_key_event ck_hid_usage(uint8_t usage, int shift)
 {
+    /* the US layout's symbol keys, usages 0x2d..0x38 (0x32, the non-US key, has none) */
+    static const char sym[2][12] = {{'-', '=', '[', ']', '\\', 0, ';', '\'', '`', ',', '.', '/'},
+                                    {'_', '+', '{', '}', '|', 0, ':', '"', '~', '<', '>', '?'}};
+    static const char shifted_digit[10] = {'!', '@', '#', '$', '%', '^', '&', '*', '(', ')'};
     ck_key_event ev = {CK_KEY_NONE, 0};
     if (usage >= 0x04 && usage <= 0x1d) { /* a..z */
         ev.kind = CK_KEY_CHAR;
         ev.c = (char)((shift ? 'A' : 'a') + (usage - 0x04));
     } else if (usage >= 0x1e && usage <= 0x27) { /* 1..9, 0 */
-        if (shift) return ev;
         ev.kind = CK_KEY_CHAR;
-        ev.c = usage == 0x27 ? '0' : (char)('1' + (usage - 0x1e));
+        ev.c = shift ? shifted_digit[usage - 0x1e] : usage == 0x27 ? '0' : (char)('1' + (usage - 0x1e));
     } else if (usage == USAGE_ENTER) {
         ev.kind = CK_KEY_ENTER;
     } else if (usage == USAGE_ESCAPE) {
         ev.kind = CK_KEY_ESCAPE;
     } else if (usage == USAGE_BACKSPACE) {
         ev.kind = CK_KEY_BACKSPACE;
-    } else if (!shift && (usage == USAGE_SPACE || usage == USAGE_MINUS || usage == USAGE_PERIOD || usage == USAGE_SLASH)) {
+    } else if (usage >= 0x4f && usage <= 0x52) { /* Right, Left, Down, Up arrow */
+        static const uint8_t arrow[4] = {CK_KEY_RIGHT, CK_KEY_LEFT, CK_KEY_DOWN, CK_KEY_UP};
+        ev.kind = arrow[usage - 0x4f];
+    } else if (usage == 0x4a || usage == 0x4b || usage == 0x4d || usage == 0x4e) { /* Home, Page Up, End, Page Down */
+        ev.kind = usage == 0x4a ? CK_KEY_HOME : usage == 0x4b ? CK_KEY_PGUP : usage == 0x4d ? CK_KEY_END : CK_KEY_PGDN;
+    } else if (usage == 0x2b) { /* Tab */
+        ev.kind = CK_KEY_TAB;
+    } else if (usage == USAGE_SPACE) {
         ev.kind = CK_KEY_CHAR;
-        ev.c = usage == USAGE_SPACE ? ' ' : usage == USAGE_MINUS ? '-' : usage == USAGE_PERIOD ? '.' : '/';
+        ev.c = ' ';
+    } else if (usage >= USAGE_MINUS && usage <= USAGE_SLASH && sym[shift != 0][usage - USAGE_MINUS]) {
+        ev.kind = CK_KEY_CHAR;
+        ev.c = sym[shift != 0][usage - USAGE_MINUS];
     }
     return ev;
 }

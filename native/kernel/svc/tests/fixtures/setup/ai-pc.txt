@@ -1,0 +1,13 @@
+# An AI-shaped PC (QEMU fixture, L267): a big graphics card and models already installed.
+machine name="Workstation" from=host
+gpu vendor=10de device=2684 name="NVIDIA GeForce RTX 4090" vram_mib=24564 driver="NVIDIA 560.94"
+gpu vendor=8086 device=a780 name="Intel UHD Graphics 770" kind=integrated
+display name="Dell U2723QE" w=3840 h=2160 hz=60 max_w=3840 max_h=2160 max_hz=60 vrr=0
+cpu name="Intel Core i9-13900K" fast=8 efficient=16 threads=32
+ram mib=65536
+disk name="Samsung 990 PRO" gib=1863 kind=nvme
+usb name="Logitech MX Master 3 mouse"
+acpi tables="FACP APIC MCFG HPET DMAR"
+gateway addr=10.0.0.1
+model source=ollama name="llama3.1:8b" params_b10=80 bits10=45 mib=4700 path="C:/Users/sam/.ollama/models"
+server source=lmstudio name="qwen2.5-7b-instruct" params_b10=76 url="http://127.0.0.1:1234"

@@ -1,0 +1,3 @@
+mood clear slow
+say I can't send that to Sam yet, but here is the note for you to copy.
+person to right: Sam | Running late

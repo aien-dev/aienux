@@ -32,7 +32,8 @@
 
 #define CK_X86_REPORT_PORT 47031u   /* UDP, source and destination */
 #define CK_X86_REPORT_CHUNK 1024u   /* report bytes per datagram */
-#define CK_X86_REPORT_MAX 16384u    /* the console's RAM copy */
+#define CK_X86_REPORT_MAX 65536u    /* the console's RAM copy (console_log.h), 64 parts */
+#define CK_X86_REPORT_NOTE_MAX 80u  /* room kept for the truncation note */
 #define CK_X86_REPORT_LINE_MAX 240u /* longest line kept, newline excluded */
 
 /* Copies into out (cap bytes) only the complete lines of log[0, len) that
@@ -43,11 +44,17 @@
  * and any line that no longer fits. Kept lines are copied byte for byte, each
  * ending in '\n'. Returns the bytes written. Pure: no device, no clock. */
 size_t ck_x86_report_filter(const char *log, size_t len, char *out, size_t cap);
+/* When the console's RAM copy filled and later lines were not stored
+ * (dropped > 0), appends the line "report: console_copy_full dropped_bytes=N\n"
+ * to out[0, len) so the report never reads as complete. Call after the filter
+ * with the filter's cap reduced by CK_X86_REPORT_NOTE_MAX. Returns the new
+ * length; len unchanged when dropped is 0 or the line does not fit. Pure. */
+size_t ck_x86_report_seal(char *out, size_t len, size_t cap, size_t dropped);
 /* Datagrams needed for a report of len bytes; 0 when len is 0 or too big. */
 unsigned ck_x86_report_parts(size_t len);
 /* The Ethernet frame (no FCS) carrying part `part` of the report: broadcast
  * from `mac`, IPv4 0.0.0.0 -> 255.255.255.255, UDP PORT -> PORT, TTL 1,
- * payload "AIENOS-IMAC-REPORT v=2 auth=none run=<16 hex> part=<i>/<n>
+ * payload "AIENOS-REPORT v=2 auth=none run=<16 hex> part=<i>/<n>
  * bytes=<total>\n" + chunk. `report` must be ck_x86_report_filter output.
  * Bytes written, 0 on a bad argument or a buffer too small. */
 size_t ck_x86_report_frame(const uint8_t mac[6], uint64_t run, const char *report, size_t len, unsigned part,

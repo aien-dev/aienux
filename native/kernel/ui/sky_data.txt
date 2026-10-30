@@ -1,0 +1,31 @@
+input bsc5: https://cdsarc.cds.unistra.fr/ftp/V/50/catalog.gz sha256 3dc44b1e90be8fbe5bcc7656032560f51275f985c7e3f783c9028e1838ec7bed
+input gaia_hpx6.csv: https://gea.esac.esa.int/tap-server/tap/async ADQL (query in docs/ALLEN_SKY_SCIENCE.md) sha256 334bde2b6359747e2cc3d7f3db7bb3776d3273836215804249a4e9730935c80e
+input gaia_dust.csv: https://gea.esac.esa.int/tap-server/tap/async ADQL (query in docs/ALLEN_SKY_SCIENCE.md) sha256 105f8f51de8cc473ff34fd8a0ffd455179c0d12f85de59165fafe9551f015e25
+input gaia_hpx7.csv: https://gea.esac.esa.int/tap-server/tap/async ADQL level 7, four HEALPix-range chunks joined, sha256 4d1412d3df02f6ee34120b8fd9b96bde6766fcaf50c569a94b45b72d4ec151cd
+input gaia_dust7.csv: https://gea.esac.esa.int/tap-server/tap/async ADQL level 7, four HEALPix-range chunks joined, sha256 ce46146f06fa33791d81cde3f02f19a7ac259e5555b13c03cdb8092e75174d89
+input ngc: https://raw.githubusercontent.com/mattiaverga/OpenNGC/be3cd6c5498806a2fbb2f7e0452ef802dbb02be0/database_files/NGC.csv sha256 54abea0b57b0a103831bfc7a8e3a99a23acfbf4bb581fcf3d8af539cbb826c84
+input ngc_addendum: https://raw.githubusercontent.com/mattiaverga/OpenNGC/be3cd6c5498806a2fbb2f7e0452ef802dbb02be0/database_files/addendum.csv sha256 c93f983dda6780b76b7b2e9271a856a892627710148a982ee98101a54c642fdd
+input gw150914: https://dcc.ligo.org/public/0157/P1800381/007/GW150914_skymap.fits.gz sha256 a8a4bdeb46aade1389e594e466ee6372a401157188df636eae2bbb3eab2805f2
+GW150914 sky map: HEALPix nside 512; most probable point RA 113.697 Dec -72.757 deg; 90% region 181.6 sq deg
+view: gnomonic, centre RA 113.697 Dec -72.757 deg, 80.0 deg across the width, roll 0.0 deg, centre at 50% across and 40% down
+3840x2160: the top-left corner is 42.6 deg from the centre, the bottom-right 45.4 deg
+the centre in galactic coordinates: l 284.54 b -22.70 deg
+of the GW150914 90% region, 100% of its pixels are on the 3840x2160 screen
+catalogue: 9096 stars with positions; 310 have no B-V (drawn at B-V 0.6, close to the Sun's)
+stars on the 3840x2160 screen by limit: V<=4.0: 71, V<=5.0: 179, V<=5.5: 332, V<=6.0: 560, V<=6.5: 904, V<=7.0: 954, V<=all: 959
+stars to V 6.5 in the whole sky: 8404 (8 bytes each: 67232 bytes); in this view with its margin: 1035
+colour: B-V -0.30 -> 16602 K -> sRGB (177, 198, 255)
+colour: B-V 0.00 -> 10125 K -> sRGB (204, 217, 255)
+colour: B-V 0.65 -> 5778 K -> sRGB (255, 241, 234)
+colour: B-V 1.50 -> 3794 K -> sRGB (255, 207, 155)
+display: a magnitude 6.5 star peaks at 0.060 linear (sRGB level 69); a magnitude 0 star holds 33.8 linear x design px; 1 S10 is 5.86e-06 linear per design px
+Gaia DR3 Milky Way: 196608 HEALPix level-7 cells (nside 128), 196608 non-empty, 0 with no BP/RP colour (G kept as V); sky glow 0.00120 linear/design-px (V 22.0, physical, no gain)
+cloud light NGC0224 Andromeda Galaxy: Gaia resolves V 6.53 of the catalogue's V 3.44 (5.8%), under 25%: not added
+cloud light NGC0292 Small Magellanic Cloud: 55 Gaia cells in the 300x180 arcmin ellipse, local sky 42.2 S10 (median of 61 cells at 1.2-1.6 radii); Gaia resolves V 2.78 of the catalogue's V 2.30 (64%); the rest added in the Gaia stars' pattern (excess x 1.55); centre (inner fifth) V 21.64 -> 21.22 mag/arcsec2, 287 -> 422 S10
+cloud light ESO056-115 Large Magellanic Cloud: 372 Gaia cells in the 646x550 arcmin ellipse, local sky 48.7 S10 (median of 395 cells at 1.2-1.6 radii); Gaia resolves V 0.83 of the catalogue's V 0.29 (61%); the rest added in the Gaia stars' pattern (excess x 1.65); centre (inner fifth) V 21.58 -> 21.11 mag/arcsec2, 302 -> 466 S10
+Milky Way: brightest band 1111.1 S10 = V 20.17 mag/arcsec2 (Gaia flux in V, physical scale, no anchor; the published Bochum value is V 20.7, Leinert et al. 1998); 5.42 times the dark sky; gain 1.00
+galaxies on screen brighter than V 6.5 (OpenNGC): ESO056-115 Large Magellanic Cloud V 0.29 646x550 arcmin PA 170, NGC0292 Small Magellanic Cloud V 2.30 300x180 arcmin PA 45
+galaxy ESO056-115: on screen half axes 218.7 x 190.9 px at 3840 wide, long axis at 131.7 deg from right
+galaxy NGC0292: on screen half axes 111.6 x 73.5 px at 3840 wide, long axis at 323.4 deg from right
+tables: stars 8280 B, Milky Way luma 64980 B + colour 32580 B, other tables about 10496 B
+made in 44 s

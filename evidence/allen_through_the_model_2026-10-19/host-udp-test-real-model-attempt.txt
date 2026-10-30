@@ -1,0 +1,22 @@
+[clean] courier test: the relay said hello after 4 ms
+[clean] courier test: first part after 244 ms, whole after 787 ms, 4 parts, 0 waits; datagrams in 6 out 6, lines taken 4, job resends 0, dropped 0; lost out 0 in 0
+[clean] COURIER_UDP: PASS (4 parts, first 244 ms, whole 787 ms, drop every 0)
+[lossy] courier test: the relay said hello after 2006 ms
+[lossy] courier test: first part after 628 ms, whole after 1460 ms, 4 parts, 0 waits; datagrams in 10 out 9, lines taken 4, job resends 0, dropped 3; lost out 3 in 3
+[lossy] COURIER_UDP: PASS (4 parts, first 628 ms, whole 1460 ms, drop every 3)
+[lossy2] courier test: the relay said hello after 6008 ms
+[lossy2] courier test: first part after 2246 ms, whole after 3184 ms, 4 parts, 0 waits; datagrams in 5 out 10, lines taken 4, job resends 1, dropped 0; lost out 5 in 6
+[lossy2] COURIER_UDP: PASS (4 parts, first 2246 ms, whole 3184 ms, drop every 2)
+[busy] courier test: the relay said hello after 2 ms
+[busy] courier test: first part after 2252 ms, whole after 2799 ms, 4 parts, 1 waits; datagrams in 7 out 7, lines taken 5, job resends 0, dropped 0; lost out 0 in 0
+[busy] COURIER_UDP: PASS (4 parts, first 2252 ms, whole 2799 ms, drop every 0)
+[busy] relay waited out the busy answers: first in 2005 ms, whole in 2797 ms, waits 2, status 200
+[slow] courier test: the relay said hello after 7 ms
+[slow] courier test: first part after 4246 ms, whole after 4793 ms, 4 parts, 2 waits; datagrams in 8 out 8, lines taken 6, job resends 0, dropped 0; lost out 0 in 0
+[slow] COURIER_UDP: PASS (4 parts, first 4246 ms, whole 4793 ms, drop every 0)
+[slow] the relay sent WAIT while the model sat silent: 2 waits
+learning log line: {"t":"2026-10-19T19:56:52Z","wire":"udp","run":"563412f3184fb6b5","seq":1,"want":"chat","ask":"hello allen, how was your day","system":"You speak as Allen, a quiet, warm presence who lives in this computer and talks with one person. Answer in plain English, short sentences, in your own voice: kind, 
+[real] courier test: the relay said hello after 2 ms
+[real] courier test: first part after 2 ms, whole after 2 ms, 1 parts, 0 waits; datagrams in 3 out 3, lines taken 1, job resends 0, dropped 0; lost out 0 in 0
+[real] COURIER_UDP: FAIL the answer had no words (the model was not reached)
+AIENOS_COURIER_UDP: FAIL run real

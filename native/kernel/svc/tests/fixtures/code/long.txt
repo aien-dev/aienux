@@ -1,0 +1,734 @@
+Here is a long C program with many small steps, built with cc steps.c.
+
+```c
+/* steps.c: many small steps, each one printed. */
+#include <stdio.h>
+
+static int step_1(int x)
+{
+    /* step 1: multiply, add, and keep it small \ no tabs */
+    return (x * 1 + 7) % 1000003;
+}
+static int step_2(int x)
+{
+    /* step 2: multiply, add, and keep it small \ no tabs */
+    return (x * 2 + 14) % 1000003;
+}
+static int step_3(int x)
+{
+    /* step 3: multiply, add, and keep it small \ no tabs */
+    return (x * 3 + 21) % 1000003;
+}
+static int step_4(int x)
+{
+    /* step 4: multiply, add, and keep it small \ no tabs */
+    return (x * 4 + 28) % 1000003;
+}
+static int step_5(int x)
+{
+    /* step 5: multiply, add, and keep it small \ no tabs */
+    return (x * 5 + 35) % 1000003;
+}
+static int step_6(int x)
+{
+    /* step 6: multiply, add, and keep it small \ no tabs */
+    return (x * 6 + 42) % 1000003;
+}
+static int step_7(int x)
+{
+    /* step 7: multiply, add, and keep it small \ no tabs */
+    return (x * 7 + 49) % 1000003;
+}
+static int step_8(int x)
+{
+    /* step 8: multiply, add, and keep it small \ no tabs */
+    return (x * 8 + 56) % 1000003;
+}
+static int step_9(int x)
+{
+    /* step 9: multiply, add, and keep it small \ no tabs */
+    return (x * 9 + 63) % 1000003;
+}
+static int step_10(int x)
+{
+    /* step 10: multiply, add, and keep it small \ no tabs */
+    return (x * 10 + 70) % 1000003;
+}
+static int step_11(int x)
+{
+    /* step 11: multiply, add, and keep it small \ no tabs */
+    return (x * 11 + 77) % 1000003;
+}
+static int step_12(int x)
+{
+    /* step 12: multiply, add, and keep it small \ no tabs */
+    return (x * 12 + 84) % 1000003;
+}
+static int step_13(int x)
+{
+    /* step 13: multiply, add, and keep it small \ no tabs */
+    return (x * 13 + 91) % 1000003;
+}
+static int step_14(int x)
+{
+    /* step 14: multiply, add, and keep it small \ no tabs */
+    return (x * 14 + 98) % 1000003;
+}
+static int step_15(int x)
+{
+    /* step 15: multiply, add, and keep it small \ no tabs */
+    return (x * 15 + 105) % 1000003;
+}
+static int step_16(int x)
+{
+    /* step 16: multiply, add, and keep it small \ no tabs */
+    return (x * 16 + 112) % 1000003;
+}
+static int step_17(int x)
+{
+    /* step 17: multiply, add, and keep it small \ no tabs */
+    return (x * 17 + 119) % 1000003;
+}
+static int step_18(int x)
+{
+    /* step 18: multiply, add, and keep it small \ no tabs */
+    return (x * 18 + 126) % 1000003;
+}
+static int step_19(int x)
+{
+    /* step 19: multiply, add, and keep it small \ no tabs */
+    return (x * 19 + 133) % 1000003;
+}
+static int step_20(int x)
+{
+    /* step 20: multiply, add, and keep it small \ no tabs */
+    return (x * 20 + 140) % 1000003;
+}
+static int step_21(int x)
+{
+    /* step 21: multiply, add, and keep it small \ no tabs */
+    return (x * 21 + 147) % 1000003;
+}
+static int step_22(int x)
+{
+    /* step 22: multiply, add, and keep it small \ no tabs */
+    return (x * 22 + 154) % 1000003;
+}
+static int step_23(int x)
+{
+    /* step 23: multiply, add, and keep it small \ no tabs */
+    return (x * 23 + 161) % 1000003;
+}
+static int step_24(int x)
+{
+    /* step 24: multiply, add, and keep it small \ no tabs */
+    return (x * 24 + 168) % 1000003;
+}
+static int step_25(int x)
+{
+    /* step 25: multiply, add, and keep it small \ no tabs */
+    return (x * 25 + 175) % 1000003;
+}
+static int step_26(int x)
+{
+    /* step 26: multiply, add, and keep it small \ no tabs */
+    return (x * 26 + 182) % 1000003;
+}
+static int step_27(int x)
+{
+    /* step 27: multiply, add, and keep it small \ no tabs */
+    return (x * 27 + 189) % 1000003;
+}
+static int step_28(int x)
+{
+    /* step 28: multiply, add, and keep it small \ no tabs */
+    return (x * 28 + 196) % 1000003;
+}
+static int step_29(int x)
+{
+    /* step 29: multiply, add, and keep it small \ no tabs */
+    return (x * 29 + 203) % 1000003;
+}
+static int step_30(int x)
+{
+    /* step 30: multiply, add, and keep it small \ no tabs */
+    return (x * 30 + 210) % 1000003;
+}
+static int step_31(int x)
+{
+    /* step 31: multiply, add, and keep it small \ no tabs */
+    return (x * 31 + 217) % 1000003;
+}
+static int step_32(int x)
+{
+    /* step 32: multiply, add, and keep it small \ no tabs */
+    return (x * 32 + 224) % 1000003;
+}
+static int step_33(int x)
+{
+    /* step 33: multiply, add, and keep it small \ no tabs */
+    return (x * 33 + 231) % 1000003;
+}
+static int step_34(int x)
+{
+    /* step 34: multiply, add, and keep it small \ no tabs */
+    return (x * 34 + 238) % 1000003;
+}
+static int step_35(int x)
+{
+    /* step 35: multiply, add, and keep it small \ no tabs */
+    return (x * 35 + 245) % 1000003;
+}
+static int step_36(int x)
+{
+    /* step 36: multiply, add, and keep it small \ no tabs */
+    return (x * 36 + 252) % 1000003;
+}
+static int step_37(int x)
+{
+    /* step 37: multiply, add, and keep it small \ no tabs */
+    return (x * 37 + 259) % 1000003;
+}
+static int step_38(int x)
+{
+    /* step 38: multiply, add, and keep it small \ no tabs */
+    return (x * 38 + 266) % 1000003;
+}
+static int step_39(int x)
+{
+    /* step 39: multiply, add, and keep it small \ no tabs */
+    return (x * 39 + 273) % 1000003;
+}
+static int step_40(int x)
+{
+    /* step 40: multiply, add, and keep it small \ no tabs */
+    return (x * 40 + 280) % 1000003;
+}
+static int step_41(int x)
+{
+    /* step 41: multiply, add, and keep it small \ no tabs */
+    return (x * 41 + 287) % 1000003;
+}
+static int step_42(int x)
+{
+    /* step 42: multiply, add, and keep it small \ no tabs */
+    return (x * 42 + 294) % 1000003;
+}
+static int step_43(int x)
+{
+    /* step 43: multiply, add, and keep it small \ no tabs */
+    return (x * 43 + 301) % 1000003;
+}
+static int step_44(int x)
+{
+    /* step 44: multiply, add, and keep it small \ no tabs */
+    return (x * 44 + 308) % 1000003;
+}
+static int step_45(int x)
+{
+    /* step 45: multiply, add, and keep it small \ no tabs */
+    return (x * 45 + 315) % 1000003;
+}
+static int step_46(int x)
+{
+    /* step 46: multiply, add, and keep it small \ no tabs */
+    return (x * 46 + 322) % 1000003;
+}
+static int step_47(int x)
+{
+    /* step 47: multiply, add, and keep it small \ no tabs */
+    return (x * 47 + 329) % 1000003;
+}
+static int step_48(int x)
+{
+    /* step 48: multiply, add, and keep it small \ no tabs */
+    return (x * 48 + 336) % 1000003;
+}
+static int step_49(int x)
+{
+    /* step 49: multiply, add, and keep it small \ no tabs */
+    return (x * 49 + 343) % 1000003;
+}
+static int step_50(int x)
+{
+    /* step 50: multiply, add, and keep it small \ no tabs */
+    return (x * 50 + 350) % 1000003;
+}
+static int step_51(int x)
+{
+    /* step 51: multiply, add, and keep it small \ no tabs */
+    return (x * 51 + 357) % 1000003;
+}
+static int step_52(int x)
+{
+    /* step 52: multiply, add, and keep it small \ no tabs */
+    return (x * 52 + 364) % 1000003;
+}
+static int step_53(int x)
+{
+    /* step 53: multiply, add, and keep it small \ no tabs */
+    return (x * 53 + 371) % 1000003;
+}
+static int step_54(int x)
+{
+    /* step 54: multiply, add, and keep it small \ no tabs */
+    return (x * 54 + 378) % 1000003;
+}
+static int step_55(int x)
+{
+    /* step 55: multiply, add, and keep it small \ no tabs */
+    return (x * 55 + 385) % 1000003;
+}
+static int step_56(int x)
+{
+    /* step 56: multiply, add, and keep it small \ no tabs */
+    return (x * 56 + 392) % 1000003;
+}
+static int step_57(int x)
+{
+    /* step 57: multiply, add, and keep it small \ no tabs */
+    return (x * 57 + 399) % 1000003;
+}
+static int step_58(int x)
+{
+    /* step 58: multiply, add, and keep it small \ no tabs */
+    return (x * 58 + 406) % 1000003;
+}
+static int step_59(int x)
+{
+    /* step 59: multiply, add, and keep it small \ no tabs */
+    return (x * 59 + 413) % 1000003;
+}
+static int step_60(int x)
+{
+    /* step 60: multiply, add, and keep it small \ no tabs */
+    return (x * 60 + 420) % 1000003;
+}
+static int step_61(int x)
+{
+    /* step 61: multiply, add, and keep it small \ no tabs */
+    return (x * 61 + 427) % 1000003;
+}
+static int step_62(int x)
+{
+    /* step 62: multiply, add, and keep it small \ no tabs */
+    return (x * 62 + 434) % 1000003;
+}
+static int step_63(int x)
+{
+    /* step 63: multiply, add, and keep it small \ no tabs */
+    return (x * 63 + 441) % 1000003;
+}
+static int step_64(int x)
+{
+    /* step 64: multiply, add, and keep it small \ no tabs */
+    return (x * 64 + 448) % 1000003;
+}
+static int step_65(int x)
+{
+    /* step 65: multiply, add, and keep it small \ no tabs */
+    return (x * 65 + 455) % 1000003;
+}
+static int step_66(int x)
+{
+    /* step 66: multiply, add, and keep it small \ no tabs */
+    return (x * 66 + 462) % 1000003;
+}
+static int step_67(int x)
+{
+    /* step 67: multiply, add, and keep it small \ no tabs */
+    return (x * 67 + 469) % 1000003;
+}
+static int step_68(int x)
+{
+    /* step 68: multiply, add, and keep it small \ no tabs */
+    return (x * 68 + 476) % 1000003;
+}
+static int step_69(int x)
+{
+    /* step 69: multiply, add, and keep it small \ no tabs */
+    return (x * 69 + 483) % 1000003;
+}
+static int step_70(int x)
+{
+    /* step 70: multiply, add, and keep it small \ no tabs */
+    return (x * 70 + 490) % 1000003;
+}
+static int step_71(int x)
+{
+    /* step 71: multiply, add, and keep it small \ no tabs */
+    return (x * 71 + 497) % 1000003;
+}
+static int step_72(int x)
+{
+    /* step 72: multiply, add, and keep it small \ no tabs */
+    return (x * 72 + 504) % 1000003;
+}
+static int step_73(int x)
+{
+    /* step 73: multiply, add, and keep it small \ no tabs */
+    return (x * 73 + 511) % 1000003;
+}
+static int step_74(int x)
+{
+    /* step 74: multiply, add, and keep it small \ no tabs */
+    return (x * 74 + 518) % 1000003;
+}
+static int step_75(int x)
+{
+    /* step 75: multiply, add, and keep it small \ no tabs */
+    return (x * 75 + 525) % 1000003;
+}
+static int step_76(int x)
+{
+    /* step 76: multiply, add, and keep it small \ no tabs */
+    return (x * 76 + 532) % 1000003;
+}
+static int step_77(int x)
+{
+    /* step 77: multiply, add, and keep it small \ no tabs */
+    return (x * 77 + 539) % 1000003;
+}
+static int step_78(int x)
+{
+    /* step 78: multiply, add, and keep it small \ no tabs */
+    return (x * 78 + 546) % 1000003;
+}
+static int step_79(int x)
+{
+    /* step 79: multiply, add, and keep it small \ no tabs */
+    return (x * 79 + 553) % 1000003;
+}
+static int step_80(int x)
+{
+    /* step 80: multiply, add, and keep it small \ no tabs */
+    return (x * 80 + 560) % 1000003;
+}
+static int step_81(int x)
+{
+    /* step 81: multiply, add, and keep it small \ no tabs */
+    return (x * 81 + 567) % 1000003;
+}
+static int step_82(int x)
+{
+    /* step 82: multiply, add, and keep it small \ no tabs */
+    return (x * 82 + 574) % 1000003;
+}
+static int step_83(int x)
+{
+    /* step 83: multiply, add, and keep it small \ no tabs */
+    return (x * 83 + 581) % 1000003;
+}
+static int step_84(int x)
+{
+    /* step 84: multiply, add, and keep it small \ no tabs */
+    return (x * 84 + 588) % 1000003;
+}
+static int step_85(int x)
+{
+    /* step 85: multiply, add, and keep it small \ no tabs */
+    return (x * 85 + 595) % 1000003;
+}
+static int step_86(int x)
+{
+    /* step 86: multiply, add, and keep it small \ no tabs */
+    return (x * 86 + 602) % 1000003;
+}
+static int step_87(int x)
+{
+    /* step 87: multiply, add, and keep it small \ no tabs */
+    return (x * 87 + 609) % 1000003;
+}
+static int step_88(int x)
+{
+    /* step 88: multiply, add, and keep it small \ no tabs */
+    return (x * 88 + 616) % 1000003;
+}
+static int step_89(int x)
+{
+    /* step 89: multiply, add, and keep it small \ no tabs */
+    return (x * 89 + 623) % 1000003;
+}
+static int step_90(int x)
+{
+    /* step 90: multiply, add, and keep it small \ no tabs */
+    return (x * 90 + 630) % 1000003;
+}
+static int step_91(int x)
+{
+    /* step 91: multiply, add, and keep it small \ no tabs */
+    return (x * 91 + 637) % 1000003;
+}
+static int step_92(int x)
+{
+    /* step 92: multiply, add, and keep it small \ no tabs */
+    return (x * 92 + 644) % 1000003;
+}
+static int step_93(int x)
+{
+    /* step 93: multiply, add, and keep it small \ no tabs */
+    return (x * 93 + 651) % 1000003;
+}
+static int step_94(int x)
+{
+    /* step 94: multiply, add, and keep it small \ no tabs */
+    return (x * 94 + 658) % 1000003;
+}
+static int step_95(int x)
+{
+    /* step 95: multiply, add, and keep it small \ no tabs */
+    return (x * 95 + 665) % 1000003;
+}
+static int step_96(int x)
+{
+    /* step 96: multiply, add, and keep it small \ no tabs */
+    return (x * 96 + 672) % 1000003;
+}
+static int step_97(int x)
+{
+    /* step 97: multiply, add, and keep it small \ no tabs */
+    return (x * 97 + 679) % 1000003;
+}
+static int step_98(int x)
+{
+    /* step 98: multiply, add, and keep it small \ no tabs */
+    return (x * 98 + 686) % 1000003;
+}
+static int step_99(int x)
+{
+    /* step 99: multiply, add, and keep it small \ no tabs */
+    return (x * 99 + 693) % 1000003;
+}
+static int step_100(int x)
+{
+    /* step 100: multiply, add, and keep it small \ no tabs */
+    return (x * 100 + 700) % 1000003;
+}
+static int step_101(int x)
+{
+    /* step 101: multiply, add, and keep it small \ no tabs */
+    return (x * 101 + 707) % 1000003;
+}
+static int step_102(int x)
+{
+    /* step 102: multiply, add, and keep it small \ no tabs */
+    return (x * 102 + 714) % 1000003;
+}
+static int step_103(int x)
+{
+    /* step 103: multiply, add, and keep it small \ no tabs */
+    return (x * 103 + 721) % 1000003;
+}
+static int step_104(int x)
+{
+    /* step 104: multiply, add, and keep it small \ no tabs */
+    return (x * 104 + 728) % 1000003;
+}
+static int step_105(int x)
+{
+    /* step 105: multiply, add, and keep it small \ no tabs */
+    return (x * 105 + 735) % 1000003;
+}
+static int step_106(int x)
+{
+    /* step 106: multiply, add, and keep it small \ no tabs */
+    return (x * 106 + 742) % 1000003;
+}
+static int step_107(int x)
+{
+    /* step 107: multiply, add, and keep it small \ no tabs */
+    return (x * 107 + 749) % 1000003;
+}
+static int step_108(int x)
+{
+    /* step 108: multiply, add, and keep it small \ no tabs */
+    return (x * 108 + 756) % 1000003;
+}
+static int step_109(int x)
+{
+    /* step 109: multiply, add, and keep it small \ no tabs */
+    return (x * 109 + 763) % 1000003;
+}
+static int step_110(int x)
+{
+    /* step 110: multiply, add, and keep it small \ no tabs */
+    return (x * 110 + 770) % 1000003;
+}
+static int step_111(int x)
+{
+    /* step 111: multiply, add, and keep it small \ no tabs */
+    return (x * 111 + 777) % 1000003;
+}
+static int step_112(int x)
+{
+    /* step 112: multiply, add, and keep it small \ no tabs */
+    return (x * 112 + 784) % 1000003;
+}
+static int step_113(int x)
+{
+    /* step 113: multiply, add, and keep it small \ no tabs */
+    return (x * 113 + 791) % 1000003;
+}
+static int step_114(int x)
+{
+    /* step 114: multiply, add, and keep it small \ no tabs */
+    return (x * 114 + 798) % 1000003;
+}
+static int step_115(int x)
+{
+    /* step 115: multiply, add, and keep it small \ no tabs */
+    return (x * 115 + 805) % 1000003;
+}
+static int step_116(int x)
+{
+    /* step 116: multiply, add, and keep it small \ no tabs */
+    return (x * 116 + 812) % 1000003;
+}
+static int step_117(int x)
+{
+    /* step 117: multiply, add, and keep it small \ no tabs */
+    return (x * 117 + 819) % 1000003;
+}
+static int step_118(int x)
+{
+    /* step 118: multiply, add, and keep it small \ no tabs */
+    return (x * 118 + 826) % 1000003;
+}
+static int step_119(int x)
+{
+    /* step 119: multiply, add, and keep it small \ no tabs */
+    return (x * 119 + 833) % 1000003;
+}
+static int step_120(int x)
+{
+    /* step 120: multiply, add, and keep it small \ no tabs */
+    return (x * 120 + 840) % 1000003;
+}
+
+int main(void)
+{
+    int x = 1;
+    x = step_1(x);
+    x = step_2(x);
+    x = step_3(x);
+    x = step_4(x);
+    x = step_5(x);
+    x = step_6(x);
+    x = step_7(x);
+    x = step_8(x);
+    x = step_9(x);
+    x = step_10(x);
+    x = step_11(x);
+    x = step_12(x);
+    x = step_13(x);
+    x = step_14(x);
+    x = step_15(x);
+    x = step_16(x);
+    x = step_17(x);
+    x = step_18(x);
+    x = step_19(x);
+    x = step_20(x);
+    x = step_21(x);
+    x = step_22(x);
+    x = step_23(x);
+    x = step_24(x);
+    x = step_25(x);
+    x = step_26(x);
+    x = step_27(x);
+    x = step_28(x);
+    x = step_29(x);
+    x = step_30(x);
+    x = step_31(x);
+    x = step_32(x);
+    x = step_33(x);
+    x = step_34(x);
+    x = step_35(x);
+    x = step_36(x);
+    x = step_37(x);
+    x = step_38(x);
+    x = step_39(x);
+    x = step_40(x);
+    x = step_41(x);
+    x = step_42(x);
+    x = step_43(x);
+    x = step_44(x);
+    x = step_45(x);
+    x = step_46(x);
+    x = step_47(x);
+    x = step_48(x);
+    x = step_49(x);
+    x = step_50(x);
+    x = step_51(x);
+    x = step_52(x);
+    x = step_53(x);
+    x = step_54(x);
+    x = step_55(x);
+    x = step_56(x);
+    x = step_57(x);
+    x = step_58(x);
+    x = step_59(x);
+    x = step_60(x);
+    x = step_61(x);
+    x = step_62(x);
+    x = step_63(x);
+    x = step_64(x);
+    x = step_65(x);
+    x = step_66(x);
+    x = step_67(x);
+    x = step_68(x);
+    x = step_69(x);
+    x = step_70(x);
+    x = step_71(x);
+    x = step_72(x);
+    x = step_73(x);
+    x = step_74(x);
+    x = step_75(x);
+    x = step_76(x);
+    x = step_77(x);
+    x = step_78(x);
+    x = step_79(x);
+    x = step_80(x);
+    x = step_81(x);
+    x = step_82(x);
+    x = step_83(x);
+    x = step_84(x);
+    x = step_85(x);
+    x = step_86(x);
+    x = step_87(x);
+    x = step_88(x);
+    x = step_89(x);
+    x = step_90(x);
+    x = step_91(x);
+    x = step_92(x);
+    x = step_93(x);
+    x = step_94(x);
+    x = step_95(x);
+    x = step_96(x);
+    x = step_97(x);
+    x = step_98(x);
+    x = step_99(x);
+    x = step_100(x);
+    x = step_101(x);
+    x = step_102(x);
+    x = step_103(x);
+    x = step_104(x);
+    x = step_105(x);
+    x = step_106(x);
+    x = step_107(x);
+    x = step_108(x);
+    x = step_109(x);
+    x = step_110(x);
+    x = step_111(x);
+    x = step_112(x);
+    x = step_113(x);
+    x = step_114(x);
+    x = step_115(x);
+    x = step_116(x);
+    x = step_117(x);
+    x = step_118(x);
+    x = step_119(x);
+    x = step_120(x);
+    printf("%d\n", x);
+    return 0;
+}
+```

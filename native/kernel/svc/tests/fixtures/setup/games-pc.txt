@@ -1,0 +1,15 @@
+# A games-shaped PC as aienos-run's launcher would describe it (QEMU fixture, L267).
+# Sizes are the maker's published figures for these parts, not measured here.
+machine name="Games PC" from=host
+gpu vendor=10de device=2786 name="NVIDIA GeForce RTX 4070" vram_mib=12282 driver="NVIDIA 560.94"
+display name="ASUS VG27AQ" w=2560 h=1440 hz=60 max_w=2560 max_h=1440 max_hz=165 vrr=1
+cpu name="AMD Ryzen 7 7800X3D" fast=8 efficient=0 threads=16
+ram mib=32768
+disk name="WD Black SN850X" gib=931 kind=nvme
+disk name="Seagate Barracuda" gib=1863 kind=hdd
+usb name="Logitech G502 mouse"
+usb name="Keychron K2 keyboard"
+usb name="SteelSeries Arctis headset"
+acpi tables="FACP APIC MCFG HPET SSDT"
+gateway addr=192.168.1.1
+peer name="spark" kind=aienos addr=192.168.1.20 model="qwen3.8-27b-fp8" params_b10=270 url="http://127.0.0.1:18091"

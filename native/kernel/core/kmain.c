@@ -30,6 +30,9 @@
 #include "cpufeat.h"
 #include "handoff_check.h"
 #include "frames.h"
+#if CK_BOOT_SHOW
+#include "boot_screen.h"
+#endif
 #ifdef CK_PI5_NET
 #include "../dev/pi5_net.h"
 #endif
@@ -299,6 +302,10 @@ static __attribute__((noreturn)) void ck_el1_main(void *arg)
     ck_m3_run();
 
     run_stage("devices", ck_stage_devices);
+#if CK_BOOT_SHOW
+    /* The boot sequence (core/boot_screen.c): the night and its chirp on the screen, once. */
+    ck_boot_screen_run();
+#endif
     run_stage("security", ck_stage_security);
     run_stage("store", ck_stage_store);
 

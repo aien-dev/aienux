@@ -1,0 +1,27 @@
+PASS  keys typed from outside the guest
+PASS  a second serial port found at boot
+PASS  the far side said hello
+PASS  Allen answers the very first greeting himself
+PASS  the first question goes to the far side as job 1
+PASS  the second question goes as job 2
+PASS  job 1 reported by lengths only
+PASS  job 2 reported by lengths only
+PASS  the far side began job 1
+PASS  the far side answered job 1
+PASS  the far side answered job 2
+PASS  Allen said an answer (not the empty one)
+PASS  Allen kept a note of the first exchange
+PASS  the relay carried job 1 and said it back
+PASS  the relay carried job 2 and said it back
+PASS  the learning log holds both exchanges
+PASS  the learning log keeps the questions
+PASS  the second job carried the first exchange as a note
+PASS  Allen says goodbye
+PASS  screenshot kept (/home/drakestapleton/workspace/aienos-allen-model/target/native-kernel-allen-courier/allen-far-side.png)
+PASS  screen: lines carry lengths only
+PASS  Allen's words are plain letters
+relay said: courier: serial job 1 (make, 24 chars asked, 520 in the instruction, 2 memory lines) -> 84 chars, 3 parts, first in 245164 ms, whole in 248386 ms, waits 96, status 200
+courier: serial job 2 (chat, 23 chars asked, 458 in the instruction, 3 memory lines) -> 41 chars, 2 parts, first in 111392 ms, whole in 113222 ms, waits 85, status 200
+the kernel's own times: screen: the far side began job 1 after 246399 ms;screen: the far side answered job 1 (84 characters out, 3 parts, 248389 ms);screen: the far side began job 2 after 112900 ms;screen: the far side answered job 2 (41 characters out, 2 parts, 113223 ms);
+serial log: /home/drakestapleton/workspace/aienos-allen-model/target/native-kernel-allen-courier/serial.log; relay log: /home/drakestapleton/workspace/aienos-allen-model/target/native-kernel-allen-courier/relay.log
+AIENOS_ALLEN_COURIER: PASS

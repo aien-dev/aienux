@@ -1,0 +1,29 @@
+ok    projection: 8 stars land where the generator put them, worst 0.140 px
+ok    view: built in integers it matches the generated one (worst 5.5e-05, tan 4.4e-06)
+ok    sidereal time at 2000 Jan 1 12:00 UT (USNO): 18.697375 h, off by 0.0000 s
+ok    sidereal time at 1987 Apr 10 0:00 UT (Meeus 12.a): 13.179546 h, off by 0.0015 s
+ok    sidereal time at 1987 Apr 10 19:21 UT (Meeus 12.b): 8.582524 h, off by 0.0015 s
+note: zenith at 1792368000, lat 29.760 lon -95.370: J2000 RA 291.8463 Dec 29.7015 deg (date RA 292.1144)
+note: zenith at 1792368000, lat -33.856 lon 151.215: J2000 RA 178.3575 Dec -33.7006 deg (date RA 178.6992)
+note: zenith at 946728000, lat 0.000 lon 0.000: J2000 RA 280.4645 Dec -0.0055 deg (date RA 280.4606)
+note: zenith at 2524608000, lat 64.000 lon -21.000: J2000 RA 78.6456 Dec 63.9459 deg (date RA 79.8456)
+ok    zenith: precessed back to J2000 and forward again, worst 24.2 arcsec
+ok    the location setting is unset by default
+ok    the sky is made (389.6 ms)
+ok    the sky is made (200.6 ms)
+ok    the sky is made (204.1 ms)
+note: the sky made in 200.6 ms at 3840x2160 (best of 3, this host, one core)
+ok    galaxies in the view: 2 (the catalogue's in the view: 2)
+ok    the brightest stars twinkle: 4 of them
+note: mean level 7.37
+ok    no pixel of the sky is black (the night sky glows): 0 black
+ok    galaxy 0 glows at its place: centre 0.00310 over surround 0.00156 linear = 1.99 (at least 1.5)
+ok    galaxy 1 glows at its place: centre 0.00271 over surround 0.00150 linear = 1.81 (at least 1.5)
+note: wrote target/native-kernel-sky/sky-whole.png (1920x1080)
+note: wrote target/native-kernel-sky/sky-centre-1to1.png (1280x720)
+note: wrote target/native-kernel-sky/sky-galaxy0-1to1.png (1280x720)
+note: wrote target/native-kernel-sky/sky-galaxy1-1to1.png (1280x720)
+note: wrote target/native-kernel-sky/sky-brightest-1to1.png (640x360)
+SKY_TEST: PASS (15 checks, 0 failed)
+pictures: target/native-kernel-sky
+AIENOS_SKY: PASS

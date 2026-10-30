@@ -1,0 +1,38 @@
+# STEP6_compute.bench -- MEC HQD compute queue setup (BAR5 DWORD indices, byte offset / 4).
+# Source: amd_gpu_regs.h (gfx_8_0_d.h, gfx_v8_0.c).
+#
+# NOTE: Linux picks the MEC queue with SRBM_GFX_CNTL (oss_3_0_d.h:88), not GRBM_GFX_INDEX; the
+# queue-select step below is unverified against vi_srbm_select and must be reviewed before a run.
+# Not runnable as a whole yet: the write allowlist does not cover these registers (needs
+# 0xc200 and 0x3247-0x326c). PQ base, rptr/wptr report and EOP base are physical
+# addresses from the driver's boot log, so they stay commented.
+
+# Select SE 0 SH 0 for HQD programming
+# mmGRBM_GFX_INDEX, byte 0x30800 (SE 0, SH 0, instance 0)
+bar5_write 0xc200 0x0
+
+# Deactivate the HQD
+# mmCP_HQD_ACTIVE, byte 0xC91C
+bar5_read 0x3247
+# CP_HQD_ACTIVE = 0
+bar5_write 0x3247 0x0
+
+# PQ base 0x324d (byte 0xC934) = pq_pa >> 8, PQ_BASE_HI 0x324e = pq_pa >> 40
+# PQ_RPTR_REPORT_ADDR 0x3250 / _HI 0x3251; PQ_WPTR_POLL_ADDR 0x3252 / _HI 0x3253: from the boot log
+# mmCP_HQD_PQ_RPTR, byte 0xC93C = 0
+bar5_write 0x324f 0x0
+# mmCP_HQD_PQ_CONTROL, byte 0xC958: size log2 minus 1 = 7 (256 dwords)
+bar5_write 0x3256 0x7
+# EOP_BASE_ADDR 0x326a (byte 0xC9A8) = eop_pa >> 8; EOP_BASE_ADDR_HI 0x326b (byte 0xC9AC) = eop_pa >> 40
+# mmCP_HQD_EOP_CONTROL, byte 0xC9B0: EOP_SIZE 5, MTYPE 3
+bar5_write 0x326c 0x17
+
+# Activate, then read back
+# CP_HQD_ACTIVE = 1
+bar5_write 0x3247 0x1
+# should read 1
+bar5_read 0x3247
+
+# Restore GRBM_GFX_INDEX to broadcast
+# SE | SH | INSTANCE broadcast (bits 31, 29, 30; gfx_8_0_sh_mask.h:5691-5695)
+bar5_write 0xc200 0xe0000000

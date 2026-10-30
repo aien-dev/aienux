@@ -1,0 +1,41 @@
+# STEP1_display_flip.bench -- DCE 11.2 page flip, console form (ck_gpu_bench, feat/imac-gpu-bench).
+# Indices are BAR5 DWORD indices (byte offset / 4); the byte offset is in each comment.
+# Register numbers: native/kernel/gpu/amd_gpu_regs.h (dce_11_2_d.h).
+#
+# WRITE ALLOWLIST: the writes below (0x1a04-0x1a12, GRPH controller 0) must be inside the
+# console's BAR5 write allowlist. feat/imac-gpu-bench allowlists GRPH 0x1a04-0x1a12 (DCP0).
+# scripts/gpu_bench/check_regs.sh checks every index here against AMD's headers.
+
+# Confirm CRTC 0 and the current scanout
+# mmCRTC_STATUS, byte 0x6E8C; bit 0 = in vblank
+bar5_read 0x1ba3
+# mmGRPH_PRIMARY_SURFACE_ADDRESS, byte 0x6810 (front buffer PA lo)
+bar5_read 0x1a04
+# mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH, byte 0x681C
+bar5_read 0x1a07
+# mmGRPH_FLIP_CONTROL, byte 0x6848
+bar5_read 0x1a12
+# mmGRPH_UPDATE, byte 0x6844 (lock bits)
+bar5_read 0x1a11
+
+# Program the back buffer flip (back buffer = BAR0 + 0x2400000; example BAR0 0xc0000000 -> 0xc2400000)
+# mmGRPH_UPDATE, byte 0x6844; GRPH_UPDATE_LOCK is bit 16 (dce_11_2_sh_mask.h:6351)
+bar5_write 0x1a11 0x10000
+# mmGRPH_FLIP_CONTROL, byte 0x6848; both bits clear = flip at vblank (retrace bit 0, immediate bit 4)
+bar5_write 0x1a12 0x0
+# mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH, byte 0x681C (bits 39:32)
+bar5_write 0x1a07 0x0
+# mmGRPH_PRIMARY_SURFACE_ADDRESS, byte 0x6810 = back buffer
+bar5_write 0x1a04 0xc2400000
+# mmGRPH_UPDATE, byte 0x6844 = unlock
+bar5_write 0x1a11 0x0
+
+# Wait for the flip to land (GRPH_SURFACE_UPDATE_PENDING, bit 2 = 0x4, clears)
+# mmGRPH_UPDATE, byte 0x6844
+bar5_poll 0x1a11 0x4 0x0 50
+
+# Read back
+# should read 0xc2400000
+bar5_read 0x1a04
+# should read 0x0
+bar5_read 0x1a07

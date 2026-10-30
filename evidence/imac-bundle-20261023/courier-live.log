@@ -1,0 +1,22 @@
+[clean] courier test: the relay said hello after 4 ms
+[clean] courier test: first part after 243 ms, whole after 786 ms, 4 parts, 0 waits; datagrams in 6 out 6, lines taken 4, job resends 0, dropped 0; lost out 0 in 0
+[clean] COURIER_UDP: PASS (4 parts, first 243 ms, whole 786 ms, drop every 0)
+[lossy] courier test: the relay said hello after 2005 ms
+[lossy] courier test: first part after 627 ms, whole after 1460 ms, 4 parts, 0 waits; datagrams in 10 out 9, lines taken 4, job resends 0, dropped 3; lost out 3 in 3
+[lossy] COURIER_UDP: PASS (4 parts, first 627 ms, whole 1460 ms, drop every 3)
+[lossy2] courier test: the relay said hello after 6006 ms
+[lossy2] courier test: first part after 2244 ms, whole after 3184 ms, 4 parts, 0 waits; datagrams in 5 out 10, lines taken 4, job resends 1, dropped 0; lost out 5 in 6
+[lossy2] COURIER_UDP: PASS (4 parts, first 2244 ms, whole 3184 ms, drop every 2)
+[busy] courier test: the relay said hello after 4 ms
+[busy] courier test: first part after 2244 ms, whole after 2786 ms, 4 parts, 1 waits; datagrams in 7 out 7, lines taken 5, job resends 0, dropped 0; lost out 0 in 0
+[busy] COURIER_UDP: PASS (4 parts, first 2244 ms, whole 2786 ms, drop every 0)
+[busy] relay waited out the busy answers: first in 2000 ms, whole in 2784 ms, waits 2, status 200
+[slow] courier test: the relay said hello after 4 ms
+[slow] courier test: first part after 4244 ms, whole after 4787 ms, 4 parts, 2 waits; datagrams in 8 out 8, lines taken 6, job resends 0, dropped 0; lost out 0 in 0
+[slow] COURIER_UDP: PASS (4 parts, first 4244 ms, whole 4787 ms, drop every 0)
+[slow] the relay sent WAIT while the model sat silent: 2 waits
+learning log line: {"t":"2026-10-23T10:46:03Z","wire":"udp","run":"563412f313c13c07","seq":1,"want":"chat","ask":"hello allen, how was your day","system":"You speak as Allen, a quiet, warm presence who lives in this computer and talks with one person. Answer in plain English, short sentences, in your own voice: kind, 
+[real] courier test: the relay said hello after 4 ms
+[real] courier test: first part after 2561 ms, whole after 2892 ms, 2 parts, 1 waits; datagrams in 5 out 5, lines taken 3, job resends 0, dropped 0; lost out 0 in 0
+[real] COURIER_UDP: PASS (2 parts, first 2561 ms, whole 2892 ms, drop every 0)
+AIENOS_COURIER_UDP: PASS

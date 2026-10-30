@@ -1,0 +1,5 @@
+courier: model at 127.0.0.1:18091, learning corpus in /tmp/tmp.VoAtegdbLx/log
+courier: on the serial wire /tmp/tmp.VoAtegdbLx/wire.sock
+courier: hello from the far side (serial)
+courier: serial job 1 (make, 24 chars asked, 520 in the instruction, 2 memory lines) -> 84 chars, 3 parts, first in 245164 ms, whole in 248386 ms, waits 96, status 200
+courier: serial job 2 (chat, 23 chars asked, 458 in the instruction, 3 memory lines) -> 41 chars, 2 parts, first in 111392 ms, whole in 113222 ms, waits 85, status 200

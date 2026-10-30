@@ -71,7 +71,12 @@ case "$step" in
     "$TMP/tools/crumb/crumb" verify .
     ;;
   # ck-kernel.yml, host steps (ubuntu-24.04-arm there, AArch64 here)
-  ck-host-tests)      make -C native/kernel test sanitize ;;
+  ck-host-tests)
+    make -C native/kernel test sanitize
+    bash scripts/ck_swap_disk_bound_test.sh
+    bash scripts/ck_imac_lab_services_test.sh
+    bash scripts/check_local_model.sh --self-test
+    ;;
   ck-stage-tests)     make -C native/kernel stage-test stage-sanitize ;;
   ck-gate-selftest)   bash scripts/ck_gates.sh --self-test ;;
   ck-hold-selftest)   bash scripts/gate_hold_selftest.sh ;;
@@ -93,6 +98,9 @@ case "$step" in
       else echo "required gate ${g}: not PASS"; fail=1; fi
     done
     obs required_gates_pass "$n"
+    if [ "${fail}" = 0 ]; then
+      bash scripts/ck_imac_security_test.sh
+    fi
     exit ${fail}
     ;;
   ck-b7b-probe)
@@ -132,7 +140,7 @@ case "$step" in
     ;;
   # ci.yml (disabled on GitHub since the CK workflow took over): the suites it still names
   store-native)      make -C native/store test mutants ;;
-  verify-all)        bash scripts/verify_all.sh ;;
+  verify-all)        AIENOS_STRICT=1 bash scripts/verify_all.sh ;;
   zero-disk-secrets)
     echo "Auditing repository for prohibited plaintext secret files..."
     if find . -maxdepth 4 -name ".env*" -not -path "*/.git/*" -not -path "*/target/*" -not -path "*/vendor/*" | grep -q .; then

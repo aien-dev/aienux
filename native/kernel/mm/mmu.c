@@ -21,7 +21,7 @@
  *   kernel image                           text RX, rodata/relocs RO+XN, data/bss RW+XN
   *   kernel stack (256 KiB)                 RW, unmapped guard page below
   *   heap (64 MiB)                           RW, unmapped guard page on each side
- *   DMA pool (8 MiB)                       Normal Non-cacheable (ck_dma_alloc)
+ *   DMA pool (24 MiB)                       Normal Non-cacheable (ck_dma_alloc)
  *   MMIO                                   Device-nGnRE, XN (ck_mmio_map)
  *   GOP framebuffer (CHANDOF3)             Device-nGnRE, XN (ck_mmio_map), visible
  *                                          pitch x height x 4 bytes, only outside RAM
@@ -42,7 +42,7 @@
 #define STACK_BYTES (256ull << 10)
 #define HEAP_BYTES (64ull << 20)
 #define STACK_PAINT 0x5354414b5354414bull /* "KATSKATS": never-used stack words */
-#define DMA_BYTES (8ull << 20)
+#define DMA_BYTES (24ull << 20) /* 8 MiB of rings and queues + the VM screen picture (boot sequence, up to 1920x1080) */
 #define RAM_MAX 256
 
 extern char __image_base[], __text_start[], __text_end[], __ro_start[], __ro_end[],

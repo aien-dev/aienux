@@ -1,0 +1,33 @@
+Here is a small calculator you can run with python3 calc.py.
+
+```python
+# calc.py: a small calculator that reads one sum at a time.
+import operator
+
+OPS = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv}
+
+
+def calculate(a, op, b):
+    if op not in OPS:
+        raise ValueError("unknown operator " + op)
+    if op == "/" and b == 0:
+        raise ZeroDivisionError("cannot divide by zero")
+    return OPS[op](a, b)
+
+
+def main():
+    print("Type a sum like 3 + 4, or q to quit.")
+    while True:
+        line = input("> ").strip()
+        if line in ("q", "quit"):
+            break
+        try:
+            a, op, b = line.split()
+            print(calculate(float(a), op, float(b)))
+        except (ValueError, ZeroDivisionError) as e:
+            print("Sorry:", e)
+
+
+if __name__ == "__main__":
+    main()
+```

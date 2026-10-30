@@ -1,0 +1,6 @@
+01-whats-the-weather-like-for	200	458381 ms	38 tokens	finish stop	149 busy answers waited out	what's the weather like for a walk
+02-remind-me-to-call-mom	503	1801998 ms			600 busy answers waited out	remind me to call mom at 6
+02-remind-me-to-call-mom	200	710841 ms	41 tokens	finish stop	525 busy answers waited out	remind me to call mom at 6
+03-show-me-something-beautiful	200	819283 ms	48 tokens	finish stop	598 busy answers waited out	show me something beautiful
+04-whats-17-of-240	200	168603 ms	41 tokens	finish stop	93 busy answers waited out	what's 17% of 240
+05-tell-my-friend-sam-im	503	2104577 ms			1796 busy answers waited out	tell my friend Sam I'm running late

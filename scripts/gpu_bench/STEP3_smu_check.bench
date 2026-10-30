@@ -1,0 +1,15 @@
+# STEP3_smu_check.bench -- SMU state as the firmware left it (reads only).
+# BAR5 DWORD indices (byte offset / 4). Source: amd_gpu_regs.h (smu_7_1_3_d.h).
+#
+# No writes, so the allowlist does not apply. Earlier versions wrote message 0x201 as
+# "GetSMFWVersion"; Linux's smu7_ppsmc.h:335 has 0x201 as PPSMC_MSG_API_GetMclkFrequency and no
+# GetSMFWVersion exists, so that write is gone. No SMC message is sent until a verified safe
+# one is chosen.
+
+# All-ones on either read means the SMC is not reachable
+# mmSMC_MESSAGE_0, byte 0x250
+bar5_read 0x94
+# mmSMC_RESP_0, byte 0x254 (PPSMC_Result_OK = 0x01, smu7_ppsmc.h:83)
+bar5_read 0x95
+# mmSMC_MSG_ARG_0, byte 0x290
+bar5_read 0xa4

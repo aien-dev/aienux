@@ -1,0 +1,3 @@
+mood clear slow
+say I cannot see the sky or the temperature yet. I am still learning to look outside.
+say But the water is calm here. A walk sounds good.

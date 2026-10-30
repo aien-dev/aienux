@@ -1,0 +1,14 @@
+STALE      native/kernel/svc/tests
+STALE      native/kernel/core
+STALE      native/kernel/dev
+STALE      native/kernel/mm
+STALE      native/kernel/svc
+STALE      native/kernel/tests
+STALE      native/kernel/tools
+STALE      native/kernel
+STALE      crates
+STALE      docs
+STALE      native
+STALE      scripts
+STALE      .
+crumb verify: FAIL: 13 of 91 crumbs stale; run: crumb compile

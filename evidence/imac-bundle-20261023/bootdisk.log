@@ -1,0 +1,165 @@
+== start 1: stick + network, install ==
+PASS  1: the network kernel started
+PASS  1: Allen's section added
+PASS  1: boot section added in unused space
+PASS  1: installed in slot A, read back
+PASS  1: boot times reported with the loader
+FAIL  1: Allen asleep after goodbye (no match for: ^power: Allen asleep)
+PASS  1: no write refused by the fence
+PASS  1: fsck.fat finds nothing to repair
+PASS  1: mtools reads BOOTX64.EFI equal to the kernel image
+PASS  1: the old partition is byte-identical
+PASS  1: the stick was not written
+== start 2: the hard disk alone ==
+PASS  2: no network loader
+PASS  2: the kernel ran from the hard disk
+PASS  2: boot times without a loader
+PASS  2: the boot section reported, slot A
+FAIL  2: Allen's memory loaded (second start) (no match for: ^allen_memory: loaded generation [0-9]+ \(2 of 2 copies valid\): .*1 earlier start$)
+PASS  2: nothing added
+== start 3: stick + network, a second kernel ==
+PASS  3: the second kernel ran
+PASS  3: installed in slot B
+PASS  3: no new partition
+== start 4: the hard disk alone ==
+PASS  4: the second kernel runs from the hard disk
+PASS  4: slot B reported
+PASS  4: fsck.fat finds nothing to repair
+note: boot_disk: boot section added, entry 2, first_lba=2115584 last_lba=2639871 (256 MiB, EFI System Partition); the existing partitions were not touched
+note: boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792751836, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot A, new FAT32 volume, 13243 blocks in 177 ms, read back exact; the computer can now start without the stick
+note: boot_time: since power on: firmware until the loader 2600 ms, loader 744 ms, kernel 1033 ms; Allen's window at 4378 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 14 paging 20 clock 50 night 238 timer 429 cores 11 disk 16 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 232 window 0; the night on screen at 3672 ms
+note: boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot A)
+note: boot_time: since power on: firmware until this kernel 2500 ms (no loader), kernel 856 ms; Allen's window at 3356 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 11 paging 19 clock 50 night 234 timer 422 cores 11 disk 14 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 73 window 0; the night on screen at 2820 ms
+note: boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792751969, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot B, 9109 blocks in 127 ms, read back exact; the computer can now start without the stick
+note: boot_time: since power on: firmware until the loader 2891 ms, loader 817 ms, kernel 983 ms; Allen's window at 4692 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 13 paging 21 clock 50 night 239 timer 427 cores 11 disk 20 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 179 window 0; the night on screen at 4037 ms
+note: boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot B)
+note: boot_time: since power on: firmware until this kernel 2692 ms (no loader), kernel 844 ms; Allen's window at 3536 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 12 paging 20 clock 50 night 236 timer 421 cores 10 disk 15 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 57 window 0; the night on screen at 3015 ms
+---- one (last 30 lines) ----
+ahci_disk: ctrl=0 disk=1 write ranges closed
+allen_memory: AIENOS partition added, entry 1, first_lba=18432 last_lba=2115583 (1024 MiB); the existing partitions were not touched
+ahci_disk: ctrl=0 disk=1 writes allowed lba=1..33
+ahci_disk: ctrl=0 disk=1 writes allowed lba=4194271..4194303
+ahci_disk: ctrl=0 disk=1 write ranges closed
+boot_disk: boot section added, entry 2, first_lba=2115584 last_lba=2639871 (256 MiB, EFI System Partition); the existing partitions were not touched
+ahci_disk: ctrl=0 disk=1 writes allowed lba=2115584..2639871
+ahci_disk: ctrl=0 disk=1 write ranges closed
+boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792751836, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot A, new FAT32 volume, 13243 blocks in 177 ms, read back exact; the computer can now start without the stick
+ahci_disk: ctrl=0 disk=1 writes allowed lba=18432..22559
+allen_memory: empty (a first start); Allen starts fresh
+allen_memory: 0 notes loaded (0 damaged)
+allen_memory: saved generation 1 to copy A (0 facts, 0 notes) in 4 ms
+courier: no second serial port; Allen answers from this computer alone
+screen: Allen's window (1280x800, 14 MiB drawing memory)
+rtc: 2026-10-23 10:37:20 UTC
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+boot_time: since power on: firmware until the loader 2600 ms, loader 744 ms, kernel 1033 ms; Allen's window at 4378 ms
+boot_time: steps in ms: start 0 gop 0 paint 3 exit 14 paging 20 clock 50 night 238 timer 429 cores 11 disk 16 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 232 window 0; the night on screen at 3672 ms
+screen: night: 1 frames before Allen woke, average 204.2 ms, slowest 204.2 ms (drawn by a secondary core)
+wizard: only what this computer says about itself
+wizard: found 1 graphics, 1 screen, 7 PCI functions, 2 disks, 0 models, 0 nearby
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+wizard: step hello
+screen: night: 193 frames by 20 s after Allen woke, average 105.7 ms, slowest 327.7 ms (drawn by a secondary core)
+wizard: step intent
+wizard: saved at intent (generation 1, 85 bytes)
+---- two (last 30 lines) ----
+note: QEMU qualifies nothing physical
+allen_memory: Allen's section is on disk 0 (4194304 blocks of 512 bytes)
+ahci_part: disk=0 entry=0 type=0fc63daf-8483-4772-8e79-3d69d8477de4 first_lba=2048 last_lba=18431 mib=8 name="sentinel-a"
+ahci_part: disk=0 entry=1 type=38daac89-5ead-4b40-8b1e-3687a7418061 first_lba=18432 last_lba=2115583 mib=1024 name="AIENOS Allen memory" (AIENOS)
+ahci_part: disk=0 entry=2 type=c12a7328-f81f-11d2-ba4b-00a0c93ec93b first_lba=2115584 last_lba=2639871 mib=256 name="AIENOS boot"
+allen_memory: the disk has 3 partitions
+allen_memory: AIENOS partition found, entry 1, first_lba=18432 last_lba=2115583
+boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot A)
+ahci_disk: ctrl=0 disk=0 writes allowed lba=18432..22559
+allen_memory: loaded generation 1 (1 of 2 copies valid): 0 facts, name not told, 1 earlier start
+allen_memory: 0 notes loaded (0 damaged)
+allen_memory: saved generation 2 to copy B (0 facts, 0 notes) in 14 ms
+courier: no second serial port; Allen answers from this computer alone
+screen: Allen's window (1280x800, 14 MiB drawing memory)
+rtc: 2026-10-23 10:38:26 UTC
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+boot_time: since power on: firmware until this kernel 2500 ms (no loader), kernel 856 ms; Allen's window at 3356 ms
+boot_time: steps in ms: start 0 gop 0 paint 3 exit 11 paging 19 clock 50 night 234 timer 422 cores 11 disk 14 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 73 window 0; the night on screen at 2820 ms
+screen: night: 1 frames before Allen woke, average 199.2 ms, slowest 199.2 ms (drawn by a secondary core)
+wizard: only what this computer says about itself
+wizard: found 1 graphics, 1 screen, 6 PCI functions, 1 disk, 0 models, 0 nearby
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+wizard: resumed at intent
+wizard: step hello
+wizard: step intent
+wizard: saved at intent (generation 2, 117 bytes)
+screen: night: 199 frames by 20 s after Allen woke, average 101.8 ms, slowest 319.7 ms (drawn by a secondary core)
+---- three (last 30 lines) ----
+ahci_part: disk=1 entry=0 type=0fc63daf-8483-4772-8e79-3d69d8477de4 first_lba=2048 last_lba=18431 mib=8 name="sentinel-a"
+ahci_part: disk=1 entry=1 type=38daac89-5ead-4b40-8b1e-3687a7418061 first_lba=18432 last_lba=2115583 mib=1024 name="AIENOS Allen memory" (AIENOS)
+ahci_part: disk=1 entry=2 type=c12a7328-f81f-11d2-ba4b-00a0c93ec93b first_lba=2115584 last_lba=2639871 mib=256 name="AIENOS boot"
+allen_memory: the disk has 3 partitions
+allen_memory: AIENOS partition found, entry 1, first_lba=18432 last_lba=2115583
+ahci_disk: ctrl=0 disk=1 writes allowed lba=2115584..2639871
+ahci_disk: ctrl=0 disk=1 write ranges closed
+boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792751969, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot B, 9109 blocks in 127 ms, read back exact; the computer can now start without the stick
+ahci_disk: ctrl=0 disk=1 writes allowed lba=18432..22559
+allen_memory: loaded generation 2 (2 of 2 copies valid): 0 facts, name not told, 2 earlier starts
+allen_memory: 0 notes loaded (0 damaged)
+allen_memory: saved generation 3 to copy A (0 facts, 0 notes) in 1 ms
+courier: no second serial port; Allen answers from this computer alone
+screen: Allen's window (1280x800, 14 MiB drawing memory)
+rtc: 2026-10-23 10:39:34 UTC
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+boot_time: since power on: firmware until the loader 2891 ms, loader 817 ms, kernel 983 ms; Allen's window at 4692 ms
+boot_time: steps in ms: start 0 gop 0 paint 3 exit 13 paging 21 clock 50 night 239 timer 427 cores 11 disk 20 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 179 window 0; the night on screen at 4037 ms
+screen: night: 1 frames before Allen woke, average 205.0 ms, slowest 205.0 ms (drawn by a secondary core)
+wizard: only what this computer says about itself
+wizard: found 1 graphics, 1 screen, 7 PCI functions, 2 disks, 0 models, 0 nearby
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+wizard: resumed at intent
+wizard: step hello
+wizard: step intent
+wizard: saved at intent (generation 3, 117 bytes)
+screen: night: 194 frames by 20 s after Allen woke, average 105.1 ms, slowest 335.4 ms (drawn by a secondary core)
+---- four (last 30 lines) ----
+note: QEMU qualifies nothing physical
+allen_memory: Allen's section is on disk 0 (4194304 blocks of 512 bytes)
+ahci_part: disk=0 entry=0 type=0fc63daf-8483-4772-8e79-3d69d8477de4 first_lba=2048 last_lba=18431 mib=8 name="sentinel-a"
+ahci_part: disk=0 entry=1 type=38daac89-5ead-4b40-8b1e-3687a7418061 first_lba=18432 last_lba=2115583 mib=1024 name="AIENOS Allen memory" (AIENOS)
+ahci_part: disk=0 entry=2 type=c12a7328-f81f-11d2-ba4b-00a0c93ec93b first_lba=2115584 last_lba=2639871 mib=256 name="AIENOS boot"
+allen_memory: the disk has 3 partitions
+allen_memory: AIENOS partition found, entry 1, first_lba=18432 last_lba=2115583
+boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot B)
+ahci_disk: ctrl=0 disk=0 writes allowed lba=18432..22559
+allen_memory: loaded generation 3 (2 of 2 copies valid): 0 facts, name not told, 3 earlier starts
+allen_memory: 0 notes loaded (0 damaged)
+allen_memory: saved generation 4 to copy B (0 facts, 0 notes) in 12 ms
+courier: no second serial port; Allen answers from this computer alone
+screen: Allen's window (1280x800, 14 MiB drawing memory)
+rtc: 2026-10-23 10:40:40 UTC
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+boot_time: since power on: firmware until this kernel 2692 ms (no loader), kernel 844 ms; Allen's window at 3536 ms
+boot_time: steps in ms: start 0 gop 0 paint 3 exit 12 paging 20 clock 50 night 236 timer 421 cores 10 disk 15 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 57 window 0; the night on screen at 3015 ms
+screen: night: 1 frames before Allen woke, average 198.9 ms, slowest 198.9 ms (drawn by a secondary core)
+wizard: only what this computer says about itself
+wizard: found 1 graphics, 1 screen, 6 PCI functions, 1 disk, 0 models, 0 nearby
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+wizard: resumed at intent
+wizard: step hello
+wizard: step intent
+wizard: saved at intent (generation 4, 117 bytes)
+screen: night: 199 frames by 20 s after Allen woke, average 101.8 ms, slowest 319.1 ms (drawn by a secondary core)
+AIENOS_IMAC_BOOTDISK: FAIL (2 checks)

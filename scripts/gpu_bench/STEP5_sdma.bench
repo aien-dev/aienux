@@ -1,0 +1,31 @@
+# STEP5_sdma.bench -- SDMA0 ring setup and status (BAR5 DWORD indices, byte offset / 4).
+# Source: amd_gpu_regs.h (oss_3_0_d.h, sdma_v3_0.c).
+#
+# Not runnable as a whole yet: the write allowlist does not cover 0x3480-0x3489 (needs that
+# entry), and the ring base and rptr address come from the driver's boot log.
+#
+# Two things this file cannot do with the console as written:
+# - The verify read at BAR0 + 0x2400000 (back buffer) is outside the BAR0 window the
+# console allows (DWORD offsets 0-65535). The back buffer read needs a wider window or a
+# readback by the driver.
+# - Fence and fill checks are memory reads, not register reads.
+
+# mmSDMA0_STATUS_REG, byte 0xD034; bit 0 = IDLE
+bar5_read 0x340d
+
+# Stop SDMA0 GFX ring, then program it
+# mmSDMA0_GFX_RB_CNTL, byte 0xD200: disable
+bar5_write 0x3480 0x0
+# RB_BASE 0x3481 (byte 0xD204) = ring_pa >> 8; RB_BASE_HI 0x3482 (byte 0xD208) = ring_pa >> 40
+# RPTR_ADDR_LO 0x3489 (byte 0xD224), RPTR_ADDR_HI 0x3488 (byte 0xD220): from the boot log
+# mmSDMA0_GFX_RB_WPTR, byte 0xD210 = 0
+bar5_write 0x3484 0x0
+# mmSDMA0_GFX_RB_RPTR, byte 0xD20C = 0
+bar5_write 0x3483 0x0
+# mmSDMA0_GFX_RB_CNTL = RB_ENABLE | RB_SIZE 11 (2048 dwords)
+bar5_write 0x3480 0x17
+
+# CONSTANT_FILL, then advance the write pointer (SDMA uses bytes: 5 dwords = 20)
+# SDMA_PACKET(0x0b) = 0x00000B00; dst lo, dst hi, fill 0xdeadbeef, count (512*4)|(2<<30) = 0x800007F0
+# bar5_write 0x3484 20
+# Fence: SDMA_PACKET(0x02) = 0x00000200, fence lo, fence hi, 0, seq

@@ -1,0 +1,18 @@
+model server at 127.0.0.1:18091: up
+PASS  keys typed from outside the guest
+PASS  the far side said hello
+PASS  talk is still talk: Allen answers the greeting himself
+PASS  Allen says at once he needs to code it
+PASS  the change goes as a change
+PASS  three answers shown as code
+PASS  a python calculator
+PASS  a C calculator
+PASS  the change added a square root
+PASS  the relay asked the model for code
+PASS  the relay asked for a change with the code before
+PASS  report lines carry lengths and times only
+PASS  Allen's words are plain letters
+the kernel's times: acknowledged in 1 ms (job 1, new code);code shown, 48 lines in 16729 ms;acknowledged in 0 ms (job 2, a change);code shown, 61 lines in 26676 ms;acknowledged in 0 ms (job 3, new code);code shown, 37 lines in 596378 ms;
+the relay: courier: code job 1: 1173 bytes, 48 lines, 10 pieces, language python;courier: serial job 1 (code, 30 chars asked, 32 in the instruction, 0 memory lines) -> 1285 chars, 1 parts, first in 16704 ms, whole in 16704 ms, waits 0, status 200;courier: code job 2: 1577 bytes, 61 lines, 13 pieces, language python;courier: serial job 2 (code-more, 25 chars asked, 53 in the instruction, 0 memory lines) -> 1673 chars, 1 parts, first in 26626 ms, whole in 26626 ms, waits 0, status 200;courier: code job 3: 826 bytes, 37 lines, 7 pieces, language c;courier: serial job 3 (code, 25 chars asked, 32 in the instruction, 0 memory lines) -> 913 chars, 1 parts, first in 596299 ms, whole in 596299 ms, waits 0, status 200;
+serial log: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code-live/serial.log; relay log: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code-live/relay.log; screenshots: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code-live/*.png
+AIENOS_ALLEN_CODE_QEMU: PASS

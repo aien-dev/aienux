@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AienOS boot reference: the night</title>
+<!--
+  The boot reference for the native port (L266). It draws the iMac's startup night: the sky coming out of the
+  dark, two black holes bending the starlight as they circle and spiral in, the merger's ripple and flash, the
+  last black hole ringing and dissolving, and the chirp. Every constant and formula is the kernel's
+  (native/kernel/ui/night.c, chirp.c, allen_ui.c on feat/allen-boot-everywhere, the bytes the iMac runs at
+  aienos_commit 0930240), written out in floating point. docs/design/boot/MATHS.md is the same maths as
+  equations with the kernel line for each.
+
+  URL options:  ?t=MS       freeze at that time on the night's clock (screenshots)
+                ?measure=1  run the clock without sound and record frame times per stage (window.__night_result)
+                ?w=&h=      drawing size (default 1920 x 1080, the design grid)
+                ?hud=1      show the clock and the stage
+                ?reduced=1  reduced motion: a 0.9 s dawn onto the last frame (DESIGN.md, Accessibility)
+  Keys: any key or click starts the night with its sound; R restarts; H shows the clock.
+-->
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.3/lib/p5.min.js"
+        integrity="sha384-6FJh+LJ4p/43R8LpkZjM6iDKaXx59crdjiBG6n2sioNPNXc+c2iNpBvO2bQ25nSH"
+        crossorigin="anonymous"></script>
+<link rel="stylesheet" href="../tokens/allen-tokens.css">
+<style>
+  html, body { margin: 0; height: 100%; background: var(--allen-colors-night); overflow: hidden; }
+  main { position: fixed; inset: 0; display: grid; place-items: center; }
+  canvas { max-width: 100vw; max-height: 100vh; object-fit: contain; display: block; }
+  #hud { position: fixed; left: 24px; bottom: 20px; font: 500 14px/1.4 ui-monospace, monospace;
+         color: var(--allen-colors-faint); display: none; }
+  #start { position: fixed; left: 0; right: 0; bottom: 96px; text-align: center;
+           font: 500 16px/22px var(--allen-typography-small-fontFamily);
+           letter-spacing: .02em; color: var(--allen-colors-hint); transition: opacity .7s; }
+</style>
+</head>
+<body>
+<main id="stage"></main>
+<div id="start">Click or press a key to start the night with its sound</div>
+<div id="hud"></div>
+<script>
+"use strict";
+p5.disableFriendlyErrors = true;
+
+/* ---- the night's clock and sizes: night.h, chirp.h, allen_ui.c (DESIGN.md boot.* and sound.*) ---- */
+const FADE_END = 6800, HOLES = 2600, SPIRAL = 6000, MERGE = 12000, RIPPLE = 3600, GONE = 15200;
+const ORBIT_MS = 5200;                       // night.c: one turn of the wide orbit
+const CHIRP = { rate: 48000, from: 200, to: 1000, peak: 0.70, inMs: 40, rise: 600, end: MERGE + 300, tau: 30 };
+const STAGES = [["dark", 0, HOLES], ["holes", HOLES, SPIRAL], ["spiral", SPIRAL, MERGE],
+                ["merger", MERGE, MERGE + RIPPLE], ["settled", MERGE + RIPPLE, MERGE + RIPPLE + 1400]];
+
+const q = new URLSearchParams(location.search);
+const W = +q.get("w") || 1920, H = +q.get("h") || 1080;
+const K = Math.floor(Math.min(W * 256 / 1920, H * 256 / 1080));       // allen_ui.c scale_for
+const S = (v) => Math.floor((v * K + 128) / 256);                   // design px to px
+const CX = Math.floor(W / 2), CY = Math.floor(H * 40 / 100);        // where the holes merge (allen_ui.c 853)
+const FREEZE = q.has("t") ? +q.get("t") : null, MEASURE = q.get("measure") === "1";
+const REDUCED = q.get("reduced") === "1" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---- integer helpers, as paint.c / paint.h ---- */
+const fl = Math.floor, tr = Math.trunc;
+function hash(x, y, seed) {
+  let h = (Math.imul(x, 0x8da6b343) ^ Math.imul(y, 0xd8163841) ^ Math.imul(seed, 0xcb1ab31f)) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0; h = Math.imul(h, 0x5bd1e995) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x27d4eb2d) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const smoothI = (t) => { t = clamp(t, 0, 256); return fl(t * t * (768 - 2 * t) / 65536); }; // ck_smooth
+function noise(x, y, seed) {                                          // ck_noise: smooth value noise 0..65535
+  const ix = x >> 8, iy = y >> 8, fx = smoothI(x & 255), fy = smoothI(y & 255);
+  const v00 = hash(ix, iy, seed) >>> 16, v10 = hash(ix + 1, iy, seed) >>> 16;
+  const v01 = hash(ix, iy + 1, seed) >>> 16, v11 = hash(ix + 1, iy + 1, seed) >>> 16;
+  const a = v00 * (256 - fx) + v10 * fx, b = v01 * (256 - fx) + v11 * fx;
+  return fl((a * (256 - fy) + b * fy) / 65536);
+}
+function fbm(x, y, seed, oct) {                                       // ck_fbm
+  let sum = 0, total = 0;
+  for (let o = 0; o < oct; o++) {
+    const w = 1 << (oct - 1 - o);
+    sum += noise(x << o, y << o, (seed + o * 7919) >>> 0) * w; total += w;
+  }
+  return fl(sum / total);
+}
+const expNeg = (x) => (x < 4096 ? Math.round(65536 * Math.exp(-x / 256)) : 0);          // ck_exp_neg, Q16
+function gauss(v, width) {                                            // exp(-(v/width)^2), Q16
+  const qv = tr(v * 256 / (width || 1));
+  return qv > 4095 || qv < -4095 ? 0 : expNeg(fl(qv * qv / 256));
+}
+const isqrt = (v) => fl(Math.sqrt(v));
+const smooth01 = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const easeOut01 = (t) => { t = 1 - clamp(t, 0, 1); return 1 - t * t * t; };
+const rgb = (r, g, b) => [r, g, b];
+
+/* ---- the sky, made once (night.c clouds, scale_up, stars, galaxy, appear_map) ---- */
+const SKY = new Uint8ClampedArray(W * H * 4);                         // RGBA, A = 255
+const QW = (W >> 2) + 1, QH = (H >> 2) + 1, AW = (W >> 2) + 1, AH = (H >> 2) + 1;
+const APPEAR = new Uint8Array(AW * AH);
+const TW = [];                                                        // the bright stars that twinkle
+const bake = {};
+
+function bandOf() {
+  const b = { x0: tr(-W / 20), y0: tr(H * 90 / 100), dx: tr(W * 110 / 100), dy: tr(-H * 92 / 100), half: tr(H * 16 / 100) };
+  b.len = isqrt(b.dx * b.dx + b.dy * b.dy);
+  return b;
+}
+const bandAt = (b, x, y) => [tr(((x - b.x0) * b.dy - (y - b.y0) * b.dx) / b.len),
+                             tr(((x - b.x0) * b.dx + (y - b.y0) * b.dy) / b.len)];
+
+function clouds() {                                                   // the soft layer, 16ths of a level
+  const qd = new Uint16Array(QW * QH * 3), b = bandOf();
+  for (let qy = 0; qy < QH; qy++) for (let qx = 0; qx < QW; qx++) {
+    const x = qx * 4, y = qy * 4, [across, along] = bandAt(b, x, y);
+    const core = gauss(across, b.half), wide = gauss(across, b.half * 2);
+    const n1 = fbm(tr(x * 768 / H), tr(y * 768 / H), 101, 5);
+    const n2 = fbm(tr(x * 1792 / H), tr(y * 1792 / H), 202, 4);
+    const lane = gauss(across - tr(H * 2 / 100), tr(H * 5 / 100));
+    const dust = fl(lane * smoothI(tr((n2 - 22000) * 256 / 26000)) / 256);
+    const bright = gauss(along - tr(b.len * 40 / 100), tr(b.len * 38 / 100));
+    let mw = fl(core * (32768 + fl(n1 / 2)) / 65536);
+    mw = fl(mw * (65536 - fl(dust * 52428 / 65536)) / 65536);
+    mw = fl(mw * (29491 + fl(bright * 36045 / 65536)) / 65536);
+    const halo = fl(wide * (39321 + fl(n1 * 26214 / 65536)) / 65536);
+    const n4 = fbm(tr(x * 512 / H), tr(y * 512 / H), 404, 4);
+    const n5 = fbm(tr(x * 666 / H), tr(y * 666 / H), 505, 4);
+    const n6 = fbm(tr(x * 1024 / H), tr(y * 1024 / H), 606, 4);
+    let vi = smoothI(tr((n4 - 36000) * 256 / 29535)), bl = smoothI(tr((n5 - 35000) * 256 / 30535));
+    const ro = fl(smoothI(tr((n6 - 33000) * 256 / 32535)) * wide / 65536);
+    vi = fl(vi * vi / 256); bl = fl(bl * bl / 256);
+    const top = 256 - tr(y * 256 / H);
+    const r = 26 + tr(top / 32) + fl(mw * 44 * 16 / 65536) + fl(halo * 6 * 16 / 65536) + fl(vi * 22 * 16 / 256) + fl(bl * 5 * 16 / 256) + fl(ro * 22 * 16 / 256);
+    const g = 34 + tr(top / 32) + fl(mw * 40 * 16 / 65536) + fl(halo * 8 * 16 / 65536) + fl(vi * 8 * 16 / 256) + fl(bl * 12 * 16 / 256) + fl(ro * 7 * 16 / 256);
+    const bb = 92 + tr(top / 16) + fl(mw * 46 * 16 / 65536) + fl(halo * 16 * 16 / 65536) + fl(vi * 28 * 16 / 256) + fl(bl * 30 * 16 / 256) + fl(ro * 15 * 16 / 256);
+    const o = (qy * QW + qx) * 3;
+    qd[o] = clamp(r, 0, 4080); qd[o + 1] = clamp(g, 0, 4080); qd[o + 2] = clamp(bb, 0, 4080);
+  }
+  return qd;
+}
+
+function scaleUp(qd) {                                                // bilinear, 4 x 4 ordered dither
+  const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  for (let y = 0; y < H; y++) {
+    const qy = y >> 2, fy = y & 3;
+    for (let x = 0; x < W; x++) {
+      const qx = x >> 2, fx = x & 3, d = bayer[(y & 3) * 4 + (x & 3)], p = (y * W + x) * 4;
+      for (let k = 0; k < 3; k++) {
+        const r0 = (qy * QW + qx) * 3 + k, r1 = ((qy + 1) * QW + qx) * 3 + k;
+        const a = qd[r0] * (4 - fx) + qd[r0 + 3] * fx, b = qd[r1] * (4 - fx) + qd[r1 + 3] * fx;
+        SKY[p + k] = Math.min(255, (fl((a * (4 - fy) + b * fy) / 16) + d) >> 4);
+      }
+      SKY[p + 3] = 255;
+    }
+  }
+}
+
+function glow(cx, cy, r, c, a) {                                      // ck_glow: (1 - d^2/r^2)^3, 16ths of a px
+  if (r <= 0 || !a) return;
+  const r2 = r * r, x0 = Math.max(0, (cx - r) >> 4), x1 = Math.min(W - 1, (cx + r) >> 4);
+  const y0 = Math.max(0, (cy - r) >> 4), y1 = Math.min(H - 1, (cy + r) >> 4);
+  for (let y = y0; y <= y1; y++) {
+    const dy = y * 16 + 8 - cy, dy2 = dy * dy;
+    if (dy2 >= r2) continue;
+    for (let x = x0; x <= x1; x++) {
+      const dx = x * 16 + 8 - cx, d2 = dx * dx + dy2;
+      if (d2 >= r2) continue;
+      const f = 256 - fl(d2 * 256 / r2), w = fl(fl(f * f / 256) * f / 256), aa = fl(w * a / 256), p = (y * W + x) * 4;
+      SKY[p] += fl(c[0] * aa / 256); SKY[p + 1] += fl(c[1] * aa / 256); SKY[p + 2] += fl(c[2] * aa / 256);
+    }
+  }
+}
+function add(p, c, a) { SKY[p] += fl(c[0] * a / 256); SKY[p + 1] += fl(c[1] * a / 256); SKY[p + 2] += fl(c[2] * a / 256); }
+
+function starColor(h) {                                               // five star colours by share
+  const p = h % 100;
+  return p < 10 ? rgb(170, 192, 255) : p < 55 ? rgb(218, 228, 255) : p < 85 ? rgb(255, 250, 242)
+       : p < 97 ? rgb(255, 234, 196) : rgb(255, 204, 160);
+}
+
+function stars() {
+  const b = bandOf(), area = W * H;
+  for (let i = 0; i < fl(area / 800); i++) {                          // field stars, denser along the band
+    const x = hash(i, 1, 77) % (W * 16), y = hash(i, 2, 77) % (H * 16), [across] = bandAt(b, x >> 4, y >> 4);
+    if ((hash(i, 3, 77) & 65535) > 36000 + fl(gauss(across, b.half) * 29535 / 65536)) continue;
+    const u = hash(i, 4, 77) & 255, lv = 14 + fl(241 * (u * u * u * u) / 4294967296);
+    glow(x, y, fl((20 + fl(16 * lv / 255)) * K / 256), starColor(hash(i, 5, 77)), lv);
+  }
+  for (let i = 0; i < fl(area / 170); i++) {                          // star dust in the band
+    const x = hash(i, 6, 78) % (W * 16), y = hash(i, 7, 78) % (H * 16), [across] = bandAt(b, x >> 4, y >> 4);
+    const c = gauss(across, tr(b.half * 8 / 10));
+    if ((hash(i, 8, 78) & 65535) > fl(c * c / 65536)) continue;
+    glow(x, y, fl(20 * K / 256), rgb(226, 230, 255), 10 + hash(i, 9, 78) % 44);
+  }
+  const nb = clamp(fl(area / 50000), 24, 256);                        // bright stars: a halo each, and they twinkle
+  for (let i = 0; i < nb; i++) {
+    const x = hash(i, 1, 91) % (W * 16), y = hash(i, 2, 91) % (H * 16), c = starColor((hash(i, 3, 91) | 1) >>> 0);
+    const lv = 190 + hash(i, 4, 91) % 66, r = fl(34 * K / 256), period = 2600 + hash(i, 5, 91) % 4200;
+    glow(x, y, r, c, lv); glow(x, y, r * 5, c, 22);
+    TW.push({ x, y, r: r * 2, c, period, phase: hash(i, 6, 91) % period });
+  }
+}
+
+const GDEF = [ // fx, fy (thousandths), radius (design px), tilt, turn (deg), kind, bright: night.c gdef
+  [150, 205, 112, 38, 30, "spiral", 160], [805, 135, 76, 62, -25, "spiral", 140], [265, 705, 42, 45, 60, "round", 130],
+  [870, 750, 88, 84, 15, "edge", 150], [60, 545, 40, 22, 0, "spiral", 120], [600, 95, 28, 52, 70, "spiral", 110]];
+
+function galaxies() {
+  GDEF.forEach(([fx, fy, radius, tilt, turn, kind, bright], i) => {
+    const hb = fl((fl(radius * 13 / 10) * K + 128) / 256) + 1, gxp = fl(W * fx / 1000), gyp = fl(H * fy / 1000);
+    const gx = gxp * 16 + 8, gy = gyp * 16 + 8, rg = S(radius) * 16;
+    const ct = Math.cos(turn * Math.PI / 180), st = Math.sin(turn * Math.PI / 180);
+    const ci = Math.max(600 / 16384, Math.cos(tilt * Math.PI / 180));
+    for (let y = Math.max(0, gyp - hb); y <= Math.min(H - 1, gyp + hb); y++)
+      for (let x = Math.max(0, gxp - hb); x <= Math.min(W - 1, gxp + hb); x++) {
+        const dx = x * 16 + 8 - gx, dy = y * 16 + 8 - gy;
+        const u = dx * ct + dy * st, v = dy * ct - dx * st, vd = v / ci;    // back to face-on
+        const rq = Math.hypot(u, vd) * 256 / rg;                            // radius, 256 = the galaxy's
+        if (rq > 330) continue;
+        const th = (Math.atan2(vd, u) / (2 * Math.PI)) * 65536;
+        const nz = fbm(tr(u * 1536 / rg), tr(vd * 1536 / rg), 700 + i, 3);
+        const fine = fbm(tr(u * 5120 / rg), tr(vd * 5120 / rg), 750 + i, 2);
+        const vb = v * 2 / (1 + ci), rb = Math.hypot(u, vb) * 256 / rg;      // the bulge flattens half as much
+        let lb, ld, knot = 0;
+        if (kind === "round") {
+          lb = gauss(rb, 30) * 0.8; ld = expNeg(fl(rb * 1075 / 256)) * 0.6;
+        } else {
+          const lr = (Math.log2(Math.max(rq, 4)) - 8) * 65536;              // log2(r), r in 256ths
+          const ph = 2 * th + lr * 30000 / 65536;                            // two arms, wound about a turn and a half
+          let arm = (1 + Math.cos(ph / 65536 * 2 * Math.PI)) / 2; arm *= arm;
+          const from = smoothI(tr((rq - 34) * 256 / 90)) / 256;             // arms begin outside the core
+          arm = 1 - (1 - arm) * from;
+          const clump = 0.5 + nz * 22000 / 65536 / 65536 + fine * 10768 / 65536 / 65536;
+          lb = gauss(rb, 58) * 0.9;
+          ld = expNeg(tr(rq * 12 / 5)) * (0.125 + arm * 0.875 * clump);
+          if (arm > 0.7 && nz > 44000 && rq > 50) knot = ld * (nz - 44000) / 21535;
+          if (kind === "edge" && rq < 240) {                                 // the dust lane of a disc seen edge-on
+            const lane = gauss(v, rg * 5 / 100) / 65536;
+            ld *= 1 - lane * 56000 / 65536; lb *= 1 - lane * 40000 / 65536;
+          }
+        }
+        const edge = 1 - smoothI(tr((rq - 250) * 256 / 80)) / 256;          // soft edge at 1.3 radii
+        const p = (y * W + x) * 4;
+        add(p, rgb(255, 222, 178), fl(lb * edge * bright / 65536));
+        add(p, rgb(150, 170, 255), fl(ld * edge * bright / 65536));
+        add(p, rgb(255, 140, 190), fl(knot * edge * bright / 65536 / 2));
+      }
+  });
+}
+
+function appearMap() {                                               // when each 4 x 4 cell comes out of the dark
+  let far = 0;
+  for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) far = Math.max(far, isqrt((x - CX) ** 2 + (y - CY) ** 2));
+  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
+    const px = x * 4, py = y * 4;
+    const a = fbm(tr(px * 640 / H), tr(py * 640 / H), 909, 4) >> 8;
+    const r = tr(isqrt((px - CX) ** 2 + (py - CY) ** 2) * 255 / (far || 1));
+    APPEAR[y * AW + x] = tr((a * 6 + r * 4) / 10);
+  }
+}
+
+function faded(x, y, l, t) {                                          // ck_night_faded: 0..1
+  if (t >= FADE_END) return 1;
+  x = clamp(x, 0, W - 1); y = clamp(y, 0, H - 1);
+  const from = 300 + APPEAR[(y >> 2) * AW + (x >> 2)] * 12 + (255 - l) * 8, dt = t - from;
+  return dt <= 0 ? 0 : dt >= 1365 ? 1 : smooth01(dt * 48 / 256 / 256);
+}
+
+/* ---- the black holes, the ripple and the flash at a time (ck_night_at, allen_ui.c flash) ---- */
+function orbit(t, a0) {                                               // angle in turns, separation in px
+  const from = (SPIRAL - HOLES) / ORBIT_MS;
+  if (t < SPIRAL) return { ang: (t - HOLES) / ORBIT_MS, sep: a0 };
+  const L = (MERGE - t) / (MERGE - SPIRAL);                            // the time left, 1 to 0
+  const turns = 8 * (MERGE - SPIRAL) / (5 * ORBIT_MS);                 // the spiral keeps the wide orbit's speed
+  return { ang: from + turns * (1 - Math.pow(L, 5 / 8)), sep: a0 * Math.pow(L, 1 / 4) };
+}
+let FAR = 0;
+for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) FAR = Math.max(FAR, isqrt((x - CX) ** 2 + (y - CY) ** 2));
+
+function nightAt(t) {
+  const s = { holes: [], ripple: null, flash: null, lens: null };
+  const eFull = S(60), rsFull = S(20), a0 = S(270);
+  const last = orbit(MERGE - 1, a0).ang;
+  if (t >= HOLES && t < MERGE) {
+    const { ang, sep } = orbit(t, a0);
+    const e = eFull * smooth01((t - HOLES) / 2600), rs = rsFull * smooth01((t - HOLES - 1400) / 2000);
+    const hx = sep / 2 * Math.cos(2 * Math.PI * ang), hy = sep / 2 * Math.sin(2 * Math.PI * ang) / 2; // the orbit leans away
+    s.holes.push([CX + 0.5 + hx, CY + 0.5 + hy, e, rs], [CX + 0.5 - hx, CY + 0.5 - hy, e, rs]);
+  } else if (t >= MERGE && t < GONE) {
+    const tm = t - MERGE, e = eFull * 362 / 256, rs0 = rsFull * 323 / 256, rs1 = rsFull * 2;
+    let rs = rs0 + (rs1 - rs0) * smooth01(tm / 180);
+    rs += rs * 0.07 * Math.sin(2 * Math.PI * tm / 95) * Math.exp(-tm / 260);  // it rings
+    const keep = 1 - smooth01((t - MERGE - 900) / (GONE - MERGE - 900));
+    s.holes.push([CX + 0.5, CY + 0.5, e * keep, rs * keep * keep]);
+  }
+  for (const [x, y, e, rs] of s.holes) {
+    const reach = Math.max(e * 4.4, rs * 1.6) + 2;
+    const b = [x - reach, y - reach, x + reach, y + reach];
+    s.lens = s.lens ? [Math.min(s.lens[0], b[0]), Math.min(s.lens[1], b[1]), Math.max(s.lens[2], b[2]), Math.max(s.lens[3], b[3])] : b;
+  }
+  if (t >= MERGE && t < MERGE + RIPPLE) {
+    const trp = t - MERGE, w = clamp(S(60), 4, 200), reach = w * 2.2, far = FAR + reach;
+    const R = far * trp / RIPPLE;
+    const env = smooth01(trp / 220) * (1 - smooth01((trp - RIPPLE * 0.6) / (RIPPLE * 0.4)));
+    const amp = S(6) * (1 - (150 / 256) * R / far) * env;
+    s.ripple = { R, w, reach, amp, lambda: Math.max(S(110), 8), env,
+                 c2: Math.cos(4 * Math.PI * last), s2: Math.sin(4 * Math.PI * last) };
+  }
+  if (t >= MERGE && t < MERGE + 1600) {
+    const tm = t - MERGE;
+    const rad = S(40) + S(220) * easeOut01(tm / 1200);
+    const a = smooth01(tm / 120) * Math.exp(-Math.max(0, tm - 120) / 450) * 230 / 256;
+    s.flash = { rad, a, keep: 1 - smooth01((tm - 100) / 300), unflash: s.holes.length === 1 && tm >= 100 };
+  }
+  return s;
+}
+
+/* ---- the picture: one pass per pixel ---- */
+const VERT = `
+attribute vec3 aPosition;
+uniform mat4 uProjectionMatrix, uModelViewMatrix;
+void main() { gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aPosition, 1.0); }`;
+const FRAG = `
+precision highp float;
+uniform sampler2D uSky, uAppear;
+uniform vec2 uRes, uAppearRes, uC;
+uniform float uT, uFadeEnd;
+uniform vec4 uHole0, uHole1;            // x, y, Einstein radius, shadow radius (px)
+uniform float uHoles;
+uniform vec4 uRip;                      // crest radius, width, amplitude, wavelength (px)
+uniform vec4 uRip2;                     // envelope, cos 2psi, sin 2psi, on
+uniform vec4 uFlash;                    // radius, strength, kept fraction inside the shadow, on
+uniform vec4 uStar[64];                 // x, y, radius (px), strength
+uniform vec3 uStarC[64];
+uniform float uStars;
+
+float gauss(float v, float w) { return exp(-(v / w) * (v / w)); }
+float sm(float t) { t = clamp(t, 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+
+// the pull of one hole: a point lens, beta = theta - E^2/theta, eased to nothing from 2.2 E to 4.4 E
+vec2 pull(vec2 p, vec4 h) {
+  float e = h.z;
+  vec2 d = p - h.xy;
+  float d2 = max(dot(d, d), 0.25), outer = 19.36 * e * e, inner = 4.84 * e * e;
+  if (e <= 0.0 || d2 >= outer) return vec2(0.0);
+  float f = e * e / d2;
+  if (d2 > inner) { float w = (outer - d2) / (outer - inner); f *= w * w; }
+  return -d * f;
+}
+
+vec3 sky(vec2 p) { return texture2D(uSky, p / uRes).rgb; }
+
+// shadow and photon ring of one hole (night.c near_px)
+vec3 shadow(vec3 c, vec2 p, vec4 h) {
+  float rs = h.w;
+  if (rs <= 0.0) return c;
+  float r = length(p - h.xy);
+  if (r >= 1.5 * rs) return c;
+  c = mix(c, vec3(0.0), clamp(0.5 - (r - rs), 0.0, 1.0));
+  float ring = abs(r - 1.04 * rs) * 16.0;
+  float a = ring < 22.0 ? (22.0 - ring) * 6.0 / 256.0 : 0.0;
+  if (r > rs) a += 46.0 / 256.0 * (1.5 * rs - r) / (0.5 * rs + 1.0 / 16.0);
+  return c + vec3(1.0, 228.0 / 255.0, 196.0 / 255.0) * a;
+}
+
+vec3 glow(vec3 c, vec2 p, vec2 at, float r, vec3 col, float a) {
+  vec2 d = p - at;
+  float f = 1.0 - dot(d, d) / (r * r);
+  return f <= 0.0 ? c : c + col * f * f * f * a;
+}
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);   // pixel centre, y down like the kernel
+  vec2 off = vec2(0.0);
+  if (uHoles > 0.5) off += pull(p, uHole0);
+  if (uHoles > 1.5) off += pull(p, uHole1);
+  float light = 0.0;
+  if (uRip2.w > 0.5) {                     // the ripple: radial, stretching along psi and squeezing across it
+    vec2 d = p - uC;
+    float r = length(d), o = floor(r) - uRip.x;
+    if (r > 0.0 && abs(o) <= 2.2 * uRip.y) {
+      float disp = uRip.z * sin(6.2831853 * o / uRip.w) * gauss(o, uRip.y);
+      float qq = ((d.x * d.x - d.y * d.y) * uRip2.y + 2.0 * d.x * d.y * uRip2.z) / (r * r);
+      off -= disp * (0.35 + 0.65 * qq) * d / r;
+      light = gauss(o, 0.6 * uRip.y) * uRip2.x * 46.0 / 256.0;
+    }
+  }
+  vec3 c = sky(p + off);
+  if (uT < uFadeEnd) {                     // coming out of the dark: bright light first, in patches
+    float l = max(c.r, max(c.g, c.b)) * 255.0;
+    float ap = texture2D(uAppear, (floor(p / 4.0) + 0.5) / uAppearRes).r * 255.0;
+    float dt = uT - (300.0 + ap * 12.0 + (255.0 - l) * 8.0);
+    c *= dt <= 0.0 ? 0.0 : sm(dt / 1365.33);
+  }
+  c += vec3(86.0, 108.0, 176.0) / 255.0 * light;
+  if (uHoles > 0.5) c = shadow(c, p, uHole0);
+  if (uHoles > 1.5) c = shadow(c, p, uHole1);
+  for (int i = 0; i < 64; i++) {           // the bright stars twinkle
+    if (float(i) >= uStars) break;
+    c = glow(c, p, uStar[i].xy, uStar[i].z, uStarC[i], uStar[i].w);
+  }
+  if (uFlash.w > 0.5) {                    // the merger's flash, then the shadow takes its black back
+    vec3 before = c;
+    c = glow(c, p, uC, uFlash.x, vec3(200.0, 210.0, 255.0) / 255.0, uFlash.y / 3.0);
+    c = glow(c, p, uC, uFlash.x / 3.0, vec3(255.0, 240.0, 224.0) / 255.0, uFlash.y);
+    if (uHoles > 0.5 && uFlash.z < 1.0 && uHole0.w > 1.0) {
+      float r = length(p - uHole0.xy);
+      float inside = clamp(uHole0.w - r, 0.0, 1.0);
+      c *= 1.0 - inside * (1.0 - uFlash.z);
+    }
+  }
+  gl_FragColor = vec4(min(c, vec3(1.0)), 1.0);
+}`;
+
+/* ---- the chirp (chirp.c), as a buffer ---- */
+function chirpBuffer(ctx) {
+  const rate = ctx.sampleRate, start = MERGE - CHIRP.rise, f0 = start - CHIRP.inMs;
+  const n = Math.ceil((CHIRP.end - f0) / 1000 * rate), buf = ctx.createBuffer(1, n, rate), out = buf.getChannelData(0);
+  const T = CHIRP.rise / 1000, Lcap = Math.pow(CHIRP.from / CHIRP.to, 8 / 3);          // pitch stops rising at 1000 Hz
+  const steady = CHIRP.peak * Math.pow(Lcap, 1 / 4);                                  // the level at L = 1
+  const phaseIn = CHIRP.from * CHIRP.inMs / 1000;                                       // turns before the sweep
+  const phaseCap = phaseIn + CHIRP.from * T * 8 / 5 * (1 - Math.pow(Lcap, 5 / 8));
+  for (let i = 0; i < n; i++) {
+    const ms = f0 + i * 1000 / rate;
+    let level, phase;
+    if (ms < start) { level = steady * smooth01((ms - f0) / CHIRP.inMs); phase = CHIRP.from * (ms - f0) / 1000; }
+    else {
+      const L = Math.max(0, (MERGE - ms) / CHIRP.rise);
+      if (L > Lcap) {                    // the inspiral: pitch as L^(-3/8), level as pitch^(2/3)
+        level = CHIRP.peak * Math.pow(Lcap, 1 / 4) / Math.pow(L, 1 / 4);
+        phase = phaseIn + CHIRP.from * T * 8 / 5 * (1 - Math.pow(L, 5 / 8));
+      } else {
+        phase = phaseCap + CHIRP.to * (ms - (MERGE - Lcap * CHIRP.rise)) / 1000;
+        level = ms < MERGE ? CHIRP.peak : CHIRP.peak * Math.exp(-(ms - MERGE) / CHIRP.tau);  // rings away, 30 ms
+      }
+    }
+    out[i] = level * Math.sin(2 * Math.PI * phase);
+  }
+  return { buf, at: f0 };
+}
+
+/* ---- the sketch ---- */
+let sh, skyImg, appearImg, t0 = null, audio = null, hudOn = q.get("hud") === "1";
+const frames = [];                       // [t, interval ms, render ms]
+window.__night_done = false;
+
+function stageOf(t) { for (const s of STAGES) if (t >= s[1] && t < s[2]) return s[0]; return "after"; }
+
+new p5((p) => {
+  p.setup = () => {
+    let m = performance.now();
+    const qd = clouds(); bake.cloudsMs = performance.now() - m; m = performance.now();
+    scaleUp(qd); bake.scaleMs = performance.now() - m; m = performance.now();
+    stars(); bake.starsMs = performance.now() - m; m = performance.now();
+    galaxies(); bake.galaxiesMs = performance.now() - m; m = performance.now();
+    appearMap(); bake.appearMs = performance.now() - m;
+    const cnv = p.createCanvas(W, H, p.WEBGL);
+    cnv.parent("stage");
+    p.pixelDensity(1);
+    p.noStroke();
+    sh = p.createShader(VERT, FRAG);
+    skyImg = p.createImage(W, H); skyImg.loadPixels(); skyImg.pixels.set(SKY); skyImg.updatePixels();
+    appearImg = p.createImage(AW, AH); appearImg.loadPixels();
+    for (let i = 0; i < AW * AH; i++) appearImg.pixels.set([APPEAR[i], 0, 0, 255], i * 4);
+    appearImg.updatePixels();
+    p.textureWrap(p.CLAMP);
+    p.shader(sh);
+    sh.setUniform("uSky", skyImg);
+    sh.setUniform("uAppear", appearImg);
+    p._renderer.getTexture(appearImg).setInterpolation(p.NEAREST, p.NEAREST);
+    const gl = p.drawingContext, ext = gl.getExtension("WEBGL_debug_renderer_info");
+    bake.renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    bake.size = `${W}x${H}`; bake.brightStars = TW.length;
+    if (FREEZE !== null || MEASURE) { t0 = performance.now() - (FREEZE || 0); document.getElementById("start").style.opacity = 0; }
+    if (FREEZE !== null) p.noLoop();
+  };
+
+  const begin = () => {
+    if (t0 !== null && FREEZE === null && !MEASURE && audio) return;
+    document.getElementById("start").style.opacity = 0;
+    t0 = performance.now();
+    frames.length = 0;
+    if (!MEASURE && !REDUCED) {
+      try {
+        const ctx = audio ? audio.ctx : new AudioContext();
+        const { buf, at } = chirpBuffer(ctx);
+        const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+        src.start(ctx.currentTime + at / 1000);
+        audio = { ctx, src };
+      } catch (e) { audio = { ctx: null }; }  // no sound device: the night plays silent
+    }
+  };
+  p.mousePressed = begin;
+  p.keyPressed = () => {
+    if (p.key === "h" || p.key === "H") { hudOn = !hudOn; return; }
+    if (p.key === "r" || p.key === "R") { if (audio && audio.src) try { audio.src.stop(); } catch (e) {} audio = null; t0 = null; }
+    begin();
+  };
+
+  let lastFrame = null;
+  p.draw = () => {
+    const now = performance.now(), m0 = now;
+    let t = t0 === null ? 0 : FREEZE !== null ? FREEZE : now - t0;
+    if (REDUCED && FREEZE === null) t = t0 === null ? 0 : GONE + 1600;          // the last frame, eased in by CSS below
+    const s = nightAt(t);
+    sh.setUniform("uRes", [W, H]); sh.setUniform("uAppearRes", [AW, AH]); sh.setUniform("uC", [CX + 0.5, CY + 0.5]);
+    sh.setUniform("uT", t0 === null ? 0 : t); sh.setUniform("uFadeEnd", FADE_END);
+    sh.setUniform("uHoles", s.holes.length);
+    sh.setUniform("uHole0", s.holes[0] || [0, 0, 0, 0]); sh.setUniform("uHole1", s.holes[1] || [0, 0, 0, 0]);
+    const r = s.ripple;
+    sh.setUniform("uRip", r ? [r.R, r.w, r.amp, r.lambda] : [0, 1, 0, 1]);
+    sh.setUniform("uRip2", r ? [r.env, r.c2, r.s2, 1] : [0, 0, 0, 0]);
+    const f = s.flash;
+    sh.setUniform("uFlash", f ? [f.rad, f.a, f.unflash ? f.keep : 1, 1] : [0, 0, 1, 0]);
+    const st = [], sc = [];
+    for (const star of TW) {
+      const x = star.x / 16, y = star.y / 16, rr = star.r / 16;
+      const inLens = s.lens && x + rr > s.lens[0] && x - rr < s.lens[2] && y + rr > s.lens[1] && y - rr < s.lens[3];
+      const tw = (1 + Math.sin(2 * Math.PI * ((t + star.phase) % star.period) / star.period)) / 2;
+      const a = inLens || t0 === null ? 0 : tw * tw * 120 / 256 * faded(x | 0, y | 0, 255, t);
+      st.push(x, y, rr, a); sc.push(star.c[0] / 255, star.c[1] / 255, star.c[2] / 255);
+      if (st.length >= 256) break;
+    }
+    while (st.length < 256) { st.push(0, 0, 1, 0); sc.push(0, 0, 0); }
+    sh.setUniform("uStar", st); sh.setUniform("uStarC", sc); sh.setUniform("uStars", Math.min(64, TW.length));
+    p.rect(-W / 2, -H / 2, W, H);
+    if (MEASURE) {
+      const gl = p.drawingContext, px = new Uint8Array(4);       // reading a pixel waits for the whole frame
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      if (lastFrame !== null) frames.push([t, now - lastFrame, performance.now() - m0]);
+      if (t > STAGES[STAGES.length - 1][2]) { window.__night_result = report(); window.__night_done = true; p.noLoop(); }
+    }
+    lastFrame = now;
+    if (FREEZE !== null) window.__night_done = true;
+    const hud = document.getElementById("hud");
+    hud.style.display = hudOn ? "block" : "none";
+    if (hudOn) hud.textContent = `${(t / 1000).toFixed(2)} s  ${stageOf(t)}  ${p.frameRate().toFixed(0)} fps`;
+  };
+}, "stage");
+
+function stats(xs) {
+  const s = [...xs].sort((a, b) => a - b), mean = s.reduce((a, b) => a + b, 0) / (s.length || 1);
+  return { n: s.length, mean: +mean.toFixed(2), p95: +(s[fl(s.length * 0.95)] || 0).toFixed(2), max: +(s[s.length - 1] || 0).toFixed(2) };
+}
+function report() {
+  const out = { bake: Object.fromEntries(Object.entries(bake).map(([k, v]) => [k, typeof v === "number" ? +v.toFixed(1) : v])), stages: {} };
+  for (const [name, a, b] of STAGES) {
+    const fs = frames.filter(([t]) => t >= a && t < b);
+    out.stages[name] = { interval_ms: stats(fs.map((f) => f[1])), render_ms: stats(fs.map((f) => f[2])) };
+  }
+  return out;
+}
+if (REDUCED && FREEZE === null) document.getElementById("stage").animate([{ opacity: 0 }, { opacity: 1 }],
+  { duration: 900, easing: "cubic-bezier(0.3333, 0, 0.6667, 1)", fill: "both" });
+</script>
+</body>
+</html>

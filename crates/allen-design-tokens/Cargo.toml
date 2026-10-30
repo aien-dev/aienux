@@ -1,0 +1,15 @@
+[package]
+name = "allen-design-tokens"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Reads docs/design/DESIGN.md (Allen's look) and writes the C header, Rust module and CSS every Allen surface uses"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "allen-design-tokens"
+path = "src/main.rs"

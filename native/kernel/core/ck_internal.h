@@ -45,6 +45,9 @@ int ck_console_set_fb(volatile void *base, uint32_t width, uint32_t height, uint
 int ck_console_fb_info(uint32_t *scale, uint32_t *cols, uint32_t *rows);
 /* Called by ck_reset: hold the screen CK_FB_HOLD_S seconds (build knob). */
 void ck_console_fb_hold(void);
+/* Boot sequence (core/boot_screen.c): stop drawing on the screen; draw again on a cleared one. */
+void ck_console_fb_pause(void);
+void ck_console_fb_resume(void);
 
 /* ---- report (core/report.c) ---- */
 void ck_set_stage(const char *name);

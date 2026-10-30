@@ -30,8 +30,8 @@ uint32_t ck_fbcon_scale_for(uint32_t width, uint32_t height)
     return s;
 }
 
-int ck_fbcon_setup(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, uint32_t height,
-                   uint32_t pitch, uint32_t format)
+int ck_fbcon_attach(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, uint32_t height,
+                    uint32_t pitch, uint32_t format)
 {
     if (!px || format > 1 || pitch < width)
         return -1;
@@ -58,6 +58,14 @@ int ck_fbcon_setup(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, ui
     for (uint32_t r = 0; r < CK_FBCON_MAX_ROWS; r++)
         for (uint32_t k = 0; k < CK_FBCON_MAX_COLS; k++)
             c->text[r][k] = 0;
+    return 0;
+}
+
+int ck_fbcon_setup(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, uint32_t height,
+                   uint32_t pitch, uint32_t format)
+{
+    if (ck_fbcon_attach(c, px, width, height, pitch, format) != 0)
+        return -1;
     ck_fbcon_clear(c);
     return 0;
 }
@@ -132,6 +140,11 @@ void ck_fbcon_write(struct ck_fbcon *c, const char *s, size_t n)
         if (ch == '\r') {
             if (!c->pending_nl)
                 c->col = 0;
+            continue;
+        }
+        if (ch == '\b') { /* cursor one cell left, within the line; the caller overwrites */
+            if (!c->pending_nl && c->col)
+                c->col--;
             continue;
         }
         if (c->pending_nl) {

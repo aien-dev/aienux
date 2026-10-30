@@ -1,0 +1,29 @@
+target x86linux
+note Bytes, ASCII whitespace separated words, and newline bytes. Bounded input.
+fn run args view uchar 4096 out edit ulong 512 count ulong to ulong
+if gt count 4096
+trap 3
+end
+words = ulong 0
+lines = ulong 0
+inside = false
+for i ulong count
+c = get args i
+space = or eq c 32 and ge c 9 le c 13
+if eq c 10
+lines = add lines 1
+end
+if space
+inside = false
+else
+if not inside
+words = add words 1
+end
+inside = true
+end
+end
+put out 0 count
+put out 1 words
+put out 2 lines
+ret 24
+end

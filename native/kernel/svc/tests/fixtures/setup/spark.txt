@@ -1,0 +1,14 @@
+# The DGX Spark described the way its own inventory would (QEMU fixture, L267).
+# OBSERVED on the Spark 2026-10-20: lspci 10de:2e12, nvidia-smi "NVIDIA GB10, 580.173.02", lscpu 10 Cortex-X925 +
+# 10 Cortex-A725, free -m total 124607, lsblk nvme 3.7T SAMSUNG MZALC4T0HBL1; the model server line is the 27B the
+# Spark serves at 127.0.0.1:18091 (/v1/models), 29460 MiB on disk (du -sm).
+machine name="Spark" from=host
+gpu vendor=10de device=2e12 name="NVIDIA GB10" vram_mib=124607 kind=unified driver="NVIDIA 580.173.02"
+display name="this screen" w=1920 h=1080 hz=60 max_w=1920 max_h=1080 max_hz=60
+cpu name="NVIDIA Grace (10 Cortex-X925, 10 Cortex-A725)" fast=10 efficient=10 threads=20
+ram mib=124607
+disk name="Samsung MZALC4T0HBL1" gib=3726 kind=nvme
+acpi tables="FACP APIC GTDT IORT MCFG SPCR"
+gateway addr=192.168.1.1
+peer name="imac" kind=aienos addr=192.168.1.30
+server source=omega name="qwen3.8-27b-fp8" params_b10=270 mib=29460 url="http://127.0.0.1:18091"

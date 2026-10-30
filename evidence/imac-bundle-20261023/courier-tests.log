@@ -1,0 +1,42 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/main.rs (target/debug/deps/allen_courier-e491f6ef3b9d347e)
+
+running 26 tests
+test code::tests::a_sentence_and_a_fenced_block_are_read ... ok
+test code::tests::an_unclosed_block_runs_to_the_end_and_no_block_is_none ... ok
+test code::tests::crc_is_zlibs ... ok
+test code::tests::short_names_and_odd_bytes_are_made_plain ... ok
+test plain_tests::a_cut_answer_stays_within_the_room_with_its_mark ... ok
+test key_tests::no_key_sends_no_header_and_https_is_refused_out_loud ... ok
+test tests::a_busy_server_is_asked_again_with_growing_waits ... ok
+test key_tests::a_good_key_is_sent_once_as_a_bearer_and_the_first_model_comes_back ... ok
+test key_tests::claude_gets_its_own_headers_and_a_refused_key_says_so ... ok
+test code::tests::long_code_is_cut_at_a_line_within_the_limits ... ok
+test tests::a_busy_server_names_its_wait_exactly ... ok
+test tests::a_code_reply_becomes_pieces_and_a_closing_sentence ... ok
+test tests::chunked_bodies_are_joined ... ok
+test plain_tests::typographic_marks_become_plain_ones ... ok
+test tests::a_sentence_end_too_early_is_not_used ... ok
+test tests::datagram_heads_round_trip ... ok
+test tests::a_job_line_carries_the_memory_fields ... ok
+test tests::dates_are_civil ... ok
+test tests::json_strings_round_trip ... ok
+test tests::short_answers_pass_whole_with_whitespace_folded ... ok
+test tests::long_answers_are_cut_at_a_sentence_end ... ok
+test tests::the_assistant_text_is_found_in_a_chat_completion ... ok
+test tests::what_was_already_said_in_parts_is_kept ... ok
+test tests::words_on_the_wire ... ok
+test tests::saved_exchanges_reach_the_model_as_ordered_conversation_turns ... ok
+test code::tests::pieces_carry_length_checksum_and_escapes ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/allen-scene.rs (target/debug/deps/allen_scene-8a13abc9d8fd96a0)
+
+running 3 tests
+test tests::replies_and_numbers_are_read_from_a_completion ... ok
+test tests::the_prompt_is_plain_and_names_every_kind ... ok
+test tests::slugs_and_waits ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

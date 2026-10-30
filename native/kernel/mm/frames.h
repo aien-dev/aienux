@@ -47,6 +47,9 @@ int ck_frames_from_efi(struct ck_frames *f, const void *map, uint64_t map_size, 
 /* npages contiguous frames aligned to `align` (power of two >= 4096).
  * 0 on success with *out set; -1 when no range fits (exhaustion). */
 int ck_frames_alloc(struct ck_frames *f, uint64_t npages, uint64_t align, uint64_t *out);
+/* As ck_frames_alloc, but the whole block must end at or below `limit`
+ * (exclusive). Free frames above the limit are left free. */
+int ck_frames_alloc_below(struct ck_frames *f, uint64_t npages, uint64_t align, uint64_t limit, uint64_t *out);
 void ck_frames_free(struct ck_frames *f, uint64_t base, uint64_t npages);
 uint64_t ck_frames_free_bytes(const struct ck_frames *f);
 

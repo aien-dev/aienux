@@ -1,0 +1,11 @@
+target x86linux
+note Only the kernel's five nonidentifying cached fields are exposed.
+fn run args view ulong 512 out edit ulong 512 count ulong to ulong
+if ne count 40
+trap 3
+end
+for i ulong 5
+put out i get args i
+end
+ret 40
+end

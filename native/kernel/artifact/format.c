@@ -168,7 +168,19 @@ int cka_env_validate(const struct cka_env *e, unsigned ncaps)
     return CKA_OK;
 }
 
-static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e)
+int cka_env_validate_profile(const struct cka_env *e, unsigned ncaps, uint16_t target, uint16_t abi)
+{
+    if (target == CKA_TARGET_X86_64_LE && abi == CKA_ABI_OMEGA_X86_MODEL_V1) {
+        if (ncaps || e->max_caps || e->ipc_msgs || e->ipc_bytes || e->code_pages != 32 ||
+            e->data_pages != 1024 || e->stack_pages != 16 || e->cpu != 120000000 ||
+            e->elapsed != 180000000 || e->syscalls != 1)
+            return CKA_RESOURCE_LIMIT;
+        return CKA_OK;
+    }
+    return cka_env_validate(e, ncaps);
+}
+
+static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e, uint16_t target, uint16_t abi)
 {
     if (cka_rd16(b + 14) || cka_rd32(b + 44))
         return CKA_RESERVED_NONZERO;
@@ -181,7 +193,7 @@ static int env_decode(const uint8_t *b, unsigned ncaps, struct cka_env *e)
     e->cpu = cka_rd64(b + 24);
     e->elapsed = cka_rd64(b + 32);
     e->syscalls = cka_rd32(b + 40);
-    return cka_env_validate(e, ncaps);
+    return cka_env_validate_profile(e, ncaps, target, abi);
 }
 
 /* ---- parse (format.rs) ---- */
@@ -195,7 +207,8 @@ static void section_read(const uint8_t *b, struct cka_section *s)
     s->align = cka_rd32(b + 20);
 }
 
-int cka_parse(const uint8_t *b, size_t len, struct cka_parsed *p)
+int cka_parse_profile(const uint8_t *b, size_t len, struct cka_parsed *p,
+                      uint16_t target, uint16_t abi)
 {
     static const uint8_t magic[8] = {'A', 'I', 'E', 'N', 'A', 'R', 'T', 0};
     if (len < CKA_HEADER_SIZE)
@@ -209,9 +222,9 @@ int cka_parse(const uint8_t *b, size_t len, struct cka_parsed *p)
         return CKA_UNSUPPORTED_VERSION;
     p->target = cka_rd16(b + 12);
     p->abi = cka_rd16(b + 14);
-    if (p->target != CKA_TARGET_AARCH64_LE)
+    if (p->target != target)
         return CKA_WRONG_TARGET;
-    if (p->abi != CKA_ABI_V1)
+    if (p->abi != abi)
         return CKA_WRONG_ABI;
     if (cka_rd32(b + 16) != 0)
         return CKA_UNSUPPORTED_FLAGS;
@@ -276,13 +289,14 @@ int cka_parse(const uint8_t *b, size_t len, struct cka_parsed *p)
         if (!(a->kind < z->kind || (a->kind == z->kind && a->id < z->id)))
             return CKA_MALFORMED_CAP;
     }
-    int rc = env_decode(b + p->res_off, p->ncaps, &p->env);
+    int rc = env_decode(b + p->res_off, p->ncaps, &p->env, target, abi);
     if (rc)
         return rc;
     if ((uint64_t)c->mlen > (uint64_t)p->env.code_pages * 4096u ||
         (uint64_t)d->mlen > (uint64_t)p->env.data_pages * 4096u)
         return CKA_RESOURCE_LIMIT;
-    if ((p->entry & 3) || (uint64_t)p->entry + 4 > c->flen)
+    if ((target == CKA_TARGET_AARCH64_LE && ((p->entry & 3) || (uint64_t)p->entry + 4 > c->flen)) ||
+        p->entry >= c->flen)
         return CKA_BAD_ENTRY;
     const uint8_t *sg = b + p->sig_off;
     p->sig_alg = cka_rd16(sg);
@@ -299,11 +313,12 @@ int cka_parse(const uint8_t *b, size_t len, struct cka_parsed *p)
     return CKA_OK;
 }
 
-int cka_identify(const uint8_t *b, size_t len, struct cka_parsed *p, struct cka_ident *id)
+int cka_identify_profile(const uint8_t *b, size_t len, struct cka_parsed *p, struct cka_ident *id,
+                         uint16_t target, uint16_t abi)
 {
     if (len > CKA_MAX_ARTIFACT)
         return CKA_RESOURCE_LIMIT;
-    int rc = cka_parse(b, len, p);
+    int rc = cka_parse_profile(b, len, p, target, abi);
     if (rc)
         return rc;
     cka_digest_domain(DOM("AIENOS-ARTIFACT-V1"), b, p->sig_off, id->id);
@@ -327,10 +342,11 @@ void cka_signature_message(const uint8_t id[32], uint8_t *msg, size_t *len)
     *len = n + 32;
 }
 
-int cka_verify(const uint8_t *b, size_t len, const uint8_t (*anchors)[32], unsigned nanchors,
-               struct cka_parsed *p, struct cka_ident *id, uint8_t signer_fp[32])
+int cka_verify_profile(const uint8_t *b, size_t len, const uint8_t (*anchors)[32], unsigned nanchors,
+               struct cka_parsed *p, struct cka_ident *id, uint8_t signer_fp[32],
+               uint16_t target, uint16_t abi)
 {
-    int rc = cka_identify(b, len, p, id);
+    int rc = cka_identify_profile(b, len, p, id, target, abi);
     if (rc)
         return rc;
     const uint8_t *key = 0;
@@ -368,3 +384,12 @@ void cka_grants_digest(const struct cka_cap *g, unsigned n, uint8_t out[32])
     }
     sha256_final(&c, out);
 }
+
+/* Existing AArch64 callers keep their original, closed target and ABI. */
+int cka_parse(const uint8_t *b, size_t n, struct cka_parsed *p)
+{ return cka_parse_profile(b, n, p, CKA_TARGET_AARCH64_LE, CKA_ABI_V1); }
+int cka_identify(const uint8_t *b, size_t n, struct cka_parsed *p, struct cka_ident *id)
+{ return cka_identify_profile(b, n, p, id, CKA_TARGET_AARCH64_LE, CKA_ABI_V1); }
+int cka_verify(const uint8_t *b, size_t n, const uint8_t (*a)[32], unsigned na,
+               struct cka_parsed *p, struct cka_ident *id, uint8_t fp[32])
+{ return cka_verify_profile(b, n, a, na, p, id, fp, CKA_TARGET_AARCH64_LE, CKA_ABI_V1); }

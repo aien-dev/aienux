@@ -1,0 +1,1857 @@
+============================================================
+AIENOS Integration Verification Harness
+Host: spark-b87b | Arch: aarch64 | Kernel: 7.0.0-1019-nvidia
+Date: 2026-10-22T11:18:50Z
+Strict: 1 | Serial log dir: /home/drakestapleton/handoffs/evidence/allen-dmar-20261022/strict
+============================================================
+
+--- [Gate 1 Verification: Config A Freeze] ---
+Config A capture verified for spark-b87b: 5 samples, mean decode 54.2 tokens/s
+M0 closable: no (recovery procedure is documented_only; native boot rollback has not been tested on Machine 1)
+PASS  Gate 1 Config A reference bundle verified
+
+--- [Formatting: cargo fmt --check] ---
+PASS  formatting: cargo fmt --all --check
+
+--- [Host Component Testing: Workspace Crates] ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/debug/deps/aienos_accel-d25eb76ec36d0a33)
+
+running 16 tests
+test pci::tests::capability_list_absence_is_empty_not_error ... ok
+test pci::tests::decodes_bar_sizes_with_bounds ... ok
+test pci::tests::decodes_standard_header_and_64_bit_bar ... ok
+test pci::tests::rejects_reserved_bar_encodings ... ok
+test pci::tests::decodes_bridge_header_and_window ... ok
+test pci::tests::rejects_capability_loop_and_out_of_bounds ... ok
+test pci::tests::walks_extended_capabilities_with_loop_and_bounds_checks ... ok
+test pci::tests::decodes_msi_msix_and_pcie ... ok
+test profile::tests::match_gb10_is_property_based_not_bdf_based ... ok
+test pci::tests::rejects_truncated_header_and_bridge_type ... ok
+test profile::tests::profile_classifies_source_and_native_verification ... ok
+test profile::tests::profile_renders_deterministically ... ok
+test registers::tests::ledger_is_exactly_the_two_established_offsets ... ok
+test tests::diagnostics_report_refused_opens_segments_and_bar_state ... ok
+test tests::validates_gb10_memory_bar ... ok
+test registers::tests::ledger_renders_without_claiming_semantics ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gb10_fixtures.rs (target/debug/deps/gb10_fixtures-a1e328f7018003cd)
+
+running 10 tests
+test decodes_capabilities_from_full_config_space ... ok
+test follows_a_secondary_bus_window_to_a_downstream_gb10 ... ok
+test handles_large_bar_and_extended_space_bounds ... ok
+test identifies_gb10_from_properties_under_bdf_relocation ... ok
+test profile_decodes_bar_kinds_and_keeps_sizes_unknown ... ok
+test rejects_disabled_memory_decoding_unprogrammed_and_32_bit_bar ... ok
+test rejects_malformed_capability_loops ... ok
+test rejects_wrong_vendor_and_wrong_device ... ok
+test reports_missing_msi_and_msix_as_absent_not_zero ... ok
+test selects_the_gb10_among_multiple_nvidia_devices ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_aegis-8549be8b0aa8de31)
+
+running 6 tests
+test capability::tests::filesystem_scope_rejects_sibling_and_traversal_paths ... ok
+test effect::tests::intent_id_distinguishes_parameter_boundaries ... ok
+test capability::tests::test_capability_attenuation_and_cascading_revocation ... ok
+test broker::tests::claimed_world_cannot_authorize_network_or_escaped_filesystem_effects ... ok
+test broker::tests::test_aegis_reversible_vs_irreversible_enforcement ... ok
+test broker::tests::world_bound_write_uses_delta_and_rollback_discards_it ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase_3_to_5_integration.rs (target/debug/deps/phase_3_to_5_integration-b5f8a680ff6a79fb)
+
+running 1 test
+test test_full_agent_epistemic_capability_and_c1_lifecycle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_agent_state-158f10fde7b3594d)
+
+running 22 tests
+test id::tests::test_branch_id_derivation ... ok
+test history::tests::test_token_history_rolling_hash ... ok
+test id::tests::test_agent_id_determinism ... ok
+test lineage::tests::test_lineage_extension ... ok
+test manager::tests::restore_refuses_checkpoint_without_durable_identity ... ok
+test manager::tests::re_registering_an_existing_identity_does_not_reset_its_root_branch ... ok
+test manager::tests::test_suspend_resume_lifecycle_and_tamper_rejection ... ok
+test manager::tests::restore_rejects_noncontiguous_persisted_fork_indexes ... ok
+test manager::tests::restore_round_trips_branches_and_next_fork_indexes_exactly ... ok
+test manager::tests::restore_rebuilds_fork_counters_without_reusing_branch_ids ... ok
+test manager::tests::restore_rejects_branch_with_missing_parent ... ok
+test manager::tests::restore_rejects_duplicate_branch_identity ... ok
+test manager::tests::re_registering_keeps_forked_branches_and_fork_indexes ... ok
+test manager::tests::restore_rejects_missing_root_branch ... ok
+test manager::tests::restore_rejects_branch_of_absent_agent ... ok
+test manager::tests::restore_rejects_duplicate_agent_identity ... ok
+test manager::tests::restore_rejects_child_id_not_derived_from_fork_index ... ok
+test manager::tests::restore_rejects_parentless_non_root_branch ... ok
+test manager::tests::test_checkpoint_reboot_and_reconstruction ... ok
+test manager::tests::checkpoint_bytes_are_stable_across_restore ... ok
+test manager::tests::restore_rejects_inconsistent_lineage ... ok
+test manager::tests::restore_rejects_inconsistent_root_branch ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_artifact-cdcd8a005937d2db)
+
+running 24 tests
+test receipt_tests::decision_consistency_rules_are_enforced ... ok
+test receipt_tests::optional_fields_require_their_presence_flags ... ok
+test receipt_tests::nonce_and_verifier_identity_vectors ... ok
+test receipt_tests::golden_bytes_are_stable ... ok
+test receipt_tests::canary_failed_decision_and_status_must_agree ... ok
+test receipt_tests::rejects_length_magic_version_and_sizes ... ok
+test receipt_tests::arbitrary_records_never_panic_the_decoder ... ok
+test receipt_tests::pi5_tier_round_trips_with_its_label ... ok
+test receipt_tests::layout_matches_adr_table_offsets ... ok
+test receipt_tests::rejects_unknown_flags_and_nonzero_reserved_bytes ... ok
+test tests::accepts_canonical_artifact_and_exposes_exact_slices ... ok
+test tests::authority_attenuation_is_directly_checkable ... ok
+test receipt_tests::encoding_is_deterministic_and_round_trips ... ok
+test tests::rejects_header_and_length_mutations ... ok
+test tests::every_truncation_of_a_valid_artifact_is_rejected ... ok
+test tests::rejects_section_entry_capability_resource_and_reserved_mutations ... ok
+test tests::payload_manifest_and_resource_changes_change_artifact_identity ... ok
+test receipt_tests::rejects_unknown_enum_and_code_values ... ok
+test tests::signature_bytes_are_not_recursively_included_in_artifact_id ... ok
+test tests::ed25519_verifier_accepts_rfc8032_pure_signature_vector ... ok
+test receipt_tests::unsigned_untrusted_and_production_verification_fail_closed ... ok
+test receipt_tests::every_single_bit_change_in_the_signed_range_changes_meaning_or_is_rejected ... ok
+test tests::arbitrary_bounded_bytes_never_panic_the_parser ... ok
+test receipt_tests::signature_block_is_outside_the_digest_and_fully_authenticated ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src/main.rs (target/debug/deps/aienos_artifact_tool-9e56459db5557344)
+
+running 2 tests
+test tests::deterministic_pack_uses_the_shared_parser_and_id ... ok
+test receipt_cmd::tests::check_accepts_only_receipts_that_bind_the_supplied_artifact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_boot-03c1d141b379e741)
+
+running 4 tests
+test wcslen::tests::high_unit_values_are_not_terminators ... ok
+test wcslen::tests::empty_string_is_zero ... ok
+test wcslen::tests::counts_units_before_first_zero ... ok
+test wcslen::tests::stops_at_first_zero_not_slice_end ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_c1_tree-1784af35e1503d05)
+
+running 4 tests
+test tree::tests::test_transactional_kv_reservation ... ok
+test tree::tests::test_reconstruct_branch_no_page_leak ... ok
+test tree::tests::test_concurrent_multithreaded_branching_and_reservations ... ok
+test tree::tests::test_zero_memory_increase_on_10k_tokens_fork ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_capability-7cada4be6dbd4ee3)
+
+running 13 tests
+test tests::forged_stale_subject_resource_and_rights_fail_closed ... ok
+test tests::generation_exhaustion_fails_closed ... ok
+test tests::amplification_lease_epoch_and_revoked_ancestor_fail ... ok
+test tests::high_half_resource_is_kept ... ok
+test tests::generation_wrap_restarts_and_cognition_cannot_mint ... ok
+test tests::privileged_rights_cannot_be_delegated_and_office_stays ... ok
+test tests::promote_right_cannot_be_delegated ... ok
+test tests::reclaimed_reference_stays_dead_after_restart ... ok
+test tests::ordinary_capability_cannot_administer_and_depth_stops ... ok
+test tests::recycled_slot_does_not_honour_old_reference ... ok
+test tests::restart_refuses_above_an_exhausted_generation ... ok
+test tests::unauthorized_capability_use_is_refused ... ok
+test tests::stale_reference_after_revoke_is_refused ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_capability_ffi-0df678df0840af8b)
+
+running 4 tests
+test tests::generation_exhaustion_fails_closed ... ok
+test tests::layout_matches_the_cap32_contract ... ok
+test tests::reclaimed_reference_stays_dead_after_restart ... ok
+test tests::stale_and_unauthorized_use_is_refused ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_cortex-7c4af692b3926248)
+
+running 2 tests
+test store::tests::test_epistemic_grounding_and_hallucination_rejection ... ok
+test store::tests::test_cortex_persistence_and_status_queries ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_crypto-5af790ab185ac4fb)
+
+running 10 tests
+test aes::tests::test_aes_256_fips_197_c2 ... ok
+test aes_gcm_siv::tests::public_derived_keys_are_guarded_and_redacted ... ok
+test polyval::tests::test_polyval_rfc8452_appendix_a_worked_example ... ok
+test sha256::tests::test_hmac_sha256_rfc4231_case_1 ... ok
+test polyval::tests::test_polyval_rfc8452_section_7_dot ... ok
+test aes::tests::test_constant_time_sbox_matches_fips197_table ... ok
+test sha256::tests::test_sha256_abc ... ok
+test sha256::tests::test_sha256_empty ... ok
+test aes_gcm_siv::tests::test_rfc8452_appendix_c_aes256_16byte_pt_0byte_aad ... ok
+test aes_gcm_siv::tests::test_rfc8452_appendix_c_aes256_8byte_pt_1byte_aad ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_evidence-d8215aee6143f1b4)
+
+running 30 tests
+test capture::tests::counts_heterogeneous_cpu_parts ... ok
+test http::tests::stream_timing_uses_first_content_and_usage ... ok
+test capture::tests::reads_os_release_and_meminfo ... ok
+test http::tests::empty_stream_is_an_error ... ok
+test http::tests::parses_endpoints ... ok
+test http::tests::dechunks_bodies_with_extensions ... ok
+test canon::tests::sealed_bundle_verifies_and_any_edit_breaks_it ... ok
+test pe::tests::rejects_wrong_machine_subsystem_and_garbage ... ok
+test canon::tests::key_order_and_whitespace_do_not_change_the_checksum ... ok
+test rollback::tests::added_candidate_entry_outside_order_is_allowed ... ok
+test rollback::tests::duplicated_entry_changes_sequence ... ok
+test pe::tests::accepts_arm64_efi_application ... ok
+test rollback::tests::empty_pre_uuid_is_not_compared ... ok
+test rollback::tests::empty_boot_orders_fail ... ok
+test rollback::tests::python_list_repr ... ok
+test rollback::tests::identical_return_passes ... ok
+test rollback::tests::read_only_root_or_changed_esp_fails ... ok
+test rollback::tests::missing_values_render_as_none ... ok
+test rollback::tests::reordered_or_changed_default_fails ... ok
+test rollback::tests::secure_boot_off_is_observed_not_blocking ... ok
+test rollback::tests::report_lines_match_former_python_rendering ... ok
+test rollback::tests::secure_boot_change_is_still_a_violation ... ok
+test rollback::tests::secure_boot_is_case_insensitive ... ok
+test rollback::tests::shape_rejects_values_the_verifier_cannot_use ... ok
+test time::tests::known_instants ... ok
+test rollback::tests::unconsumed_boot_next_fails ... ok
+test verify::tests::sound_capture_passes_but_m0_stays_open_until_rollback_is_tested ... ok
+test verify::tests::verified_recovery_closes_m0 ... ok
+test verify::tests::tampering_dirty_repos_and_toy_workloads_are_rejected ... ok
+test capture::tests::streams_file_hash_matches_one_shot_hash ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+
+     Running unittests src/main.rs (target/debug/deps/aienos_evidence-f8f5ed62ab570014)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_explain-79b00631214213e1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/aienos_explain-ee23a1331acf4114)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/explain.rs (target/debug/deps/explain-5a1c8cb3ca31dd39)
+
+running 16 tests
+test malformed_input_fails_safely ... ok
+test missing_parent_stays_missing ... ok
+test token_history_never_enters_the_explanation ... ok
+test clarification_reads_the_same_bundle ... ok
+test unsupported_claim_is_flagged ... ok
+test cycle_terminates_and_is_reported ... ok
+test shared_parent_appears_once ... ok
+test cycle_through_imported_cortex_journal_terminates ... ok
+test branch_explanation_uses_only_what_the_branch_depended_on ... ok
+test linear_chain_is_ordered_parents_first ... ok
+test contradiction_remains_visible ... ok
+test identical_input_gives_identical_bundle_and_text ... ok
+test hypothesis_is_never_rendered_as_fact ... ok
+test branching_support_is_deterministic_regardless_of_input_order ... ok
+test analogy_is_isolated_from_evidence ... ok
+test depth_and_node_limits_bound_the_walk ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/rsi_and_cli.rs (target/debug/deps/rsi_and_cli-47e96ebade6cc0c5)
+
+running 4 tests
+test rsi_fixture_is_pinned ... ok
+test contradiction_disclosed_in_both_directions ... ok
+test rsi_cycle_explains_in_causal_order ... ok
+test cli_explains_fixture ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_infer-f019ca6909bea73a)
+
+running 26 tests
+test decode::rope_tests::every_head_is_rotated_independently_with_the_same_table ... ok
+test decode::rope_tests::pair_zero_rotates_by_the_position_angle ... ok
+test decode::rope_tests::score_depends_on_relative_position_only ... ok
+test decode::rope_tests::softmax_weights_are_shift_invariant_and_position_sensitive ... ok
+test dotprod::tests::q4k_hand_computed_scale_application ... ok
+test dotprod::tests::quantize_matches_q8k_round_and_sums ... ok
+test dotprod::tests::row_dot_matches_scalar_path_and_checks_lengths ... ok
+test half::tests::known_values ... ok
+test dotprod::tests::token_only_when_flag_set ... ok
+test dotprod::tests::q6k_integer_dot_equals_f32_dot_of_rounded_activations ... ok
+test math::tests::ln_matches_std ... ok
+test dotprod::tests::q4k_integer_dot_equals_f32_dot_of_rounded_activations ... ok
+test math::tests::exp_matches_std ... ok
+test math::tests::powf_rope_theta_scale ... ok
+test math::tests::sin_cos_matches_std_and_unit_norm ... ok
+test math::tests::sqrt_matches_std ... ok
+test quant::tests::length_checks ... ok
+test quant::tests::q4k_hand_block ... ok
+test quant::tests::q4k_scale_extension_bits ... ok
+test quant::tests::q6k_hand_block ... ok
+test quant::tests::q6k_scales_are_signed_and_per_16 ... ok
+test tokenizer::tests::pretokenize_cases ... ok
+test tokenizer::tests::byte_map_is_gpt2 ... ok
+test tokenizer::tests::pretokenize_covers_input ... ok
+test dotprod::tests::sdot_accumulations_are_bit_exact_vs_portable_q4k ... ok
+test dotprod::tests::sdot_accumulations_are_bit_exact_vs_portable_q6k ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/forward.rs (target/debug/deps/forward-ab44d1dd89820bae)
+
+running 5 tests
+test forward_matches_llama_cpp_q8k_emulation ... ignored, slow; run with --ignored
+test tokenization_matches_llama_cpp ... ok
+test decode_round_trips_text ... ok
+test forward_matches_llama_cpp_dotprod ... ok
+test forward_matches_llama_cpp_f32_activations has been running for over 60 seconds
+test forward_matches_llama_cpp_f32_activations ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 148.62s
+
+     Running tests/golden.rs (target/debug/deps/golden-bd0a1a22ab6375dc)
+
+running 15 tests
+test absurd_counts_and_bad_fields ... ok
+test dequantize_rejects_bad_lengths_without_panic ... ok
+test dot_helpers_match_dequant_then_dot ... ok
+test q4k_matches_ggml_bit_for_bit ... ok
+test q6k_matches_ggml_bit_for_bit ... ok
+test q4k_round_trip_error_bound ... ok
+test q6k_round_trip_error_bound ... ok
+test round_trip_exact_when_grid_aligned ... ok
+test small_good_file_parses ... ok
+test byte_flip_fuzz_never_panics ... ok
+test real_type_histogram_and_table_sanity ... ok
+test real_header_matches_known_facts ... ok
+test every_truncation_is_an_error_not_a_panic ... ok
+test real_layer0_dequantizes_to_sane_values ... ok
+test real_file_matches_hf_metadata_hash ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running unittests src/lib.rs (target/debug/deps/aienos_kernel-d868610635245090)
+
+running 413 tests
+test abi::tests::rights_convert_with_caps_rights ... ok
+test abi::tests::handle_raw_register_encoding ... ok
+test abi::tests::handle_generation_zero_fails_closed ... ok
+test abi::tests::rights_reserved_bits_fail_closed ... ok
+test abi::tests::tags_are_distinct_and_round_trip ... ok
+test abi::tests::envelope_golden ... ok
+test abi::tests::handle_raw_matches_syscall_packing ... ok
+test abi::tests::capability_golden ... ok
+test abi::tests::resource_id_rejects_unknown_kind_and_reserved ... ok
+test abi::tests::memory_region_golden ... ok
+test abi::tests::message_golden ... ok
+test abi::tests::capability_fails_closed ... ok
+test abi::tests::handle_golden ... ok
+test abi::tests::message_reserved_fields_fail_closed ... ok
+test acpi::tests::extracts_gicd_and_gicr_bases ... ok
+test abi::tests::id_goldens ... ok
+test abi::tests::rights_golden ... ok
+test abi::tests::resource_id_golden ... ok
+test abi::tests::envelope_fails_closed ... ok
+test acpi::tests::spcr_selects_the_early_uart_driver ... ok
+test acpi::tests::skips_disabled_cores_and_counts_old_entries_as_unknown ... ok
+test acpi::tests::rejects_bad_checksum_signature_and_lengths ... ok
+test admission::tests::insufficient_resource_snapshot_rejects_before_authorization ... ok
+test admission::tests::unapproved_write_receives_no_capability ... ok
+test acpi::tests::counts_gb10_style_heterogeneous_cores_by_efficiency_class ... ok
+test arch::aarch64::tests::spark_uart_uses_32_bit_16550_register_stride ... ok
+test admission::tests::policy_digest_is_canonical_and_binds_signer_allowlist ... ok
+test acpi::tests::finds_the_boot_core_class_ignoring_mpidr_flag_bits ... ok
+test acpi::tests::parses_iort_smmuv3_base_and_pci_stream_mapping ... ok
+test admission::tests::verified_but_policy_untrusted_signer_is_rejected ... ok
+test artifact_loader::tests::code_write_needs_a_permission_fault ... ok
+test acpi::tests::reads_xsdt_entry_addresses ... ok
+test acpi::tests::mcfg_finds_the_ecam_window_for_a_segment_and_bus ... ok
+test admission::tests::read_write_request_is_reduced_to_policy_read ... ok
+test artifact_loader::tests::boot_policy_digest_is_the_policy_the_loader_uses ... ok
+test artifact_loader::tests::candidate_lines_are_stable ... ok
+test admission::tests::policy_reduces_object_range_and_operation_byte_budgets ... ok
+test admission::tests::read_is_granted_and_uses_the_existing_m3_rights_type ... ok
+test artifact_loader::tests::exec_nx_needs_a_permission_fault_inside_data_or_stack ... ok
+test artifact_loader::tests::full_scheduler_fails_closed_at_admission ... ok
+test artifact_loader::tests::admitted_receipt_binds_identity_and_observed_outcome ... ok
+test artifact_loader::tests::ipc_request_exceeds_policy_and_is_rejected ... ok
+test artifact_loader::tests::kernel_root_without_free_window_is_a_mapping_failure ... ok
+test artifact_loader::tests::stage_and_reason_codes_match_adr_0014_section_7_3 ... ok
+test artifact_loader::tests::grant_lines_list_exactly_the_installed_grants ... ok
+test artifact_loader::tests::receipt_line_carries_digest_and_full_record ... ok
+test artifact_loader::tests::scheduler_refusal_at_reservation_rolls_back ... ok
+test artifact_loader::tests::audit_rejects_writable_code_and_writable_alias ... ok
+test artifact_loader::tests::staging_reservation_failure ... ok
+test artifact_loader::tests::code_modified_during_execution_breaks_the_byte_chain ... ok
+test boot::tests::boot_counter_conversion_rejects_invalid_samples ... ok
+test artifact_loader::tests::task_layout_rejects_every_bound_violation ... ok
+test boot::tests::firmware_region_requires_aligned_nonoverflowing_pages ... ok
+test boot::tests::early_allocator_retains_region_after_initialization ... ok
+test block::tests::ram_disk_rejects_block_size_that_would_truncate ... ok
+test budget::tests::arithmetic_is_overflow_safe_at_u64_limits ... ok
+test boot::tests::report_lists_gpu_allocator_timing_and_liveness ... ok
+test budget::tests::watchdog_pet_expiry_and_sticky_quarantine ... ok
+test budget::tests::releasing_frames_restores_headroom ... ok
+test caps::tests::derive_cannot_add_rights ... ok
+test budget::tests::each_resource_limit_is_enforced_independently ... ok
+test caps::tests::generation_exhaustion_retires_slot_without_reviving_old_handle ... ok
+test budget::tests::explicit_policy_switch_changes_forge_allowance ... ok
+test caps::tests::removing_a_derived_parent_keeps_the_subtree_revocable ... ok
+test caps::tests::removing_a_never_derived_capability_frees_its_slot ... ok
+test caps::tests::revoke_cascades_two_levels_across_tables ... ok
+test caps::tests::transfer_needs_grant_and_table_full_is_reported ... ok
+test artifact_loader::tests::tampered_payload_is_rejected_before_any_task_frame ... ok
+test console::tests::unsupported_spcr_gives_no_console ... ok
+test caps::tests::revoke_with_single_slot_tables_removes_cross_table_child ... ok
+test caps::tests::stale_handle_rejected_after_slot_reuse ... ok
+test budget::tests::watchdog_is_correct_across_counter_wrap ... ok
+test continuity::tests::branch_table_validation_rejects_broken_lineage ... ok
+test continuity::continuity_vectors::emitted_vectors_are_canonical ... ok
+test continuity::tests::encodings_round_trip_and_reject_tampering ... ok
+test artifact_loader::tests::rejection_receipts_record_earliest_stage_and_only_computed_fields ... ok
+test artifact_loader::tests::receipt_flags_follow_observations_not_expectations ... ok
+test artifact_loader::tests::admitted_task_sees_exact_entry_state_and_is_fully_reclaimed ... ok
+test artifact_loader::tests::empty_and_oversized_inputs_are_refused_before_staging ... ok
+test artifact_loader::tests::unknown_signer_rejected_by_anchors_and_by_policy ... ok
+test continuity::tests::wrapping_fork_sum_is_refused_like_the_c_codec ... ok
+test continuity::tests::unprovisioned_store_never_mints_an_identity ... ok
+test artifact_loader::tests::grants_never_exceed_requests_or_policy ... ok
+test continuity::tests::two_roots_stop_with_conflict ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_empty ... ok
+test continuity::tests::provisioning_twice_is_refused ... ok
+test artifact_loader::tests::sequential_candidates_reuse_resources_cleanly ... ok
+test continuity::tests::degraded_mount_resumes_read_only ... ok
+test artifact_loader::tests::main_and_shadow_batch_failures_roll_back ... ok
+test continuity::tests::huge_fork_count_with_underivable_child_is_refused_without_spinning ... ok
+test crypto::envelope::tests::test_expected_envelope_len_overflow_is_error ... ok
+test crypto::envelope::tests::test_hostile_header_at_bound_hits_length_check ... ok
+test crypto::envelope::tests::test_hostile_header_chunk_size_one_huge_count_rejected ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_small ... ok
+test crypto::hmac::tests::compare_tags ... ok
+test device::tests::activate_installs_translation_before_bus_master ... ok
+test device::tests::activate_with_revoked_handle_fails_without_effects ... ok
+test crypto::hmac::tests::rfc4231_cases_1_to_7 ... ok
+test device::tests::activation_failure_at_each_step_leaves_bus_master_clear_and_stream_aborted ... ok
+test device::tests::activation_records_its_authority ... ok
+test device::tests::activation_refused_without_window_or_when_already_active ... ok
+test device::tests::attenuated_capability_without_map_cannot_activate ... ok
+test device::tests::capability_for_other_resource_is_not_a_device ... ok
+test device::tests::duplicate_or_missing_table_in_revoke_set_causes_no_effects ... ok
+test device::tests::failed_teardown_blocks_activation_until_a_clean_retry ... ok
+test device::tests::map_without_revoke_cannot_tear_down_an_active_device ... ok
+test device::tests::missing_capability_causes_no_effects ... ok
+test crypto::hkdf::tests::rfc5869_cases_1_to_3 ... ok
+test device::tests::read_only_capability_causes_no_effects ... ok
+test device::tests::register_rejects_clashes_and_live_devices ... ok
+test device::tests::revoke_failure_at_each_step_still_closes_gates_and_revokes ... ok
+test device::tests::revoke_runs_exact_teardown_then_removes_capability_tree ... ok
+test device::tests::revoke_forgets_window_so_next_holder_cannot_reuse_it ... ok
+test device::tests::state_discriminants_are_stable ... ok
+test device::tests::sweep_leaves_devices_with_live_authority_alone ... ok
+test device::tests::sweep_retries_a_failed_teardown ... ok
+test device::tests::sweep_tears_down_after_holder_removes_or_table_is_gone ... ok
+test device::tests::sweep_tears_down_when_ancestor_revoked_through_plain_cap_path ... ok
+test device::tests::window_validation ... ok
+test display::font::tests::lowercase_maps_to_uppercase_and_unknown_to_question_mark ... ok
+test display::font::tests::every_glyph_is_five_by_seven_hashes_and_spaces ... ok
+test display::tests::rejects_geometry_larger_than_the_buffer ... ok
+test dma_gate::tests::command_bits ... ok
+test display::font::tests::digits_and_letters_are_distinct ... ok
+test dma_gate::tests::failed_smmu_never_falls_back_to_bypass ... ok
+test crypto::envelope::tests::test_hostile_header_huge_total_rejected_before_alloc ... ok
+test crypto::envelope::tests::test_envelope_cross_store_and_kind_binding ... ok
+test display::tests::draws_glyph_pixels_and_respects_stride_padding ... ok
+test continuity::tests::forked_or_gapped_manifest_chains_are_corrupt ... ok
+test artifact_loader::tests::corrupted_mapped_bytes_fail_the_read_back_hash ... ok
+test dma_gate::tests::grant_requires_smmu_or_explicit_bypass_without_smmu ... ok
+test dma_gate::tests::sweep_reports_a_bus_master_bit_that_will_not_clear ... ok
+test dma_gate::tests::sweep_clears_endpoints_and_leaves_bridges ... ok
+test dma_gate::tests::sweep_keeps_counting_past_the_recorded_findings ... ok
+test edu::tests::full_buffer_transfer_is_allowed ... ok
+test edu::tests::interrupt_status_and_acknowledge ... ok
+test edu::tests::blocked_transfer_completes_but_leaves_ram_untouched ... ok
+test edu::tests::rejects_bad_lengths_and_addresses_before_touching_the_device ... ok
+test edu::tests::probe_reads_version_and_checks_liveness ... ok
+test edu::tests::last_byte_below_the_mask_is_accepted ... ok
+test edu::tests::spin_budget_covers_a_slow_transfer ... ok
+test edu::tests::round_trips_bytes_through_the_device_buffer ... ok
+test edu::tests::times_out_when_the_transfer_never_finishes ... ok
+test fatal::tests::access_syndrome_only_when_isv_set ... ok
+test dma_gate::tests::sweep_walks_multifunction_devices_only_when_marked ... ok
+test display::tests::scales_up_on_wide_screens_and_drops_text_past_the_last_row ... ok
+test fatal::tests::decodes_abort_iss_fields_without_register_access ... ok
+test gic::tests::distributor_spi_programming_order ... ok
+test gic::tests::redistributor_wakes_and_sets_ppi ... ok
+test gic::tests::register_offsets_match_gicv3_spec ... ok
+test infer::attention::tests::append_rejects_capacity_overflow ... ok
+test fatal::tests::decodes_vector_slot_and_exception_class ... ok
+test infer::attention::tests::decode_refuses_wrong_shapes_and_head_counts ... ok
+test infer::attention::tests::one_token_returns_value_exactly ... ok
+test infer::attention::tests::dense_output_projection_mixes_heads_and_catches_a_permutation ... ok
+test infer::attention::tests::gqa_maps_groups_of_query_heads_to_kv_heads ... ok
+test infer::gemm::tests::benchmark_matvec_4096 ... ignored, benchmark
+test infer::attention::tests::query_rows_kv_groups_and_head_major_output_decode_from_bands ... ok
+test infer::gemm::tests::rms_norm_hand_value ... ok
+test infer::attention::tests::random_inputs_match_scalar_reference ... ok
+test infer::gemm::tests::softmax_sums_to_one ... ok
+test infer::gemm::tests::strided_vector_matches_reference ... ok
+test infer::rope::tests::rotation_preserves_each_pair_norm ... ok
+test infer::attention::tests::two_head_hand_computed_attention ... ok
+test edu::tests::wider_dma_mask_accepts_higher_addresses ... ok
+test infer::rope::tests::sin_cos_matches_std_across_the_circle ... ok
+test infer::rope::tests::position_zero_is_identity ... ok
+test infer::tokenizer::tests::matches_special_tokens_before_bpe ... ok
+test infer::tokenizer::tests::applies_lowest_ranked_merge_first ... ok
+test console::tests::pl011_writes_when_ready_and_gives_up_when_always_full ... ok
+test infer::tokenizer::tests::reports_missing_byte_and_bad_format ... ok
+test ipc::tests::ancestor_revocation_reaches_the_derived_child ... ok
+test ipc::tests::attenuated_child_cannot_write_or_escalate ... ok
+test ipc::tests::channel_is_fifo_and_bounded ... ok
+test ipc::tests::delegation_without_derive_right_is_denied ... ok
+test ipc::tests::end_to_end_send_delegate_receive_read ... ok
+test ipc::tests::message_abi_is_fixed_size_and_unaligned_free ... ok
+test ipc::tests::receiver_table_full_rolls_back_cleanly ... ok
+test ipc::tests::send_requires_write_and_receive_requires_read ... ok
+test ipc::tests::stale_and_forged_handles_are_invalid ... ok
+test crypto::hkdf::tests::length_limit_and_compare ... ok
+test ipc::tests::rights_escalation_is_rejected ... ok
+test mem::frame_allocator::tests::allocator_rejects_unaligned_deallocation ... ok
+test mem::frame_allocator::tests::insufficient_batch_reservation_leaves_no_partial_allocations ... ok
+test mem::frame_allocator::tests::test_alloc_contiguous ... ok
+test mem::frame_allocator::tests::test_allocator_basic ... ok
+test mem::map_plan::tests::missing_mat_maps_runtime_code_rx_without_wx ... ok
+test mem::frame_allocator::tests::batch_reservation_is_bounded_and_released_as_a_unit ... ok
+test mem::map_plan::tests::mmio_is_device_nx_and_overlap_rejected ... ok
+test mem::map_plan::tests::section_permissions_are_wx_safe ... ok
+test mem::map_plan::tests::register_values_encode_required_fields ... ok
+test mem::map_plan::tests::runtime_code_needs_ro_xp_split ... ok
+test mem::map_plan::tests::translation_register_values_match_the_architecture ... ok
+test mem::map_plan::tests::writable_executable_runtime_code_is_mapped_rx ... ok
+test mem::pagetable::tests::descriptor_encodes_attributes_exactly ... ok
+test mem::pagetable::tests::execute_never_bits_follow_privilege ... ok
+test mem::pagetable::tests::fixed_pool_is_bounded_and_never_reuses_released_frames ... ok
+test mem::pagetable::tests::flags_round_trip_through_descriptors ... ok
+test mem::pagetable::tests::access_permission_and_attribute_bits ... ok
+test net::tests::cache_requires_solicited_and_expires ... ok
+test mem::pagetable::tests::device_memory_is_never_executable ... ok
+test net::tests::ethernet_and_arp_vector ... ok
+test net::tests::ipv4_icmp_ping_vector ... ok
+test net::tests::ipv4_reserved_flag_is_rejected ... ok
+test net::tests::rejects_short_bad_and_fragments ... ok
+test net::tests::udp_known_checksum ... ok
+test nvme::atomicity::tests::boundary_offset_is_respected ... ok
+test nvme::atomicity::tests::boundary_safe_write_accepts ... ok
+test nvme::atomicity::tests::controller_fallback_when_namespace_absent ... ok
+test nvme::atomicity::tests::empty_write_rejects ... ok
+test nvme::atomicity::tests::encoding_edge_zero_and_max ... ok
+test nvme::atomicity::tests::insufficient_controller_awupf_rejects ... ok
+test nvme::atomicity::tests::namespace_override_wins_over_controller ... ok
+test nvme::atomicity::tests::namespace_zero_falls_back_to_controller ... ok
+test continuity::tests::provision_then_cold_restart_returns_the_same_identity_and_memory ... ok
+test nvme::atomicity::tests::read_u16_le_bounds ... ok
+test nvme::atomicity::tests::store_root_512_geometry ... ok
+test nvme::atomicity::tests::sufficient_decoded_awupf_accepts ... ok
+test nvme::atomicity::tests::sufficient_unit_but_crosses_boundary_rejects ... ok
+test nvme::atomicity::tests::unknown_state_fails_closed ... ok
+test nvme::atomicity::tests::unsupported_geometry_fails_closed ... ok
+test nvme::atomicity::tests::store_root_4096_geometry ... ok
+test infer::tokenizer::tests::round_trips_ascii_utf8_empty_and_fallback ... ok
+test nvme::driver::tests::controller_requiring_larger_pages_is_refused ... ok
+test net::tests::checksum_vectors ... ok
+test mem::pagetable::tests::chooses_block_and_page_leaves ... ok
+test nvme::driver::tests::io_queue_depth_above_mqes_is_rejected ... ok
+test nvme::driver::tests::explicit_namespace_write_surfaces_device_error ... ok
+test mem::pagetable::tests::rejects_overlap_wx_and_misalignment ... ok
+test nvme::driver::tests::invalid_range_has_no_io_command_and_write_completion_error_propagates ... ok
+test mem::pagetable::tests::maps_and_walks_page ... ok
+test mem::pagetable::tests::unmap_removes_leaf ... ok
+test nvme::driver::tests::initializes_and_identifies_namespace ... ok
+test nvme::driver::tests::creates_polled_io_queues ... ok
+test nvme::driver::tests::block_io_roundtrips_small_and_prp_list_transfers_with_mdts_chunks ... ok
+test nvme::driver::tests::lbads_below_512_is_invalid_identify ... ok
+test nvme::driver::tests::parses_power_fail_atomicity_fields ... ok
+test nvme::tests::command_layouts ... ok
+test nvme::tests::completion_phase_wrap_and_empty ... ok
+test nvme::tests::controller_ready_failure_and_timeout ... ok
+test nvme::driver::tests::simulator_rejects_submission_queue_without_completion_queue ... ok
+test nvme::driver::tests::shallow_io_queue_is_rejected_before_submission ... ok
+test nvme::tests::prp_spans ... ok
+test nvme::tests::registers_and_doorbells ... ok
+test nvme::tests::submission_full_and_wrap ... ok
+test pci::tests::decodes_32_and_64_bit_memory_bars_and_io_bars ... ok
+test nvme::tests::prp_list_chains_across_list_pages ... ok
+test nvme::driver::tests::readiness_and_completion_errors_are_bounded ... ok
+test pci::tests::finds_device_by_vendor_and_device_id ... ok
+test mem::frame_allocator::tests::allocator_rejects_capacity_overflow - should panic ... ok
+test pci::tests::read_bar_respects_header_type_and_slots ... ok
+test pci::tests::requester_id_packs_bus_device_function ... ok
+test pci::tests::update_command_sets_and_clears_bits_without_touching_status ... ok
+test pci::tests::walk_covers_last_bus_and_device_without_overflow ... ok
+test pci::tests::functions_in_uses_the_window_bus_range ... ok
+test pci::tests::walk_skips_functions_1_to_7_unless_multi_function ... ok
+test pci::tests::probes_bar_sizes_and_restores_state ... ok
+test pe::tests::rejects_truncation_and_invalid_headers ... ok
+test pe::tests::rejects_wx_and_overlapping_ranges ... ok
+test pe::tests::unaligned_sections_are_page_rounded_and_shared_pages_overlap ... ok
+test pe::tests::valid_sections_use_base_and_page_rounded_max_size ... ok
+test recovery::tests::hmac_primitive_rfc4231_case_2 ... ok
+test recovery::tests::test_slot_rollback_on_failure ... ok
+test nvme::driver::tests::readiness_wait_honours_cap_timeout ... ok
+test recovery::tests::operator_auth_known_answer_accepted ... ok
+test recovery::tests::operator_auth_rejects_legacy_bare_sha256_response ... ok
+test recovery::tests::test_wal_truncation_on_corruption ... ok
+test recovery::tests::operator_auth_rejects_undomained_hmac_and_zero_response ... ok
+test recovery::tests::test_wal_zero_length_entry_and_overflow_protection ... ok
+test arch::aarch64::tests::a_uart_that_never_becomes_ready_is_abandoned_instead_of_hanging ... ok
+test scheduler::tests::empty_queues_and_invalid_cpu_are_handled ... ok
+test scheduler::tests::equal_priority_tasks_share_n_ticks_fairly ... ok
+test scheduler::tests::idle_cpu_steals_and_runs_work ... ok
+test scheduler::tests::latency_keeps_large_majority_of_ticks_with_background_budget ... ok
+test scheduler::tests::placement_uses_fast_cores_for_latency_and_efficient_for_background ... ok
+test scheduler::tests::priority_prevents_basic_inversion ... ok
+test scheduler::tests::removed_tasks_free_their_slot_and_leave_the_queue ... ok
+test scheduler::tests::round_robin_placement_and_duplicate_rejection ... ok
+test security::tests::test_anti_rollback_decision_matrix ... ok
+test report::tests::formats_and_truncates_on_character_boundaries ... ok
+test scheduler::tests::background_runs_within_configured_interval_under_latency_load ... ok
+test security::tests::test_keyslot_manifest_roundtrip_and_unwrap ... ok
+test recovery_core::tests::malformed_peer_without_a_resolvable_identity_is_not_repaired ... ok
+test shell::tests::parses_commands_and_bounded_arguments ... ok
+test security::tests::test_security_manifest_roundtrip_and_mac ... ok
+test smmu::tests::bring_up_keeps_global_abort_through_smmuen ... ok
+test security::tests::test_subkey_derivation_separation ... ok
+test smmu::tests::command_timeout_and_error_fail_closed ... ok
+test smmu::tests::command_queue_wraps_and_times_out ... ok
+test smmu::tests::descriptor_layouts ... ok
+test smmu::tests::event_reader_acknowledges_overflow ... ok
+test smmu::tests::event_reader_decodes_and_consumes_records ... ok
+test smmu::tests::command_words_and_queue_wrap ... ok
+test smmu::tests::gbpa_that_will_not_abort_is_an_error ... ok
+test smmu::tests::gbpa_update_timeout_fails_closed ... ok
+test smmu::tests::install_and_abort_ste_invalidate_that_stream ... ok
+test smmu::tests::smmuen_ack_failure_fails_closed ... ok
+test smmu::tests::submit_refuses_to_overwrite_a_full_queue ... ok
+test shell::tests::dispatches_report_and_diagnostics ... ok
+test smmu::tests::bring_up_cleans_tables_after_writing_before_programming ... ok
+test smmu::tests::tables_reject_misaligned_or_bad_geometry ... ok
+test smmu::tests::unsupported_hardware_or_bad_sid_fails_closed ... ok
+test smmu::tests::policy_maps_only_allowed_windows ... ok
+test store::engine::tests::store_full_graph_validation_rejects_damaged_payload_and_keeps_io_distinct ... ok
+test store::engine::tests::store_checkpoint_order_does_not_change_persistent_bytes ... ok
+test recovery_core::tests::identity_loss_through_corruption_offers_no_action_that_mints ... ok
+test continuity::tests::a_crash_at_every_write_of_a_commit_leaves_old_or_new_never_a_third_state ... ok
+test store::engine::tests::store_generation_overflow_zero_writes ... ok
+test recovery_core::tests::orphaned_continuity_objects_are_corrupt_not_unprovisioned ... ok
+test store::engine::tests::store_io_fail_closed ... ok
+test store::engine::tests::store_mount_classification_is_deterministic ... ok
+test store::engine::tests::store_dedup_corruption_and_descriptor_conflict_fail_before_writes ... ok
+test store::engine::tests::store_history_rejects_deleting_an_old_catalog_entry ... ok
+test recovery_core::tests::inspection_never_writes_and_names_the_reason ... ok
+test recovery_core::tests::identity_lost_in_the_newest_root_never_looks_unprovisioned ... ok
+test store::engine::tests::store_nospace_zero_writes ... ok
+test store::tests::block_store_rejects_corrupt_in_memory_length_without_panicking ... ok
+test store::tests::block_store_rejects_wrong_magic ... ok
+test store::tests::test_content_addressed_extent_storage ... ok
+test store::tests::test_slice_store_operations_and_boundaries ... ok
+test recovery::tests::operator_auth_rejects_any_single_bit_flip ... ok
+test recovery_core::tests::challenges_bind_state_and_action ... ok
+test store::v1::tests::malformed_object_catalog_and_extent_vectors_are_rejected ... ok
+test store::tests::block_store_persists_reopens_and_falls_back_from_bad_copy ... ok
+test sync::spinlock::tests::test_spinlock_basic ... ok
+test store::v1::tests::object_id_and_catalog_vectors_match_adr_0015 ... ok
+test sync::spinlock::tests::test_spinlock_try_lock ... ok
+test task_runtime::tests::deadline_uses_tighter_budget_and_survives_counter_wrap ... ok
+test task_runtime::tests::denials_are_classified_from_observed_lookups ... ok
+test task_runtime::tests::forged_stale_and_unbacked_handles_are_denied ... ok
+test task_runtime::tests::granted_read_returns_object_word_and_charges_budget ... ok
+test store::v1::tests::commit_superblock_genesis_and_adjacent_vectors_match_adr_0015 ... ok
+test task_runtime::tests::non_object_or_other_object_grant_is_denied ... ok
+test task_runtime::tests::read_outside_grant_range_or_object_or_unaligned_is_denied ... ok
+test task_runtime::tests::read_past_byte_budget_is_denied ... ok
+test task_runtime::tests::read_past_operation_budget_is_denied ... ok
+test task_runtime::tests::syscall_after_deadline_times_out ... ok
+test task_runtime::tests::syscall_budget_overrun_terminates ... ok
+test task_runtime::tests::unknown_syscall_and_nonzero_immediate_terminate ... ok
+test task_runtime::tests::write_with_write_right_updates_kernel_copy ... ok
+test task_runtime::tests::write_without_write_right_is_denied_and_object_unchanged ... ok
+test thread::tests::context_offsets_match_assembly_layout ... ok
+test thread::tests::placement_fills_lowest_class_first_then_wraps ... ok
+test thread::tests::placement_of_empty_topology_is_unplaced ... ok
+test thread::tests::stack_setup_aligns_sp_and_records_trampoline_arguments ... ok
+test thread::tests::trap_frame_layout_matches_800_bytes_and_16_byte_alignment ... ok
+test thread::tests::trap_frame_setup_aligns_and_initializes_registers ... ok
+test timer::tests::conversion_rounding_and_frequency_validation ... ok
+test timer::tests::deadline_detects_overflow ... ok
+test uefi::tests::honors_48_and_56_byte_descriptor_strides ... ok
+test uefi::tests::rejects_truncated_and_short_descriptors ... ok
+test usb::audio::tests::isoch_schedule_stays_ahead_and_wraps_frame_id ... ok
+test usb::audio::tests::oversized_packet_is_not_truncated_and_zero_stride_schedules_nothing ... ok
+test infer::gemm::tests::products_match_reference_odd_and_even ... ok
+test usb::audio::tests::parses_uac1_and_uac2 ... ok
+test usb::audio::tests::ring_wraps_and_tone_is_bounded ... ok
+test store::engine::tests::store_open_side_effect_free ... ok
+test usb::audio::tests::uac1_channels_come_from_format_type_not_as_general_delay ... ok
+test usb::audio::tests::fractional_44100_packet_pattern_totals_one_second ... ok
+test usb::audio::tests::short_uac1_format_descriptor_does_not_panic ... ok
+test usb::descriptor::tests::finds_the_keyboard_interrupt_in_endpoint ... ok
+test store::v1::tests::malformed_generation_high_water_and_superblock_bytes_are_rejected ... ok
+test usb::descriptor::tests::reads_the_control_packet_size_from_a_device_descriptor ... ok
+test usb::descriptor::tests::skips_a_mouse_interface_and_out_endpoints_in_a_composite_device ... ok
+test usb::audio::tests::stereo_44100_scheduler_emits_one_second_of_pcm_bytes ... ok
+test recovery_core::tests::provisioning_is_operator_only_and_only_on_an_unprovisioned_store ... ok
+test usb::descriptor::tests::stops_at_total_length_and_malformed_descriptors ... ok
+test usb::hid::tests::control_keys_and_arrows ... ok
+test usb::hid::tests::letter_make_and_release_produces_one_character ... ok
+test usb::hid::tests::punctuation_and_space_decode ... ok
+test usb::hid::tests::rollover_error_and_wrong_length_are_ignored ... ok
+test usb::hid::tests::shift_and_digits_use_the_shifted_column ... ok
+test usb::hid::tests::sink_truncates_instead_of_overflowing ... ok
+test usb::xhci::context::tests::address_device_context_puts_port_and_endpoint_zero_in_place ... ok
+test usb::xhci::context::tests::endpoint_addresses_map_to_device_context_indexes ... ok
+test usb::xhci::context::tests::interval_converts_frames_and_exponents_to_125us_units ... ok
+test usb::xhci::context::tests::isoch_interval_and_high_bandwidth_burst ... ok
+test usb::xhci::context::tests::isochronous_out_endpoint_fields_encode_in_context ... ok
+test usb::xhci::context::tests::large_contexts_double_the_stride_and_bad_sizes_are_refused ... ok
+test usb::xhci::ring::tests::controller_sees_every_push_in_order_across_many_wraps ... ok
+test usb::xhci::ring::tests::dequeue_pointer_carries_the_cycle_state_and_flips_after_the_link ... ok
+test usb::xhci::ring::tests::event_ring_consumes_matching_cycles_and_wraps_without_a_link ... ok
+test usb::xhci::tests::capabilities_decode_qemu_xhci_registers ... ok
+test usb::xhci::tests::capabilities_decode_scratchpads_large_contexts_and_reject_absent_blocks ... ok
+test usb::xhci::tests::portsc_neutral_never_disables_the_port_or_acks_changes ... ok
+test usb::xhci::tests::recognizes_xhci_class_and_memory_bars ... ok
+test usb::xhci::tests::rejects_other_classes_io_and_unprogrammed_bars ... ok
+test usb::xhci::trb::tests::command_trbs_place_slot_and_input_context ... ok
+test usb::xhci::trb::tests::control_stages_carry_idt_transfer_type_and_directions ... ok
+test usb::xhci::trb::tests::event_fields_decode_from_their_bit_positions ... ok
+test usb::xhci::trb::tests::isoch_trb_encodes_frame_id_and_batch_flags ... ok
+test usb::xhci::trb::tests::normal_trb_asks_for_an_event_on_short_reports ... ok
+test usb::xhci::trb::tests::setup_packet_bytes_match_the_usb_wire_order ... ok
+test usb::xhci::trb::tests::trb_is_sixteen_bytes_and_sixteen_aligned ... ok
+test user::tests::capability_handle_round_trips ... ok
+test user::tests::el0_mapping_attributes_are_wx_and_non_global ... ok
+test user::tests::trap_frame_layout_matches_assembly ... ok
+test virtio_net::tests::parses_modern_virtio_net_capabilities ... ok
+test virtio_net::tests::rejects_loops_and_short_vendor_capabilities ... ok
+test usb::hid::tests::unmapped_usages_are_dropped ... ok
+test store::engine::tests::store_malformed_peer_recovery_matrix ... ok
+test store::engine::tests::store_transaction_commit_dedup_and_tail_reuse ... ok
+test store::engine::tests::store_peer_condition_reports_open_classification ... ok
+test store::engine::tests::store_history_matrix_equivalent_and_adjacent_roots ... ok
+test artifact_loader::tests::sealed_address_space_is_wx_with_read_only_code_alias ... ok
+test recovery_core::tests::degraded_repair_needs_the_operator_and_restores_a_writable_store ... ok
+test store::tests::block_store_crash_boundaries_keep_old_or_new_commit ... ok
+test store::engine::tests::store_catalogfull_zero_writes ... ok
+test crypto::envelope::tests::tampered_late_chunk_rejects_the_entire_plaintext ... ok
+test crypto::envelope::tests::test_envelope_roundtrip_multi_chunk ... ok
+test artifact_loader::tests::largest_envelope_loads_in_one_l3_table ... ok
+test continuity::tests::branch_table_at_the_maximum_legal_fork_sum_is_accepted ... ok
+test continuity::continuity_vectors::committed_fixtures_match_the_oracle ... ok
+
+test result: ok. 412 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/nvme_completion.rs (target/debug/deps/nvme_completion-dafc6afe36974715)
+
+running 14 tests
+test admin_cq_phase_flips_when_head_wraps_at_depth_eight ... ok
+test admin_status_word_decodes_exact_sc_and_sct ... ok
+test admin_command_id_mismatch_reports_invalid_identify ... ok
+test controller_fatal_status_maps_to_controller_failed ... ok
+test completion_queue_phase_flips_at_depth_eight ... ok
+test admin_timeout_is_bounded_no_infinite_loop ... ok
+test completion_accessors_decode_little_endian_fields ... ok
+test controller_never_ready_maps_to_controller_timeout ... ok
+test io_command_id_mismatch_reports_device_error ... ok
+test io_nonzero_status_maps_to_device_error ... ok
+test io_cq_wraparound_consumes_completions_in_order ... ok
+test stale_phase_completion_is_skipped_and_matching_one_consumed ... ok
+test io_timeout_is_bounded_no_infinite_loop ... ok
+test malformed_completions_do_not_panic ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_flush.rs (target/debug/deps/nvme_flush-592b420dc2ed9f8b)
+
+running 6 tests
+test flush_after_write_in_same_session_uses_fresh_cid ... ok
+test flush_submits_opcode_zero_nsid_one_without_data_pointer ... ok
+test flush_is_not_a_silent_no_op_doorbell_and_command_reach_device ... ok
+test flush_timeout_returns_timeout_and_is_bounded ... ok
+test successful_flush_completion_returns_ok ... ok
+test nonzero_flush_completion_status_returns_device_error ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_identify.rs (target/debug/deps/nvme_identify-a2be85435664a0af)
+
+running 9 tests
+test lbads_9_and_12_map_to_block_sizes ... ok
+test init_identifies_namespace_and_capacity_round_trips ... ok
+test lbads_at_or_above_32_is_invalid_identify ... ok
+test maximum_flbas_descriptor_offset_stays_in_bounds ... ok
+test nonzero_flbas_selects_its_own_descriptor ... ok
+test nsid_zero_identify_does_not_panic ... ok
+test mdts_255_shift_does_not_panic ... ok
+test zero_block_count_is_invalid_identify ... ok
+test mdts_byte_77_controls_transfer_chunking ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_prp.rs (target/debug/deps/nvme_prp-dd973e4fd7815701)
+
+running 14 tests
+test invalid_non_power_of_two_page_size ... ok
+test invalid_zero_length_and_page_size ... ok
+test list_buffer_too_small_is_bounded ... ok
+test list_page_chaining_4k_exact_used ... ok
+test max_address_short_length_is_invalid_without_panic ... ok
+test offset_plus_length_overflow_is_invalid ... ok
+test multi_page_requires_aligned_nonzero_list ... ok
+test page_boundaries_64k ... ok
+test one_page_boundary_crossing ... ok
+test prp_values_are_full_physical_addresses ... ok
+test list_page_chaining_64k_exact_used ... ok
+test single_page_aligned_and_unaligned ... ok
+test transfer_limit_arithmetic_is_bounded ... ok
+test two_pages_use_prp2_with_zero_used ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_write.rs (target/debug/deps/nvme_write-244f9e3fbc2a458c)
+
+running 9 tests
+test each_io_command_gets_a_new_cid_and_completion_is_consumed ... ok
+test empty_and_non_block_multiple_buffers_are_invalid_input ... ok
+test nonzero_write_completion_maps_to_device_error ... ok
+test offset_write_splits_lba_across_cdw10_and_cdw11 ... ok
+test write_one_block_encodes_opcode_nsid_lba_nlb_and_prp1 ... ok
+test write_eight_blocks_is_one_command_with_nlb_seven ... ok
+test write_past_block_count_is_out_of_range_without_io_submission ... ok
+test written_bytes_read_back_exactly ... ok
+test mdts_chunking_submits_per_chunk_commands_with_correct_lba_and_nlb ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_write_completion.rs (target/debug/deps/nvme_write_completion-05ceb97712eccfdb)
+
+running 8 tests
+test failed_flush_completion_maps_to_device_error ... ok
+test failed_write_completion_maps_to_device_error ... ok
+test invalid_namespace_identify_surfaces_completion_status ... ok
+test flush_timeout_is_bounded_no_infinite_loop ... ok
+test write_batch_cq_wraparound_flips_phase_and_consumes_in_order ... ok
+test write_command_id_mismatch_maps_to_device_error ... ok
+test wrong_phase_zero_completion_is_ignored_not_consumed ... ok
+test write_timeout_is_bounded_no_infinite_loop ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nvme_write_prp.rs (target/debug/deps/nvme_write_prp-49d57198a86480f2)
+
+running 14 tests
+test address_near_u64_max_is_invalid_without_panic_or_wrap ... ok
+test list_address_zero_or_unaligned_is_invalid_for_list_cases ... ok
+test flush_submits_opcode_zero_command ... ok
+test multi_block_write_crossing_page_emits_prp2 ... ok
+test offset_plus_length_overflow_is_invalid ... ok
+test one_block_aligned_write_is_single_prp1_page ... ok
+test unaligned_prp1_spans_pages_correctly ... ok
+test write_crossing_page_boundary_uses_prp1_and_prp2 ... ok
+test write_one_aligned_block_carries_single_prp1 ... ok
+test write_page_list_chains_at_4k_exact_entries ... ok
+test write_larger_than_mdts_is_split_into_commands ... ok
+test write_past_namespace_end_is_rejected_before_any_command ... ok
+test write_spanning_three_pages_uses_prp_list ... ok
+test write_page_list_chains_at_64k_exact_entries ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/store_v1_golden_vectors.rs (target/debug/deps/store_v1_golden_vectors-f6fdbcdb080f13e9)
+
+running 8 tests
+test object_id ... ok
+test one_entry_catalog ... ok
+test crc32c_check_value ... ok
+test top_level_is_the_frozen_schema ... ok
+test empty_catalog ... ok
+test adjacent_generations ... ok
+test equivalent_roots ... ok
+test genesis ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/store_v1_negative.rs (target/debug/deps/store_v1_negative-7a130c126f2edc56)
+
+running 10 tests
+test catalog_entry_bounds_reject_metadata_overflow_and_high_water_violations ... ok
+test catalog_rejects_bad_header_counts_and_exact_lengths ... ok
+test catalog_extents_reject_overlap_and_metadata_overlap ... ok
+test catalog_rejects_entry_reserved_flags_and_invalid_lengths ... ok
+test catalog_rejects_unsorted_and_duplicate_object_ids ... ok
+test commit_record_rejects_lengths_features_generation_and_high_water ... ok
+test generation_link_requires_adjacent_generation_and_exact_predecessor_ids ... ok
+test superblock_commit_validation_binds_commit_unit_catalog_and_high_water ... ok
+test object_id_rejects_semantic_mutation_wrong_identity_and_nonzero_padding ... ok
+test crc32c_known_answer_and_superblock_rejects_corruption_reserved_and_slot ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+     Running unittests src/main.rs (target/debug/deps/aienos_store_tool-03e09a0e1ba60bc3)
+
+running 2 tests
+test tests::garbage_is_stable_and_not_a_superblock ... ok
+test tests::tear_outcomes_detects_a_third_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/allen_courier-e491f6ef3b9d347e)
+
+running 26 tests
+test code::tests::a_sentence_and_a_fenced_block_are_read ... ok
+test code::tests::crc_is_zlibs ... ok
+test code::tests::an_unclosed_block_runs_to_the_end_and_no_block_is_none ... ok
+test code::tests::short_names_and_odd_bytes_are_made_plain ... ok
+test plain_tests::a_cut_answer_stays_within_the_room_with_its_mark ... ok
+test key_tests::a_good_key_is_sent_once_as_a_bearer_and_the_first_model_comes_back ... ok
+test tests::a_busy_server_names_its_wait_exactly ... ok
+test tests::a_code_reply_becomes_pieces_and_a_closing_sentence ... ok
+test tests::a_sentence_end_too_early_is_not_used ... ok
+test tests::a_busy_server_is_asked_again_with_growing_waits ... ok
+test plain_tests::typographic_marks_become_plain_ones ... ok
+test tests::chunked_bodies_are_joined ... ok
+test tests::a_job_line_carries_the_memory_fields ... ok
+test tests::datagram_heads_round_trip ... ok
+test tests::dates_are_civil ... ok
+test key_tests::claude_gets_its_own_headers_and_a_refused_key_says_so ... ok
+test tests::json_strings_round_trip ... ok
+test tests::short_answers_pass_whole_with_whitespace_folded ... ok
+test tests::the_assistant_text_is_found_in_a_chat_completion ... ok
+test tests::what_was_already_said_in_parts_is_kept ... ok
+test code::tests::long_code_is_cut_at_a_line_within_the_limits ... ok
+test tests::words_on_the_wire ... ok
+test key_tests::no_key_sends_no_header_and_https_is_refused_out_loud ... ok
+test tests::long_answers_are_cut_at_a_sentence_end ... ok
+test tests::saved_exchanges_reach_the_model_as_ordered_conversation_turns ... ok
+test code::tests::pieces_carry_length_checksum_and_escapes ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/bin/allen-scene.rs (target/debug/deps/allen_scene-8a13abc9d8fd96a0)
+
+running 3 tests
+test tests::replies_and_numbers_are_read_from_a_completion ... ok
+test tests::slugs_and_waits ... ok
+test tests::the_prompt_is_plain_and_names_every_kind ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/allen_design_tokens-7ae70df9a5d45747)
+
+running 6 tests
+test tests::smoothstep_bezier_is_exact ... ok
+test tests::duplicate_token_is_an_error ... ok
+test tests::broken_reference_is_an_error ... ok
+test tests::wcag_reference_values ... ok
+test tests::reads_front_matter_and_blocks ... ok
+test tests::c_export_is_integer_only ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/allen_design_tokens-5293da3bbdc3e60d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/exports.rs (target/debug/deps/exports-d40597b8c156ffba)
+
+running 3 tests
+test gated_contrast_passes ... ok
+test exports_are_current ... ok
+test kernel_values_are_kept ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/allen_reflex-242becdb94bf6a13)
+
+running 7 tests
+test tower::tests::cache_key_is_sha256_of_the_domain_separated_encoding ... ok
+test tower::tests::decision_json_escapes_the_gate_name ... ok
+test tower::tests::full_slot_table_dispatches_every_request_and_pass_frees_the_slot ... ok
+test tower::tests::join_slot_stays_stable_after_an_earlier_run_completes ... ok
+test tower::tests::receipt_from_one_tier_is_not_reused_for_another_tier ... ok
+test tower::tests::tower_reuses_receipt_and_deduplicates_inflight_and_routes_tiers ... ok
+test tower::tests::uncacheable_gate_is_never_joined_to_another_run ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/core.rs (target/debug/deps/core-5f698ba9fe3b9619)
+
+running 9 tests
+test memory_is_bounded ... ok
+test span_rules ... ok
+test dialog_roles_and_pending_state ... ok
+test one_shot_correction_flips_and_learning_can_be_off ... ok
+test multistep_takes_first_request_only ... ok
+test refuse_only_on_intent ... ok
+test sleep_reports_planted_conflict ... ok
+test always_schema_valid ... ok
+test deterministic_across_builds_and_calls ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.98s
+
+   Doc-tests aienos_accel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_aegis
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_agent_state
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_artifact
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_boot
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_c1_tree
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_capability
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_capability_ffi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_cortex
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_crypto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_evidence
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_explain
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_infer
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests aienos_kernel
+
+running 2 tests
+test crates/aienos-kernel/src/arch/aarch64.rs - arch::aarch64::MmioReg<T>::new (line 33) - compile fail ... ok
+test crates/aienos-kernel/src/arch/aarch64.rs - arch::aarch64::MmioReg<T>::new (line 22) ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+   Doc-tests allen_design_tokens
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests allen_reflex
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+PASS  host tests: cargo test --workspace -- --format=pretty
+PASS  ABI conformance: frozen wire format golden bytes and roundtrips verified
+
+--- [Clippy Verification: -D warnings] ---
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+PASS  clippy: zero warnings with -D warnings
+
+--- [Clippy Verification: AArch64 targets, -D warnings] ---
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+PASS  clippy: aarch64-unknown-none kernel and aarch64-unknown-uefi images, zero warnings
+
+--- [SEED-0B qualification features: tests and clippy] ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/debug/deps/aienos_artifact-053ac0e23f858a90)
+
+running 26 tests
+test receipt_tests::rejects_length_magic_version_and_sizes ... ok
+test receipt_tests::layout_matches_adr_table_offsets ... ok
+test receipt_tests::canary_failed_decision_and_status_must_agree ... ok
+test receipt_tests::pi5_tier_round_trips_with_its_label ... ok
+test receipt_tests::golden_bytes_are_stable ... ok
+test receipt_tests::optional_fields_require_their_presence_flags ... ok
+test receipt_tests::decision_consistency_rules_are_enforced ... ok
+test receipt_tests::rejects_unknown_enum_and_code_values ... ok
+test receipt_tests::nonce_and_verifier_identity_vectors ... ok
+test receipt_tests::arbitrary_records_never_panic_the_decoder ... ok
+test tests::authority_attenuation_is_directly_checkable ... ok
+test tests::accepts_canonical_artifact_and_exposes_exact_slices ... ok
+test receipt_tests::unsigned_untrusted_and_production_verification_fail_closed ... ok
+test tests::rejects_header_and_length_mutations ... ok
+test tests::payload_manifest_and_resource_changes_change_artifact_identity ... ok
+test tests::rejects_section_entry_capability_resource_and_reserved_mutations ... ok
+test tests::every_truncation_of_a_valid_artifact_is_rejected ... ok
+test tests::signature_bytes_are_not_recursively_included_in_artifact_id ... ok
+test receipt_tests::encoding_is_deterministic_and_round_trips ... ok
+test receipt_tests::rejects_unknown_flags_and_nonzero_reserved_bytes ... ok
+test tests::ed25519_verifier_accepts_rfc8032_pure_signature_vector ... ok
+test receipt_tests::test_receipt_anchor_is_rfc8032_test2_and_distinct_from_artifact_key ... ok
+test tests::qualification_anchor_authenticates_exact_artifact_identity ... ok
+test receipt_tests::every_single_bit_change_in_the_signed_range_changes_meaning_or_is_rejected ... ok
+test tests::arbitrary_bounded_bytes_never_panic_the_parser ... ok
+test receipt_tests::signature_block_is_outside_the_digest_and_fully_authenticated ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+   Doc-tests aienos_artifact
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/main.rs (target/debug/deps/aienos_artifact_tool-4058f819b9d7ed05)
+
+running 6 tests
+test tests::deterministic_pack_uses_the_shared_parser_and_id ... ok
+test receipt_cmd::tests::check_accepts_only_receipts_that_bind_the_supplied_artifact ... ok
+test tests::test_signer_roundtrips_through_shared_verifier ... ok
+test corpus::tests::baseline_is_valid_and_each_case_differs_from_it ... ok
+test corpus::tests::verifier_stage_expectations_match_the_shared_verifier ... ok
+test corpus::tests::corpus_is_deterministic_and_names_are_unique_and_sorted ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+PASS  SEED-0B qualification features tested and linted; release build refuses the test signing identity
+
+--- [Bare-Metal Target Compilation Check] ---
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+PASS  AArch64 build: aienos-kernel for aarch64-unknown-none
+
+--- [AArch64 UEFI Image Builds] ---
+    Finished `release` profile [optimized] target(s) in 0.02s
+AArch64 PE32+ EFI application verified: target/aarch64-unknown-uefi/release/aienos-boot.efi
+   Compiling aienos-boot v0.1.0 (/home/drakestapleton/workspace/aienos-bundle1/crates/aienos-boot)
+    Finished `release` profile [optimized] target(s) in 0.52s
+AArch64 PE32+ EFI application verified: target/aarch64-unknown-uefi/release/aienos-handoff.efi
+PASS  AArch64 build: aienos-boot.efi and aienos-handoff.efi PE headers verified
+
+--- [QEMU AArch64 UEFI Boot Verification] ---
+qemu exit 0 after 7 s (commit dcc6edf9ca1e)
+PASS  pre-exit report printed
+PASS  image is this commit
+PASS  left firmware and entered the kernel
+PASS  kernel entered EL1h
+PASS  cooperative threads interleaved
+PASS  EL0 capability and fault isolation
+PASS  timer-driven preemption across runnable tasks
+PASS  deterministic MADT placement of preempt workers
+PASS  typed IPC with attenuated revocable delegation
+PASS  EL1 page tables and caches enabled
+PASS  GICv3 enabled
+PASS  timer IRQ delivered at least five ticks
+PASS  MMU switched from firmware tables (0x47fff000) to AIENOS tables (0xbc317000)
+PASS  GIC bases from the ACPI MADT, GICv3 architecture and ICC system registers
+PASS  tick statistics consistent (period 10000 us, min 9989 avg 10301 max 10822)
+PASS  final report on the SPCR console
+PASS  no panic or fault
+QEMU_BOOT: PASS
+
+--- [P2-5 Binary Artifact Loader in QEMU] ---
+PASS  p25exec code.bin is exactly what probe.S assembles to
+PASS  p25wx code.bin is exactly what probe.S assembles to
+PASS  p25spin code.bin is exactly what probe.S assembles to
+PASS  p26seed code.bin is exactly what probe.S assembles to
+qemu exit 0 after 7 s (commit dcc6edf9ca1e)
+PASS  left firmware and entered the kernel
+PASS  M3 cooperative threads unchanged
+PASS  M3 EL0 isolation proof unchanged
+PASS  M3 typed IPC proof unchanged
+PASS  firmware read all 34 artifact candidates
+PASS  no kernel report line was truncated
+PASS  final report reached the console
+PASS  every frame returned after all candidates (4095 free before and after)
+PASS  qualification build is labelled TEST ONLY
+PASS  receipts carry the SEED-0B-QEMU tier
+PASS  P26SEED (first SEED-0B capability artifact) read through its grant, WRITE and forged authority denied, exit 0, reclaimed
+PASS  P26SEED granted exactly its READ request (granted ⊆ requested)
+PASS  P26SEED holds exactly one capability
+PASS  P26SEED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  P25EXEC admitted and executed its exact authenticated bytes, exit 0, caps revoked, reclaimed
+PASS  P25WX admitted then killed by W^X fault on its code page, reclaimed
+PASS  P25SPIN admitted then killed at its time budget, reclaimed
+PASS  P25TAMP (payload byte flipped after signing) rejected BadSignature, reclaimed
+PASS  P25EXEC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  P25WX.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  P25SPIN.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  P25TAMP.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H01-BAD-MAGIC.AIEN refused at verified (BadMagic), never ran, reclaimed
+PASS  H01-BAD-MAGIC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H02-VERSION.AIEN refused at verified (UnsupportedVersion), never ran, reclaimed
+PASS  H02-VERSION.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H03-TARGET.AIEN refused at verified (WrongTarget), never ran, reclaimed
+PASS  H03-TARGET.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H04-ABI.AIEN refused at verified (WrongAbi), never ran, reclaimed
+PASS  H04-ABI.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H05-TRUNCATED.AIEN refused at verified (WrongLength), never ran, reclaimed
+PASS  H05-TRUNCATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H06-TRAILING.AIEN refused at verified (WrongLength), never ran, reclaimed
+PASS  H06-TRAILING.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H07-TOTAL-LENGTH.AIEN refused at verified (WrongLength), never ran, reclaimed
+PASS  H07-TOTAL-LENGTH.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H08-OFFSET-OVERFLOW.AIEN refused at verified (ResourceLimit), never ran, reclaimed
+PASS  H08-OFFSET-OVERFLOW.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H09-SECTION-OVERLAP.AIEN refused at verified (BadSection), never ran, reclaimed
+PASS  H09-SECTION-OVERLAP.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H10-ENTRY-OUTSIDE.AIEN refused at verified (BadEntryPoint), never ran, reclaimed
+PASS  H10-ENTRY-OUTSIDE.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H11-PAYLOAD-MUTATED.AIEN refused at verified (BadSignature), never ran, reclaimed
+PASS  H11-PAYLOAD-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H12-CAPS-MUTATED.AIEN refused at verified (BadSignature), never ran, reclaimed
+PASS  H12-CAPS-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H13-ENVELOPE-MUTATED.AIEN refused at verified (BadSignature), never ran, reclaimed
+PASS  H13-ENVELOPE-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H14-SIGNATURE-MUTATED.AIEN refused at verified (BadSignature), never ran, reclaimed
+PASS  H14-SIGNATURE-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H15-UNKNOWN-SIGNER.AIEN refused at verified (UntrustedSigner), never ran, reclaimed
+PASS  H15-UNKNOWN-SIGNER.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H16-SIG-FORMAT.AIEN refused at verified (BadSignatureFormat), never ran, reclaimed
+PASS  H16-SIG-FORMAT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H17-RESERVED-HEADER.AIEN refused at verified (ReservedNonZero), never ran, reclaimed
+PASS  H17-RESERVED-HEADER.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H18-RIGHTS-UNKNOWN.AIEN refused at verified (MalformedCapability), never ran, reclaimed
+PASS  H18-RIGHTS-UNKNOWN.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H19-CAP-COUNT.AIEN refused at verified (ResourceLimit), never ran, reclaimed
+PASS  H19-CAP-COUNT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H20-ENVELOPE-LIMIT.AIEN refused at verified (ResourceLimit), never ran, reclaimed
+PASS  H20-ENVELOPE-LIMIT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H21-LARGEST-ENVELOPE.AIEN admitted and contained (exited:0x0), reclaimed
+PASS  H21-LARGEST-ENVELOPE.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H22-WX-SECTION.AIEN refused at verified (BadSection), never ran, reclaimed
+PASS  H22-WX-SECTION.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H23-EXEC-DATA.AIEN admitted and contained (fault:exec-nx), reclaimed
+PASS  H23-EXEC-DATA.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H24-EXEC-STACK.AIEN admitted and contained (fault:exec-nx), reclaimed
+PASS  H24-EXEC-STACK.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H25-BAD-SYSCALL.AIEN admitted and contained (bad-syscall:99), reclaimed
+PASS  H25-BAD-SYSCALL.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H26-SYSCALL-BUDGET.AIEN admitted and contained (resource-overrun), reclaimed
+PASS  H26-SYSCALL-BUDGET.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H27-POLICY-IPC.AIEN refused at authorized (ResourceLimit), never ran, reclaimed
+PASS  H27-POLICY-IPC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H28-WRITE-ONLY-REQUEST.AIEN admitted and contained (exited:0x0), reclaimed
+PASS  H28-WRITE-ONLY-REQUEST.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H29-READ-WRITE-REQUEST.AIEN admitted and contained (exited:0x0), reclaimed
+PASS  H29-READ-WRITE-REQUEST.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  H29 requested READ|WRITE and was granted READ only
+PASS  H28 requested only WRITE and received no capability
+PASS  final report summarises every admission decision
+qemu exit 0 after 7 s (commit dcc6edf9ca1e)
+PASS  left firmware and entered the kernel
+PASS  M3 cooperative threads unchanged
+PASS  M3 EL0 isolation proof unchanged
+PASS  M3 typed IPC proof unchanged
+PASS  firmware read all 34 artifact candidates
+PASS  no kernel report line was truncated
+PASS  final report reached the console
+PASS  every frame returned after all candidates (4095 free before and after)
+PASS  ordinary build admitted nothing
+PASS  ordinary build refuses H01-BAD-MAGIC.AIEN (BadMagic), reclaimed
+PASS  H01-BAD-MAGIC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H02-VERSION.AIEN (UnsupportedVersion), reclaimed
+PASS  H02-VERSION.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H03-TARGET.AIEN (WrongTarget), reclaimed
+PASS  H03-TARGET.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H04-ABI.AIEN (WrongAbi), reclaimed
+PASS  H04-ABI.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H05-TRUNCATED.AIEN (WrongLength), reclaimed
+PASS  H05-TRUNCATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H06-TRAILING.AIEN (WrongLength), reclaimed
+PASS  H06-TRAILING.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H07-TOTAL-LENGTH.AIEN (WrongLength), reclaimed
+PASS  H07-TOTAL-LENGTH.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H08-OFFSET-OVERFLOW.AIEN (ResourceLimit), reclaimed
+PASS  H08-OFFSET-OVERFLOW.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H09-SECTION-OVERLAP.AIEN (BadSection), reclaimed
+PASS  H09-SECTION-OVERLAP.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H10-ENTRY-OUTSIDE.AIEN (BadEntryPoint), reclaimed
+PASS  H10-ENTRY-OUTSIDE.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H11-PAYLOAD-MUTATED.AIEN (UntrustedSigner), reclaimed
+PASS  H11-PAYLOAD-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H12-CAPS-MUTATED.AIEN (UntrustedSigner), reclaimed
+PASS  H12-CAPS-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H13-ENVELOPE-MUTATED.AIEN (UntrustedSigner), reclaimed
+PASS  H13-ENVELOPE-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H14-SIGNATURE-MUTATED.AIEN (UntrustedSigner), reclaimed
+PASS  H14-SIGNATURE-MUTATED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H15-UNKNOWN-SIGNER.AIEN (UntrustedSigner), reclaimed
+PASS  H15-UNKNOWN-SIGNER.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H16-SIG-FORMAT.AIEN (BadSignatureFormat), reclaimed
+PASS  H16-SIG-FORMAT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H17-RESERVED-HEADER.AIEN (ReservedNonZero), reclaimed
+PASS  H17-RESERVED-HEADER.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H18-RIGHTS-UNKNOWN.AIEN (MalformedCapability), reclaimed
+PASS  H18-RIGHTS-UNKNOWN.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H19-CAP-COUNT.AIEN (ResourceLimit), reclaimed
+PASS  H19-CAP-COUNT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H20-ENVELOPE-LIMIT.AIEN (ResourceLimit), reclaimed
+PASS  H20-ENVELOPE-LIMIT.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H21-LARGEST-ENVELOPE.AIEN (UntrustedSigner), reclaimed
+PASS  H21-LARGEST-ENVELOPE.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H22-WX-SECTION.AIEN (BadSection), reclaimed
+PASS  H22-WX-SECTION.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H23-EXEC-DATA.AIEN (UntrustedSigner), reclaimed
+PASS  H23-EXEC-DATA.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H24-EXEC-STACK.AIEN (UntrustedSigner), reclaimed
+PASS  H24-EXEC-STACK.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H25-BAD-SYSCALL.AIEN (UntrustedSigner), reclaimed
+PASS  H25-BAD-SYSCALL.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H26-SYSCALL-BUDGET.AIEN (UntrustedSigner), reclaimed
+PASS  H26-SYSCALL-BUDGET.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H27-POLICY-IPC.AIEN (UntrustedSigner), reclaimed
+PASS  H27-POLICY-IPC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H28-WRITE-ONLY-REQUEST.AIEN (UntrustedSigner), reclaimed
+PASS  H28-WRITE-ONLY-REQUEST.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses H29-READ-WRITE-REQUEST.AIEN (UntrustedSigner), reclaimed
+PASS  H29-READ-WRITE-REQUEST.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses P25EXEC.AIEN (UntrustedSigner), reclaimed
+PASS  P25EXEC.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses P25SPIN.AIEN (UntrustedSigner), reclaimed
+PASS  P25SPIN.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses P25TAMP.AIEN (UntrustedSigner), reclaimed
+PASS  P25TAMP.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses P25WX.AIEN (UntrustedSigner), reclaimed
+PASS  P25WX.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  ordinary build refuses P26SEED.AIEN (UntrustedSigner), reclaimed
+PASS  P26SEED.AIEN receipt: bound, host digest match, observed outcome, TEST ONLY signature verifies
+PASS  final report summarises zero admitted
+ARTIFACT_PARSE: PASS
+ARTIFACT_IDENTITY: PASS
+ARTIFACT_SIGNATURE: PASS
+ARTIFACT_ADMISSION: PASS
+ARTIFACT_LOADED_BYTES: PASS
+ARTIFACT_WX: PASS
+SEED0B_AUTHORIZED_READ: PASS
+SEED0B_WRITE_DENIED: PASS
+SEED0B_FORGED_DENIED: PASS
+SEED0B_RESOURCE_BOUND: PASS
+SEED0B_CLEANUP: PASS
+ADMISSION_RECEIPT: PASS
+HOSTILE_MATRIX: PASS
+SEED_0B_QEMU: PASS
+QEMU_ARTIFACT: PASS
+
+--- [SEED-0A USB Keyboard in QEMU (input.keyboard.usb)] ---
+attempts 1, 12 s (commit dcc6edf9ca1e), dma mode smmu, sent lines: abc, help, el, mem, exit
+PASS  left firmware and entered the kernel
+PASS  xHCI controller found before exit
+PASS  PCI segment swept for bus masters after exit
+PASS  no endpoint left with bus master stuck on
+PASS  xHCI bus master off before the DMA gate
+PASS  keyboard attached by the AIENOS driver
+PASS  IORT stream configured for xHCI DMA
+PASS  xHCI DMA window translated
+PASS  xHCI DMA granted only as confined
+PASS  typed text echoed on the serial console
+PASS  line ended by Enter and reported
+PASS  keyboard phase finished on Enter
+PASS  help command output
+PASS  EL command output
+PASS  memory command output
+PASS  keyboard phase finished on exit
+PASS  xHCI bus master revoked after the keyboard phase
+PASS  no unsafe DMA bypass in this image
+QEMU_KEYBOARD: PASS (smmu)
+
+--- [SMMUv3 DMA Confinement in QEMU] ---
+attempts 1, 12 s (commit dcc6edf9ca1e), dma mode smmu, sent lines: abc, help, el, mem, exit
+PASS  left firmware and entered the kernel
+PASS  xHCI controller found before exit
+PASS  PCI segment swept for bus masters after exit
+PASS  no endpoint left with bus master stuck on
+PASS  xHCI bus master off before the DMA gate
+PASS  keyboard attached by the AIENOS driver
+PASS  IORT stream configured for xHCI DMA
+PASS  xHCI DMA window translated
+PASS  xHCI DMA granted only as confined
+PASS  typed text echoed on the serial console
+PASS  line ended by Enter and reported
+PASS  keyboard phase finished on Enter
+PASS  help command output
+PASS  EL command output
+PASS  memory command output
+PASS  keyboard phase finished on exit
+PASS  xHCI bus master revoked after the keyboard phase
+PASS  no unsafe DMA bypass in this image
+QEMU_KEYBOARD: PASS (smmu)
+attempts 1, 7 s (commit dcc6edf9ca1e), dma mode fail-closed, sent lines: abc, help, el, mem, exit
+PASS  left firmware and entered the kernel
+PASS  xHCI controller found before exit
+PASS  PCI segment swept for bus masters after exit
+PASS  no endpoint left with bus master stuck on
+PASS  xHCI bus master off before the DMA gate
+PASS  xHCI DMA denied without an SMMU
+PASS  keyboard fail-closed without an SMMU
+PASS  xHCI never granted DMA
+PASS  keyboard never attached
+PASS  no unsafe DMA bypass in this image
+QEMU_KEYBOARD: PASS (fail-closed)
+
+--- [M0 Native-Boot Rollback Verification in QEMU] ---
+============================================================
+AIENOS M0 Native-Boot Rollback Test Suite (QEMU AArch64)
+Host: spark-b87b | Firmware: AAVMF_CODE.no-secboot.fd
+============================================================
+Building aienos-rollback-mock...
+
+--- [Subtest 1: Normal Candidate Execution & Rollback] ---
+PASS  AAVMF BdsDxe firmware one-shot BootNext dispatch & NVRAM persistence verified (Boot0000 -> Boot0001)
+AAVMF_BOOTNEXT_NVRAM: PASS
+NATIVE_ROLLBACK_NORMAL: PASS
+
+--- [Subtest 2: Candidate Fault / Panic & Rollback] ---
+PASS  Faulted candidate consumed BootNext and returned to Default via AAVMF BootOrder
+NATIVE_ROLLBACK_FAULT: PASS
+
+--- [Subtest 3: Candidate Hang / Timeout & Rollback] ---
+PASS  Hung candidate reset consumed BootNext and returned to Default via AAVMF BootOrder
+NATIVE_ROLLBACK_TIMEOUT: PASS
+
+--- [Subtest 4: Malformed / Corrupted Image Fallback] ---
+PASS  Malformed image rejected by AAVMF firmware with fallback to Default via BootOrder
+NATIVE_ROLLBACK_REJECTED: PASS
+
+--- [Subtest 5: Absent Candidate Image Fallback] ---
+PASS  Absent candidate image handled cleanly with fallback to Default via BootOrder
+
+--- [Subtest 6: Repeated Boot Post-Consumption (No Loop Invariant)] ---
+PASS  Subsequent reboot stayed on Default OS via AAVMF BootOrder without re-executing candidate
+NATIVE_ROLLBACK_BOOTNEXT_CONSUMED: PASS
+NATIVE_ROLLBACK_DEFAULT_UNCHANGED: PASS
+
+============================================================
+AAVMF_BOOTNEXT_NVRAM: PASS
+NATIVE_ROLLBACK_NORMAL: PASS
+NATIVE_ROLLBACK_FAULT: PASS
+NATIVE_ROLLBACK_TIMEOUT: PASS
+NATIVE_ROLLBACK_REJECTED: PASS
+NATIVE_ROLLBACK_BOOTNEXT_CONSUMED: PASS
+NATIVE_ROLLBACK_DEFAULT_UNCHANGED: PASS
+M0_NATIVE_ROLLBACK_QEMU: PASS
+M0_ROLLBACK_QEMU: PASS
+
+--- [P3 NVMe + System Store v1 in QEMU] ---
+nvme image: 67108864 bytes, 131072 x 512 B LBAs
+sentinel: LBA 2048 offset 1048576, magic 'AIENOS-NVME-SENT' x32, sha256 8b688adcb13bef657e868313fb149e7e92e664b5f09fbd32f99d9cabf756fdf1
+attempts 1, 7 s (commit dcc6edf9ca1e), dma mode smmu
+PASS  ECAM discovery found the NVMe class device
+PASS  controller and namespace identify completed
+PASS  namespace geometry matches the image
+PASS  sentinel LBA read back exact bytes and SHA-256
+PASS  read past the namespace end is rejected before any command
+PASS  device-reported command error is surfaced
+PASS  IORT stream configured for NVMe DMA
+PASS  NVMe DMA window translated
+PASS  NVMe DMA granted only as confined
+PASS  NVMe bus master revoked after the read phase
+PASS  no unsafe DMA bypass in this image
+QEMU_NVME: PASS (smmu)
+nvme image: 67108864 bytes, 131072 x 512 B LBAs
+sentinel: LBA 2048 offset 1048576, magic 'AIENOS-NVME-SENT' x32, sha256 8b688adcb13bef657e868313fb149e7e92e664b5f09fbd32f99d9cabf756fdf1
+attempts 1, 7 s (commit dcc6edf9ca1e), dma mode fail-closed
+PASS  discovery found the device before the DMA gate
+PASS  NVMe DMA denied without an SMMU
+PASS  NVMe controller fail-closed without an SMMU
+PASS  NVMe controller never granted DMA
+PASS  NVMe controller never identified
+PASS  NVMe read never ran
+PASS  no unsafe DMA bypass in this image
+QEMU_NVME: PASS (fail-closed)
+nvme image: 67108864 bytes, 131072 x 512 B LBAs
+sentinel LBA 2048 sha256 8b688adcb13bef657e868313fb149e7e92e664b5f09fbd32f99d9cabf756fdf1
+rw old   LBA 4096 sha256 46fe054d5bfa8bf3b14ce240830da7445b26ebebe273349f9af22e6454244379
+rw new   LBA 4096 sha256 76fa34c132173497a7bcd0c9618ebdcf0629f550934c164adf81cfa05e6a4451
+PASS  ECAM discovery found the NVMe class device
+PASS  controller and namespace identify completed
+PASS  namespace geometry matches the image
+PASS  NVMe power-fail atomicity fields observed
+INFO  Store root-write power-fail atomicity NOT proven on this namespace
+INFO  NVME_ATOMICITY_IDENTIFY_QEMU: block_size=512 lbads=9 awupf_raw=0 nawupf_raw=0 nabspf_raw=0 nabo_blocks=0 effective_pf_blocks=1 boundary_blocks=-1
+INFO  NVME_STORE_ROOT_ATOMICITY_QEMU: FAIL (slot0=not_atomic(ExceedsAtomicUnit { required_blocks: 8, guaranteed_blocks: 1 }) slot1=not_atomic(ExceedsAtomicUnit { required_blocks: 8, guaranteed_blocks: 1 }))
+PASS  read sentinel LBA returned exact bytes and SHA-256
+PASS  read past the namespace end is rejected
+PASS  device-reported read error is surfaced
+PASS  write past the namespace end is rejected
+PASS  native write returned exact bytes and SHA-256
+PASS  native flush completed
+PASS  write then flush then read-back matched
+PASS  invalid-namespace write surfaced a device error
+PASS  IORT stream configured for NVMe DMA
+PASS  NVMe DMA granted only as confined
+PASS  NVMe bus master revoked after the phase
+PASS  host read-back after power off equals the written bytes
+PASS  restart read-back observed the persisted pattern natively
+QEMU_NVME_RW: PASS (smmu)
+nvme image: 67108864 bytes, 131072 x 512 B LBAs
+sentinel LBA 2048 sha256 8b688adcb13bef657e868313fb149e7e92e664b5f09fbd32f99d9cabf756fdf1
+rw old   LBA 4096 sha256 46fe054d5bfa8bf3b14ce240830da7445b26ebebe273349f9af22e6454244379
+rw new   LBA 4096 sha256 76fa34c132173497a7bcd0c9618ebdcf0629f550934c164adf81cfa05e6a4451
+PASS  discovery found the device before the DMA gate
+PASS  NVMe DMA denied without an SMMU
+PASS  NVMe controller fail-closed without an SMMU
+PASS  no write marker without DMA
+PASS  no flush marker without DMA
+PASS  no durability marker without DMA
+QEMU_NVME_RW: PASS (fail-closed)
+nvme image: 67108864 bytes, 16384 x 4096 B LBAs
+qemu-system-aarch64: terminating on signal 15 from pid 3717975 (bash)
+---- observed ----
+NVME_IDENTIFY_QEMU: PASS (vid=0x1b36 did=0x0010 nsid=1)
+NVME_GEOMETRY_QEMU: PASS (nsid=1 block_count=16384 block_size=4096)
+NVME_ATOMICITY_IDENTIFY_QEMU: block_size=4096 lbads=12 awupf_raw=0 nawupf_raw=0 nabspf_raw=0 nabo_blocks=0 effective_pf_blocks=1 boundary_blocks=-1
+NVME_STORE_ROOT_ATOMICITY_QEMU: PASS (slot0=atomic(effective=1) slot1=atomic(effective=1))
+-------------------
+PASS  controller and namespace identify completed
+PASS  namespace geometry is 4096-byte LBA
+PASS  atomicity Identify observed with 4096-byte LBA
+PASS  Store root write is power-fail atomic and boundary-safe
+QEMU_NVME_ATOMICITY_4K: PASS
+PASS  integration smoke (provision + transact)
+PASS  reopen smoke
+---- crash campaign results ----
+settle=0 cp=before_first_write saw=1 guest_reopen=1 guest_slot=1 recovered=1 state=Valid expect=N -> OK
+settle=0 cp=after_payloads     saw=1 guest_reopen=1 guest_slot=1 recovered=1 state=Valid expect=N -> OK
+settle=0 cp=after_catalog      saw=1 guest_reopen=1 guest_slot=1 recovered=1 state=Valid expect=N -> OK
+settle=0 cp=after_commit_record saw=1 guest_reopen=1 guest_slot=1 recovered=1 state=Valid expect=N -> OK
+settle=0 cp=after_first_flush  saw=1 guest_reopen=1 guest_slot=1 recovered=1 state=Valid expect=N -> OK
+settle=0 cp=after_superblock_write saw=1 guest_reopen=1 guest_slot=1 recovered=2 state=Valid expect=N_NP1 -> OK
+settle=0 cp=after_final_flush  saw=1 guest_reopen=1 guest_slot=1 recovered=2 state=Valid expect=NP1 -> OK
+settle=3 cp=before_first_write saw=1 guest_reopen=1 guest_slot=1 recovered=4 state=Valid expect=N -> OK
+settle=3 cp=after_payloads     saw=1 guest_reopen=1 guest_slot=1 recovered=4 state=Valid expect=N -> OK
+settle=3 cp=after_catalog      saw=1 guest_reopen=1 guest_slot=1 recovered=4 state=Valid expect=N -> OK
+settle=3 cp=after_commit_record saw=1 guest_reopen=1 guest_slot=1 recovered=4 state=Valid expect=N -> OK
+settle=3 cp=after_first_flush  saw=1 guest_reopen=1 guest_slot=1 recovered=4 state=Valid expect=N -> OK
+settle=3 cp=after_superblock_write saw=1 guest_reopen=1 guest_slot=1 recovered=5 state=Valid expect=N_NP1 -> OK
+settle=3 cp=after_final_flush  saw=1 guest_reopen=1 guest_slot=1 recovered=5 state=Valid expect=NP1 -> OK
+
+=== Summary (commit dcc6edf9ca1ea25e54507cb587b3f494afe44095-dirty, tree_dirty=true, evidence level: QEMU only) ===
+STORE_NVME_INTEGRATION_QEMU: PASS
+STORE_CHECKPOINT_CRASH_QEMU: PASS
+STORE_REOPEN_QEMU: PASS
+STORE_SLOT_REUSE_QEMU: PASS
+STORE_V1_QEMU: PASS
+P3_STORE_QEMU: NOT CLAIMED (QEMU campaign; native persistence conditions separate)
+=== Building aienos-handoff (store-qual) and aienos-store-tool ===
+=== Integration Smoke (512-byte LBA) ===
+PASS  integration smoke (provision + transact, 512b non-atomic qualification active)
+PASS  reopen smoke (generation=2 state=Valid peer=Valid)
+
+=== Tier 1: Checkpoint SIGKILL Campaign ===
+settle=0 cp=before_first_write       saw=1 reopen=1 slot=1 gen=1 state=Valid            peer=Zero          expect=N     -> OK
+settle=0 cp=after_payloads           saw=1 reopen=1 slot=1 gen=1 state=Valid            peer=Zero          expect=N     -> OK
+settle=0 cp=after_catalog            saw=1 reopen=1 slot=1 gen=1 state=Valid            peer=Zero          expect=N     -> OK
+settle=0 cp=after_commit_record      saw=1 reopen=1 slot=1 gen=1 state=Valid            peer=Zero          expect=N     -> OK
+settle=0 cp=after_first_flush        saw=1 reopen=1 slot=1 gen=1 state=Valid            peer=Zero          expect=N     -> OK
+settle=0 cp=after_superblock_write   saw=1 reopen=1 slot=1 gen=2 state=Valid            peer=Valid         expect=N_NP1 -> OK
+settle=0 cp=after_final_flush        saw=1 reopen=1 slot=1 gen=2 state=Valid            peer=Valid         expect=NP1   -> OK
+settle=3 cp=before_first_write       saw=1 reopen=1 slot=1 gen=4 state=Valid            peer=Valid         expect=N     -> OK
+settle=3 cp=after_payloads           saw=1 reopen=1 slot=1 gen=4 state=Valid            peer=Valid         expect=N     -> OK
+settle=3 cp=after_catalog            saw=1 reopen=1 slot=1 gen=4 state=Valid            peer=Valid         expect=N     -> OK
+settle=3 cp=after_commit_record      saw=1 reopen=1 slot=1 gen=4 state=Valid            peer=Valid         expect=N     -> OK
+settle=3 cp=after_first_flush        saw=1 reopen=1 slot=1 gen=4 state=Valid            peer=Valid         expect=N     -> OK
+settle=3 cp=after_superblock_write   saw=1 reopen=1 slot=1 gen=5 state=Valid            peer=Valid         expect=N_NP1 -> OK
+settle=3 cp=after_final_flush        saw=1 reopen=1 slot=1 gen=5 state=Valid            peer=Valid         expect=NP1   -> OK
+STORE_512B_CRASH_OBSERVED_QEMU: PASS
+
+=== Tier 2a: Root Tear Closure (host proof over Tier 1 images) ===
+settle=0 STORE_ROOT_TEAR_CLOSURE: PASS (slot=1 old=zero new=gen2 sector_bytes=512 differing_sectors=[0] combinations=256 as_old=128 as_new=128)
+settle=3 STORE_ROOT_TEAR_CLOSURE: PASS (slot=0 old=gen3 new=gen5 sector_bytes=512 differing_sectors=[0] combinations=256 as_old=128 as_new=128)
+STORE_512B_ROOT_TEAR_CLOSURE: PASS
+
+=== Tier 2b: Injected Root Recovery (media corruption, one defect per case) ===
+case=bad_crc              decode=BadSuperblockCrc          gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=wrong_magic          decode=BadSuperblockMagic        gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=nonzero_reserved     decode=NonzeroReserved           gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=wrong_slot_id        decode=WrongSuperblockSlot       gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=region_mismatch      decode=Ok                        gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=seeded_garbage       decode=BadSuperblockMagic        gen=1 state=DegradedRecovery peer=Malformed     readonly=1 expect=degraded:Malformed           -> OK
+case=unsupported_version  decode=UnsupportedVersion        gen=none state=none             peer=none          readonly=0 expect=refuse:UnsupportedVersion    -> OK
+case=graph_bad_newer      decode=Ok                        gen=1 state=DegradedRecovery peer=GraphBadNewer readonly=1 expect=degraded:GraphBadNewer       -> OK
+case=control_new_root     decode=Ok                        gen=2 state=Valid            peer=Valid         readonly=0 expect=valid:gen2                   -> OK
+STORE_512B_INJECTED_ROOT_RECOVERY_QEMU: PASS
+
+=== Final Summary (commit dcc6edf9ca1ea25e54507cb587b3f494afe44095-dirty, tree_dirty=true, evidence level: QEMU only) ===
+STORE_NVME_INTEGRATION_512B_QEMU: PASS
+STORE_512B_CRASH_OBSERVED_QEMU: PASS
+STORE_512B_ROOT_TEAR_CLOSURE: PASS
+STORE_512B_INJECTED_ROOT_RECOVERY_QEMU: PASS
+STORE_512B_CRASH_RECOVERY_QEMU: PASS
+P3_STORE_QEMU: NOT CLAIMED (QEMU campaign; native persistence conditions separate)
+P3_STORE_NATIVE: NOT CLAIMED
+=== Building aienos-handoff (continuity-qual) and aienos-store-tool ===
+=== 1. Refusals: no boot path mints an identity ===
+PASS  resume on blank media stops (store Unformatted) and writes nothing
+PASS  resume on a formatted but unprovisioned store stops UNPROVISIONED and writes nothing
+=== 2. Provisioning happens once ===
+PASS  provisioned agent 25082354bb09bd19... (incarnation 1, empty memory, root branch)
+PASS  a second provisioning request is refused and writes nothing
+PASS  independent provisioning draws a different identity from RNDR
+=== 3. Memory and lineage survive cold restarts ===
+PASS  resume + remember: incarnation 2, one Cortex fact and one forked branch committed
+PASS  cold restart 1: same agent, same memory 93153a653f8f3b39, same lineage, incarnation 3
+PASS  cold restart 2: same agent, same memory 93153a653f8f3b39, same lineage, incarnation 4
+=== 4. SIGKILL at every Store checkpoint of a continuity commit ===
+PASS  kill at before_first_write: same agent, old memory
+PASS  kill at after_payloads: same agent, old memory
+PASS  kill at after_catalog: same agent, old memory
+PASS  kill at after_commit_record: same agent, old memory
+PASS  kill at after_first_flush: same agent, old memory
+PASS  kill at after_superblock_write: same agent, new memory
+PASS  kill at after_final_flush: same agent, new memory
+=== 5. Degraded mount resumes read-only ===
+PASS  malformed peer superblock: same agent and memory, read-only, nothing written
+
+=== Summary (commit dcc6edf9ca1ea25e54507cb587b3f494afe44095-dirty) ===
+CONTINUITY_QEMU: PASS
+CONTINUITY_NATIVE: NOT CLAIMED (Machine 1 waits on TRUST-1)
+=== Building aienos-handoff (recovery-qual) and aienos-store-tool ===
+=== 1. Degraded store: operator-authorised repair ===
+PASS  inspection enters the Recovery Core (Degraded(Malformed)), shows the same agent, writes nothing
+PASS  repair with zero response refused, nothing written
+PASS  repair with wrong_key response refused, nothing written
+PASS  repair with wrong_action response refused, nothing written
+PASS  authorised repair done
+PASS  after repair a cold boot resumes writable with the same agent and memory
+PASS  replaying the repair authorisation on the healthy store does nothing
+=== 2. Unprovisioned store: operator-authorised provisioning ===
+PASS  unprovisioned store enters the Recovery Core and offers only provisioning
+PASS  provisioning with a wrong key refused, nothing written
+PASS  operator provisioning created one identity and a cold boot resumes it
+=== 3. Identity loss: nothing may mint ===
+PASS  corrupted agent root: Recovery Core entered, no action offered, nothing written (Degraded(GraphBadNewer))
+PASS  mode 10 after identity loss refused, nothing written
+PASS  mode 11 after identity loss refused, nothing written
+PASS  a normal boot after identity loss does not resume or mint (92734a3e45d881c4... is not replaced)
+
+=== Summary (commit dcc6edf9ca1ea25e54507cb587b3f494afe44095-dirty) ===
+RECOVERY_CORE_QEMU: PASS
+RECOVERY_CORE_OPERATOR_CREDENTIAL: TEST-ONLY (real scheme undecided, ADR 0006 / M5)
+
+
+--- [TRUST-1 Gate 4 Security Suite Verification] ---
+Building aienos-handoff binary for Gate 4 suite...
+=== Subtest 1: Software TPM 2.0 Integration & Live Boot ===
+PASS  swTPM live boot reached kernel alive and final report
+=== Subtest 2: Soak Testing (3 Sequential Boots) ===
+PASS  Soak run 1/3: clean boot & reset
+PASS  Soak run 2/3: clean boot & reset
+PASS  Soak run 3/3: clean boot & reset
+=== Subtest 3: Fault Injection (Corrupted EFI Image) ===
+qemu-system-aarch64: terminating on signal 15 from pid 3978629 (timeout)
+PASS  Corrupted binary cleanly rejected by firmware without reaching kernel alive (firmware banner present)
+TRUST-1 Gate 4 Security Suite: ALL TESTS PASS
+
+--- [TRUST-1 Gate 1 Standalone Recovery Verification] ---
+Building standalone recovery initrd...
+Building standalone recovery root in /tmp/recovery-initrd-build.40Btra...
+Packaged 16 kernel modules for 7.0.0-1019-nvidia
+Packaging standalone initrd to /tmp/tmp.J9vNHK8Rla/aienos-recovery-standalone-initrd.img...
+81696 blocks
+Standalone recovery initrd build complete: 16M	/tmp/tmp.J9vNHK8Rla/aienos-recovery-standalone-initrd.img
+Booting standalone recovery kernel in QEMU with ZERO hard disks attached...
+qemu exit 0 after 8 s
+PASS  Recovery banner displayed
+PASS  100% RAM disk verified
+PASS  Internal NVMe confirmed unmounted
+PASS  Automated recovery test passed
+RECOVERY_ZERO_DISK: PASS (verified standalone RAM recovery with zero attached storage)
+Booting recovery kernel with a scratch USB stick, NVMe drive and USB keyboard...
+qemu exit 0
+PASS  All packaged kernel modules loaded (16/16)
+PASS  USB keyboard detected
+PASS  USB stick visible
+PASS  NVMe drive visible
+RECOVERY_DEVICES: PASS (packaged drivers found USB keyboard, USB stick and NVMe)
+
+--- [Recovery Media Tooling Manifest] ---
+Building standalone recovery initrd...
+Building standalone recovery root in /tmp/recovery-initrd-build.2YMoRs...
+Packaged 16 kernel modules for 7.0.0-1019-nvidia
+Packaging standalone initrd to /tmp/tmp.fuXlCh4SlJ/aienos-recovery-standalone-initrd.img...
+81696 blocks
+Standalone recovery initrd build complete: 16M	/tmp/tmp.fuXlCh4SlJ/aienos-recovery-standalone-initrd.img
+Extracting /tmp/tmp.fuXlCh4SlJ/aienos-recovery-standalone-initrd.img...
+
+-- required tools for NVMe root mount --
+PASS  busybox present
+PASS  mount present
+PASS  lsblk present
+PASS  blkid present
+PASS  cryptsetup present
+PASS  nvme kernel module packaged
+PASS  dm-crypt kernel module packaged
+
+-- required tools for /boot/efi repair --
+PASS  fsck.vfat present
+PASS  mkfs.vfat present
+PASS  fsck.ext4 present
+PASS  efibootmgr present
+
+-- required tools for boot-entry restore --
+PASS  efibootmgr present (boot entries)
+PASS  chroot present
+PASS  findmnt present for attended evidence collector
+PASS  attended evidence collector packaged on media
+
+-- TRUST-1 Gate 1 items 8, 10, 11-12: TPM, signatures, recovery unlock --
+PASS  tpm2_pcrread present
+PASS  tpm2 device transport library packaged (dlopen, not seen by ldd)
+PASS  sbverify present
+PASS  age present
+PASS  gocryptfs present
+PASS  fusermount3 present
+PASS  gocryptfs: every shared library it needs is inside the image
+PASS  age: every shared library it needs is inside the image
+PASS  sbverify: every shared library it needs is inside the image
+PASS  tpm2_pcrread: every shared library it needs is inside the image
+PASS  cryptsetup: every shared library it needs is inside the image
+PASS  fusermount3: every shared library it needs is inside the image
+PASS  efibootmgr: every shared library it needs is inside the image
+PASS  tpm2 device transport: its libraries are inside the image
+
+-- init hooks --
+PASS  init is executable
+PASS  init keeps zero-disk test mode (aienos.test=1)
+PASS  init reports EFI boot entries (efibootmgr)
+PASS  init drops into an interactive maintenance shell
+
+RECOVERY_TOOLS: PASS (initrd ships mount, EFI repair, and boot-entry restore capability)
+
+--- [TRUST-1 Measurement Tools Self-Test] ---
+PASS  capture + compare: identical states compare equal
+PASS  capture refuses to overwrite
+PASS  compare names exactly PCR 7 after one extend
+PASS  receipt: restored rollback RECORDED, unrestored STOP, chained
+PASS  tampered captures refused
+PASS  credential decoder: header decoded, --live follows PCR 7
+TRUST-1 measurement tools self-test: ALL PASS
+
+--- [TRUST-1 Gate 4 Secure Boot Signing in QEMU] ---
+Building aienos-handoff binary for the Secure Boot test...
+PASS  signed with enrolled test key: booted to kernel alive (Secure Boot on)
+PASS  unsigned image refused by firmware signature check (Access Denied)
+PASS  tampered image refused by firmware signature check (Access Denied)
+PASS  wrongkey image refused by firmware signature check (Access Denied)
+TRUST-1 Gate 4 Secure Boot signing test: ALL PASS
+
+--- [TRUST-1 Gate 3 Key Ceremony Tool Self-Test] ---
+PASS  generate: four keys and a root-signed manifest that verifies
+PASS  every private key is stored encrypted
+PASS  generate refuses to overwrite
+PASS  two backups decrypt from their own copies; record has no private material
+PASS  a wrong passphrase cannot open the backup copy
+PASS  a changed manifest is refused
+PASS  a swapped public key is refused
+PASS  rotation add: generation 2 trusts old and new release keys; old signatures still verify
+PASS  rotation revoke: generation 3 trusts only the new key; old key quarantined, not deleted
+PASS  owner_root cannot be rotated by the routine tool (special recovery ceremony only)
+PASS  a validly signed older generation is refused when generation 3 is the minimum
+PASS  Boot Signer cert signs and verifies the EFI loader (sbsign/sbverify)
+TRUST-1 key ceremony self-test (throwaway keys): ALL PASS
+
+--- [Evidence Receipt Label Lint] ---
+PASS  mutant: literal true, no addendum -> FAIL -> exit 1
+PASS  amended by an addendum bound to the hash -> PASS -> exit 0
+PASS  mutant: addendum bound to a different hash -> FAIL -> exit 1
+PASS  NOT_RUN labels need no addendum -> PASS -> exit 0
+PASS  receipt with no invariants block -> PASS -> exit 0
+CHECK_RECEIPT_LABELS_SELF_TEST: PASS
+PASS  gate1_zero_disk_recovery_receipt.json: hardcoded invariants are amended by an addendum bound to sha256 e1d6ac54
+RECEIPT_LABELS: PASS
+
+============================================================
+VERIFY_ALL: PASS (every step ran; QEMU steps are emulator evidence only, hardware NOT_RUN)
+============================================================

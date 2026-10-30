@@ -1,0 +1,7 @@
+live 01-whats-the-weather-like-for.txt: not clean; lines 3 kept 2 dropped 0 tidied 0 over 1 cut 0; things 0:
+live 02-remind-me-to-call-mom.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: timer
+live 03-show-me-something-beautiful.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: picture
+live 04-whats-17-of-240.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: number
+LIVE: 4 replies, 3 parsed cleanly, 3 used the canvas (at least one thing), 4 gave something to show
+note: frames at 3840x2160 on one core of this host (us): whole run avg 22217 worst 94046 over 9562 frames
+note: startup avg 33955 worst 94046 (1113 frames); plain answers avg 19173 worst 29220 (1278); scenes avg 24642 worst 80711 (2982); live avg 24744 worst 89010 (1704)

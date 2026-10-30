@@ -1,0 +1,14 @@
+[package]
+name = "allen-courier"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The relay at the far end of Allen's courier wire: carries his job lines to a language-model server and his answers back, standard library only"
+
+[[bin]]
+name = "allen-courier"
+path = "src/main.rs"
+
+[dependencies]

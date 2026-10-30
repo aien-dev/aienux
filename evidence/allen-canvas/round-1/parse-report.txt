@@ -1,0 +1,13 @@
+live 01-whats-the-weather-like-for.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: note
+live 02-remind-me-to-call-mom.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: timer
+live 03-show-me-something-beautiful.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: quote
+live 04-whats-17-of-240.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: number
+live 05-tell-my-friend-sam-im.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: person
+live 06-play-a-video-about-black.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: picture
+live 07-give-me-25-minutes-to.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: timer
+live 08-what-should-i-pack-for.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: list
+live 09-who-wrote-the-odyssey.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: quote
+live 10-i-feel-a-bit-lonely.txt: CLEAN; lines 3 kept 3 dropped 0 tidied 0 over 0 cut 0; things 1: note
+LIVE: 10 replies, 10 parsed cleanly, 10 used the canvas (at least one thing), 10 gave something to show
+note: frames at 3840x2160 on one core of this host (us): whole run avg 28592 worst 183022 over 12130 frames
+note: startup avg 40854 worst 125569 (1113 frames); plain answers avg 24585 worst 75637 (1278); scenes avg 29114 worst 183023 (2982); live avg 32639 worst 150481 (4260)

@@ -1,0 +1,35 @@
+PASS  keys typed from outside the guest
+PASS  the far side said hello
+PASS  talk is still talk: Allen answers the greeting himself
+PASS  Allen says at once he needs to code it
+PASS  the request reported by length only
+PASS  the acknowledgement timed
+PASS  the calculator shown
+PASS  its checksum is the recording's
+PASS  the code read back is the recording, line by line
+PASS  Allen's own sentence after the code
+PASS  the change goes as a change
+PASS  the relay left piece 50 off
+PASS  the kernel saw the piece missing and asked again
+PASS  the relay sent the set again
+PASS  the long code shown whole
+PASS  its checksum is the recording's
+PASS  the long code read back is the recording
+PASS  Page Down moves the code (rows 42 to 83 of 851 shown)
+PASS  End shows the last row (rows 810 to 851 of 851 shown)
+PASS  Home goes back to the top
+PASS  Escape puts the code away
+PASS  with the Spark quiet: the plain line at 20 s
+PASS  and the give-up line after 30 s of silence
+PASS  the chat goes on after it
+PASS  screenshot code-short.png
+PASS  screenshot code-long.png
+PASS  screenshot code-long-pgdn.png
+PASS  screenshot code-away.png
+PASS  screenshot code-waiting.png
+PASS  report lines carry lengths and times only
+PASS  Allen's words are plain letters
+the kernel's times: acknowledged in 0 ms (job 1, new code);code shown, 29 lines in 13 ms;acknowledged in 0 ms (job 2, a change);code shown, 730 lines in 843 ms;acknowledged in 0 ms (job 3, new code);
+the relay: courier: code job 1: 768 bytes, 29 lines, 6 pieces, language python;courier: serial job 1 (code, 20 chars asked, 32 in the instruction, 0 memory lines) -> 844 chars, 1 parts, first in 0 ms, whole in 0 ms, waits 0, status 200;courier: code job 2: 18056 bytes, 730 lines, 142 pieces, language c;courier: code job 2: piece 50 left off (recorded drop);courier: serial job 2 (code-more, 25 chars asked, 53 in the instruction, 0 memory lines) -> 18137 chars, 1 parts, first in 0 ms, whole in 0 ms, waits 0, status 200;
+serial log: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code/serial.log; relay log: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code/relay.log; screenshots: /home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-allen-code/*.png
+AIENOS_ALLEN_CODE_QEMU: PASS

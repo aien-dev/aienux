@@ -14,7 +14,7 @@ QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
 | `core/` | Console, printf, ACPI, reports/panic/PSCI reset, M3 (threads, scheduler, EL0, capabilities, IPC), `kmain.c`. |
 | `tests/` | Host unit tests. |
 | `third_party/omega/` | The canonical Omega Cortex store, byte for byte from the omega commit in `omega.lock` (checked by `scripts/omega_lock_check.sh`); built freestanding by `svc/cortex_store.c` over the sealed Store through `svc/cortex_journal.c` (native v1 plan P06). |
-| `x86/` | x86_64 port, first cut (AIENOS-IMAC-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
+| `x86/` | x86_64 port, first cut (AIENOS-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
 | `../boot/` | Minimal UEFI entry stub (one image with the kernel). |
 
 ## Build and test
@@ -143,7 +143,7 @@ of them:
   host tools) are still present as data in every image, including hardware
   staging; the ordinary loader trusts no anchor.
 
-## 2017 iMac image (AIENOS-IMAC-KERNEL-0, x86_64)
+## 2017 iMac image (AIENOS-KERNEL-0, x86_64)
 
     make -C native/kernel imac-kernel        # target/native-kernel/IMACKERN.EFI
     scripts/qemu_ck_imac_kernel_test.sh      # QEMU q35 + OVMF, two CPU models, ends AIENOS_IMAC_KERNEL
@@ -176,6 +176,14 @@ transmit is not compiled in. The last line before the hold is a one-line
 `summary:`. It prints `kernel: alive`, holds the screen 60 s and powers off
 through ACPI S5.
 
+Before starting PCI drivers, the kernel inventories the firmware's Intel DMAR
+table (`core/dmar.c`, `x86/dmar_x86.c`). It reports remapping units, device
+paths and reserved DMA regions without accessing remapping registers. PCI
+diagnostics include the segment and requester ID. This is discovery only;
+DMA confinement remains **NOT QUALIFIED**. Bounds, refusal behavior and the
+optional QEMU DMAR test are documented in
+[`docs/IMAC_DMAR_INVENTORY.md`](../../docs/IMAC_DMAR_INVENTORY.md).
+
 **Network report: lab-only, opt-in, unauthenticated.** `make -C native/kernel
 imac-kernel CK_X86_REPORT=1` builds a separate lab image,
 `IMACKERN-LAB.EFI`, that adds `x86/report_x86.c`, `../net/aienos_net.c` and
@@ -188,7 +196,7 @@ kernel diagnostic keys; everything else, including `memory:`, is dropped
 whole, so chat, keys, tokens and credentials cannot enter it), as UDP
 broadcast from 0.0.0.0 to 255.255.255.255 port 47031 (TTL 1), in 1 KiB parts
 that each start with
-`AIENOS-IMAC-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
+`AIENOS-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
 Anyone on the LAN can read or forge these datagrams; the run id and checksum
 are not authenticity, so a report is never a receipt, evidence or a command.
 Future service diagnostics belong on the authenticated transport with an
@@ -200,6 +208,414 @@ and rebuilds each run into `OUTDIR/imac-<run>.unauthenticated.txt`;
 the allowlist (sentinel lines never leave), the frames and reassembly on the
 host.
 
+**Startup: the night sky.** The moment the clock is measured, before anything
+is printed, `ui/allen_ui.c` takes the screen and starts the night
+(`ui/night.c`): a dark sky fades in over about seven seconds, the brightest
+stars first. The sky is the real one (`ui/sky_real.c`, from tables the generator
+`tools/ck_sky_gen.c` makes out of the Yale Bright Star Catalogue, Gaia DR3
+integrated stellar flux/extinction, OpenNGC and the GW150914 sky map, by `scripts/ck_sky_gen.sh`): 8404
+stars to the naked-eye limit at their true places, brightness and colour, the
+Milky Way, and the Large and Small Magellanic Clouds, seen as a pinhole camera
+would from the point the first black-hole merger heard (GW150914) most probably
+came from. Sources, limits and a science audit of every picture and sound:
+`docs/ALLEN_SKY_SCIENCE.md`. Two black holes
+appear, bending the starlight round them, circle and spiral in on the
+inspiral law (separation as t^(1/4), angle as t^(5/8), t the time left),
+merge at 12 s in a flash, and a ripple runs out across the sky. From the light
+of the merger Allen gathers (`ui/mind.c`): no face and no body, a mind drawn as
+light, about a hundred points on and inside a sphere joined by fine threads,
+turning slowly round a warm heart, with sparks running along the threads.
+The startup text stays off the screen (`ck_x86_console_fb_hold`) until
+Allen's window takes over; a panic, or no window, stops the drawing and
+brings the text back. Every pixel is worked out from its position and the
+time, so a frame redraws only the parts that change, in strips: once the
+secondary cores are up, the first draws the frames and the next two draw
+strips of them (`smp: ... state=drawing helpers=2`); before that the boot core
+draws a frame between console writes. Kernel lines: `screen: night: the sky
+made in ...` and `screen: night: N frames ..., average ... ms, slowest ...
+ms` (when Allen wakes, 20 s later, and at goodbye).
+
+The canvas uses the GOP mode's native width and height (including 3840x2160),
+with a one-to-one framebuffer copy that respects GOP pitch. The Milky Way is
+now inverse-projected at every native pixel: no quarter-resolution screen
+cache, enlargement or runtime blur pass remains. Its Gaia-derived source is
+still a finite angular map, not a native-4K photograph; native evaluation
+cannot invent source detail. Catalogue stars and their dynamic twinkles use
+the same point-deposition path with at most two native pixels across,
+independent of UI scale. Extended soft lobes and twinkle bloom are removed.
+Catalogue direction, magnitude and colour inputs remain, but the compact
+profile does not conserve the retired broad profile's integrated display
+light; bright-channel clipping can change apparent colour. See
+`docs/ALLEN_SKY_SCIENCE.md` for the source and display limits.
+
+Paint coverage, fades and AA weigh linear light through fixed transfer
+tables, rather than darkening encoded sRGB bytes. Allen's thread widths
+scale with the canvas. His points, spark heads/tails and heart stay small
+native-pixel cool points; local coverage mixing, rather than additive
+accumulation, prevents warm/white interior hot spots at crossings or on
+background stars. Placement, connectivity, cadence, spark routing and voice
+response remain. Dusk resolves native destination pixels with mips only for
+minification, preserving choreography and the exact final-black endpoint.
+The fluid layer paints only its published snapshots and anchors its grid
+coordinates independently of dirty clips; all changing star-twinkle footprints
+are invalidated. Full-frame and incremental draws must therefore remain
+byte-identical, including through sustained thinking and speaking transitions.
+
+`scripts/ck_allen_ui_test.sh` also runs `ck_mind_phases_test.sh` and
+`ck_sky_sharpness_test.sh`. The mind fixture checks interior warm/white light,
+point footprints and visibility on black and the identical galaxy across
+replayed activity histories, as well as the unchanged outside annulus.
+Warm/white, enlarged-point, hidden-being and exterior-halo controls must fail.
+The sky fixture compares every native pixel against direct celestial-map
+samples and measures real catalogue-star/twinkle support, rejecting
+quarter-grid, static-bloom, dynamic-bloom and invisible-star controls.
+Finite host histories and emulator frames are not physical visual acceptance
+or proof of every arbitrary runtime history.
+
+`ui/chirp.c` is the matching sound: a quick "blirp", the last 0.6 s of the
+gravitational-wave chirp of the same inspiral, raised into hearing (200 Hz
+sweeping to 1000 Hz, loudness as pitch^(2/3)), peaking at the merger and
+ringing out within 0.3 s: under a second in all, worked out from the formula. The audit measures it against the real signal: the pitch law is real, the sweep, cycle count and ring are not (`docs/ALLEN_SKY_SCIENCE.md`, section 5). `x86/hda_x86.c` plays
+it: on each HD Audio controller it stops any DMA the firmware left running, resets the link with
+the settle times Linux uses, talks to the codecs through the command rings
+(CORB/RIRB, polled), maps every widget of each codec onto the report
+(`sound: codec=N w=0x.. ...`), opens every speaker, line-out and headphone
+path back to a converter (power, routing, 0 dB, pin drive, EAPD; on Apple
+boards the codec GPIOs), and on the first controller with a path runs one
+output stream: the chirp from the moment the night has reached, then 8 s of
+silence; the stream is stopped once the chirp is over. Intel controllers get
+Linux's PCI settings first (`pci_x86.c`). In QEMU the recording of what the
+guest played matches the chirp sample for sample, starting at the night's
+moment. A Cirrus CS8409 bridge on an Apple board (the desktop test
+computer's codec) gets its own set-up instead: its four speaker amplifiers
+sit behind it on its own I2C bus, so the driver sets the bridge's defaults,
+resets the amplifiers into shutdown, sets the TDM slots and clocks, configures
+and switches on each amplifier and synchronises the two converters, following
+the sequence davidjo/snd_hda_macbookpro replays from macOS. That sequence only
+plays 44.1 kHz 24-bit, so behind a CS8409 the chirp is resampled to that
+(`ck_chirp_fill_441`, host tested against the 48 kHz sound). The amplifiers
+run 24 dB under the level macOS uses. **Heard on the test computer
+(2026-10-18):** all four amplifiers answered (no I2C transfer unconfirmed)
+and the chirp played; at 12 dB under it was very loud and the old ten-second
+chirp too long, hence the quieter level and the short blirp. QEMU has no
+CS8409, so this path is checked only on that machine.
+Tests: `scripts/ck_sky_test.sh` (host: the real sky's projection, sidereal time, zenith, timings; pictures in `target/native-kernel-sky/`), `scripts/ck_allen_ui_test.sh` (host; pictures in
+`target/native-kernel-allen-ui/`), `scripts/ck_chirp_test.sh` (the sound as
+`target/native-kernel-chirp/chirp.wav`); the QEMU kernel test requires the
+night line, the drawing cores, the codec mapped through the command rings,
+the chirp stream running and its stop. `AIENOS_IMAC_KERNEL_KEEP_DIR=<dir>`
+keeps each run's serial log and a `.wav` recording of its sound.
+
+**Microphone (first cut, 2026-10-18).** On the same controller the first input stream records
+1 s from the microphone right after the chirp starts, then `ck_x86_hda_step` stops it and prints
+what arrived: `sound: microphone recorded 1000 ms: N samples, P% nonzero (first at i), peak,
+rms, dc`. Behind a CS8409 on an Apple board the built-in microphone is a digital microphone
+wired into the bridge (iMac boards: pin 0x45 to converter 0x23, DMIC2; MacBook Pro boards: 0x44
+to 0x22, DMIC1; source: davidjo/snd_hda_macbookpro `patch_cirrus_real84.h`, which replays what
+macOS sends): coefficient 0x09 selects it, 0x82 turns on its clock, the pin gets In Enable
+(HDA 7.3.3.13) and the converter the stream tag, 44.1 kHz 24-bit. Any other codec gets its
+first analogue input converter fed by a microphone or line-in pin. The QEMU kernel test uses
+`hda-duplex` (line-in pin 0x05 to converter 0x04) and requires the path, the stream running
+and the summary; QEMU feeds silence, so 0% nonzero there is expected. On the iMac the summary
+line in the lab report is the receipt for whether any sound comes through; the mainline Linux
+driver never got this microphone working, so a silent first run is a real possibility and the
+next step is then the bridge's coefficient dump against the macOS replay.
+
+**Device inventory.** The PCI walk prints one `pci: fn bus:dev.fn id=vendor:device class=...` line
+for every function it finds, before the drivers claim theirs. On the real machine these lines are
+the ground truth for which drivers are still missing (lab report allowlist: `pci:`).
+
+**Rest.** "goodbye", a tap of the power button, or the idle time without a key rests the
+computer; it never restarts (the lab image included). First the exit (`ui/allen_ui.c`): over 2.8 seconds the stationary stars fade, Allen's
+geometry folds into a thin cool line, and that line closes to a point and pure black.
+The fade uses a captured background and per-frame colour lookup tables rather than
+resampling the whole screen. Helper cores keep drawing until the completed black
+frame is presented; then nothing moves and nothing is typed. Once it
+is black, the display panel is switched off through the existing guarded AMD path
+(`x86/panel_x86.c`, below). Only after a successful panel-off does the computer rest
+with any-key or power-button wake: the panel comes on before the sky returns, and
+the waking key is not typed. If the panel is unsupported or its off sequence fails,
+the kernel instead requests full ACPI S5 power-off; a cold power-button start is
+then required, not an arbitrary key. It never substitutes black pixels for panel-off.
+The normal display-off transition waits for a published, fully presented black
+frame, not merely the animation clock reaching its dark state; helper strips
+must finish first. The existing bounded watchdog still forces display-off if
+the renderer stalls, and logs that the picture did not reach black.
+The button is read by polling the PM1 status register named in the ACPI FADT
+ (bit 8, PWRBTN_STS; its interrupt enable is cleared so
+the firmware never sees the press); the QEMU keyboard test drives it with the monitor's
+`system_powerdown`. Without a keyboard there is no window and no rest: the screen holds
+CK_X86_HOLD_S seconds, then ACPI S5 (the lab image: restart into its loader).
+
+**Panel off (`x86/panel_x86.c`, `CK_X86_PANEL_OFF=1`, the default of `make imac-kernel`).**
+Painting the screen black leaves the backlight lit, so while Allen rests the panel itself is
+switched off through the display chip's panel power sequencer, the way its firmware does at
+power-off, and switched on again at wake before the picture returns. Only on the chip it was
+written for: an AMD VGA controller (vendor 0x1002, class 0x0300) with a Polaris device id
+(DCE 11.2; the 2017 iMac's Radeon Pro 570/575/580 is 1002:67df rev c5 at 01:00.0; which of the three is not yet decided), whose VRAM aperture
+(BAR0) holds the firmware's framebuffer and whose 256 KiB register aperture (BAR5) answers.
+Registers (Linux `dce_11_2_d.h` / `dce_11_2_sh_mask.h`, MIT, index times 4 from BAR5):
+`LVTMA_PWRSEQ_CNTL` 0x481b (`LVTMA_PWRSEQ_TARGET_STATE` 0x10, `LVTMA_DIGON` 0x10000,
+`LVTMA_BLON` 0x1000000 and their `_OVRD` bits), `LVTMA_PWRSEQ_STATE` 0x481c (`DIGON` 0x2,
+`BLON` 0x8, `DONE` 0x10), `BL_PWM_CNTL` 0x4820 (duty 0xffff, `BL_PWM_EN` 0x80000000),
+`BL_PWM_GRP1_REG_LOCK` 0x4823. Off: the backlight PWM duty to 0 (locked write, wait for the
+update to land), then the sequencer's target state to off, which drops BLON, waits the panel's
+power-down delay as the firmware programmed it (`LVTMA_PWRSEQ_DELAY1/2`) and drops DIGON; the
+kernel waits for `PWRSEQ_STATE` to say done. On: the reverse, then the PWM duty restored, then
+the picture. If the firmware left the override bits set instead, the BLON and DIGON pins are
+driven directly (50 ms between backlight off and panel off, 200 ms between panel on and
+backlight on). Every write is read back and logged (`screen: panel off: PWRSEQ_CNTL 0x... ->
+0x...`); a readback that differs or a wait that runs out (all TSC-bounded, 3 s for the
+sequencer) stops the sequence and logs the failure. Unsupported panel hardware,
+disabled panel control, or any failed off sequence selects the existing ACPI S5
+path after the black frame. No Intel backlight register is guessed: the recorded
+iMac18,3 display controller is AMD 1002:67df, and only the existing AMD register
+allowlist and framebuffer-ownership guards are used. QEMU has no such display
+controller, so its exercised path is S5. Physical backlight-off and reversible
+key wake remain NOT_RUN until observed on the actual iMac.
+
+**Keyboard and Allen's window.** `x86/xhci_x86.c` drives a wired USB boot
+keyboard (polled xHCI, through USB 2.0 hubs). When one is ready, Allen wakes:
+the person is his guest. A quiet glass bar comes up at the bottom for what
+they type; on Enter the line rises from the bar into him, he thinks (he draws
+in, turns faster, sparks cascade), then answers under him word by word while
+the galaxies shimmer with his voice, all in Allen's own stroke typeface
+(`ui/allen_font.c`, every printable ASCII character as pen strokes,
+rasterized with integer math). Nothing else is on the screen unless it is in
+use: the bar fades when the conversation rests (a key brings it back), his
+words fade once read, and the notes map (a small constellation) shows only
+when a note is saved or handed back. Each Enter gets a local answer from
+`svc/allen_reply.c`: "Hello Allen" gives "Hello Humanity."; it also knows small
+talk, your name and his own (both kept in his memory, below), facts about the
+machine, how long it has been awake and sums said in words ("what is 12 times
+4"); anything else goes to the far-off worker when a courier is ready (below)
+and otherwise gives "I don't know that yet." Answers print as `allen: <answer>`
+on the console. The
+window has no countdown to power-off. "goodbye", a tap of the power button, or
+10 minutes without a key (`CK_X86_IDLE_S`, default 600) rests the computer: the
+screen goes dark, then the guarded AMD panel-off is attempted. If it succeeds,
+the three drawing cores rest in MWAIT (the deepest of C6, C3 and C1 that CPUID
+lists), and the boot core halts between keyboard polls every 20 ms on a one-shot
+LAPIC timer. Any key (not typed) or another tap wakes him. If panel-off is
+unavailable or fails, the computer powers off through ACPI S5 instead.
+Awake, the hold loop polls devices at most once every 0.5 ms by the TSC, not on
+every pass: the earlier device-read storm starved QEMU after keyboard replug.
+Holding the button 4 s remains the chipset's hard off. On the iMac the
+processor's own energy counter (RAPL) gives
+`power: processor X.Y W on average over N s awake|asleep` at each sleep and wake
+(never under a hypervisor). Unplugging the keyboard and plugging it
+(or another) back in works: the driver watches the keyboard's root port, prints
+`keyboard: unplugged`, releases the old device and runs discovery again, then
+`keyboard: ready` once more (the QEMU test does exactly this from outside the
+guest). A keyboard plugged in for the first time after start-up is not found: the
+controller is halted when no keyboard was there at start. The conversation stays on the computer: `keyboard_line:` and `allen:`
+are off the lab report's allowlist, which carries only `screen: Allen
+answered (N characters in, M out)` and the far side's length lines (below).
+Without a keyboard or the memory the text
+screen and its 60 s hold stay. Tests: `scripts/ck_allen_ui_test.sh` (host) and
+`scripts/qemu_ck_imac_keyboard_test.sh` (QEMU, types "Hello Allen", keeps a
+screenshot as `target/native-kernel-imac-keyboard/allen-qemu.png`). What Allen
+learns and the notes it keeps are saved in its section of the disk
+(`svc/allen_memory.c`, `x86/memory_x86.c`) and come back after a restart.
+
+**The water.** Under the sky, round Allen, there is water: a fluid simulation
+(`ui/flow.c`, Jos Stam's stable fluids as in his GDC 2003 paper, in 16.16 fixed
+point on a 64 by 36 grid, stepped every 16 ms) carrying ink that is lit where it
+moves, cool blue when still and warm white when fast. Idle, it turns slowly and
+breathes; while a line is typed a current runs from the bar up to him; while he
+thinks a vortex deepens over four seconds and ink wells up in a ring round him;
+each word he says pushes a ring out; asleep it stills and clears. Every change
+of state is a blend of eased weights over 0.7 s, the exit takes 2.8 s (see
+`docs/ALLEN_PRESENCE_RESEARCH.md`, section 3.3) and the dawn 0.9 s, so nothing on
+the screen cuts. Cost, measured by the host window test:
+a 3840 by 2160 frame takes 18.1 ms on average on one host core (9.2 ms before
+the water, run of 2026-10-18); the kernel draws with three cores in strips.
+
+**His name and yours.** The first time Allen meets someone he says he has no
+name yet and asks what they will call him; the next word typed becomes his
+name (greeting him as Allen settles it as Allen). "call yourself Nova" or
+"your name is Nova" renames him any time; "what is your name" and "who are
+you" answer with it; the bar's hint reads "Speak to Nova". "my name is Drake"
+tells him the person's name. Both are kept in his memory unit
+(`svc/allen_memory.c`, format version 3; a version 2 unit still reads, with no
+name of his own) and come back after a restart. "forget everything" keeps his
+own name. Host test: `scripts/ck_allen_ui_test.sh` (the "self:" checks) and
+`scripts/ck_allen_memory_test.sh`.
+
+**Asking a far-off worker.** Allen is not a language model and does not become
+one. When a line is beyond what he knows by heart and a courier is ready, he
+writes the job himself (`svc/allen_intent.c`): what is wanted (make, explain,
+do or chat, read off the line's first words), who he is, whose computer it is,
+and the shape the answer must take (a few short plain sentences in his voice,
+no lists, no headings), then keeps thinking until the answer comes back and
+says it as his own; after 30 s without one he says no answer came. The courier
+is one line each way on a wire (`svc/courier.h`). On this kernel the wire is
+the second serial port (`x86/courier_x86.c`: COM2 at 0x2f8, a polled 16550 at
+115200 8N1; a `HELLO` call is answered with `HI`, so it does not matter which
+side was up first), found at start or not (`courier: a
+second serial port answers ...` or `courier: no second serial port; Allen
+answers from this computer alone`), then `courier: ready, the far side said
+hello`. The far end is `crates/allen-courier`, a Rust relay with no
+dependencies beyond the standard library: it carries each job to a chat server
+(the OpenAI chat shape, `127.0.0.1:18091` by default), keeps the whole answer
+in a work folder and hands Allen at most 150 characters cut at a sentence end,
+in plain letters (typographic dashes and quotes become plain ones, accented
+letters lose their accents, anything else the typeface cannot draw is dropped;
+the kernel drops any stray byte too); it prints lengths and timings, never the
+words. The lab image also carries the Ethernet courier
+(`x86/courier_udp_x86.c`): numbered UDP messages, acknowledgements and retries.
+This laboratory transport does not authenticate its peer. Its boot identifier
+and checksums do not establish who sent an answer. Device DMA confinement
+(#411), authenticated transport integration and physical round-trip evidence
+remain prerequisites for a qualified network service. The lab report sees `screen: Allen asked
+the far side (N characters in, M in the job)` and `screen: the far side
+answered job N (M characters out)` or `... did not answer job N`: lengths only.
+Test: `scripts/qemu_ck_allen_courier_test.sh` (QEMU with COM2 on a Unix socket,
+the relay on it and the model server on this machine; NOT_RUN without one;
+screenshot `target/native-kernel-allen-courier/allen-far-side.png`). A machine
+without a second serial port gets Allen as before, answering alone.
+
+`scripts/ck_courier_udp_test.sh` runs the kernel's Ethernet courier against the
+Rust relay on loopback, including two levels of packet loss, two busy replies
+and a delayed reply. Its model fixture is compiled with `rustc` from
+`x86/tests/courier_model_fixture.rs`; the test needs no interpreter. Set
+`ALLEN_MODEL=127.0.0.1:18091` to add a real-model exchange after those cases.
+These host tests exercise the protocol, not the physical Broadcom card or
+authenticated networking.
+
+`scripts/ck_imac_security_test.sh` guards two security properties of the iMac
+kernel with the real production sources and mocked hardware: the setup wizard's
+API key never reaches the Ethernet courier and is erased on the local refusal
+(`x86/tests/courier_secret_test.c`, `setup_secret_test.c`), and
+`boot_section` writes nothing to the disk unless the manifest verifies against
+the kernel's owner keys (`boot_verify_test.c`, RFC 8032 public test keys only).
+The x86 parts are cross-built static and run under `qemu-x86_64` on an ARM host.
+`PROD_ROOT=<checkout>` builds the production sources from another tree, to
+check that the tests fail on a commit without the fixes.
+
+The addressless kernel sends to limited broadcast (`255.255.255.255`), not
+the LAN's directed broadcast; Linux can reject source-zero directed
+broadcast before UDP input. The relay may answer on the LAN's directed
+broadcast, which Linux also loops back to its own bound UDP socket. Before
+creating or updating a session, the relay accepts only kernel-origin
+`HELLO`, `JOB` and `GOT` messages. Its own `HI`, `ACK` and `LINE` packets must
+not replace that session's answer destination with the relay's address.
+`scripts/ck_courier_udp_frame_test.sh` additionally runs the real kernel
+Ethernet producer/parser against the relay in an isolated Linux network
+namespace, with source-zero requests and directed-broadcast answers. It
+checks actual checksummed LINE/GOT frames, duplicate acknowledgement and
+malformed/wrong-run refusal; withholding GOT must provoke retransmission.
+This host-frame check does not emulate or qualify the Broadcom hardware.
+
+For conversational recall, the relay sends complete `asked: ... / said: ...`
+exchange notes as earlier user and assistant turns, oldest first. These remain
+short saved excerpts, not a full transcript; the model is told they may be
+incomplete. Other notes stay in the memory prompt. This reconstruction uses
+the notes supplied by Allen on each request, so it needs no new relay-side
+session store. The live QEMU test checks that the answer to "what did I just
+ask you" recalls both the form and topic of the earlier request, separately
+from checking that the note was transported.
+
+**The canvas: the model decides what is painted.** Besides the words, the
+model writes a few short scene lines (`svc/allen_scene.c` checks them one by
+one: at most three things, bounded lengths, plain letters; anything it does
+not understand is dropped, never trusted) and `ui/canvas.c` paints each in
+Allen's own style round him, with no windows, menus or boxes: a note, a list,
+a number, a timer, a person, a quote, a place for a picture or a video, and a
+mood for the sky and the water. The system prompt is
+`../../crates/allen-courier/scene_prompt.txt`; `allen-scene` asks the model
+the questions in `../../evidence/allen-canvas/questions.txt`. The hook into the
+window is small (`ck_allen_ui_scene()` in `ui/allen_ui.c`); the courier does
+not carry scenes to the machine yet, and none of it has run on the real
+computer. Host test: `scripts/ck_allen_canvas_test.sh` (kernel build rules, a
+300000-input fuzz under the sanitizers, frames at 3840 x 2160, and
+`--replies DIR` paints real model answers; pictures in
+`target/native-kernel-allen-canvas/`). Grammar and reasons:
+`../../docs/ALLEN_CANVAS.md`.
+
+**The setup wizard.** The first time Allen wakes on a computer he asks one thing in
+his own window: what would you like this computer to do (play games smoothly, run
+an AI model here, or something else in your own words). He then lists what he found
+(PCI functions, USB, processors, disks, screens, `svc/setup_inv.c`) in plain words
+and asks one consent, "set it up". Games: the graphics driver state, the screen's
+mode and refresh, the processor profile, and what he will and cannot tune yet; a
+number is only shown when it was measured (QEMU shows none). AI model: the graphics
+memory he found, which models fit, then the model pick (`svc/setup_wizard.c`): on
+this computer first (Allen's own 27B + 30B pair if it answers, else an installed or
+running model), then peers, then "connect my own" (OpenAI-style or Anthropic
+service, key typed once). One found model is offered with "Use it / Choose another"
+and starts by itself after 10 s; two or more are never picked for the person. The
+iMac refuses “connect my own” before opening a key-entry screen, because the
+current courier is unencrypted. Configure the credential on the host and select
+its local model instead. The transport also refuses `KEYTEST`, and a stale test
+state is refused locally with its key wiped. Only
+`llm.conf` (`kind`, `base_url`, `model`, `key_env`, never the key) and a consent
+record are kept, with the wizard's place, in fixed records inside Allen's memory
+section (`svc/setup_store.c`), so a power cut resumes where it stopped and a
+finished wizard is not shown again ("set up again" reopens it). Every screen can be
+skipped with Escape. Arrow keys and Tab come from `dev/usb_hid.c`. The window side
+is `ck_allen_ui_panel` in `ui/allen_ui.c` (lines easing in, a row of pill choices,
+hint, typed-secret dots). The host description (fw_cfg `opt/aienos/host`: inventory
+a launcher knows and the guest cannot) is read only by the launcher image
+`make imac-kernel CK_X86_HOSTDESC=1` (`IMACKERN-HOST.EFI`); the default image
+carries no fw_cfg code and the build checks that. Tests:
+`scripts/ck_setup_wizard_test.sh` (host, three machines: a games PC, an AI PC, the
+Spark), `scripts/ck_allen_ui_test.sh` (panel pictures `wizard-*.png`) and
+`scripts/qemu_ck_allen_wizard_test.sh` (QEMU end to end: power-cut resume, the
+three model sources, the key in no log, relay file or disk; screenshots in
+`target/native-kernel-allen-wizard/`).
+The wizard opens on its own only at Allen's first start with his memory section,
+or to resume a setup saved part way (a power cut); a later start with nothing
+saved says `wizard: not shown, start N and nothing half done`, and with nowhere to
+keep its record it says `wizard: not shown, nowhere to keep it this start`. Either
+way Allen's window is left to him, so the wizard never takes it over at every start.
+
+**Code from the Spark.** Any coding request in Allen's chat ("make me a
+calculator", "write a snake game in python") is answered at once with "I need to
+code that. Let me send it off to the Spark." and goes over the courier as job
+`code` (a follow-up such as "now add a square-root key" while code is on the
+screen goes as `code-more` with the code before). Allen keeps thinking while he
+waits, says plainly at 20 s that longer code takes a while, and gives up out loud
+after 30 s without a word from the relay (which says it is still working every
+2 s). The relay (`../../crates/allen-courier`, prompt `code_prompt.txt`) asks the
+model once, not streamed, waits exactly Retry-After on a busy answer, and sends
+the code in numbered pieces of 128 bytes with the whole length and a CRC-32
+(`CODE <job> <i>/<n> <bytes> <crc32> <language> <piece>`, then `SAY <job> 1/1
+<sentence>`); a missing or spoiled piece makes the kernel ask once more (`AGAIN
+<job>`). Limits: 32768 bytes, 800 lines. The code shows beside Allen's words in
+fixed-width text with line numbers; long lines wrap; Up, Down, Page Up, Page
+Down, Home and End move it and Escape puts it away (`svc/allen_code.c`,
+`ck_allen_ui_code` in `ui/allen_ui.c`). Report lines: `allen-code: asked the
+Spark (N chars)`, `allen-code: code shown, M lines in S ms`. Tests:
+`scripts/ck_allen_code_test.sh` (host: parser, short and long recorded answers,
+a lost piece, a spoiled piece, the wait clock), `scripts/qemu_ck_allen_code_test.sh`
+(QEMU keystrokes with recorded answers, the code read back over serial, the relay
+stopped part way; `ALLEN_CODE_LIVE=1` asks the real model for a Python and a C
+calculator and prints the times).
+
+**Starting from its own disk.** When the network loader (`../boot/net_loader.c`)
+starts a kernel it hands it a `struct nb_pass` (`../boot/netboot_proto.h`) as
+LoadOptions: the processor clock when the loader began, and where the verified
+object (signed manifest + image) lies in the loader's memory. The kernel checks
+the manifest's owner signature and the image's SHA-512 again before installing it
+on the disk that holds Allen's section. Build with `CK_SLOT_KEYS=<owner public keys>`
+to authorize installation; without configured keys, installation is refused.
+`CK_TEST_SLOT_KEY=1` supplies the public test key only for emulator fixtures.
+The boot image goes in a 256 MiB EFI System Partition it adds in unused
+space (`dev/gpt_add.c` `ck_gpt_add`; never on a disk that already has another
+system's), as `\EFI\BOOT\BOOTX64.EFI` on a FAT32 volume it writes itself
+(`dev/fat_boot.c`, Microsoft FAT32 specification 1.03). Two slots: the new
+kernel goes into the one the firmware does not start, then a single directory
+sector switches over, so a power cut leaves the old kernel or the new one,
+never a mix; the same kernel again writes nothing. After that the firmware
+starts AIENOS from the disk with no stick and no network. Every start prints
+`boot_time:` (milliseconds since power on: firmware, loader, kernel, Allen's
+window) and `boot_disk:` (what the boot section holds). Tests:
+`scripts/ck_fat_boot_test.sh` (host: power cuts at every sampled block,
+`fsck.fat` and mtools as outside readers) and
+`scripts/qemu_ck_imac_bootdisk_test.sh` (QEMU: install over the network, then
+start from the disk alone, then a second kernel into the other slot).
+
 Output: the GOP framebuffer
 (`core/fbcon.c`, lines from before ExitBootServices replayed onto it) and COM1
 when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
@@ -208,7 +624,7 @@ when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
 cores and attaches a SATA data disk and an NVMe disk, each with a GPT from
 `ck_gpt_image`, and fails unless three cores check in, the kernel finds each
 AIENOS partition where the tool wrote it and both disks are byte-identical
-afterwards. Not yet: work scheduled on the other cores, x2APIC, NX, disk writes,
+afterwards. Not yet: work scheduled on the other cores, x2APIC, NX,
 VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.
@@ -300,9 +716,13 @@ What is implemented (NEXT-PHASE-3 cut 1):
   `dev/usb_kbd.c` resets the controller, finds the first connected port with
   a USB HID boot keyboard, addresses it, configures its interrupt IN
   endpoint and polls it. Polled only: no interrupts, no scheduler, no Store.
-- **Key decode** to one small fixed US keymap (`dev/usb_hid.c`): a-z (with
-  Shift: A-Z), 0-9, space, `-`, `.`, `/`, Enter, Backspace, Escape. Every
-  other key is ignored. A held key produces one event, not a repeat.
+- **Key decode** to one fixed US keymap (`dev/usb_hid.c`): every printable
+  character a US keyboard types, with and without Shift (letters, digits and
+  `!@#$%^&*()`, space, and the symbol keys with their shifted pairs, `?`
+  included), plus Enter, Backspace, Escape. Function keys, arrows, Tab and the
+  non-US key are ignored. A held key produces one event, not a repeat. The
+  console's commands match whole words only, so symbols can only make an
+  unknown command; Allen's facts keep letters, digits and spaces.
 - **Line input** with echo and a bound of 64 characters. One key past the
   bound makes the whole line fail closed: at Enter it is refused
   (`keyboard_line: overflow (line refused: N keys typed, limit 64)`) and never
@@ -540,6 +960,29 @@ stack and resets; it never returns or touches EL1 state. After the stages,
 `mm_usage:` prints the stack high-water mark (painted stack) and the heap
 low-water free bytes.
 
+## The boot sequence on the screen (L266)
+
+The night the iMac shows at power-on (the stars come out, two black holes circle and merge, a short rising
+chirp at the merger, 15.2 s in all) is one shared module, `ui/` (byte-identical to the iMac build `0930240`),
+plus `ui/boot_show.c`, which counts every frame against a 60 Hz beat and prints one receipt line:
+
+    boot-show: 1280x800 via virtio-gpu: N frames in 15200 ms, D of 912 slots at 60 Hz dropped, F fps, ...
+
+- `make full CK_BOOT_SHOW=1` (`$(OUT)/full-boot-show/`): the aarch64 image plays it once after the devices
+  stage. Screen: the VM's virtio-gpu (`dev/virtio_gpu.c`, the aienos-run window) first, else the GOP
+  framebuffer. Sound: the VM's virtio-sound (`dev/virtio_snd.c`), else silent. Both drivers sit on
+  `dev/virtio_q.c` and `dev/virtio_bind.c`; their DMA is confined through the SMMU like every other device's,
+  and refused without it. Default `CK_BOOT_SHOW=0` keeps the QEMU gates' timing.
+- `make imac-kernel CK_BOOT_SHOW=1` (`$(OUT)/IMACKERN-BOOT-SHOW.EFI`): the x86 image plays it after storage on the
+  GOP framebuffer (in a VM, virtio-vga), sound on virtio-sound through the same driver (`x86/boot_x86.c`);
+  that kernel has no IOMMU yet, so the sound device's DMA is not confined and it says so on the console.
+- Shown in the emulator only so far: `scripts/qemu_ck_boot_show_test.sh [aarch64|x86_64] [tcg|kvm]` (screen, receipt,
+  screendump, and the captured sound compared sample by sample with the formula). Not yet on the Spark's own
+  screen; on real hardware the night uses the GOP framebuffer path, which no gate has exercised yet.
+- Host tests: `scripts/ck_boot_show_test.sh`, `scripts/ck_virtio_av_test.sh` (command layouts checked
+  against the virtio spec's Linux UAPI copy), `scripts/ck_allen_ui_test.sh`, `scripts/ck_chirp_test.sh`.
+- Frame rates, the x86 path and the GPU path: `docs/BOOT_EVERYWHERE.md`.
+
 ## Memory map the kernel builds
 
 - RAM (UEFI RAM types with the WB attribute): Normal write-back, RW,
@@ -641,3 +1084,5 @@ low-water free bytes.
   (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT; no
   secondary core is started (same as Rust). See GATES.md rows 16-20.
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.
+
+The iMac light-line build uses catalogue point stars on black: no flow-ink overlay, diffuse Milky Way layer, or voice-driven galaxy light sweep. The compact lights within Allen remain animated.

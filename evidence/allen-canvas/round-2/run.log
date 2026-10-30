@@ -1,0 +1,8 @@
+start 2026-10-19T22:26:32Z load 18.41 24.28 23.12 18/3893 133342
+allen-scene: model qwen3.8-27b-fp8 at 127.0.0.1:18091
+allen-scene: 01-whats-the-weather-like-for already answered, kept
+allen-scene: 02-remind-me-to-call-mom -> 136 chars, 41 tokens, 710841 ms (525 busy)
+allen-scene: 03-show-me-something-beautiful -> 196 chars, 48 tokens, 819283 ms (598 busy)
+allen-scene: 04-whats-17-of-240 -> 72 chars, 41 tokens, 168603 ms (93 busy)
+allen-scene: 05-tell-my-friend-sam-im -> status 503 ({"error":{"message":"one generation at a time: the engine is busy with another request, retry shortly","type":"server_busy","param":null,"code":null}})
+stopped 2026-10-19T23:30:14Z: the GPU lock was held by other jobs from 23:21Z (server: GPU busy, lock held for 300 s, repeated); questions 5 to 10 not asked in this round

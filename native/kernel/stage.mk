@@ -22,6 +22,10 @@ STAGE_OUT ?= $(abspath $(STAGE_DIR)/../../target/stage)
 STAGE_OWN_SRCS := $(STAGE_DIR)/dev/pci.c $(STAGE_DIR)/dev/mmio_window.c $(STAGE_DIR)/dev/disk_part.c $(STAGE_DIR)/dev/nvme_bind.c $(STAGE_DIR)/dev/nvme_shutdown.c $(STAGE_DIR)/dev/virtio_net.c \
                   $(STAGE_DIR)/dev/net_bind.c $(STAGE_DIR)/dev/net_udp.c $(STAGE_DIR)/dev/xhci_fence.c \
                   $(STAGE_DIR)/dev/usb_hid.c $(STAGE_DIR)/dev/usb_kbd.c \
+                  $(STAGE_DIR)/dev/virtio_q.c $(STAGE_DIR)/dev/virtio_bind.c $(STAGE_DIR)/dev/virtio_gpu.c $(STAGE_DIR)/dev/virtio_snd.c \
+                  $(STAGE_DIR)/ui/boot_show.c $(STAGE_DIR)/ui/allen_ui.c $(STAGE_DIR)/svc/allen_code.c $(STAGE_DIR)/ui/paint.c \
+                  $(STAGE_DIR)/ui/night.c $(STAGE_DIR)/ui/mind.c $(STAGE_DIR)/ui/allen_font.c $(STAGE_DIR)/ui/chirp.c \
+                  $(STAGE_DIR)/ui/sky_real.c $(STAGE_DIR)/ui/sky_data.c $(STAGE_DIR)/ui/flow.c $(STAGE_DIR)/ui/canvas.c $(STAGE_DIR)/svc/allen_scene.c \
                   $(STAGE_DIR)/dev/devices.c $(STAGE_DIR)/svc/security.c $(STAGE_DIR)/svc/store_boot.c \
                   $(STAGE_DIR)/svc/artifact_store.c $(STAGE_DIR)/svc/store_crash.c
 # Native modules, compiled unmodified.

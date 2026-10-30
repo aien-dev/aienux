@@ -153,6 +153,37 @@ int ck_frames_alloc(struct ck_frames *f, uint64_t npages, uint64_t align, uint64
     return -1;
 }
 
+int ck_frames_alloc_below(struct ck_frames *f, uint64_t npages, uint64_t align, uint64_t limit, uint64_t *out)
+{
+    if (!npages || align < CK_PAGE || (align & (align - 1)) || !limit)
+        return -1;
+    uint64_t size = npages * CK_PAGE;
+    for (unsigned i = 0; i < f->n; i++) {
+        struct ck_frange *r = &f->r[i];
+        uint64_t old_end = r->end;
+        uint64_t top = old_end < limit ? old_end : limit; /* usable end of this range */
+        uint64_t a = up(r->base, align);
+        if (a < r->base || a >= top || top - a < size)
+            continue;
+        uint64_t tail_base = a + size;
+        if (r->base == a && tail_base == old_end) {
+            remove_at(f, i);
+        } else if (r->base == a) {
+            r->base = tail_base;
+        } else if (tail_base == old_end) {
+            r->end = a;
+        } else {
+            if (f->n >= CK_FRAMES_MAX)
+                continue; /* cannot split here; try a later range */
+            r->end = a;
+            insert_at(f, i + 1, tail_base, old_end);
+        }
+        *out = a;
+        return 0;
+    }
+    return -1;
+}
+
 void ck_frames_free(struct ck_frames *f, uint64_t base, uint64_t npages)
 {
     ck_frames_add(f, base, base + npages * CK_PAGE);

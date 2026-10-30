@@ -7,14 +7,14 @@
     "generated": {
       "children": [],
       "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "compiled_at": "2026-10-27T01:40:10Z",
+      "compiled_at": "2026-10-30T01:53:38Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:7863ced57b54d23a2e3c2aa02ab53468462616b44cf256f71a530a35f6ecb25d",
+      "digest": "sha256:5d586af6eefb7c980f263723f9a945b31a2754540493934ff33330d750ff461e",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 26,
-      "generated_at_commit": "42d0fc5e842480e817996f6b8a2de68d15521dee",
-      "source_tree": "sha256:05d0b67138f8dd6f258ed1c0db7b49c0120b0f2e046843e2ddb1e632367f744a"
+      "files": 29,
+      "generated_at_commit": "da9195e533148ea43f86aacbdb76efc4e8cef3d7",
+      "source_tree": "sha256:76ad2853eb17f25ef227de563089a15844e54798571f1d439848566cfb35dace"
     },
     "owner_lane": "",
     "provenance": {
@@ -82,6 +82,6 @@
   },
   "layer": "native/kernel/tools",
   "name": "native/kernel/tools",
-  "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothing here runs on the chip or sends anything to a device. ck_gsp_fw_inspect: GSP-RM firmware container parser + pin check. ck_gsp_cot_encode: byte-exact SEC2 chain-of-trust message encoder/decoder (docs/GB10_FIRMWARE_INVENTORY.md section 10). ck_gsp_bindata_extract: extracts and verifies the eight GB10B firmware arrays compiled into the pinned driver source, own DEFLATE/CRC-32/SHA-384 (section 11). Each tool has a selftest that refuses malformed input by name; NOT_RUN is never PASS.",
+  "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothing here runs on the chip or sends anything to a device. ck_gsp_fw_inspect: GSP-RM firmware container parser + pin check. ck_gsp_cot_encode: byte-exact SEC2 chain-of-trust message encoder/decoder (docs/GB10_FIRMWARE_INVENTORY.md section 10). ck_gsp_bindata_extract: extracts and verifies the eight GB10B firmware arrays compiled into the pinned driver source, own DEFLATE/CRC-32/SHA-384 (section 11). ck_sky_gen: makes the real night-sky tables for Allen (ui/sky_data.*) from the Yale bright star catalogue, the ESO Milky Way panorama, OpenNGC and the GW150914 sky map, centred on the merger; run by scripts/ck_sky_gen.sh (sources and limits: docs/ALLEN_SKY_SCIENCE.md). Each tool has a selftest that refuses malformed input by name; NOT_RUN is never PASS.",
   "schema_version": "1.0.0"
 }

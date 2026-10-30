@@ -1,0 +1,42 @@
+# STEP4_gfx_ring.bench -- CP soft reset, microcode load, GFX ring setup.
+# BAR5 DWORD indices (byte offset / 4). Source: amd_gpu_regs.h (gfx_8_0_d.h, gfx_v8_0.c).
+#
+# Not runnable as a whole yet: the write allowlist does not cover these registers
+# (needs 0x2008, 0xf814-0xf815, 0x3041-0x3045, 0xf83c-0xf83d, 0xec00), and the ring
+# and firmware steps need physical addresses and dword streams the console cannot take
+# from a script. Those lines stay commented.
+
+# Read GRBM_SOFT_RESET, then pulse CP and RLC reset
+# mmGRBM_SOFT_RESET, byte 0x8020
+bar5_read 0x2008
+# bit values not yet checked against gfx_v8_0.c
+bar5_write 0x2008 0x00010005
+# release
+bar5_write 0x2008 0x0
+
+# RLC and PFP microcode address reset (the dword stream is loaded by the driver, not here)
+# mmRLC_GPM_UCODE_ADDR, byte 0x3E0F0
+bar5_write 0xf83c 0x0
+# mmCP_PFP_UCODE_ADDR, byte 0x3E050
+bar5_write 0xf814 0x0
+# bar5_write 0xf83d <dword> # mmRLC_GPM_UCODE_DATA, one line per dword (polaris11_rlc.bin)
+# bar5_write 0xf815 <dword> # mmCP_PFP_UCODE_DATA, one line per dword (polaris11_pfp.bin)
+
+# Enable RLC
+# mmRLC_CNTL, byte 0x3B000
+bar5_write 0xec00 0x1
+
+# GFX ring 0 (ring 16 KiB, below 4 GiB). The base, rptr address and wptr values come from the
+# driver's boot log (gpu: gfx_ring:) and cannot be written from a script:
+# CP_RB0_BASE 0x3040 (byte 0xC100) = ring_pa >> 8; CP_RB0_BASE_HI 0x30b1 (byte 0xC2C4) = ring_pa >> 40
+# CP_RB0_RPTR_ADDR 0x3043 (byte 0xC10C) = rptr_pa lo; CP_RB0_RPTR_ADDR_HI 0x3044 (byte 0xC110)
+# mmCP_RB0_CNTL, byte 0xC104: BLKSZ 11 (4096 dwords)
+bar5_write 0x3041 0xb
+# mmCP_RB0_WPTR, byte 0xC114: reset
+bar5_write 0x3045 0x0
+
+# CP idle: CP_STAT (0xe4, byte 0x390) bit 0 (PFP_BUSY) clears
+bar5_poll 0x21a0 0x1 0x0 5000
+
+# NOP + WRITE_DATA fence: the six dwords are written by the driver (amd_gfx_ring_test), then
+# CP_RB0_WPTR = 6 (the driver does this). Not expressible here: fence readback is by memory.

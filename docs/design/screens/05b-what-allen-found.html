@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen 5: what Allen found</title>
+<link rel="stylesheet" href="screens.css">
+<style>
+  /* the computer as a constellation round Allen: one star per part, a thread of light to him (mind.c threads) */
+  .threads { position: absolute; inset: 0; }
+  .threads line { stroke: rgb(var(--allen-colors-glow-rgb) / .22); stroke-width: 1.2; stroke-linecap: round;
+                  stroke-dasharray: 600; stroke-dashoffset: 600;
+                  animation: draw 900ms var(--allen-motion-ease-out) forwards; }
+  .threads line:nth-child(n) { animation-delay: calc(var(--i, 0) * 110ms + 200ms); }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .part { position: absolute; width: 400px; display: grid; justify-items: center; row-gap: 8px; }
+  .star { width: 9px; height: 9px; border-radius: 50%; background: var(--allen-colors-heart-core);
+          box-shadow: 0 0 10px var(--allen-colors-warm), 0 0 26px rgb(var(--allen-colors-glow-rgb) / .5); }
+  .plabel { color: var(--allen-colors-hint); }
+  .pvalue { color: var(--allen-colors-primary); }
+  @media (prefers-reduced-motion: reduce) { .threads line { animation: none; stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+<div class="board sky">
+  <div class="tag">5 · what Allen found (example values; drawn as a constellation round Allen)</div>
+  <svg class="threads" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true">
+      <line style="--i:0" x1="828" y1="360" x2="612" y2="243"/>
+      <line style="--i:1" x1="960" y1="282" x2="960" y2="176"/>
+      <line style="--i:2" x1="1092" y1="360" x2="1308" y2="243"/>
+      <line style="--i:3" x1="1110" y1="432" x2="1606" y2="430"/>
+      <line style="--i:4" x1="1097" y1="494" x2="1467" y2="662"/>
+      <line style="--i:5" x1="1038" y1="560" x2="1153" y2="748"/>
+      <line style="--i:6" x1="882" y1="560" x2="767" y2="748"/>
+      <line style="--i:7" x1="822" y1="491" x2="483" y2="635"/>
+      <line style="--i:8" x1="810" y1="432" x2="314" y2="430"/>
+  </svg>
+  <div class="part rise" data-at="300" style="left:400px;top:162px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Screen</span>
+    <span class="pvalue" data-af="body">2560 by 1440, 144 a second</span>
+  </div>
+  <div class="part rise" data-at="410" style="left:760px;top:88px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Graphics</span>
+    <span class="pvalue" data-af="body">RTX 4070, 12 GB</span>
+  </div>
+  <div class="part rise" data-at="520" style="left:1120px;top:162px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Processor</span>
+    <span class="pvalue" data-af="body">Ryzen 7 7800X3D, 8 cores</span>
+  </div>
+  <div class="part rise" data-at="630" style="left:1420px;top:422px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Memory</span>
+    <span class="pvalue" data-af="body">32 GB</span>
+  </div>
+  <div class="part rise" data-at="740" style="left:1280px;top:660px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Storage</span>
+    <span class="pvalue" data-af="body">1 TB fast, 2 TB</span>
+  </div>
+  <div class="part rise" data-at="850" style="left:960px;top:752px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Network</span>
+    <span class="pvalue" data-af="body">wired, connected</span>
+  </div>
+  <div class="part rise" data-at="960" style="left:560px;top:752px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Sound</span>
+    <span class="pvalue" data-af="body">speakers and a microphone</span>
+  </div>
+  <div class="part rise" data-at="1070" style="left:270px;top:632px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Keyboard and mouse</span>
+    <span class="pvalue" data-af="body">working</span>
+  </div>
+  <div class="part rise" data-at="1180" style="left:100px;top:422px">
+    <span class="star"></span>
+    <span class="plabel" data-af="small">Nearby</span>
+    <span class="pvalue" data-af="body">2 AienOS computers, a printer</span>
+  </div>
+  <p class="says center rise" style="top: 848px" data-at="1400" data-af="voice">This is your computer as I see it.</p>
+  <div class="buttons" style="top: 918px">
+    <div class="button lit rise" data-at="1700" data-href="06-consent.html"><span data-af="body">Next</span></div>
+  </div>
+</div>
+<script src="allen-font.js"></script>
+<script src="screen.js"></script>
+</body>
+</html>

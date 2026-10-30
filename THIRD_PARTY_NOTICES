@@ -1,0 +1,25 @@
+
+------------------------------------------------------------------------------
+AMD GPU Register Definitions (dce_11_2_d.h, gmc_8_1_d.h, gfx_8_0_d.h,
+                               oss_3_0_d.h, smu_7_1_3_d.h)
+------------------------------------------------------------------------------
+Source files consulted (register names and indices only; no code reproduced):
+  drivers/gpu/drm/amd/include/asic_reg/dce/dce_11_2_d.h
+  drivers/gpu/drm/amd/include/asic_reg/gmc/gmc_8_1_d.h
+  drivers/gpu/drm/amd/include/asic_reg/gca/gfx_8_0_d.h
+  drivers/gpu/drm/amd/include/asic_reg/oss/oss_3_0_d.h
+  drivers/gpu/drm/amd/include/asic_reg/smu/smu_7_1_3_d.h
+  drivers/gpu/drm/amd/amdgpu/dce_v11_0.c (page flip sequence)
+  drivers/gpu/drm/amd/amdgpu/gmc_v8_0.c  (MC init sequence)
+  drivers/gpu/drm/amd/amdgpu/gfx_v8_0.c  (CP/RLC init sequence)
+  drivers/gpu/drm/amd/amdgpu/sdma_v3_0.c (SDMA init sequence)
+  drivers/gpu/drm/amd/pm/powerplay/smumgr/polaris10_smumgr.c (SMU messages)
+
+Repository: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+License: MIT (Copyright (C) 2014-2016 Advanced Micro Devices, Inc.)
+SPDX-License-Identifier: MIT
+
+Use: register index constants and hardware interaction sequences were
+cross-referenced to derive and verify AIENOS register access patterns in
+native/kernel/gpu/amd_gpu_regs.h and native/kernel/gpu/amd_*.c.
+No source code was copied or reproduced verbatim.

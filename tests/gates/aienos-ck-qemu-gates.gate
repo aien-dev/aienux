@@ -1,5 +1,6 @@
 # tests/gates/aienos-ck-qemu-gates.gate
-# Mirrors hosted: ck-kernel.yml 'QEMU TCG gates': bash scripts/ck_gates.sh --out DIR, every C-implemented gate except FPU/INFER must print AIENOS_CK_<G>: PASS (hosted job 2340 s total)
+# Includes the iMac credential/boot-signature regressions after these hosted-equivalent gates:
+# ck-kernel.yml 'QEMU TCG gates': bash scripts/ck_gates.sh --out DIR, every C-implemented gate except FPU/INFER must print AIENOS_CK_<G>: PASS (hosted job 2340 s total)
 gate: AIENOS-CK-QEMU-GATES
 manifest_version: 2
 owner: aienos
@@ -7,6 +8,10 @@ requires:
   - qemu
 inputs:
   - native/kernel/
+  - native/argus/
+  - native/boot/
+  - native/net/
+  - native/sig/
   - scripts/ck_gates.sh
   - scripts/lib_ck_m1_checks.sh
   - scripts/lib_gate_hold.sh

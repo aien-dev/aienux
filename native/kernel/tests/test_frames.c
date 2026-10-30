@@ -88,6 +88,25 @@ int main(void)
     CHECK(ck_frames_free_bytes(&f) == 2 * 4096);
     CHECK(ck_frames_alloc(&f, 2, 4096, &a) == 0 && a == 0x40000000);
 
+    /* Below a limit (exclusive): the block ends at or under it, frames above stay free. */
+    ck_frames_init(&f);
+    ck_frames_add(&f, 0x80000000ull, 0x100100000ull); /* 2 GiB .. 4 GiB + 1 MiB */
+    CHECK(ck_frames_alloc_below(&f, 1024, 4096, 1ull << 32, &a) == 0 && a == 0x80000000ull);
+    CHECK(ck_frames_alloc_below(&f, 0x7FC00, 4096, 1ull << 32, &a) == 0 && a == 0x80400000ull);
+    CHECK(a + 0x7FC00ull * 4096 == 1ull << 32 && ck_frames_free_bytes(&f) == 0x100000ull);
+    CHECK(ck_frames_alloc_below(&f, 1, 4096, 1ull << 32, &a) == -1); /* only frames above 4 GiB left */
+    CHECK(ck_frames_free_bytes(&f) == 0x100000ull);
+    CHECK(ck_frames_alloc(&f, 1, 4096, &a) == 0 && a == (1ull << 32)); /* unlimited alloc still sees them */
+
+    /* A block that starts past the first free frame and stops at the limit splits the range. */
+    ck_frames_init(&f);
+    ck_frames_add(&f, 0x10001000ull, 0x20000000ull);
+    CHECK(ck_frames_alloc_below(&f, 1, 0x400000, 0x10800000ull, &a) == 0 && a == 0x10400000ull);
+    CHECK(!inside_free(&f, 0x10400000ull) && inside_free(&f, 0x10401000ull) && inside_free(&f, 0x10001000ull));
+    CHECK(ck_frames_free_bytes(&f) == 0x20000000ull - 0x10001000ull - 4096);
+    CHECK(ck_frames_alloc_below(&f, 1, 4096, 0x10000000ull, &a) == -1); /* limit below the free start */
+    CHECK(ck_frames_alloc_below(&f, 1, 4096, 0, &a) == -1);             /* no limit given */
+
     /* Range table overflow is counted, not silent. */
     ck_frames_init(&f);
     for (unsigned i = 0; i < CK_FRAMES_MAX + 3; i++)

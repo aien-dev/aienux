@@ -33,6 +33,7 @@ static ck_nvme g_nvme;
 /* Later stages get only the AIENOS partition view (dev/disk_part.h), never the
  * whole namespace: every access they make goes through ck_part_xlate. */
 const disk_dev *ck_dev_boot_disk(void) { return g_nvme.bound && g_nvme.part.valid ? &g_nvme.part.dev : 0; }
+const pci_system *ck_dev_pci(void) { return &g_pci; }
 
 /* The AIENOS image slots partition (native/boot/slot_format.h, P11 cut 2b) and
  * the update inbox partition (P11 cut 3) on the same bound NVMe disk: further

@@ -1,0 +1,23 @@
+# STEP2_gmc_read.bench -- GMC 8 memory controller state (reads only).
+# BAR5 DWORD indices (byte offset / 4 in each comment). Source: amd_gpu_regs.h (gmc_8_1_d.h).
+# No writes, so the allowlist does not apply.
+
+# MC_VM_FB_LOCATION: bits[15:0] FB_START (VRAM PA = FB_START << 24), bits[31:16] FB_TOP
+# byte 0x24
+bar5_read 0x809
+
+# System aperture window (PA >> 12)
+# MC_VM_SYSTEM_APERTURE_LOW_ADDR, byte 0x38
+bar5_read 0x80d
+# MC_VM_SYSTEM_APERTURE_HIGH_ADDR, byte 0x3C
+bar5_read 0x80e
+
+# AGP window (GART address range): 0xb is TOP, 0xc is BOT
+# MC_VM_AGP_TOP, byte 0x2C
+bar5_read 0x80a
+# MC_VM_AGP_BOT, byte 0x30
+bar5_read 0x80b
+
+# VM context 0 page table base
+# VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, byte 0x153C
+bar5_read 0x54f

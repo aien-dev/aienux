@@ -1,0 +1,114 @@
+== hub: usb-kbd behind usb-hub ==
+PASS  hub: controller running
+PASS  hub: hub walked
+PASS  hub: keyboard found behind the hub
+PASS  hub: typing prompt
+PASS  hub: no countdown while Allen's window is up
+PASS  hub: power button watched
+PASS  hub: default idle time 600 s
+PASS  hub: display chip listed
+PASS  hub: panel left alone (no AMD chip in QEMU)
+PASS  hub: keys sent from outside the guest
+PASS  hub: Allen's window took the screen
+PASS  hub: the night drawn by the secondary core, frames timed
+PASS  hub: first line typed
+PASS  hub: Allen answers Hello Humanity.
+PASS  hub: the answer reported by lengths only (11 characters in, 15 out)
+PASS  hub: screenshot of Allen's window kept (/home/drakestapleton/workspace/aienos-bundle1/target/native-kernel-imac-keyboard/allen-qemu.png)
+PASS  hub: backspace edits the line; shifted and plain symbols typed
+PASS  hub: Allen says what it does not know
+PASS  hub: still on and awake 70 s after the last key (idle time 600 s)
+PASS  hub: Allen says goodbye
+PASS  hub: kernel alive
+PASS  hub: Allen asleep after goodbye
+PASS  hub: power-button tap woke Allen
+PASS  hub: second tap put Allen to sleep
+PASS  hub: a key woke Allen
+PASS  hub: the waking key was not typed
+PASS  hub: typing works again after waking
+== direct: usb-kbd on a root port ==
+PASS  direct: keyboard found on a root port
+PASS  direct: Allen's window stays on
+PASS  direct: unplug noticed
+PASS  direct: keyboard found again after replug
+PASS  direct: line typed on the replugged keyboard
+== none: controller, no keyboard ==
+PASS  none: controller found
+PASS  none: says there is no keyboard
+PASS  none: kernel alive
+PASS  none: no keyboard claimed
+PASS  none: text screen kept without a keyboard
+== idle: nobody types, idle time 25 s ==
+PASS  idle: keyboard found
+PASS  idle: idle time 25 s
+PASS  idle: how the cores rest, meter off under a hypervisor
+PASS  idle: the screen slept by itself
+PASS  idle: Allen asleep with no key typed
+PASS  idle: a key woke Allen
+PASS  idle: one sleep, one wake
+PASS  idle: the waking key was not typed
+PASS  idle: typing works again after waking
+PASS  idle: no processor meter under a hypervisor
+PASS  idle: kernel alive
+PASS  hub: no panic
+PASS  direct: no panic
+PASS  none: no panic
+PASS  idle: no panic
+---- hub serial (keyboard, power and panel lines) ----
+pci: xhci 00:02.0 id=1b36:000d bar0=0xc000000000
+xhci: ctrl=0 running version=100 ports=8 slots=8 context_bytes=32 scratchpads=0
+usb: port 5: hub, 8 ports, full speed
+keyboard: ready (controller 0, port 5.1, full speed, slot 2, endpoint 0x81)
+pci: display 00:01.0 id=1234:1111 class=030000 bar0=0x80000000 bar5=0x0 mem_decode=1
+screen: panel: the display chip is not an AMD VGA controller; asleep the screen is painted black and stays lit
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+keyboard_line: Hello Allen
+keyboard_line: xz?!,
+keyboard_line: goodbye
+power: Allen asleep (any key or a tap of the power button wakes him)
+power: Allen awake
+power: Allen asleep (any key or a tap of the power button wakes him)
+power: Allen awake
+keyboard_line: ok
+---- direct serial (keyboard, power and panel lines) ----
+pci: xhci 00:02.0 id=1b36:000d bar0=0xc000000000
+xhci: ctrl=0 running version=100 ports=8 slots=8 context_bytes=32 scratchpads=0
+keyboard: ready (controller 0, port 5, high speed, slot 1, endpoint 0x81)
+pci: display 00:01.0 id=1234:1111 class=030000 bar0=0x80000000 bar5=0x0 mem_decode=1
+screen: panel: the display chip is not an AMD VGA controller; asleep the screen is painted black and stays lit
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 600 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+keyboard: unplugged; plug it back in
+keyboard: ready (controller 0, port 5, high speed, slot 1, endpoint 0x81)
+keyboard_line: ok
+---- none serial (keyboard, power and panel lines) ----
+pci: xhci 00:02.0 id=1b36:000d bar0=0xc000000000
+xhci: ctrl=0 running version=100 ports=8 slots=8 context_bytes=32 scratchpads=0
+xhci: ctrl=0 no keyboard (no boot keyboard on any port, completion 0)
+keyboard: none (no USB keyboard found)
+pci: display 00:01.0 id=1234:1111 class=030000 bar0=0x80000000 bar5=0x0 mem_decode=1
+screen: panel: the display chip is not an AMD VGA controller; asleep the screen is painted black and stays lit
+power: holding the screen 60 s, then ACPI S5
+---- idle serial (keyboard, power and panel lines) ----
+pci: xhci 00:02.0 id=1b36:000d bar0=0xc000000000
+xhci: ctrl=0 running version=100 ports=8 slots=8 context_bytes=32 scratchpads=0
+keyboard: ready (controller 0, port 5, high speed, slot 1, endpoint 0x81)
+pci: display 00:01.0 id=1234:1111 class=030000 bar0=0x80000000 bar5=0x0 mem_decode=1
+screen: panel: the display chip is not an AMD VGA controller; asleep the screen is painted black and stays lit
+power: button watched at PM1 status port 0x600 (tap: sleep or wake; hold 4 s: off; enable bit set for the hypervisor's chipset model)
+power: this computer rests after 25 s without a key
+power: asleep, the drawing cores rest in mwait (hint 0x0) and the boot core in mwait between keyboard polls every 20 ms; meter: none (under a hypervisor)
+keyboard: type a line and press Enter; type goodbye and this computer rests, any key wakes it; holding the power button 4 s turns it off
+power: Allen's window stays on; goodbye, the idle time or a tap of the power button rests this computer (the screen goes off) and any key wakes it; hold the button 4 s to turn it off
+power: no key for 25 s; the computer rests
+power: Allen asleep (any key or a tap of the power button wakes him)
+power: Allen awake
+keyboard_line: ok
+AIENOS_IMAC_KEYBOARD: PASS

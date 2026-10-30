@@ -15,8 +15,9 @@
  */
 
 /* ahci_x86.c -- AIENOS-IMAC-KERNEL-1: the SATA disks behind an AHCI
- * controller, READ-ONLY, for the 2017 iMac (Intel 8086:a102, the 1 TB hard
- * disk half of the Fusion Drive) and QEMU q35 (ICH9).
+ * controller for the 2017 iMac (Intel 8086:a102, the 1 TB hard disk half of
+ * the Fusion Drive) and QEMU q35 (ICH9). Read-only unless a write range is
+ * opened.
  *
  * Each controller is driven polled,
  * with interrupts off: AHCI mode on, no controller or port reset (the links
@@ -25,11 +26,15 @@
  * kernel owns, the engine started again. The PCI walk that finds the
  * controllers is pci_x86.c.
  *
- * Only two ATA commands exist in this file: IDENTIFY DEVICE (0xEC) and READ
- * DMA EXT (0x25). issue() refuses every other opcode, and the disk_dev the
- * GPT checker (dev/disk_part.c) reads through has a write hook that always
- * refuses: nothing here can change a disk. The IDENTIFY serial number words
- * are never read. QEMU runs of this path qualify nothing physical. */
+ * Four ATA commands exist in this file: IDENTIFY DEVICE (0xEC), READ DMA
+ * EXT (0x25), WRITE DMA EXT (0x35) and FLUSH CACHE EXT (0xEA); issue()
+ * refuses every other opcode. Writes and flushes are refused unless the
+ * transfer lies wholly inside a write range opened with ck_x86_ahci_allow,
+ * and only x86/memory_x86.c opens ranges (the Makefile checks): the GPT
+ * blocks of the approved hard disk while Allen's partition is added, then
+ * the two memory copies inside that partition. A disk with no open range
+ * cannot be changed. The IDENTIFY serial number words are never read. QEMU
+ * runs of this path qualify nothing physical. */
 #include "../core/ck_internal.h"
 #include "../mm/frames.h"
 #include "disk.h"
@@ -77,6 +82,9 @@
 
 #define ATA_IDENTIFY 0xec
 #define ATA_READ_DMA_EXT 0x25
+#define ATA_WRITE_DMA_EXT 0x35
+#define ATA_FLUSH_CACHE_EXT 0xea
+#define AHCI_MAX_ALLOW 3u
 
 /* pci_x86.c: sector 0 and the GPT check of one disk, printed. */
 void ck_x86_disk_report(const char *tag, unsigned ctrl, unsigned index, const disk_dev *dev);
@@ -86,6 +94,9 @@ struct ahci_disk {
     uint8_t *cl, *fis, *ct, *bounce; /* kernel frames the controller reads and writes */
     uint64_t tsc_hz;
     unsigned ctrl, index;
+    char model[41];
+    uint64_t allow_first[AHCI_MAX_ALLOW], allow_last[AHCI_MAX_ALLOW]; /* open write ranges, inclusive */
+    unsigned nallow;
     disk_dev dev;
 };
 
@@ -124,18 +135,22 @@ static int alloc_low(struct ck_frames *f, uint64_t pages, int low4g, uint8_t **o
 
 static uint64_t pa_of(const void *p) { return (uint64_t)(uintptr_t)p; }
 
-/* One command in slot 0, polled. Only IDENTIFY DEVICE and READ DMA EXT. */
+/* One command in slot 0, polled. Only IDENTIFY DEVICE, READ DMA EXT, WRITE
+ * DMA EXT (the data already in the bounce buffer) and FLUSH CACHE EXT (no
+ * data, bytes 0). */
 static int issue(struct ahci_disk *d, uint8_t cmd, uint64_t lba, uint32_t count, uint32_t bytes)
 {
-    if (cmd != ATA_IDENTIFY && cmd != ATA_READ_DMA_EXT)
+    int rw = cmd == ATA_READ_DMA_EXT || cmd == ATA_WRITE_DMA_EXT;
+    if (cmd != ATA_IDENTIFY && !rw && cmd != ATA_FLUSH_CACHE_EXT)
         return DISK_EARG;
-    if (!bytes || bytes > BOUNCE_BYTES)
+    if ((cmd == ATA_FLUSH_CACHE_EXT) != !bytes || bytes > BOUNCE_BYTES)
         return DISK_EARG;
     volatile uint8_t *p = d->port;
     if (wait_reg(p, P_TFD, TFD_BSY | TFD_DRQ, 0, 1000))
         return DISK_ESTATE;
     uint32_t *hdr = (uint32_t *)d->cl;
-    hdr[0] = 5u | 1u << 16; /* CFL 5 dwords, read (W = 0), one PRD */
+    /* CFL 5 dwords; W (bit 6) for a write; one PRD, none for a flush */
+    hdr[0] = 5u | (cmd == ATA_WRITE_DMA_EXT ? 1u << 6 : 0u) | (bytes ? 1u << 16 : 0u);
     hdr[1] = 0;
     hdr[2] = (uint32_t)pa_of(d->ct);
     hdr[3] = (uint32_t)(pa_of(d->ct) >> 32);
@@ -144,7 +159,7 @@ static int issue(struct ahci_disk *d, uint8_t cmd, uint64_t lba, uint32_t count,
     f[0] = 0x27; /* host to device register FIS */
     f[1] = 0x80; /* command */
     f[2] = cmd;
-    if (cmd == ATA_READ_DMA_EXT) {
+    if (rw) {
         f[4] = (uint8_t)lba;
         f[5] = (uint8_t)(lba >> 8);
         f[6] = (uint8_t)(lba >> 16);
@@ -159,11 +174,12 @@ static int issue(struct ahci_disk *d, uint8_t cmd, uint64_t lba, uint32_t count,
     prd[0] = (uint32_t)pa_of(d->bounce);
     prd[1] = (uint32_t)(pa_of(d->bounce) >> 32);
     prd[2] = 0;
-    prd[3] = bytes - 1u;
+    prd[3] = bytes ? bytes - 1u : 0u;
     __asm__ volatile("mfence" ::: "memory");
     mw(p, P_IS, 0xffffffffu);
     mw(p, P_CI, 1);
-    uint64_t t0 = ck_rdtsc(), lim = d->tsc_hz * 15; /* 15 s: a spun-down hard disk spins up first */
+    uint64_t t0 = ck_rdtsc(), lim = d->tsc_hz * 30; /* a spun-down hard disk spins up first; a flush
+                                                    * may also wait for the cache to reach the platters */
     for (;;) {
         if (mr(p, P_IS) & IS_TFES)
             return DISK_EIO;
@@ -189,16 +205,37 @@ static int ahci_read(void *ctx, uint64_t lba, uint32_t count, uint8_t *buf)
     return rc;
 }
 
+/* Inside one open write range, as a whole. */
+static int allowed(const struct ahci_disk *d, uint64_t lba, uint32_t count)
+{
+    uint64_t last = lba + count - 1u;
+    if (!count || last < lba)
+        return 0;
+    for (unsigned i = 0; i < d->nallow; i++)
+        if (lba >= d->allow_first[i] && last <= d->allow_last[i])
+            return 1;
+    return 0;
+}
+
 static int ahci_write(void *ctx, uint64_t lba, uint32_t count, const uint8_t *buf)
 {
-    (void)ctx, (void)lba, (void)count, (void)buf;
-    return DISK_ESTATE; /* read-only driver */
+    struct ahci_disk *d = ctx;
+    if (!allowed(d, lba, count)) {
+        ck_printf("ahci_write: ctrl=%u disk=%u lba=%llu count=%u refused: outside the open write ranges\n", d->ctrl,
+                  d->index, (unsigned long long)lba, count);
+        return DISK_ERANGE;
+    }
+    uint32_t bytes = count * d->dev.block_size;
+    memcpy(d->bounce, buf, bytes);
+    return issue(d, ATA_WRITE_DMA_EXT, lba, count, bytes);
 }
 
 static int ahci_flush(void *ctx)
 {
-    (void)ctx;
-    return DISK_ESTATE;
+    struct ahci_disk *d = ctx;
+    if (!d->nallow)
+        return DISK_ESTATE; /* nothing could have been written */
+    return issue(d, ATA_FLUSH_CACHE_EXT, 0, 0, 0);
 }
 
 static void id_string(const uint16_t *id, unsigned w0, unsigned words, char *out)
@@ -283,6 +320,8 @@ static void port_bringup(unsigned ctrl, volatile uint8_t *hba, unsigned pn, stru
     const uint16_t *id = (const uint16_t *)d->bounce;
     char model[41];
     id_string(id, 27, 20, model); /* words 10..19 (serial number) are never read */
+    memcpy(d->model, model, sizeof d->model);
+    d->nallow = 0;
     uint64_t sectors = 0;
     int lba48 = (id[83] & (1u << 10)) != 0;
     if (lba48)
@@ -333,3 +372,49 @@ void ck_x86_ahci_start(unsigned ctrl, uint64_t abar, struct ck_frames *fr, uint6
 }
 
 unsigned ck_x86_ahci_disks(void) { return ndisks; }
+
+const disk_dev *ck_x86_ahci_dev(unsigned index, const char **model)
+{
+    if (index >= ndisks)
+        return 0;
+    if (model)
+        *model = disks[index].model;
+    return &disks[index].dev;
+}
+
+int ck_x86_ahci_allow(unsigned index, uint64_t first, uint64_t last)
+{
+    if (index >= ndisks)
+        return -1;
+    struct ahci_disk *d = &disks[index];
+    if (d->nallow == AHCI_MAX_ALLOW || first == 0 || first > last || last >= d->dev.block_count)
+        return -1; /* LBA 0 (the protective MBR) is never opened */
+    d->allow_first[d->nallow] = first;
+    d->allow_last[d->nallow] = last;
+    d->nallow++;
+    ck_printf("ahci_disk: ctrl=%u disk=%u writes allowed lba=%llu..%llu\n", d->ctrl, index,
+              (unsigned long long)first, (unsigned long long)last);
+    return 0;
+}
+
+void ck_x86_ahci_allow_none(unsigned index)
+{
+    if (index < ndisks && disks[index].nallow) {
+        disks[index].nallow = 0;
+        ck_printf("ahci_disk: ctrl=%u disk=%u write ranges closed\n", disks[index].ctrl, index);
+    }
+}
+
+#ifdef CK_X86_SWAP_TEST_DISK
+/* Read LBAs directly for the swap inbox (QEMU/lab test only, not production). */
+int ck_x86_ahci_read_lba(unsigned ctrl, unsigned disk_idx, uint64_t lba,
+                           unsigned count, uint8_t *buf)
+{
+    for (unsigned i = 0; i < ndisks; i++) {
+        if (disks[i].ctrl == ctrl && i == disk_idx) {
+            return disk_read(&disks[i].dev, lba, count, buf);
+        }
+    }
+    return -1;
+}
+#endif /* CK_X86_SWAP_TEST_DISK */

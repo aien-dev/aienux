@@ -1,0 +1,286 @@
+/* allen-tokens.css -- Allen's look as CSS custom properties.
+   Generated from docs/design/DESIGN.md by allen-design-tokens. Do not edit; change DESIGN.md and run
+   `cargo run -p allen-design-tokens -- generate`. */
+:root {
+  /* version */
+  /* name */
+  /* description */
+  /* colors */
+  --allen-colors-primary: #ECF0FC;
+  --allen-colors-primary-rgb: 236 240 252;
+  --allen-colors-night: #060812;
+  --allen-colors-night-rgb: 6 8 18;
+  --allen-colors-hint: #96A0C4;
+  --allen-colors-hint-rgb: 150 160 196;
+  --allen-colors-faint: #828CB0;
+  --allen-colors-faint-rgb: 130 140 176;
+  --allen-colors-glow: #96AAFF;
+  --allen-colors-glow-rgb: 150 170 255;
+  --allen-colors-mist: #C8D2FF;
+  --allen-colors-mist-rgb: 200 210 255;
+  --allen-colors-ink: #4056C4;
+  --allen-colors-ink-rgb: 64 86 196;
+  --allen-colors-warm: #FFD496;
+  --allen-colors-warm-rgb: 255 212 150;
+  --allen-colors-warm-soft: #FFDEB4;
+  --allen-colors-warm-soft-rgb: 255 222 180;
+  --allen-colors-heart: #FFD2AA;
+  --allen-colors-heart-rgb: 255 210 170;
+  --allen-colors-heart-core: #FFECD6;
+  --allen-colors-heart-core-rgb: 255 236 214;
+  --allen-colors-halo: #3C4AD2;
+  --allen-colors-halo-rgb: 60 74 210;
+  --allen-colors-halo-violet: #705CFF;
+  --allen-colors-halo-violet-rgb: 112 92 255;
+  --allen-colors-sky-glow: #6E82FF;
+  --allen-colors-sky-glow-rgb: 110 130 255;
+  --allen-colors-panel: #0C1026;
+  --allen-colors-panel-rgb: 12 16 38;
+  --allen-colors-lit: #3B446F;
+  --allen-colors-lit-rgb: 59 68 111;
+  /* typography */
+  --allen-typography-voice-fontFamily: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --allen-typography-voice-fontSize: 27px;
+  --allen-typography-voice-fontWeight: 400;
+  --allen-typography-voice-lineHeight: 40px;
+  --allen-typography-voice-letterSpacing: 0.02em;
+  --allen-typography-body-fontFamily: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --allen-typography-body-fontSize: 21px;
+  --allen-typography-body-fontWeight: 500;
+  --allen-typography-body-lineHeight: 30px;
+  --allen-typography-body-letterSpacing: 0.01em;
+  --allen-typography-small-fontFamily: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --allen-typography-small-fontSize: 16px;
+  --allen-typography-small-fontWeight: 500;
+  --allen-typography-small-lineHeight: 22px;
+  --allen-typography-small-letterSpacing: 0.02em;
+  --allen-typography-title-fontFamily: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --allen-typography-title-fontSize: 40px;
+  --allen-typography-title-fontWeight: 300;
+  --allen-typography-title-lineHeight: 52px;
+  --allen-typography-title-letterSpacing: 0.04em;
+  /* rounded */
+  --allen-rounded-sm: 8px;
+  --allen-rounded-md: 14px;
+  --allen-rounded-panel: 22px;
+  --allen-rounded-pill: 999px;
+  /* spacing */
+  --allen-spacing-xs: 4px;
+  --allen-spacing-sm: 8px;
+  --allen-spacing-md: 16px;
+  --allen-spacing-lg: 24px;
+  --allen-spacing-xl: 40px;
+  --allen-spacing-xxl: 72px;
+  --allen-spacing-bar-width: 720px;
+  --allen-spacing-bar-height: 54px;
+  --allen-spacing-bar-bottom: 96px;
+  --allen-spacing-text-width: 900px;
+  --allen-spacing-words-below-centre: 250px;
+  /* components */
+  --allen-components-page-backgroundColor: #060812;
+  --allen-components-page-backgroundColor-rgb: 6 8 18;
+  --allen-components-page-textColor: #ECF0FC;
+  --allen-components-page-textColor-rgb: 236 240 252;
+  --allen-components-page-typography: var(--allen-typography-body);
+  --allen-components-allen-says-backgroundColor: #060812;
+  --allen-components-allen-says-backgroundColor-rgb: 6 8 18;
+  --allen-components-allen-says-textColor: #ECF0FC;
+  --allen-components-allen-says-textColor-rgb: 236 240 252;
+  --allen-components-allen-says-typography: var(--allen-typography-voice);
+  --allen-components-allen-title-backgroundColor: #060812;
+  --allen-components-allen-title-backgroundColor-rgb: 6 8 18;
+  --allen-components-allen-title-textColor: #ECF0FC;
+  --allen-components-allen-title-textColor-rgb: 236 240 252;
+  --allen-components-allen-title-typography: var(--allen-typography-title);
+  --allen-components-hint-text-backgroundColor: #060812;
+  --allen-components-hint-text-backgroundColor-rgb: 6 8 18;
+  --allen-components-hint-text-textColor: #96A0C4;
+  --allen-components-hint-text-textColor-rgb: 150 160 196;
+  --allen-components-hint-text-typography: var(--allen-typography-small);
+  --allen-components-fine-print-backgroundColor: #060812;
+  --allen-components-fine-print-backgroundColor-rgb: 6 8 18;
+  --allen-components-fine-print-textColor: #828CB0;
+  --allen-components-fine-print-textColor-rgb: 130 140 176;
+  --allen-components-fine-print-typography: var(--allen-typography-small);
+  --allen-components-input-bar-backgroundColor: #060812;
+  --allen-components-input-bar-backgroundColor-rgb: 6 8 18;
+  --allen-components-input-bar-textColor: #ECF0FC;
+  --allen-components-input-bar-textColor-rgb: 236 240 252;
+  --allen-components-input-bar-typography: var(--allen-typography-body);
+  --allen-components-input-bar-rounded: 999px;
+  --allen-components-input-bar-height: 54px;
+  --allen-components-input-bar-width: 720px;
+  --allen-components-input-bar-caret-backgroundColor: #060812;
+  --allen-components-input-bar-caret-backgroundColor-rgb: 6 8 18;
+  --allen-components-input-bar-caret-textColor: #96AAFF;
+  --allen-components-input-bar-caret-textColor-rgb: 150 170 255;
+  --allen-components-choice-backgroundColor: #0C1026;
+  --allen-components-choice-backgroundColor-rgb: 12 16 38;
+  --allen-components-choice-textColor: #C8D2FF;
+  --allen-components-choice-textColor-rgb: 200 210 255;
+  --allen-components-choice-typography: var(--allen-typography-body);
+  --allen-components-choice-rounded: 14px;
+  --allen-components-choice-padding: 16px;
+  --allen-components-choice-lit-backgroundColor: #3B446F;
+  --allen-components-choice-lit-backgroundColor-rgb: 59 68 111;
+  --allen-components-choice-lit-textColor: #ECF0FC;
+  --allen-components-choice-lit-textColor-rgb: 236 240 252;
+  --allen-components-choice-lit-typography: var(--allen-typography-body);
+  --allen-components-choice-lit-rounded: 14px;
+  --allen-components-choice-lit-padding: 16px;
+  --allen-components-button-primary-backgroundColor: #3B446F;
+  --allen-components-button-primary-backgroundColor-rgb: 59 68 111;
+  --allen-components-button-primary-textColor: #ECF0FC;
+  --allen-components-button-primary-textColor-rgb: 236 240 252;
+  --allen-components-button-primary-typography: var(--allen-typography-body);
+  --allen-components-button-primary-rounded: 999px;
+  --allen-components-button-primary-padding: 14px;
+  --allen-components-button-primary-hover-backgroundColor: #3B446F;
+  --allen-components-button-primary-hover-backgroundColor-rgb: 59 68 111;
+  --allen-components-button-primary-hover-textColor: #FFDEB4;
+  --allen-components-button-primary-hover-textColor-rgb: 255 222 180;
+  --allen-components-button-secondary-backgroundColor: #0C1026;
+  --allen-components-button-secondary-backgroundColor-rgb: 12 16 38;
+  --allen-components-button-secondary-textColor: #C8D2FF;
+  --allen-components-button-secondary-textColor-rgb: 200 210 255;
+  --allen-components-button-secondary-rounded: 999px;
+  --allen-components-button-secondary-padding: 14px;
+  --allen-components-panel-backgroundColor: #0C1026;
+  --allen-components-panel-backgroundColor-rgb: 12 16 38;
+  --allen-components-panel-textColor: #ECF0FC;
+  --allen-components-panel-textColor-rgb: 236 240 252;
+  --allen-components-panel-rounded: 22px;
+  --allen-components-panel-padding: 24px;
+  --allen-components-found-line-backgroundColor: #060812;
+  --allen-components-found-line-backgroundColor-rgb: 6 8 18;
+  --allen-components-found-line-textColor: #ECF0FC;
+  --allen-components-found-line-textColor-rgb: 236 240 252;
+  --allen-components-found-line-typography: var(--allen-typography-body);
+  --allen-components-found-line-label-backgroundColor: #060812;
+  --allen-components-found-line-label-backgroundColor-rgb: 6 8 18;
+  --allen-components-found-line-label-textColor: #96A0C4;
+  --allen-components-found-line-label-textColor-rgb: 150 160 196;
+  --allen-components-found-line-label-typography: var(--allen-typography-body);
+  --allen-components-state-word-backgroundColor: #060812;
+  --allen-components-state-word-backgroundColor-rgb: 6 8 18;
+  --allen-components-state-word-textColor: #96AAFF;
+  --allen-components-state-word-textColor-rgb: 150 170 255;
+  --allen-components-state-word-typography: var(--allen-typography-small);
+  --allen-components-state-word-needs-you-backgroundColor: #060812;
+  --allen-components-state-word-needs-you-backgroundColor-rgb: 6 8 18;
+  --allen-components-state-word-needs-you-textColor: #FFD496;
+  --allen-components-state-word-needs-you-textColor-rgb: 255 212 150;
+  --allen-components-state-word-needs-you-typography: var(--allen-typography-small);
+  --allen-components-focus-ring-backgroundColor: #060812;
+  --allen-components-focus-ring-backgroundColor-rgb: 6 8 18;
+  --allen-components-focus-ring-textColor: #C8D2FF;
+  --allen-components-focus-ring-textColor-rgb: 200 210 255;
+  --allen-components-orb-halo-backgroundColor: #3C4AD2;
+  --allen-components-orb-halo-backgroundColor-rgb: 60 74 210;
+  --allen-components-orb-halo-violet-backgroundColor: #705CFF;
+  --allen-components-orb-halo-violet-backgroundColor-rgb: 112 92 255;
+  --allen-components-orb-heart-backgroundColor: #FFD2AA;
+  --allen-components-orb-heart-backgroundColor-rgb: 255 210 170;
+  --allen-components-orb-heart-core-backgroundColor: #FFECD6;
+  --allen-components-orb-heart-core-backgroundColor-rgb: 255 236 214;
+  --allen-components-water-backgroundColor: #4056C4;
+  --allen-components-water-backgroundColor-rgb: 64 86 196;
+  --allen-components-sky-wash-backgroundColor: #6E82FF;
+  --allen-components-sky-wash-backgroundColor-rgb: 110 130 255;
+  /* native-type */
+  --allen-native-type-voice-cap: 19px;
+  --allen-native-type-body-cap: 15px;
+  --allen-native-type-small-cap: 11px;
+  --allen-native-type-voice-weight: 1000;
+  --allen-native-type-body-weight: 1150;
+  --allen-native-type-small-weight: 1250;
+  --allen-native-type-line: 40px;
+  --allen-native-type-wrap: 900px;
+  /* motion */
+  --allen-motion-ease-smooth: cubic-bezier(0.3333, 0, 0.6667, 1);
+  --allen-motion-ease-out: cubic-bezier(0.3333, 1, 0.6667, 1);
+  --allen-motion-ease-enter: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --allen-motion-frame: 16ms;
+  --allen-motion-letter: 35ms;
+  --allen-motion-letter-cool: 900ms;
+  --allen-motion-word-rise: 600ms;
+  --allen-motion-words-fade: 450ms;
+  --allen-motion-read-base: 6000ms;
+  --allen-motion-read-per-letter: 70ms;
+  --allen-motion-state-blend: 700ms;
+  --allen-motion-choice-lit: 100ms;
+  --allen-motion-dawn: 900ms;
+  --allen-motion-dusk: 4000ms;
+  --allen-motion-dusk-fallback: 1400ms;
+  --allen-motion-bar-rest: 9000ms;
+  --allen-motion-bar-rise: 900ms;
+  --allen-motion-caret-breath: 1100ms;
+  --allen-motion-caret-hold: 500ms;
+  --allen-motion-mind-form: 3000ms;
+  --allen-motion-enter-rise: 10px;
+  --allen-motion-enter-blur: 3px;
+  /* heartbeat */
+  --allen-heartbeat-breath-period: 5500ms;
+  --allen-heartbeat-breath-depth: 0.030;
+  --allen-heartbeat-think-pulse-period: 900ms;
+  --allen-heartbeat-heart-idle: 0.195;
+  --allen-heartbeat-heart-listen: 0.273;
+  --allen-heartbeat-heart-think: 0.469;
+  --allen-heartbeat-heart-speak: 0.313;
+  --allen-heartbeat-heart-ease-speak: 80ms;
+  --allen-heartbeat-heart-ease: 400ms;
+  /* boot */
+  --allen-boot-holes-appear: 2600ms;
+  --allen-boot-fade-end: 6800ms;
+  --allen-boot-spiral: 6000ms;
+  --allen-boot-merge: 12000ms;
+  --allen-boot-ripple-run: 3600ms;
+  --allen-boot-gone: 15200ms;
+  --allen-boot-allen-born: 12300ms;
+  --allen-boot-allen-formed: 15300ms;
+  --allen-boot-centre-x: 0.50;
+  --allen-boot-centre-y: 0.40;
+  /* sound */
+  --allen-sound-chirp-rate: 48000Hz;
+  --allen-sound-chirp-from: 200Hz;
+  --allen-sound-chirp-to: 1000Hz;
+  --allen-sound-chirp-peak: 0.70;
+  --allen-sound-chirp-in: 40ms;
+  --allen-sound-chirp-rise: 600ms;
+  --allen-sound-chirp-start: 11400ms;
+  --allen-sound-chirp-end: 12300ms;
+  /* contrast */
+  --allen-contrast-primary-on-night: 7.0;
+  --allen-contrast-hint-on-night: 4.5;
+  --allen-contrast-faint-on-night: 4.5;
+  --allen-contrast-mist-on-panel: 4.5;
+  --allen-contrast-primary-on-lit: 4.5;
+  --allen-contrast-warm-on-night: 4.5;
+  --allen-contrast-glow-on-night: 4.5;
+  --allen-contrast-primary-on-panel: 7.0;
+  --allen-contrast-warm-soft-on-lit: 4.5;
+  /* drawn-alpha */
+  --allen-drawn-alpha-hint: 1.0;
+  --allen-drawn-alpha-faint: 1.0;
+  /* kernel-today-alpha */
+  --allen-kernel-today-alpha-hint: 0.586;
+  --allen-kernel-today-alpha-faint: 0.430;
+  /* keys */
+  --allen-keys-next: "ArrowDown ArrowRight Tab";
+  --allen-keys-previous: "ArrowUp ArrowLeft Shift+Tab";
+  --allen-keys-choose: "Enter Space";
+  --allen-keys-not-now: Escape;
+  --allen-keys-speak: "any letter";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --allen-reduced-motion-night: still;
+    --allen-motion-letter: 0ms;
+    --allen-motion-word-rise: 0ms;
+    --allen-motion-state-blend: 150ms;
+    --allen-motion-dusk: 400ms;
+    --allen-heartbeat-breath-depth: 0;
+    --allen-heartbeat-think-pulse-period: 0ms;
+  }
+}

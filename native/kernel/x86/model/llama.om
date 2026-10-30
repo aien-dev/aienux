@@ -1,0 +1,355 @@
+target x86linux
+note Native decoder for the two pinned TinyStories Llama checkpoints.
+note Inference, attention, normalization, sampling and generation are Omega.
+note Input args: prompt count, new-token ceiling, checkpoint words, token ids.
+note Read-only checkpoint uses the llama2.c version-0 f32 layout.
+note Workspace is private, scratch begins at word 1024; first page is output.
+note fexp is reused from aien-dev/omega-dnn om/dnn.om (Apache-2.0 with LLVM exception), with f32 rounding at use.
+om2
+
+fn fexp x f64 to f64
+if ne x x
+ret x
+end
+if lt x -708.0f64
+ret 0.0f64
+end
+y = fmin x 709.0f64
+t = mul y 1.4426950408889634f64
+n = long 0
+if ge t 0.0f64
+n = long add t 0.5f64
+else
+n = long sub t 0.5f64
+end
+t = f64 n
+y = sub sub y mul t 0.6931471805599453f64 mul t 2.3190468138462996e-17f64
+t = 1.0f64
+for j ulong 13
+t = add 1.0f64 div mul y t f64 sub 13 j
+end
+ret mul t bitcast f64 shl ulong add n 1023 52
+end
+
+fn wf w view uint 16000000 i ulong to f32 inline
+ret bitcast f32 get w i
+end
+fn sf s edit uint 1048576 i ulong to f32
+ret bitcast f32 get s i
+end
+fn sf_fast s edit uint 1048576 i ulong to f32 inline
+ret bitcast f32 get s i
+end
+fn putf s edit uint 1048576 i ulong x f32 to void inline
+put s i bitcast uint x
+end
+
+fn setup w view uint 16000000 c edit ulong 64 nw ulong to void
+for i ulong 7
+put c i ulong get w i
+end
+if eq get c 0 64
+if ne get c 1 172
+trap 3
+end
+if ne get c 2 5
+trap 3
+end
+if ne get c 3 8
+trap 3
+end
+if ne get c 4 4
+trap 3
+end
+if ne get c 5 512
+trap 3
+end
+if ne get c 6 512
+trap 3
+end
+else
+if ne get c 0 288
+trap 3
+end
+if ne get c 1 768
+trap 3
+end
+if ne get c 2 6
+trap 3
+end
+if ne get c 3 6
+trap 3
+end
+if ne get c 4 6
+trap 3
+end
+if ne get c 5 32000
+trap 3
+end
+if ne get c 6 256
+trap 3
+end
+end
+put c 7 div mul get c 0 get c 4 get c 3
+put c 8 div get c 0 get c 3
+put c 9 64
+put c 10 7
+put c 11 add get c 10 mul get c 5 get c 0
+put c 12 add get c 11 mul get c 2 get c 0
+put c 13 add get c 12 mul get c 2 mul get c 0 get c 0
+put c 14 add get c 13 mul get c 2 mul get c 0 get c 7
+put c 15 add get c 14 mul get c 2 mul get c 0 get c 7
+put c 16 add get c 15 mul get c 2 mul get c 0 get c 0
+put c 17 add get c 16 mul get c 2 get c 0
+put c 18 add get c 17 mul get c 2 mul get c 0 get c 1
+put c 19 add get c 18 mul get c 2 mul get c 0 get c 1
+put c 20 add get c 19 mul get c 2 mul get c 0 get c 1
+put c 21 add get c 20 get c 0
+put c 22 add get c 21 div mul get c 6 get c 8 2
+if ne nw add get c 22 div mul get c 6 get c 8 2
+trap 3
+end
+put c 32 1024
+put c 33 add get c 32 get c 0
+put c 34 add get c 33 get c 0
+put c 35 add get c 34 get c 0
+put c 36 add get c 35 get c 1
+put c 37 add get c 36 get c 1
+put c 38 add get c 37 get c 0
+put c 39 add get c 38 mul get c 2 mul get c 9 get c 7
+put c 40 add get c 39 mul get c 2 mul get c 9 get c 7
+put c 41 add get c 40 mul get c 3 get c 9
+if gt add get c 41 get c 5 1048576
+trap 3
+end
+end
+
+fn dot w view uint 16000000 s edit uint 1048576 wi ulong si ulong n ulong to f32
+v = 0.0f32
+for j ulong n
+v = add v mul wf w add wi j sf_fast s add si j
+end
+ret v
+end
+fn linear w view uint 16000000 s edit uint 1048576 wi ulong si ulong di ulong shape ulong to void
+n = shr shape 32
+m = and shape 0xffffffff
+for i ulong m
+putf s add di i dot w s add wi mul i n si n
+end
+end
+fn rms w view uint 16000000 s edit uint 1048576 wi ulong si ulong di ulong n ulong to void
+v = 0.0f32
+for j ulong n
+x = sf s add si j
+v = add v mul x x
+end
+v = div 1.0f32 fsqrt add div v f32 n 0.00001f32
+for j ulong n
+putf s add di j mul wf w add wi j mul v sf s add si j
+end
+end
+fn copyw w view uint 16000000 s edit uint 1048576 wi ulong di ulong n ulong to void
+for j ulong n
+put s add di j get w add wi j
+end
+end
+fn residual s edit uint 1048576 di ulong si ulong n ulong to void
+for j ulong n
+putf s add di j add sf s add di j sf s add si j
+end
+end
+
+fn rotate_values s edit uint 1048576 i ulong cs f32 sn f32 to void
+a = sf s i
+b = sf s add i 1
+putf s i sub mul a cs mul b sn
+putf s add i 1 add mul a sn mul b cs
+end
+fn rotate w view uint 16000000 s edit uint 1048576 c view ulong 64 base ulong n ulong to void
+for pair ulong div n 2
+i = mul pair 2
+off = mul get c 49 get c 8
+off = add off rem i get c 8
+off = div off 2
+cs = wf w add get c 21 off
+sn = wf w add get c 22 off
+rotate_values s add base i cs sn
+end
+end
+fn softmax s edit uint 1048576 base ulong n ulong to void
+m = sf s base
+for j ulong n
+m = fmax m sf s add base j
+end
+total = 0.0f32
+for j ulong n
+v = f32 fexp f64 sub sf s add base j m
+putf s add base j v
+total = add total v
+end
+for j ulong n
+putf s add base j div sf s add base j total
+end
+end
+fn score s edit uint 1048576 a ulong b ulong n ulong to f32
+v = 0.0f32
+for j ulong n
+v = add v mul sf_fast s add a j sf_fast s add b j
+end
+ret div v fsqrt f32 n
+end
+fn weighted s edit uint 1048576 a ulong k ulong n ulong stride ulong to f32
+v = 0.0f32
+for t ulong n
+v = add v mul sf_fast s add a t sf_fast s add k mul t stride
+end
+ret v
+end
+fn attend s edit uint 1048576 c view ulong 64 head ulong to void
+q = mul get c 48 get c 9
+q = mul q get c 7
+k = div get c 3 get c 4
+k = mul div head k get c 8
+k = add add k q get c 38
+q = add get c 37 mul head get c 8
+a = add get c 40 mul head get c 9
+for t ulong add get c 49 1
+putf s add a t score s q add k mul t get c 7 get c 8
+end
+softmax s a add get c 49 1
+k = add k sub get c 39 get c 38
+q = add get c 33 mul head get c 8
+for j ulong get c 8
+v = weighted s a add k j add get c 49 1 get c 7
+putf s add q j v
+end
+end
+fn swiglu s edit uint 1048576 a ulong b ulong n ulong to void
+for j ulong n
+v = sf s add a j
+v = mul v div 1.0f32 add 1.0f32 f32 fexp f64 neg v
+putf s add a j mul v sf s add b j
+end
+end
+
+fn layer w view uint 16000000 s edit uint 1048576 c view ulong 64 to void
+rms w s add get c 11 mul get c 48 get c 0 get c 32 get c 33 get c 0
+off = ulong 0
+dest = ulong 0
+shape = ulong 0
+cache = mul get c 48 get c 9
+cache = mul add cache get c 49 get c 7
+off = mul get c 48 mul get c 0 get c 0
+off = add off get c 12
+dest = get c 37
+shape = or shl get c 0 32 get c 0
+linear w s off get c 33 dest shape
+off = mul get c 48 mul get c 0 get c 7
+off = add off get c 13
+dest = add get c 38 cache
+shape = or shl get c 0 32 get c 7
+linear w s off get c 33 dest shape
+off = mul get c 48 mul get c 0 get c 7
+off = add off get c 14
+dest = add get c 39 cache
+shape = or shl get c 0 32 get c 7
+linear w s off get c 33 dest shape
+rotate w s c get c 37 get c 0
+rotate w s c add get c 38 cache get c 7
+for head ulong get c 3
+attend s c head
+end
+off = mul get c 48 mul get c 0 get c 0
+off = add off get c 15
+dest = get c 34
+shape = or shl get c 0 32 get c 0
+linear w s off get c 33 dest shape
+residual s get c 32 get c 34 get c 0
+off = add get c 16 mul get c 48 get c 0
+rms w s off get c 32 get c 33 get c 0
+off = mul get c 48 mul get c 0 get c 1
+off = add off get c 17
+dest = get c 35
+shape = or shl get c 0 32 get c 1
+linear w s off get c 33 dest shape
+off = mul get c 48 mul get c 0 get c 1
+off = add off get c 19
+dest = get c 36
+shape = or shl get c 0 32 get c 1
+linear w s off get c 33 dest shape
+swiglu s get c 35 get c 36 get c 1
+off = mul get c 48 mul get c 1 get c 0
+off = add off get c 18
+dest = get c 33
+shape = or shl get c 1 32 get c 0
+linear w s off get c 35 dest shape
+residual s get c 32 get c 33 get c 0
+end
+fn forward w view uint 16000000 s edit uint 1048576 c edit ulong 64 token ulong pos ulong to ulong
+if ge token get c 5
+trap 3
+end
+put c 49 pos
+copyw w s add get c 10 mul token get c 0 get c 32 get c 0
+for l ulong get c 2
+put c 48 l
+layer w s c
+end
+rms w s get c 20 get c 32 get c 32 get c 0
+linear w s get c 10 get c 32 get c 41 or shl get c 0 32 get c 5
+best = ulong 0
+for i ulong get c 5
+if gt sf s add get c 41 i sf s add get c 41 best
+best = i
+end
+end
+ret best
+end
+
+fn run args view ulong 512 s edit uint 1048576 count ulong w view uint 16000000 to ulong
+if lt count 32
+trap 3
+end
+c = new ulong 64 0
+setup w c get args 2
+nt = get args 0
+nn = get args 1
+if eq nt 0
+trap 3
+end
+if eq nn 0
+trap 3
+end
+if gt nt 32
+trap 3
+end
+if gt nn 32
+trap 3
+end
+if gt add nt nn 65
+trap 3
+end
+if ne count mul add nt 3 8
+trap 3
+end
+put s 0 0
+put s 1 uint get c 41
+put s 2 uint get c 5
+put s 3 uint get c 9
+token = get args 3
+for pos ulong sub add nt nn 1
+token = forward w s c token pos
+if lt add pos 1 nt
+token = get args add pos 4
+else
+if eq token 1
+break
+end
+i = ulong get s 0
+put s add 16 i uint token
+put s 0 uint add i 1
+end
+end
+ret mul add ulong get s 0 16 4
+end

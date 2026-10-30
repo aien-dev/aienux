@@ -1,5 +1,5 @@
 /* trap.S -- x86_64 descriptor-table loads, the 256 interrupt stubs and the
- * stack switch for AIENOS-IMAC-KERNEL-0 (native/kernel/x86). The C side is
+ * stack switch for AIENOS-KERNEL-0 (native/kernel/x86). The C side is
  * compiled -mabi=ms: arguments in rcx, rdx, r8, r9, 32 bytes of shadow space
  * reserved by the caller, rax/rcx/rdx/r8-r11 caller-saved. */
 
@@ -11,6 +11,8 @@
     .globl ck_x86_load_gdt
 ck_x86_load_gdt:
     lgdt (%rcx)
+    xor %eax, %eax
+    lldt %ax                 /* no firmware LDT/call gates survive */
     mov %r8w, %ds
     mov %r8w, %es
     mov %r8w, %ss
@@ -75,6 +77,8 @@ isr_common:
     push %r15
     cld
     mov %rsp, %rcx          /* struct ck_x86_frame * */
+    testb $3, 144(%rsp)    /* interrupted CS: only CPL3 takes the tool exit */
+    jnz ck_local_user_exit
     mov %rsp, %rbx          /* callee-saved under both ABIs */
     and $-16, %rsp
     sub $32, %rsp

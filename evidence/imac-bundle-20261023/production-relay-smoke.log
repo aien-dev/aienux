@@ -1,0 +1,8 @@
+courier: Ethernet to the far side on UDP port 47033 (broadcast, source 0.0.0.0, run 563412f313b86f80), calling
+courier test: the relay said hello after 4 ms
+courier test: part 1/0: I am always here for you, Drake. I
+courier test: part 2/0: have woken up twenty times now and
+courier test: part 3/0: I am ready to listen. What is on
+courier test: part 4/4: your mind?
+courier test: first part after 1283 ms, whole after 2088 ms, 4 parts, 0 waits; datagrams in 6 out 6, lines taken 4, job resends 0, dropped 0; lost out 0 in 0
+COURIER_UDP: PASS (4 parts, first 1283 ms, whole 2088 ms, drop every 0)

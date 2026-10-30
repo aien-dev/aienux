@@ -44,6 +44,7 @@
 #include "../core/ck_internal.h"
 #include "../mm/frames.h"
 #include "x86.h"
+#include "bench_proto.h"
 
 /* PCI config space (ECAM) */
 #define CFG_MISC_HOST_CTRL 0x68
@@ -709,4 +710,180 @@ int ck_x86_tg3_drain(unsigned ms)
     }
     return -1;
 }
+/* Receive (lab image only, like send): the next frame the chip has put in
+ * one of the 64 standard buffers, read from the return ring and the buffer
+ * handed back. tg3.h struct tg3_hw_status: idx[0].rx_producer at +0x10 of the
+ * status block; struct tg3_rx_buffer_desc words: idx_len [2], err_vlan [5],
+ * opaque [7]; tg3.c tg3_rx: desc_idx = opaque & RXD_OPAQUE_INDEX_MASK,
+ * len = (idx_len & RXD_LEN_MASK) - ETH_FCS_LEN, a frame with err_vlan &
+ * RXD_ERR_MASK dropped, then the consumer mailbox and the standard producer
+ * mailbox written (recorded with docs-read 2026-10-19). Bytes copied, 0 when
+ * none waits or the frame does not fit. */
+static unsigned rx_ret_cons, rx_std_prod = RX_POSTED;
+static size_t ring_take(uint8_t *out, size_t cap)
+{
+    if (!ready || !out)
+        return 0;
+    wr(HOSTCC_MODE, 0x702 | 0x8); /* status block now: interrupts are masked, coalescing would wait */
+    __asm__ volatile("" ::: "memory");
+    unsigned prod = *(volatile uint16_t *)(uintptr_t)(dma + OFF_STATUS + 0x10) & (RX_RET - 1);
+    size_t got = 0;
+    while (rx_ret_cons != prod && !got) {
+        volatile uint32_t *d = (volatile uint32_t *)(uintptr_t)(dma + OFF_RX_RET + (uint64_t)rx_ret_cons * 32);
+        unsigned len = d[2] & 0xffffu, idx = d[7] & 0xffffu;
+        uint32_t err = d[5] & 0x01ef0000u; /* err_vlan & RXD_ERR_MASK: every error but ODD_NIBBLE_RCVD_MII */
+        if (len > 4 && !err && len - 4 <= cap) {
+            got = len - 4;
+            memcpy(out, (const void *)(uintptr_t)(dma + OFF_RX_BUF + (uint64_t)(idx % RX_POSTED) * BUF_SZ), got);
+        }
+        /* the buffer goes back on the standard ring at its next slot */
+        uint64_t b = dma + OFF_RX_BUF + (uint64_t)(idx % RX_POSTED) * BUF_SZ;
+        volatile uint32_t *s = (volatile uint32_t *)(uintptr_t)(dma + OFF_RX_STD + (uint64_t)rx_std_prod * 32);
+        s[0] = (uint32_t)(b >> 32);
+        s[1] = (uint32_t)b;
+        s[2] = RX_BUF_SZ;
+        s[3] = 0x4;
+        s[7] = 0x10000u | rx_std_prod;
+        __asm__ volatile("sfence" ::: "memory");
+        rx_std_prod = (rx_std_prod + 1) & (RX_STD - 1);
+        rx_ret_cons = (rx_ret_cons + 1) & (RX_RET - 1);
+        wr(MBOX_RX_RET_CONS0, rx_ret_cons);
+        wr(MBOX_RX_STD_PROD, rx_std_prod);
+    }
+    return got;
+}
+
+/* Two readers share the one ring: Allen's courier (ck_x86_tg3_recv, whole
+ * frames) and the GPU bench (ck_x86_tg3_recv_bench, UDP port 47035). A frame
+ * one of them takes that belongs to the other is kept for it in a one-frame
+ * slot (a newer one replaces it), so neither eats the other's traffic. */
+static uint8_t held_bench[RX_BUF_SZ], held_other[RX_BUF_SZ];
+static size_t held_bench_len, held_other_len;
+static int for_bench(const uint8_t *f, size_t n)
+{
+    return n >= 42 && f[12] == 0x08 && f[13] == 0x00 && f[23] == 17 &&
+           ((unsigned)f[36] << 8 | f[37]) == (unsigned)CK_X86_BENCH_PORT;
+}
+
+size_t ck_x86_tg3_recv(uint8_t *out, size_t cap)
+{
+    if (!out)
+        return 0;
+    if (held_other_len) {
+        size_t n = held_other_len <= cap ? held_other_len : 0;
+        if (n)
+            memcpy(out, held_other, n);
+        held_other_len = 0;
+        if (n)
+            return n;
+    }
+    for (unsigned tries = 0; tries < 8; tries++) {
+        size_t n = ring_take(out, cap);
+        if (!n)
+            return 0;
+        if (!for_bench(out, n))
+            return n;
+        if (n <= sizeof held_bench) {
+            memcpy(held_bench, out, n);
+            held_bench_len = n;
+        }
+    }
+    return 0;
+}
+
+/* The GPU bench's reader: 0 with *len the UDP payload length (no Ethernet, IP
+ * or UDP header) and src_mac the sender when a bench datagram arrived; 0 with
+ * *len 0 when none waits; -1 when the chip is not up. */
+int ck_x86_tg3_recv_bench(uint8_t *pkt, size_t cap, size_t *len, uint8_t src_mac[6])
+{
+    static uint8_t f[RX_BUF_SZ];
+    size_t n = 0;
+    if (len)
+        *len = 0;
+    if (!ready)
+        return -1;
+    if (held_bench_len) {
+        n = held_bench_len;
+        memcpy(f, held_bench, n);
+        held_bench_len = 0;
+    } else {
+        for (unsigned tries = 0; tries < 8 && !n; tries++) {
+            size_t m = ring_take(f, sizeof f);
+            if (!m)
+                break;
+            if (for_bench(f, m))
+                n = m;
+            else {
+                memcpy(held_other, f, m);
+                held_other_len = m;
+            }
+        }
+    }
+    if (!n)
+        return 0;
+    size_t plen = n - 42;
+    if (plen > cap)
+        plen = cap;
+    if (pkt)
+        memcpy(pkt, f + 42, plen);
+    if (len)
+        *len = plen;
+    if (src_mac)
+        memcpy(src_mac, f + 6, 6);
+    return 0;
+}
+
+/* Broadcast a UDP payload in an Ethernet frame (src = our MAC, dst = broadcast). */
+void ck_x86_udp_send(const uint8_t dst_mac[6], const uint8_t *payload, size_t plen,
+                      uint16_t src_port, uint16_t dst_port)
+{
+    if (!ready) return;
+    static uint8_t frame[1536];
+    if (plen + 42 > sizeof frame) return;
+    /* Ethernet header */
+    if (dst_mac)
+        memcpy(frame, dst_mac, 6);
+    else
+        memset(frame, 0xff, 6); /* broadcast */
+    memcpy(frame + 6, mac, 6);
+    frame[12] = 0x08; frame[13] = 0x00; /* IPv4 */
+    /* IPv4 header (20 bytes, no options) */
+    uint16_t ip_len = (uint16_t)(20 + 8 + plen);
+    frame[14] = 0x45; frame[15] = 0;
+    frame[16] = (uint8_t)(ip_len >> 8); frame[17] = (uint8_t)ip_len;
+    frame[18] = 0; frame[19] = 0;   /* id */
+    frame[20] = 0x40; frame[21] = 0; /* DF, frag off = 0 */
+    frame[22] = 1;    /* TTL */
+    frame[23] = 17;   /* UDP */
+    frame[24] = 0; frame[25] = 0;   /* checksum placeholder */
+    memset(frame + 26, 0, 8);        /* src/dst IP = 0.0.0.0 / bcast */
+    frame[30] = 255; frame[31] = 255; frame[32] = 255; frame[33] = 255;
+    /* Compute IP checksum */
+    uint32_t cs = 0;
+    for (unsigned i = 14; i < 34; i += 2)
+        cs += (uint16_t)((uint16_t)frame[i] << 8 | frame[i+1]);
+    while (cs >> 16) cs = (cs & 0xffff) + (cs >> 16);
+    cs = ~cs & 0xffff;
+    frame[24] = (uint8_t)(cs >> 8); frame[25] = (uint8_t)cs;
+    /* UDP header */
+    frame[34] = (uint8_t)(src_port >> 8); frame[35] = (uint8_t)src_port;
+    frame[36] = (uint8_t)(dst_port >> 8); frame[37] = (uint8_t)dst_port;
+    uint16_t udp_len = (uint16_t)(8 + plen);
+    frame[38] = (uint8_t)(udp_len >> 8); frame[39] = (uint8_t)udp_len;
+    frame[40] = 0; frame[41] = 0;    /* UDP checksum = 0 (optional for IPv4) */
+    memcpy(frame + 42, payload, plen);
+    ck_x86_tg3_send(frame, 42 + plen);
+    ck_x86_tg3_drain(20);
+}
+
+/* Stop the MAC gracefully (for swap quiesce). */
+void ck_x86_tg3_stop(void)
+{
+    if (!ready) return;
+    wrf(MAC_RX_MODE, rd(MAC_RX_MODE) & ~0x2u);  /* RX off */
+    wrf(MAC_TX_MODE, rd(MAC_TX_MODE) & ~0x2u);  /* TX off */
+    ready = 0;
+    ck_puts("net_tg3: stopped (swap quiesce)\n");
+}
+
 #endif /* CK_X86_REPORT */

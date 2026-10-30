@@ -858,6 +858,14 @@ endif
 # GOP framebuffer console keeps the last report on screen before the PSCI
 # reset, so an operator can read or photograph it. 0 (default) in every QEMU
 # gate; scripts/stage_one_time_boot_ck.sh builds the hardware image with 120.
+# CK_BOOT_SHOW=1: the image plays the boot sequence (ui/boot_show.c: the night, the two black holes,
+# the chirp) on its screen after the devices stage: the VM screen (virtio-gpu) and speakers (virtio-sound)
+# when present, else the GOP framebuffer. Compiled into every image; on for the images people use (the
+# aienos-run VM, PC and Spark images), off by default so the QEMU gates keep their timing.
+CK_BOOT_SHOW ?= 0
+ifeq ($(filter 0 1,$(CK_BOOT_SHOW)),)
+$(error CK_BOOT_SHOW must be 0 or 1)
+endif
 CK_FB_HOLD_S ?= 0
 ifeq ($(shell echo '$(CK_FB_HOLD_S)' | grep -Ex '[0-9]{1,4}'),)
 $(error CK_FB_HOLD_S must be 0..9999 seconds)
@@ -869,7 +877,7 @@ MODULE_INC := -I$(NATIVE)/disk -I$(NATIVE)/store -I$(NATIVE)/m5 -I$(NATIVE)/cryp
 KCFLAGS := -std=gnu11 -O2 -Wall -Wextra -Werror -ffreestanding -nostdlib -fno-builtin \
 	-fno-stack-protector -fno-tree-loop-distribute-patterns -mstrict-align \
 	-mgeneral-regs-only -mno-outline-atomics -fno-asynchronous-unwind-tables -fpie \
-	-fvisibility=hidden -fno-plt $(KINC) $(SMP_TEST_FLAGS) -DCK_FB_HOLD_S=$(CK_FB_HOLD_S) $(CK_EXTRA_CFLAGS)
+	-fvisibility=hidden -fno-plt $(KINC) $(SMP_TEST_FLAGS) -DCK_FB_HOLD_S=$(CK_FB_HOLD_S) -DCK_BOOT_SHOW=$(CK_BOOT_SHOW) $(CK_EXTRA_CFLAGS)
 KLDFLAGS := -nostdlib -pie --no-dynamic-linker -z norelro -z noexecstack -z max-page-size=4096 --no-warn-rwx-segments \
 	-T $(BOOT)/image.ld
 
@@ -1037,6 +1045,12 @@ ifneq ($(strip $(CK_PI5_LIFECYCLE)),)
 STAGE_SRCS += $(filter-out $(KDIR)/svc/slot_service.c $(BOOT)/slot_select.c $(BOOT)/slot_control.c $(BOOT)/slot_update.c,$(SVC_STAGE_ADDED)) $(KDIR)/svc/slot_service_pi5.c
 endif
 endif
+# CK_BOOT_SHOW=1 images keep their own objects (kmain.c differs).
+ifeq ($(strip $(CK_BOOT_SHOW)),1)
+FULL_NAME := $(FULL_NAME)-boot-show
+endif
+# The boot sequence runner (core/boot_screen.c) needs the devices stage: full images only.
+STAGE_SRCS += $(KDIR)/core/boot_screen.c
 FULL_OUT := $(OUT)/$(FULL_NAME)
 STAGE_KOBJ := $(OUT)/obj/stage-$(FULL_NAME)
 STAGE_HDRS := $(HDRS) $(wildcard $(NATIVE)/*/*.h $(NATIVE)/argus/bridge/*.h $(KDIR)/svc/compat/*.h)
@@ -1330,7 +1344,7 @@ HOST_SRCS := $(KDIR)/core/fmt.c $(KDIR)/core/acpi.c $(KDIR)/core/smmu.c $(KDIR)/
 	$(KDIR)/mm/pt.c $(KDIR)/mm/heap.c $(KDIR)/core/sched.c $(KDIR)/core/ipc.c $(KDIR)/core/entropy.c \
 	$(KDIR)/core/handoff_check.c $(KDIR)/core/fbcon.c $(KDIR)/core/acpi_dev.c $(KDIR)/core/lifecycle_fsm.c \
 	$(KDIR)/core/line_rx.c $(KDIR)/core/klog.c $(KDIR)/core/klog_slot.c $(KDIR)/core/cpufeat.c $(KDIR)/core/unlock_req.c $(KDIR)/core/agent_cmd.c $(KDIR)/core/artifact_card.c
-TESTS := test_fmt test_frames test_pt test_acpi test_acpi_dev test_heap test_smmu test_sched test_ipc test_artifact test_osc_unit test_osc_launch test_osc_admit test_osc_receipt test_entropy test_handoff test_fbcon test_osh_op \
+TESTS := test_fmt test_frames test_pt test_acpi test_dmar test_acpi_dev test_heap test_smmu test_sched test_ipc test_artifact test_osc_unit test_osc_launch test_osc_admit test_osc_receipt test_entropy test_handoff test_fbcon test_osh_op \
 	test_continuity_codec test_continuity_resolve test_continuity_commit test_continuity_recovery test_continuity_geometry \
 	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card \
 	test_netboot_text
@@ -1344,6 +1358,15 @@ $(OUT)/host/%: $(KDIR)/tests/%.c $(HOST_SRCS) $(KDIR)/tests/ck_test.h $(HDRS)
 $(OUT)/host-san/%: $(KDIR)/tests/%.c $(HOST_SRCS) $(KDIR)/tests/ck_test.h $(HDRS)
 	@mkdir -p $(dir $@)
 	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -o $@ $< $(HOST_SRCS)
+
+# DMAR is a standalone byte parser; unrelated host tests need not link it.
+DMAR_TEST_SRCS := $(KDIR)/tests/test_dmar.c $(KDIR)/core/dmar.c
+$(OUT)/host/test_dmar: $(DMAR_TEST_SRCS) $(KDIR)/core/dmar.h $(KDIR)/tests/ck_test.h
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) -o $@ $(DMAR_TEST_SRCS)
+$(OUT)/host-san/test_dmar: $(DMAR_TEST_SRCS) $(KDIR)/core/dmar.h $(KDIR)/tests/ck_test.h
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) -o $@ $(DMAR_TEST_SRCS)
 
 # OSH adapter operation layer (core/osh_op.c, aien-architecture#158): pure logic over ipc.c capabilities, SHA-256 for the
 # request digest. Its own rule because it needs the argus SHA-256 source.
@@ -2237,13 +2260,16 @@ $(IMACDIAG_EFI): $(IMACDIAG_ELF)
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-diag: $(IMACDIAG_EFI)
 
-# ---- IMACKERN.EFI: AIENOS-IMAC-KERNEL-0, the C kernel core on x86_64 (2017 iMac) ----
+# ---- IMACKERN.EFI: AIENOS-KERNEL-0, the C kernel core on x86_64 (2017 iMac) ----
 # x86/efi_x86.c (stub: GOP, RSDP, memory map, ExitBootServices, CHANDOF3) + x86/kmain_x86.c
 # (GDT/TSS/IDT, own page tables, guard page, HPET-timed TSC, local APIC timer, ACPI S5)
 # + x86/pci_x86.c (PCI walk; AHCI via x86/ahci_x86.c and NVMe via ../disk/disk_nvme.c, both
 # read-only, GPT checked by dev/disk_part.c; a look at the Ethernet chip) + x86/smp_x86.S
-# (secondary cores started and parked) + x86/tg3_x86.c (BCM57766 Ethernet: link detection; no
-# transmit in the default image)
+# (secondary cores started and parked) + x86/xhci_x86.c (USB boot keyboard, polled, hubs; key
+# decode and line editor from dev/usb_hid.c) + x86/tg3_x86.c (BCM57766 Ethernet: link detection; no
+# transmit in the default image) + ui/allen_ui.c, ui/allen_font.c (Allen's window on the screen, drawn
+# with its own stroke typeface; ui/night.c, the night sky of the startup, and ui/mind.c, Allen's presence, on ui/paint.c;
+# drawn by the secondary cores) + svc/allen_reply.c (Allen's first local answers)
 # + x86/trap.S + x86/console_x86.c (COM1 when present, GOP framebuffer), on the
 # arch-neutral core: fbcon, fmt, acpi, handoff_check, frames, heap. Same toolchain and PE
 # header as IMACDIAG. Copy to a FAT stick as EFI/BOOT/BOOTX64.EFI.
@@ -2251,13 +2277,23 @@ imac-diag: $(IMACDIAG_EFI)
 # The network report is a LAB-ONLY diagnostic, opt-in and default off:
 #   make imac-kernel CK_X86_REPORT=1 -> $(OUT)/IMACKERN-LAB.EFI (own object dir)
 # adds x86/report_x86.c + ../../net/aienos_net.c and tg3 transmit (-DCK_X86_REPORT=1): during the
-# hold it broadcasts only allowlisted console lines (ck_x86_report_filter, never the raw console)
-# as UDP to port 47031, header "AIENOS-IMAC-REPORT v=2 auth=none": UNAUTHENTICATED, never a
+# hold it broadcasts only allowlisted console lines (IMACKERN_REPORT_SYMS := ck_x86_report_hold|ck_x86_report_frame|ck_x86_report_filter|ck_x86_report_parts|ck_x86_tg3_send|ck_x86_tg3_drain|ck_x86_tg3_recv|ck_courier_udp_init|net_udp_build, never the raw console)
+# as UDP to port 47031, header "AIENOS-REPORT v=2 auth=none": UNAUTHENTICATED, never a
 # receipt, evidence or a command. Host test scripts/ck_imac_report_test.sh, receiver
 # tools/ck_imac_report_listen.c. The default image, and any resident or service (ALLEN) build,
 # must not contain it: the link step below fails a default image that has a report symbol.
 CK_X86_REPORT ?= 0
+# QEMU test switches (lab builds only; refused otherwise, see below): CK_X86_SWAP_TEST_DISK=1 stages
+# a swap image from a raw disk (scripts/qemu_ck_imac_swap_test.sh); CK_X86_BENCH_TEST=1 replaces the
+# GPU BARs with RAM stand-ins and moves the bench packets to COM1 (scripts/qemu_ck_gpu_bench_test.sh).
+CK_X86_SWAP_TEST_DISK ?= 0
+CK_X86_BENCH_TEST ?= 0
 X86K := $(KDIR)/x86
+# CK_X86_HOSTDESC=1 builds the launcher image (IMACKERN-HOST.EFI): the setup wizard also reads the host
+# description a launcher (aienos-run) hands over as the QEMU fw_cfg file opt/aienos/host
+# (x86/fwcfg_x86.c, read-only). The default and lab images carry no fw_cfg code or string;
+# the link step below checks it, like fwcfg_check for the core images.
+CK_X86_HOSTDESC ?= 0
 ifeq ($(CK_X86_REPORT),1)
 IMACKERN_DIR := $(OUT)/imackern-lab
 IMACKERN_EFI := $(OUT)/IMACKERN-LAB.EFI
@@ -2267,32 +2303,134 @@ IMACKERN_EFI := $(OUT)/IMACKERN.EFI
 else
 $(error CK_X86_REPORT must be 0 (default) or 1 (lab-only network report))
 endif
+ifeq ($(CK_X86_HOSTDESC),1)
+IMACKERN_DIR := $(IMACKERN_DIR)-host
+IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-HOST.EFI)
+else ifneq ($(CK_X86_HOSTDESC),0)
+$(error CK_X86_HOSTDESC must be 0 (default) or 1 (launcher image that reads the host description))
+endif
+CK_LOCAL_TEST ?= 0
+ifeq ($(CK_LOCAL_TEST),1)
+IMACKERN_DIR := $(IMACKERN_DIR)-local-test
+IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-LOCAL-TEST.EFI)
+else ifneq ($(CK_LOCAL_TEST),0)
+$(error CK_LOCAL_TEST must be 0 (release) or 1 (hostile QEMU fixtures))
+endif
+CK_LOCAL_MODEL ?= 0
+ifeq ($(CK_LOCAL_MODEL),1)
+IMACKERN_DIR := $(IMACKERN_DIR)-model
+IMACKERN_EFI := $(IMACKERN_EFI:.EFI=-MODEL.EFI)
+else ifneq ($(CK_LOCAL_MODEL),0)
+$(error CK_LOCAL_MODEL must be 0 or 1)
+endif
 IMACKERN_ELF := $(IMACKERN_DIR)/imackern.elf
-IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net
+IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net \
+	-I$(NATIVE)/argus -I$(NATIVE)/sig
 IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(IMACKERN_DIR)/efi_gop.o \
 	$(IMACKERN_DIR)/kmain_x86.o $(IMACKERN_DIR)/console_x86.o $(IMACKERN_DIR)/trap.o \
-	$(IMACKERN_DIR)/fbcon.o $(IMACKERN_DIR)/fmt.o $(IMACKERN_DIR)/acpi.o $(IMACKERN_DIR)/handoff_check.o \
+	$(IMACKERN_DIR)/local_tools.o $(IMACKERN_DIR)/local_wire.o $(IMACKERN_DIR)/local_enter.o $(IMACKERN_DIR)/local_format.o $(IMACKERN_DIR)/ed25519.o \
+	$(IMACKERN_DIR)/fbcon.o $(IMACKERN_DIR)/fmt.o $(IMACKERN_DIR)/acpi.o $(IMACKERN_DIR)/dmar.o $(IMACKERN_DIR)/dmar_x86.o $(IMACKERN_DIR)/handoff_check.o \
 	$(IMACKERN_DIR)/frames.o $(IMACKERN_DIR)/heap.o $(IMACKERN_DIR)/libc_min.o \
 	$(IMACKERN_DIR)/ahci_x86.o $(IMACKERN_DIR)/disk_part.o $(IMACKERN_DIR)/disk.o \
 	$(IMACKERN_DIR)/pci_x86.o $(IMACKERN_DIR)/smp_x86.o $(IMACKERN_DIR)/disk_nvme.o \
-	$(IMACKERN_DIR)/tg3_x86.o
-IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o
+	$(IMACKERN_DIR)/tg3_x86.o $(IMACKERN_DIR)/xhci_x86.o $(IMACKERN_DIR)/hda_x86.o $(IMACKERN_DIR)/usb_hid.o $(IMACKERN_DIR)/sha256.o \
+	$(IMACKERN_DIR)/allen_ui.o $(IMACKERN_DIR)/allen_font.o $(IMACKERN_DIR)/allen_reply.o $(IMACKERN_DIR)/allen_intent.o $(IMACKERN_DIR)/allen_code.o $(IMACKERN_DIR)/courier_x86.o \
+	$(IMACKERN_DIR)/paint.o $(IMACKERN_DIR)/night.o $(IMACKERN_DIR)/sky_real.o $(IMACKERN_DIR)/sky_data.o $(IMACKERN_DIR)/mind.o $(IMACKERN_DIR)/flow.o $(IMACKERN_DIR)/chirp.o \
+	$(IMACKERN_DIR)/allen_memory.o $(IMACKERN_DIR)/allen_notes.o $(IMACKERN_DIR)/gpt_add.o $(IMACKERN_DIR)/memory_x86.o \
+	$(IMACKERN_DIR)/fat_boot.o $(IMACKERN_DIR)/sha512.o $(IMACKERN_DIR)/ct.o $(IMACKERN_DIR)/panel_x86.o \
+	$(IMACKERN_DIR)/gpu_x86.o $(IMACKERN_DIR)/swap_x86.o $(IMACKERN_DIR)/bench_x86.o \
+	$(IMACKERN_DIR)/setup_inv.o $(IMACKERN_DIR)/setup_wizard.o $(IMACKERN_DIR)/setup_store.o $(IMACKERN_DIR)/setup_x86.o
+# Every image verifies owner signatures before installing a boot image.
+# No configured keys means an empty trust store and no boot-image installation.
+IMACKERN_SLOT_KEYS_C := $(IMACKERN_DIR)/imac_slot_keys.c
+IMACKERN_KEY_SRC := $(if $(strip $(CK_TEST_SLOT_KEY)),--test-key,$(if $(strip $(CK_SLOT_KEYS)),--keys $(abspath $(CK_SLOT_KEYS)),))
+IMACKERN_OBJS += $(IMACKERN_DIR)/slot_select.o $(IMACKERN_DIR)/imac_slot_keys.o
+# Lab-only objects: the report, Ethernet courier and swap trampoline.
+IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o $(IMACKERN_DIR)/courier_udp_x86.o \
+	$(IMACKERN_DIR)/swap_tramp.o
+# The far side of Allen's Ethernet courier (x86/courier_udp.h): broadcast by default, a lab address overrides.
+CK_COURIER_PEER ?= 255.255.255.255
 # Symbols only the lab image may contain; the default image is checked for them after linking.
-IMACKERN_REPORT_SYMS := ck_x86_report_hold|ck_x86_report_frame|ck_x86_report_filter|ck_x86_report_parts|ck_x86_tg3_send|ck_x86_tg3_drain|net_udp_build
+IMACKERN_REPORT_SYMS := ck_x86_report_hold|ck_x86_report_frame|ck_x86_report_filter|ck_x86_report_parts|ck_x86_tg3_send|ck_x86_tg3_drain|ck_x86_tg3_recv|ck_courier_udp_init|net_udp_build
 ifeq ($(CK_X86_REPORT),1)
 IMACKERN_OBJS += $(IMACKERN_REPORT_OBJS)
-IMACKERN_CFLAGS += -DCK_X86_REPORT=1
+IMACKERN_CFLAGS += -DCK_X86_REPORT=1 -DCK_COURIER_PEER_STR=\"$(CK_COURIER_PEER)\" -DCK_X86_SWAP=1 -DCK_X86_BENCH=1 -I$(NATIVE)/sig -I$(BOOT)
+ifeq ($(CK_X86_SWAP_TEST_DISK),1)
+IMACKERN_CFLAGS += -DCK_X86_SWAP_TEST_DISK=1
+endif
+ifeq ($(CK_X86_BENCH_TEST),1)
+IMACKERN_CFLAGS += -DCK_X86_BENCH_TEST=1
+endif
+# Lab swap requires configured owner keys (the default image may have none).
+# CK_TEST_SLOT_KEY=1 embeds RFC 8032 TEST keys, for QEMU only.
+ifeq ($(strip $(IMACKERN_KEY_SRC)),)
+$(error the lab kernel (CK_X86_REPORT=1) needs swap owner keys: give CK_SLOT_KEYS=<owner public keys file>, or CK_TEST_SLOT_KEY=1 (TEST key, QEMU tests only))
+endif
+endif
+ifneq ($(CK_X86_REPORT),1)
+ifneq ($(filter 1,$(CK_X86_SWAP_TEST_DISK) $(CK_X86_BENCH_TEST)),)
+$(error CK_X86_SWAP_TEST_DISK and CK_X86_BENCH_TEST are QEMU lab test switches: they need CK_X86_REPORT=1)
+endif
+endif
+ifeq ($(CK_X86_HOSTDESC),1)
+IMACKERN_OBJS += $(IMACKERN_DIR)/fwcfg_x86.o
+IMACKERN_CFLAGS += -DCK_X86_HOSTDESC=1
 endif
 IMACKERN_HDRS := $(X86K)/x86.h $(BOOT)/handoff.h $(BOOT)/efi.h $(KDIR)/core/ck_internal.h $(KDIR)/include/ck.h
+GPU_DIR := $(KDIR)/gpu
+# CK_X86_GPU: drive the AMD GPU (DCE 11.2 page flip, GMC, SMU, gfx/SDMA/compute rings).
+# Default 0 (stubs) until each bring-up step has run on the real iMac through
+# the bench (feat/imac-gpu-bench): a wrong GPU register write can wedge the
+# PCIe link, and only a 4 s power hold (a firmware boot) recovers it. Lab
+# builds opt in with CK_X86_GPU=1. The chip is not present in QEMU (says so once). CK_X86_GPU_UCODE=1 additionally embeds the polaris11
+# firmware blobs fetched by scripts/fetch_gpu_ucode.sh (never committed).
+CK_X86_GPU ?= 0
+ifeq ($(CK_X86_GPU),1)
+IMACKERN_CFLAGS += -DCK_X86_GPU=1
+# The driver itself is linked only when it is on; with it off, gpu_x86.c
+# supplies the stubs (linking both defined every ck_gpu_* entry twice).
+IMACKERN_OBJS += $(IMACKERN_DIR)/amd_display.o $(IMACKERN_DIR)/amd_mc.o $(IMACKERN_DIR)/amd_smu.o \
+	$(IMACKERN_DIR)/amd_ucode.o $(IMACKERN_DIR)/amd_sdma.o $(IMACKERN_DIR)/amd_compute.o
+CK_X86_GPU_UCODE ?= 0
+ifeq ($(CK_X86_GPU_UCODE),1)
+ifeq ($(wildcard $(REPO)/target/native-kernel/gpu_ucode.inc),)
+$(error CK_X86_GPU_UCODE=1 needs $(REPO)/target/native-kernel/gpu_ucode.inc: run sh scripts/fetch_gpu_ucode.sh first)
+endif
+IMACKERN_CFLAGS += -DCK_X86_GPU_UCODE=1 -I$(REPO)/target/native-kernel
+endif
+else ifeq ($(CK_X86_GPU),0)
+IMACKERN_CFLAGS += -DCK_X86_GPU=0
+else
+$(error CK_X86_GPU must be 1 (GPU driver, lab) or 0 (default: stubs))
+endif
 $(IMACKERN_DIR)/efi_entry_x86_64.o: $(BOOT)/efi_entry_x86_64.S
-$(IMACKERN_DIR)/efi_x86.o: $(X86K)/efi_x86.c $(IMACKERN_HDRS)
+$(IMACKERN_DIR)/efi_x86.o: $(X86K)/efi_x86.c $(IMACKERN_HDRS) $(BOOT)/netboot_proto.h
 $(IMACKERN_DIR)/efi_gop.o: $(BOOT)/efi_gop.c $(IMACKERN_HDRS)
-$(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(OUT)/commit.stamp
+$(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_intent.h $(KDIR)/svc/allen_code.h $(KDIR)/dev/usb_hid.h $(KDIR)/svc/courier.h $(X86K)/courier_udp.h $(KDIR)/svc/setup_wizard.h $(OUT)/commit.stamp
 $(IMACKERN_DIR)/console_x86.o: $(X86K)/console_x86.c $(IMACKERN_HDRS) $(KDIR)/core/fbcon.h
 $(IMACKERN_DIR)/trap.o: $(X86K)/trap.S
+ifeq ($(CK_LOCAL_MODEL),1)
+IMACKERN_CFLAGS += -DCK_LOCAL_MODEL=1
+IMACKERN_OBJS += $(IMACKERN_DIR)/model_assets.o
+$(IMACKERN_DIR)/model_assets.o: $(X86K)/model/assets.S $(CK_LOCAL_MODEL_FILE) $(CK_LOCAL_TOKENIZER_FILE)
+	@mkdir -p $(@D)
+	$(X86CC) $(IMACKERN_CFLAGS) -DCK_MODEL_FILE='"$(CK_LOCAL_MODEL_FILE)"' -DCK_TOKENIZER_FILE='"$(CK_LOCAL_TOKENIZER_FILE)"' -c $< -o $@
+endif
+$(IMACKERN_DIR)/local_tools.o: $(X86K)/local_tools.c $(X86K)/local_tools.h $(X86K)/local_bundle.h $(X86K)/local_tests.inc
+ifeq ($(CK_LOCAL_MODEL),1)
+$(IMACKERN_DIR)/local_tools.o: $(X86K)/model/model_bundle.h $(X86K)/model/runtime.inc $(X86K)/model/tests.inc
+endif
+$(IMACKERN_DIR)/local_wire.o: $(X86K)/local_wire.c $(X86K)/local_wire.h $(X86K)/local_tools.h
+$(IMACKERN_DIR)/local_enter.o: $(X86K)/local_enter.S
+$(IMACKERN_DIR)/local_format.o: $(KDIR)/artifact/format.c $(KDIR)/artifact/ck_artifact.h
+ifeq ($(CK_LOCAL_TEST),1)
+IMACKERN_CFLAGS += -DCK_LOCAL_TEST=1 -DCK_X86_HOLD_S=1
+endif
 $(IMACKERN_DIR)/fbcon.o: $(KDIR)/core/fbcon.c $(KDIR)/core/fbcon.h $(KDIR)/core/font8x8.h
 $(IMACKERN_DIR)/fmt.o: $(KDIR)/core/fmt.c $(KDIR)/core/fmt.h
 $(IMACKERN_DIR)/acpi.o: $(KDIR)/core/acpi.c $(KDIR)/core/acpi.h
+$(IMACKERN_DIR)/dmar.o: $(KDIR)/core/dmar.c $(KDIR)/core/dmar.h
+$(IMACKERN_DIR)/dmar_x86.o: $(X86K)/dmar_x86.c $(KDIR)/core/dmar.h $(IMACKERN_HDRS)
 $(IMACKERN_DIR)/handoff_check.o: $(KDIR)/core/handoff_check.c $(KDIR)/core/handoff_check.h $(BOOT)/handoff.h
 $(IMACKERN_DIR)/frames.o: $(KDIR)/mm/frames.c $(KDIR)/mm/frames.h
 $(IMACKERN_DIR)/heap.o: $(KDIR)/mm/heap.c $(KDIR)/mm/heap.h
@@ -2301,19 +2439,89 @@ $(IMACKERN_DIR)/ahci_x86.o: $(X86K)/ahci_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frame
 $(IMACKERN_DIR)/disk_part.o: $(KDIR)/dev/disk_part.c $(KDIR)/dev/disk_part.h $(NATIVE)/disk/disk.h
 $(IMACKERN_DIR)/disk.o: $(NATIVE)/disk/disk.c $(NATIVE)/disk/disk.h
 $(IMACKERN_DIR)/pci_x86.o: $(X86K)/pci_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h $(KDIR)/dev/disk_part.h $(NATIVE)/disk/disk.h $(NATIVE)/disk/disk_nvme.h
+$(IMACKERN_DIR)/panel_x86.o: $(X86K)/panel_x86.c $(IMACKERN_HDRS)
+$(IMACKERN_DIR)/gpu_x86.o: $(GPU_DIR)/gpu_x86.c $(IMACKERN_HDRS) $(GPU_DIR)/amd_ring.h $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h $(KDIR)/mm/frames.h
+$(IMACKERN_DIR)/amd_display.o: $(GPU_DIR)/amd_display.c $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h
+$(IMACKERN_DIR)/amd_mc.o:      $(GPU_DIR)/amd_mc.c      $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h
+$(IMACKERN_DIR)/amd_smu.o:     $(GPU_DIR)/amd_smu.c     $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h
+$(IMACKERN_DIR)/amd_ucode.o:   $(GPU_DIR)/amd_ucode.c   $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h $(if $(filter 1,$(CK_X86_GPU_UCODE)),$(REPO)/target/native-kernel/gpu_ucode.inc)
+$(IMACKERN_DIR)/amd_sdma.o:    $(GPU_DIR)/amd_sdma.c    $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h
+$(IMACKERN_DIR)/amd_compute.o: $(GPU_DIR)/amd_compute.c $(IMACKERN_HDRS) $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_gpu_regs.h
+$(IMACKERN_DIR)/swap_x86.o: $(X86K)/swap_x86.c $(X86K)/x86.h $(X86K)/swap_proto.h $(X86K)/swap_x86.h $(BOOT)/slot_format.h
+$(IMACKERN_DIR)/swap_tramp.o: $(X86K)/swap_tramp.S
+	@mkdir -p $(dir $@)
+	$(X86CC) -c $(ASFLAGS) -o $@ $<
+$(IMACKERN_SLOT_KEYS_C): $(SLOT_TOOL) FORCE
+	@mkdir -p $(dir $@)
+	@if [ -n "$(IMACKERN_KEY_SRC)" ]; then $(SLOT_TOOL) keys-c $(IMACKERN_KEY_SRC) --out $@; \
+	else printf '#include <stdint.h>\nconst uint8_t ck_slot_loader_keys[1][32] = {{0}};\nconst unsigned ck_slot_loader_nkeys = 0;\n' > $@.tmp; \
+	  cmp -s $@.tmp $@ || mv $@.tmp $@; rm -f $@.tmp; fi
+$(IMACKERN_DIR)/imac_slot_keys.o: $(IMACKERN_SLOT_KEYS_C)
+$(IMACKERN_DIR)/bench_x86.o: $(X86K)/bench_x86.c $(X86K)/x86.h $(X86K)/bench_proto.h $(X86K)/bench_x86.h $(NATIVE)/argus/sha256.h
+# CK_X86_BENCH_KEY_FILE: a 32-byte key file (on the Spark ~/.config/aienos/imac-bench.key; the Spark tool
+# takes the same file with --key) bound in as the bench console's HMAC key through a header made in the
+# build dir, mode 0600, so the key is never on a command line or in the build output.
+ifdef CK_X86_BENCH_KEY_FILE
+IMACKERN_CFLAGS += -DCK_X86_BENCH_KEY_H='"$(IMACKERN_DIR)/bench_key.h"'
+$(IMACKERN_DIR)/bench_key.h: $(CK_X86_BENCH_KEY_FILE)
+	@mkdir -p $(@D)
+	@test "$$(wc -c < '$<')" -eq 32 || { echo "CK_X86_BENCH_KEY_FILE: $< is not 32 bytes" >&2; exit 1; }
+	@umask 077; { printf '#define CK_X86_BENCH_KEY '; od -An -v -tu1 '$<' | tr -s ' \n' ' ' | sed 's/^ //; s/ $$//; s/ /,/g'; echo; } > $@
+$(IMACKERN_DIR)/bench_x86.o: $(IMACKERN_DIR)/bench_key.h
+endif
+$(IMACKERN_DIR)/slot_select.o: $(BOOT)/slot_select.c $(BOOT)/slot_format.h
+$(IMACKERN_DIR)/ed25519.o: $(NATIVE)/sig/ed25519.c $(NATIVE)/sig/aienos_sig.h
 $(IMACKERN_DIR)/smp_x86.o: $(X86K)/smp_x86.S
 $(IMACKERN_DIR)/disk_nvme.o: $(NATIVE)/disk/disk_nvme.c $(NATIVE)/disk/disk_nvme.h $(NATIVE)/disk/disk.h
 $(IMACKERN_DIR)/tg3_x86.o: $(X86K)/tg3_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h
+$(IMACKERN_DIR)/xhci_x86.o: $(X86K)/xhci_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h $(KDIR)/dev/usb_hid.h
+$(IMACKERN_DIR)/hda_x86.o: $(X86K)/hda_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h $(KDIR)/ui/chirp.h $(KDIR)/ui/night.h
+$(IMACKERN_DIR)/usb_hid.o: $(KDIR)/dev/usb_hid.c $(KDIR)/dev/usb_hid.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/sha256.o: $(NATIVE)/argus/sha256.c $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/allen_ui.o: $(KDIR)/ui/allen_ui.c $(KDIR)/ui/allen_ui.h $(KDIR)/ui/allen_font.h $(KDIR)/ui/night.h $(KDIR)/ui/mind.h $(KDIR)/ui/flow.h $(KDIR)/ui/paint.h $(KDIR)/ui/canvas.h $(KDIR)/svc/allen_code.h
+$(IMACKERN_DIR)/allen_font.o: $(KDIR)/ui/allen_font.c $(KDIR)/ui/allen_font.h
+$(IMACKERN_DIR)/paint.o: $(KDIR)/ui/paint.c $(KDIR)/ui/paint.h $(KDIR)/ui/allen_font.h
+$(IMACKERN_DIR)/night.o: $(KDIR)/ui/night.c $(KDIR)/ui/night.h $(KDIR)/ui/paint.h $(KDIR)/ui/sky_real.h $(KDIR)/ui/sky_data.h
+$(IMACKERN_DIR)/sky_real.o: $(KDIR)/ui/sky_real.c $(KDIR)/ui/sky_real.h $(KDIR)/ui/sky_data.h $(KDIR)/ui/night.h $(KDIR)/ui/paint.h
+$(IMACKERN_DIR)/sky_data.o: $(KDIR)/ui/sky_data.c $(KDIR)/ui/sky_data.h
+$(IMACKERN_DIR)/chirp.o: $(KDIR)/ui/chirp.c $(KDIR)/ui/chirp.h $(KDIR)/ui/night.h
+$(IMACKERN_DIR)/mind.o: $(KDIR)/ui/mind.c $(KDIR)/ui/mind.h $(KDIR)/ui/paint.h
+$(IMACKERN_DIR)/flow.o: $(KDIR)/ui/flow.c $(KDIR)/ui/flow.h $(KDIR)/ui/paint.h
+# Allen's canvas: the scene the model writes (svc/allen_scene.c) and how it is painted (ui/canvas.c).
+IMACKERN_OBJS += $(IMACKERN_DIR)/canvas.o $(IMACKERN_DIR)/allen_scene.o
+$(IMACKERN_DIR)/canvas.o: $(KDIR)/ui/canvas.c $(KDIR)/ui/canvas.h $(KDIR)/ui/paint.h $(KDIR)/ui/flow.h $(KDIR)/ui/allen_font.h $(KDIR)/svc/allen_scene.h
+$(IMACKERN_DIR)/allen_scene.o: $(KDIR)/svc/allen_scene.c $(KDIR)/svc/allen_scene.h
+$(IMACKERN_DIR)/allen_reply.o: $(KDIR)/svc/allen_reply.c $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_notes.h
+$(IMACKERN_DIR)/allen_intent.o: $(KDIR)/svc/allen_intent.c $(KDIR)/svc/allen_intent.h $(KDIR)/svc/allen_reply.h
+$(IMACKERN_DIR)/allen_code.o: $(KDIR)/svc/allen_code.c $(KDIR)/svc/allen_code.h
+$(IMACKERN_DIR)/courier_x86.o: $(X86K)/courier_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/courier.h
+$(IMACKERN_DIR)/allen_notes.o: $(KDIR)/svc/allen_notes.c $(KDIR)/svc/allen_notes.h
+$(IMACKERN_DIR)/allen_memory.o: $(KDIR)/svc/allen_memory.c $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_notes.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/gpt_add.o: $(KDIR)/dev/gpt_add.c $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/memory_x86.o: $(X86K)/memory_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_notes.h $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h \
+	$(KDIR)/dev/fat_boot.h $(BOOT)/netboot_proto.h $(BOOT)/slot_format.h $(NATIVE)/sig/aienos_sig.h $(KDIR)/svc/setup_store.h
+$(IMACKERN_DIR)/fat_boot.o: $(KDIR)/dev/fat_boot.c $(KDIR)/dev/fat_boot.h $(NATIVE)/disk/disk.h
+$(IMACKERN_DIR)/sha512.o: $(NATIVE)/sig/sha512.c $(NATIVE)/sig/aienos_sig.h
+$(IMACKERN_DIR)/ct.o: $(NATIVE)/sig/ct.c $(NATIVE)/sig/aienos_sig.h
+$(IMACKERN_DIR)/setup_inv.o: $(KDIR)/svc/setup_inv.c $(KDIR)/svc/setup_inv.h
+$(IMACKERN_DIR)/setup_wizard.o: $(KDIR)/svc/setup_wizard.c $(KDIR)/svc/setup_wizard.h $(KDIR)/svc/setup_inv.h
+$(IMACKERN_DIR)/setup_store.o: $(KDIR)/svc/setup_store.c $(KDIR)/svc/setup_store.h $(KDIR)/svc/allen_memory.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/setup_x86.o: $(X86K)/setup_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/setup_inv.h $(KDIR)/svc/setup_wizard.h $(KDIR)/svc/setup_store.h \
+	$(KDIR)/ui/setup_view.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/courier.h $(KDIR)/dev/usb_hid.h
+$(IMACKERN_DIR)/fwcfg_x86.o: $(X86K)/fwcfg_x86.c $(IMACKERN_HDRS) $(KDIR)/core/acpi.h
 $(IMACKERN_DIR)/report_x86.o: $(X86K)/report_x86.c $(X86K)/report_x86.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h
+$(IMACKERN_DIR)/courier_udp_x86.o: $(X86K)/courier_udp_x86.c $(X86K)/courier_udp.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h $(KDIR)/svc/courier.h
 $(IMACKERN_DIR)/aienos_net.o: $(NATIVE)/net/aienos_net.c $(NATIVE)/net/aienos_net.h
-$(sort $(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS)):
+$(sort $(filter-out %/swap_tramp.o %/model_assets.o,$(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS))):
 	@mkdir -p $(dir $@)
 	$(X86CC) $(IMACKERN_CFLAGS) -DAIENOS_COMMIT='"$(AIENOS_COMMIT)"' -c -o $@ $<
 $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	@if grep -nE -- 'rt->|RuntimeServices' $(X86K)/*.c; then \
 	  echo "the x86 kernel calls a UEFI runtime service; it must never call one"; exit 1; fi
-	@if grep -nE "define ATA_" $(X86K)/ahci_x86.c | grep -vE "ATA_(IDENTIFY 0xec|READ_DMA_EXT 0x25)$$"; then \
-	  echo "ahci_x86.c defines an ATA command other than IDENTIFY and READ DMA EXT; the driver is read-only"; exit 1; fi
+	@if grep -nE "define ATA_" $(X86K)/ahci_x86.c | grep -vE "ATA_(IDENTIFY 0xec|READ_DMA_EXT 0x25|WRITE_DMA_EXT 0x35|FLUSH_CACHE_EXT 0xea)$$"; then \
+	  echo "ahci_x86.c defines an ATA command other than IDENTIFY, READ/WRITE DMA EXT and FLUSH CACHE EXT"; exit 1; fi
+	@if grep -nE "ck_x86_ahci_allow\(" $(X86K)/*.c | grep -vE "^$(X86K)/(memory_x86\.c|ahci_x86\.c:[0-9]+:int ck_x86_ahci_allow\()"; then \
+	  echo "only memory_x86.c may open a write range on an AHCI disk"; exit 1; fi
 	@if grep -nE "nvme_(write|flush)\(" $(X86K)/*.c; then \
 	  echo "the x86 kernel calls nvme_write or nvme_flush; its disks are read-only"; exit 1; fi
 	@mkdir -p $(dir $@)
@@ -2332,8 +2540,16 @@ $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	elif [ -n "$$r" ]; then \
 	  echo "default iMac image links the lab-only network report (build it with CK_X86_REPORT=1 only):"; \
 	  echo "$$r"; rm -f $@; exit 1; fi
-	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-IMAC-REPORT" $@; then \
+	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-REPORT" $@; then \
 	  echo "default iMac image carries the report header string"; rm -f $@; exit 1; fi
+	@if [ "$(CK_X86_REPORT)" != 1 ]; then s=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_x86_swap_tramp|ck_x86_swap_read_inbox)$$' || true); \
+	  if [ -n "$$s" ]; then echo "default iMac image links the swap receiver (lab builds only):"; echo "$$s"; rm -f $@; exit 1; fi; fi
+	@f=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] ck_x86_fwcfg_file$$' || true); s=$$(grep -aoE "opt/aienos/host|QEMU0002" $@ | sort -u | tr "\n" " "); \
+	if [ "$(CK_X86_HOSTDESC)" = 1 ]; then \
+	  [ -n "$$f" ] && grep -aqF "launcher image: the setup wizard reads the host description" $@ || { echo "launcher image lacks the host description reader or its announcement"; rm -f $@; exit 1; }; \
+	elif [ -n "$$f$$s" ]; then echo "default iMac image carries fw_cfg code (build it with CK_X86_HOSTDESC=1 only): $$f $$s"; rm -f $@; exit 1; fi
+	@if [ "$(CK_LOCAL_TEST)" != 1 ] && grep -aq 'local_test:' $@; then \
+	  echo "release image contains hostile local-tool fixtures"; rm -f $@; exit 1; fi
 $(IMACKERN_EFI): $(IMACKERN_ELF)
 	$(X86OBJCOPY) -O binary $< $@
 	@sz=$$(stat -c %s $@); pad=$$(( (4096 - sz % 4096) % 4096 )); \
@@ -2342,6 +2558,59 @@ $(IMACKERN_EFI): $(IMACKERN_ELF)
 	@[ "$$(od -An -tx1 -j68 -N2 $@ | tr -d ' ')" = "6486" ] || { echo "PE Machine is not x86_64 (0x8664)"; rm -f $@; exit 1; }
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-kernel: $(IMACKERN_EFI)
+
+# ---- AMD GPU driver host test (mock MMIO, no hardware needed) ----
+# Checks register access sequences for display flip, MC, SMU, ring submit
+# and fence against Linux dce_v11_0.c / gmc_v8_0.c / gfx_v8_0.c source paths.
+GPU_TEST_SRC := $(KDIR)/tests/test_amd_gpu.c
+$(OUT)/host/test_amd_gpu: $(GPU_TEST_SRC) $(GPU_DIR)/amd_gpu_regs.h $(GPU_DIR)/amd_ring.h
+	@mkdir -p $(OUT)/host
+	$(CC) -std=c11 -Wall -DAMD_GPU_TEST_HOST=1 -I$(KDIR) -I$(GPU_DIR) -I$(X86K) -o $@ $<
+	@echo "host test: running test_amd_gpu"; $@
+imac-gpu-test: $(OUT)/host/test_amd_gpu $(OUT)/host/test_amd_gpu_ring
+# Ring code under test: the driver's own amd_ucode.c and frames.c; the GPU is a model thread (tests/test_amd_gpu_ring.c).
+GPU_RING_TEST_SRC := $(KDIR)/tests/test_amd_gpu_ring.c
+$(OUT)/host/test_amd_gpu_ring: $(GPU_RING_TEST_SRC) $(GPU_DIR)/amd_ucode.c $(KDIR)/mm/frames.c $(GPU_DIR)/amd_gpu.h $(GPU_DIR)/amd_host_shim.h $(GPU_DIR)/amd_gpu_regs.h $(GPU_DIR)/amd_ring.h $(KDIR)/mm/frames.h
+	@mkdir -p $(OUT)/host
+	$(CC) -std=c11 -Wall -pthread -DAMD_GPU_TEST_HOST=1 -I$(KDIR) -I$(KDIR)/include -I$(KDIR)/mm -I$(BOOT) -I$(GPU_DIR) -I$(X86K) -o $@ $(GPU_RING_TEST_SRC) $(GPU_DIR)/amd_ucode.c $(KDIR)/mm/frames.c
+	@echo "host test: running test_amd_gpu_ring"; $@
+# Host tools for the lab bench/swap (C only, no third-party libraries). Built with cc, not into the image.
+GPU_BENCH_TOOL := $(OUT)/host/ck_gpu_bench
+IMAC_SWAP_TOOL := $(OUT)/host/ck_imac_swap
+$(GPU_BENCH_TOOL): $(KDIR)/tools/ck_gpu_bench.c $(X86K)/bench_proto.h
+	@mkdir -p $(dir $@)
+	cc -O2 -std=c11 -Wall -Wextra -o $@ $<
+$(IMAC_SWAP_TOOL): $(KDIR)/tools/ck_imac_swap.c $(X86K)/swap_proto.h
+	@mkdir -p $(dir $@)
+	cc -O2 -std=c11 -Wall -Wextra -o $@ $<
+.PHONY: ck-gpu-bench ck-imac-swap
+ck-gpu-bench: $(GPU_BENCH_TOOL)
+ck-imac-swap: $(IMAC_SWAP_TOOL)
+# Negative test builds for W^X (#409), QEMU only and never deployed: CK_X86_WX_MUTATE=1 leaves RAM
+# executable, =2 leaves the kernel's code writable, and the kernel's W^X probes must then panic
+# (scripts/qemu_ck_imac_kernel_test.sh). Build them into their own OUT directory.
+CK_X86_WX_MUTATE ?= 0
+ifneq ($(CK_X86_WX_MUTATE),0)
+IMACKERN_CFLAGS += -DCK_X86_WX_MUTATE=$(CK_X86_WX_MUTATE)
+endif
+# CK_X86_IDLE_S: seconds without a key before Allen's screen sleeps (kmain_x86.c default 600, 0 never).
+# Set only for test builds (scripts/qemu_ck_imac_keyboard_test.sh uses 25), into their own OUT directory.
+ifdef CK_X86_IDLE_S
+IMACKERN_CFLAGS += -DCK_X86_IDLE_S=$(CK_X86_IDLE_S)u
+endif
+# CK_X86_PANEL_OFF: while Allen rests, switch the display panel off for real through the AMD
+# display chip's panel power sequencer (x86/panel_x86.c; DCE 11.2 registers, Polaris parts only,
+# every write read back, every wait TSC-bounded) and on again when he wakes. Default 1 for
+# `make imac-kernel`. The code finds no such chip in QEMU and says so (`screen: panel: ...`);
+# 0 leaves it out of the image altogether (own OUT directory).
+CK_X86_PANEL_OFF ?= 1
+ifeq ($(CK_X86_PANEL_OFF),1)
+IMACKERN_CFLAGS += -DCK_X86_PANEL_OFF=1
+else ifeq ($(CK_X86_PANEL_OFF),0)
+IMACKERN_CFLAGS += -DCK_X86_PANEL_OFF=0
+else
+$(error CK_X86_PANEL_OFF must be 1 (default: the panel is switched off while Allen rests) or 0)
+endif
 
 # ---- NETLDR.EFI: the lab network loader for the 2017 iMac (x86_64) ----
 # native/boot/net_loader.c + netboot_proto.c (wire spec netboot_proto.h). Stays on the stick as

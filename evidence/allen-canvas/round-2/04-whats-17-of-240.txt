@@ -1,0 +1,3 @@
+mood clear still
+say 17% of 240 is 40.8.
+number right: 40.8 | 17% of 240

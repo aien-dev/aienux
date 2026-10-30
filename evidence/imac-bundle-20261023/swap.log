@@ -1,0 +1,16 @@
+PASS  1  kernel A boots (commit -A)
+PASS  1b A saves Allen's memory before the swap
+PASS  2  A reads the staged slot object
+PASS  3  swap verifies with ck_slot_verify
+PASS  3b swap jumps to B
+PASS  4  kernel B boots (commit -B) and reaches DONE after the jump
+PASS  4b B starts every core again after the swap (cores=4/4)
+PASS  4c one swap: B leaves the staged object alone
+PASS  5  no reset: the QEMU process that booted A is still running with B up
+PASS  6  Allen's memory intact: B loads generation 2 with the name A taught
+PASS  7a bad signature refused: REJECTED (signature does not verify)
+PASS  7b bad signature: no jump
+PASS  7c A keeps running after the refusal
+PASS  8  swap verifies through ck_slot_verify, the netboot function (swap_x86.c; net_loader.c:578)
+PASS  9  the default image (CK_X86_REPORT=0) links no swap receiver
+AIENOS_IMAC_SWAP: PASS

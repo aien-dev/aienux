@@ -1,0 +1,60 @@
+--- tool output ---
+ping OK: result=0x00000000 before=0x00000000
+pci_cfg OK: result=0x67ef1002 before=0x00000000
+bar5_read OK: result=0xc0ffee00 before=0x00000000
+bar5_write OK: result=0xabcd0001 before=0x00000000
+bar5_read OK: result=0xabcd0001 before=0x00000000
+bar5_write ERR_RANGE: result=0x00000000 before=0x00000000
+bar0_write OK: result=0x00000042 before=0x00000000
+bar0_read OK: result=0x00000042 before=0x00000000
+bar5_poll OK: result=0xabcd0001 before=0x00000000
+bar5_poll ERR_TIMEOUT: result=0xabcd0001 before=0x00000000
+bar5_rmw OK: result=0xabcd5501 before=0xabcd0001
+bar5_write OK: result=0x11110001 before=0x00000000
+bar5_write OK: result=0x11110002 before=0x00000000
+bar5_write OK: result=0x11110003 before=0x00000000
+bar5_write OK: result=0x11110004 before=0x00000000
+bar5_write OK: result=0x11110005 before=0x00000000
+bar5_write ERR_RANGE: result=0x00000000 before=0x00000000
+bar5_write ERR_RANGE: result=0x00000000 before=0x00000000
+bar5_write ERR_RANGE: result=0x00000000 before=0x00000000
+bar5_write ERR_RANGE: result=0x00000000 before=0x00000000
+pci_cfg ERR_RANGE: result=0x00000000 before=0x00000000
+replay ERR_AUTH: result=0x00000000 before=0x00000000
+badauth ping ERR_AUTH: result=0x00000000 before=0x00000000
+stale ping ERR_AUTH: result=0x00000000 before=0x00000000
+ping OK: result=0x00000000 before=0x00000000
+bar5_read ERR_ALLONES: result=0x00000000 before=0x00000000
+--- tool stderr ---
+bench: using built-in test key
+line 26: device gone (all-ones); stopping
+PASS  kernel: bench console up (test build, emulated BARs)
+PASS  ping round trip
+PASS  config read (dword 0 = 1002:67ef)
+PASS  BAR5 read of a known word
+PASS  BAR5 write on the allowlist (before 0, after ABCD0001)
+PASS  kernel logged the write before and after
+PASS  BAR5 read back the written value
+PASS  BAR5 write off the allowlist refused (RANGE)
+PASS  GRPH primary surface address 0x1A04 writable
+PASS  GRPH flip control 0x1A12 writable (top of the range)
+PASS  SMC_MESSAGE_0 0x94 writable
+PASS  SMC_RESP_0 0x95 writable
+PASS  SMC_MSG_ARG_0 0xA4 writable
+PASS  kernel logged the GRPH write
+PASS  writes just outside each new range refused (0x1A03, 0x1A13, 0x96, 0xA5, plus 0x100): 5 RANGE
+PASS  BAR0 write and read back
+PASS  TSC poll satisfied
+PASS  TSC poll timed out
+PASS  read-modify-write
+PASS  config offset out of range refused
+PASS  replay refused (same counter)
+PASS  bad HMAC refused
+PASS  stale counter refused
+PASS  all-ones read reported (device gone)
+PASS  tool stopped at the all-ones reply
+PASS  the ping after the all-ones reply was never sent (2 ping replies, not 3)
+PASS  one reply per request on the link (26)
+PASS  every kernel reply carries the HMAC the tool expects
+PASS  tool exit 1 (the ALLONES stop)
+AIENOS_GPU_BENCH: PASS

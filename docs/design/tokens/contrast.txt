@@ -1,0 +1,15 @@
+# Generated from docs/design/DESIGN.md by allen-design-tokens. Do not edit.
+# WCAG 2.2 contrast of each declared pair (foreground on background), measured as drawn:
+# the foreground blended over the background at its drawing opacity first.
+# REPORT lines are the kernel as it draws today; they do not gate the build.
+primary    on night  at 1.000   17.54:1  floor  7.0  PASS
+hint       on night  at 1.000    7.73:1  floor  4.5  PASS
+hint       on night  at 0.586    3.26:1  floor  4.5  REPORT below floor
+faint      on night  at 1.000    6.02:1  floor  4.5  PASS
+faint      on night  at 0.430    1.98:1  floor  4.5  REPORT below floor
+mist       on panel  at 1.000   12.63:1  floor  4.5  PASS
+primary    on lit    at 1.000    8.22:1  floor  4.5  PASS
+warm       on night  at 1.000   14.37:1  floor  4.5  PASS
+glow       on night  at 1.000    9.03:1  floor  4.5  PASS
+primary    on panel  at 1.000   16.49:1  floor  7.0  PASS
+warm-soft  on lit    at 1.000    7.30:1  floor  4.5  PASS

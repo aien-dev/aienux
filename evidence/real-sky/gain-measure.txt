@@ -1,0 +1,24 @@
+Milky Way gain: measurements (host, 3840 x 2160 frame model, sRGB levels, Y = 0.2126 R + 0.7152 G + 0.0722 B on linear light)
+Tools: measure4.c (Galactic-centre view, RA 266.405 Dec -28.936, 80 deg), measure2.c (the chosen view, cells of sky_real.c),
+measure3.c (galaxy boxes and whole-frame median). Source: native/kernel/tools/ck_sky_gen.c and the generated sky_data.c.
+Physical target: brightest band 678 S10 (V 20.7) over dark sky 205 S10 (V 22.0): added/sky = 678/205 = 3.31.
+
+Galactic-centre view, added light over sky (luminance):
+  L6 gain 1.0  2.59
+  L6 gain 1.2  3.23
+  L6 gain 1.3  3.57
+  L6 gain 1.4  3.58
+  L6 gain 1.5  3.93
+  L7 gain 1.2  3.23   (chosen)
+  L7 gain 3.0  6.72
+  L7 gain 5.0 11.23
+  49ab287 (before, boost 5 on the sky)  2.46 total/sky, 1.46 added/sky
+
+Chosen view (GW150914 centre), sRGB levels, dimmest cell / brightest cell:
+  49ab287 before : dimmest R 21.5 G 16.8 B 15.0 ; brightest R 38.6 G 19.6 B 18.1 ; added/sky 0.61
+  L7 gain 1.2    : dimmest R  4.5 G  4.0 B  3.5 ; brightest R 11.0 G 10.0 B  9.0 ; added/sky 1.49
+  L7 gain 3      : dimmest R  5.5 G  5.0 B  4.0 ; brightest R 18.6 G 18.4 B 16.6 ; added/sky 3.05
+  L7 gain 5      : dimmest R  5.5 G  5.0 B  4.0 ; brightest R 25.8 G 25.4 B 23.1 ; added/sky 5.49
+
+Magellanic Cloud boxes (mean sRGB, chosen view), dark sky median R: L7 gain 1.2: LMC R 6.6 G 6.0 B 5.4, SMC R 5.0 G 4.4 B 3.8, frame median R 6.
+Sky made (3840 x 2160, best of 3 per run): L6 135-136 ms; L7 109-140 ms (shared machine, ranges overlap).

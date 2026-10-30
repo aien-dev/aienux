@@ -1,0 +1,11 @@
+# Questions asked of the model by scripts/ck_allen_canvas_test.sh --live, one per line.
+what's the weather like for a walk
+remind me to call mom at 6
+show me something beautiful
+what's 17% of 240
+tell my friend Sam I'm running late
+play a video about black holes
+give me 25 minutes to focus
+what should I pack for a weekend at the lake
+who wrote the odyssey
+I feel a bit lonely tonight

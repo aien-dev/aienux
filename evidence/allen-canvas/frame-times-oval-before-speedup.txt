@@ -1,0 +1,14 @@
+# frame times, 3840x2160 BGRX, one host core (Spark GB10 host CPU), clock = CLOCK_MONOTONIC per frame
+# held: quiet-measure (exclusive /tmp/aien-quiet.lock) + /tmp/aien-gb10.lock; started 2026-10-19T19:59:16Z
+# load at start: 19.16 16.47 15.66 26/2375 166609
+## pair 1
+base 3f48a88 ck_allen_ui_test: note: 3912 frames at 3840x2160 on one core of this host: average 18426 us, slowest 62336 us
+canvas branch ck_allen_ui_test: note: 3912 frames at 3840x2160 on one core of this host: average 18242 us, slowest 60551 us
+## pair 2
+base 3f48a88 ck_allen_ui_test: note: 3912 frames at 3840x2160 on one core of this host: average 18223 us, slowest 61518 us
+canvas branch ck_allen_ui_test: note: 3912 frames at 3840x2160 on one core of this host: average 18383 us, slowest 60755 us
+## canvas test (plain answers vs scenes on the canvas branch)
+note: frames at 3840x2160 on one core of this host (us): whole run avg 32845 worst 129437 over 6730 frames
+note: startup avg 31397 worst 60580 (1113 frames); plain answers avg 21796 worst 30290 (942); scenes avg 43813 worst 129437 (2198)
+CANVAS_TEST: PASS (52 checks)
+# load at end: 45.31 27.07 19.37 44/2402 577022 2026-10-19T20:08:17Z

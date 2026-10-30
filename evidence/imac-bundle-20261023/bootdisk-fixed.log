@@ -1,0 +1,44 @@
+== start 1: stick + network, install ==
+PASS  1: the network kernel started
+PASS  1: Allen's section added
+PASS  1: boot section added in unused space
+PASS  1: installed in slot A, read back
+PASS  1: boot times reported with the loader
+PASS  1: Allen asleep after goodbye
+PASS  1: no write refused by the fence
+PASS  1: fsck.fat finds nothing to repair
+PASS  1: mtools reads BOOTX64.EFI equal to the kernel image
+PASS  1: the old partition is byte-identical
+PASS  1: the stick was not written
+== start 2: the hard disk alone ==
+PASS  two: completed setup stays closed
+PASS  2: no network loader
+PASS  2: the kernel ran from the hard disk
+PASS  2: boot times without a loader
+PASS  2: the boot section reported, slot A
+PASS  2: Allen's memory loaded (second start)
+PASS  2: nothing added
+== start 3: stick + network, a second kernel ==
+PASS  three: completed setup stays closed
+PASS  3: the second kernel ran
+PASS  3: installed in slot B
+PASS  3: no new partition
+== start 4: the hard disk alone ==
+PASS  four: completed setup stays closed
+PASS  4: the second kernel runs from the hard disk
+PASS  4: slot B reported
+PASS  4: fsck.fat finds nothing to repair
+note: boot_disk: boot section added, entry 2, first_lba=2115584 last_lba=2639871 (256 MiB, EFI System Partition); the existing partitions were not touched
+note: boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792752125, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot A, new FAT32 volume, 13243 blocks in 193 ms, read back exact; the computer can now start without the stick
+note: boot_time: since power on: firmware until the loader 2176 ms, loader 734 ms, kernel 1048 ms; Allen's window at 3960 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 13 paging 19 clock 50 night 235 timer 421 cores 11 disk 20 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 254 window 1; the night on screen at 3234 ms
+note: boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot A)
+note: boot_time: since power on: firmware until this kernel 2559 ms (no loader), kernel 827 ms; Allen's window at 3387 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 11 paging 20 clock 50 night 236 timer 422 cores 10 disk 20 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 36 window 0; the night on screen at 2882 ms
+note: boot_disk: installed this kernel (commit 03f493a3bae8, generation 1792752165, 532480 bytes) as \EFI\BOOT\BOOTX64.EFI, slot B, 9109 blocks in 139 ms, read back exact; the computer can now start without the stick
+note: boot_time: since power on: firmware until the loader 2896 ms, loader 801 ms, kernel 979 ms; Allen's window at 4677 ms
+note: boot_time: steps in ms: start 0 gop 0 paint 3 exit 13 paging 21 clock 50 night 239 timer 425 cores 11 disk 20 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 177 window 0; the night on screen at 4025 ms
+note: boot_disk: \EFI\BOOT\BOOTX64.EFI on disk 0: 532480 bytes (slot B)
+note: boot_time: since power on: firmware until this kernel 2961 ms (no loader), kernel 860 ms; Allen's window at 3822 ms
+note: boot_time: steps in ms: start 1 gop 0 paint 3 exit 12 paging 21 clock 50 night 238 timer 427 cores 11 disk 22 nvme 0 network 0 sound 0 usb 13 keyboard 0 memory 55 window 0; the night on screen at 3290 ms
+AIENOS_IMAC_BOOTDISK: PASS

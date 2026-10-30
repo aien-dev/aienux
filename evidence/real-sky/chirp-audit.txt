@@ -1,0 +1,29 @@
+GW150914, detector-frame chirp mass 30.62 solar masses (published: about 30)
+physics, leading order: 35 Hz is 0.165 s before the merger, 150 Hz is 0.0034 s before; 0.161 s and 8.4 cycles between (published: about 0.2 s, about 8 cycles)
+physics, ringdown of the final hole (mass 62, spin 0.67): 250 Hz, quality 3.17, damping time 4.0 ms (published: the signal tops out near 250 Hz)
+
+the chirp in the kernel (ui/chirp.c), pitch by time before the merger:
+  ms before merger   Hz     level (of 22937)
+    600              200   7839
+    500              214   8205
+    400              232   8675
+    300              259   9322
+    200              301  10317
+    100              391  12269
+     50              507  14590
+     20              716  18347
+     10              928  21818
+      5             1000  22937
+      0             1000  22937
+the pitch reaches 1000 Hz 8.2 ms before the merger and holds; the sweep 200 to 1000 Hz lasts 592 ms
+cycles in the sweep: 179 (published signal: about 8 between 35 and 150 Hz, perhaps 10 to the peak)
+ring after the merger: level falls to 0.37 of itself in 30 ms (time constant 30.0 ms; physics: 4.0 ms), held at 1000 Hz (physics: 250 Hz)
+pitch ratio, sound over signal: start 5.71 (200 / 35), top 4.00 (1000 / 250); sweep length over the law's 0.165 s: 3.64
+
+black-hole picture (ui/night.c): Einstein radius 60 px, shadow radius 20 px, ratio 3.00
+  a hole's shadow is sqrt(27)/2 = 2.5981 Rs; the point-lens Einstein angle (source far behind) is sqrt(2 Rs / D). A ratio of 3.00 means the viewer is D = 30.4 Rs from the hole (3229 km for 36 solar masses)
+  so 1 Rs is 7.70 px; the wide orbit's separation 270 px = 35.1 Rs; its Einstein radius 7.8 Rs
+  physics at that separation: orbital period 0.46 s, gravitational-wave pitch 4.39 Hz, real time to the merger 42 s (the picture: orbit 5.20 s, 6 s to the merger)
+  time compression of the inspiral in the picture: 7.0 times; orbit slowed 11.4 times at the start
+  merger: final mass over each initial mass (equal masses assumed) 1.91; the picture's shadow grows 2.00 times (ends at 2.0) and its Einstein radius 1.414 times (physics sqrt of the mass ratio: 1.381)
+  the bend is eased to zero between 2.2 E and 4.4 E: the point-lens pull E^2/theta there is 27.3 px at 2.2 E and 13.6 px at 4.4 E that the picture leaves out

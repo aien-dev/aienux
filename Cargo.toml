@@ -18,6 +18,8 @@ members = [
     "crates/aienos-explain",
     "crates/aienos-infer",
     "crates/allen-reflex",
+    "crates/allen-courier",
+    "crates/allen-design-tokens",
 ]
 
 [workspace.package]
