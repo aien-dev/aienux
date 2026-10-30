@@ -1400,19 +1400,23 @@ osh-op-mutant: $(OUT)/host/test_osh_op_mutant
 PIPE_SRCS := $(KDIR)/core/pipe.c $(KDIR)/core/ipc.c $(KDIR)/core/sched.c
 PIPE_DEPS := $(KDIR)/tests/test_pipe.c $(PIPE_SRCS) $(KDIR)/tests/ck_test.h $(HDRS) $(wildcard $(KDIR)/tests/fixtures/pipe/*)
 PIPE_DEF := -DPIPE_FIXTURE_DIR='"$(abspath $(KDIR)/tests/fixtures/pipe)"'
+# core/ is not a -I ahead of the system headers: <sched.h> must stay POSIX for the
+# pthread host test. Quoted includes still find core/ headers (the sources live there,
+# and -idirafter covers the test file).
+PIPE_HCFLAGS := -std=gnu11 -O1 -g -Wall -Wextra -Werror -I$(KDIR)/mm -I$(KDIR)/tests -I$(BOOT) -idirafter $(KDIR)/core -pthread
 $(OUT)/host/test_pipe: $(PIPE_DEPS)
 	@mkdir -p $(dir $@)
-	$(HOSTCC) $(HCFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
 
 $(OUT)/host-san/test_pipe: $(PIPE_DEPS)
 	@mkdir -p $(dir $@)
-	$(HOSTCC) $(HCFLAGS) $(SANFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(SANFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
 
 # TEST-ONLY mutant of core/pipe.c: a write does not check the WRITE right or the end. test_pipe must FAIL against it
 # (red before green); "make test" fails if the test stops catching it. Host only.
 $(OUT)/host/test_pipe_mutant: $(PIPE_DEPS)
 	@mkdir -p $(dir $@)
-	$(HOSTCC) $(HCFLAGS) $(PIPE_DEF) -DCK_PIPE_MUTANT_SKIP_RIGHTS -o $@ $< $(PIPE_SRCS)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(PIPE_DEF) -DCK_PIPE_MUTANT_SKIP_RIGHTS -o $@ $< $(PIPE_SRCS)
 
 pipe-mutant: $(OUT)/host/test_pipe_mutant
 	@if $< > $<.log 2>&1; then cat $<.log; echo "test_pipe mutant (write right not checked): PASSED, test does not catch it"; exit 1; \

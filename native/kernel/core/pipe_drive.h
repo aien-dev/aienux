@@ -7,7 +7,8 @@
  * REVOKE for the revocation scenario) and the producer's copy is closed, so each task holds one end. Non-blocking mode:
  * a WOULD_BLOCK ends the step with no progress and the scheduler runs the other task. Blocking mode: the wait hook
  * marks the caller blocked and keeps ticking the scheduler, running the other task's steps, until the wake hook fires
- * for that end (OK, the call retries) or the spin bound runs out (INTERRUPTED: a stalled peer). Static functions only. */
+ * for that end (OK, the call retries) or the spin bound runs out (INTERRUPTED: a stalled peer). A wake posted
+ * before wait runs is kept: woken[] is not cleared on entry. Static functions only. One kernel thread. */
 #ifndef AIENOS_CK_PIPE_DRIVE_H
 #define AIENOS_CK_PIPE_DRIVE_H
 
@@ -84,20 +85,24 @@ static inline unsigned pd_wait(void *ctx, unsigned pipe, unsigned end)
     if (!me)
         return OSH_E_INTERRUPTED;
     me->blocked = 1;
-    w->woken[pipe][end] = 0;
-    for (unsigned s = 0; s < PD_SPIN_MAX && !w->woken[pipe][end]; s++) {
+    /* Do not clear woken[] here. The pipe publishes the waiter, drops its lock, then calls wait. A peer can
+     * wake in that window. Clearing first would drop that wake and the task would sleep with data already queued. */
+    for (unsigned s = 0; s < PD_SPIN_MAX; s++) {
+        if (__atomic_load_n(&w->woken[pipe][end], __ATOMIC_ACQUIRE))
+            break;
         w->wait_spins++;
         if (!pd_tick(w))
             break;
     }
     me->blocked = 0;
-    return w->woken[pipe][end] ? OSH_E_OK : OSH_E_INTERRUPTED;
+    unsigned got = __atomic_exchange_n(&w->woken[pipe][end], 0, __ATOMIC_ACQ_REL);
+    return got ? OSH_E_OK : OSH_E_INTERRUPTED;
 }
 
 static inline void pd_wake(void *ctx, unsigned pipe, unsigned end)
 {
     struct pd_world *w = ctx;
-    w->woken[pipe][end] = 1;
+    __atomic_store_n(&w->woken[pipe][end], 1, __ATOMIC_RELEASE);
 }
 
 static inline void pd_producer(struct pd_world *w, struct pd_task *t)
@@ -164,7 +169,7 @@ static inline void pd_run(struct pd_world *w, struct ck_pipe_pool *pool, struct 
                             .chunk_w = chunk_w > PD_CHUNK_MAX ? PD_CHUNK_MAX : chunk_w,
                             .chunk_r = chunk_r > PD_CHUNK_MAX ? PD_CHUNK_MAX : chunk_r, .flags = flags,
                             .prod_every = prod_every, .cons_every = cons_every, .revoke_at = revoke_at };
-    w->hooks = (struct ck_pipe_hooks){ w, pd_wait, pd_wake };
+    w->hooks = (struct ck_pipe_hooks){ w, pd_wait, pd_wake, 0 };
     ck_pipe_pool_init(pool, &w->hooks);
     struct ck_handle r0;
     w->setup_err = ck_pipe_create(pool, prod_t, &r0, &w->w);

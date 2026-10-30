@@ -873,9 +873,12 @@ scheduler; BROKEN_PIPE with no reader; a write after revoke refused with 0 bytes
 read succeeding afterwards; a closed handle STALE after its slot is reused; an unknown op and another ABI version NOT_SUPPORTED;
 cancel INTERRUPTED once with no byte moved. Host test `test_pipe` (the 20-case corpus in `tests/fixtures/pipe/` plus the
 scheduler transfers, also under ASan+UBSan); a mutant that skips the write-right check must fail it (`make pipe-mutant`).
-Limits: (1) the kernel's wait hook yields cooperatively to the scheduler inside one kernel thread; blocking a real M3 thread with
-a context switch is not exercised. (2) Revoke, close and cancel "while waiting" are run by the peer task's step or the host test's
-scripted wait hook, not by asynchronous interrupts. (3) The op ids, the call frame cell layout, the second return value of
+Limits: (1) the kernel's wait hook yields cooperatively to the scheduler inside one kernel thread; the QEMU image does not
+context-switch a blocked pipe op onto another core. Host `test_pipe` does, with pthreads: concurrent read/write, close while
+the peer is parked (including the window after the waiter is published and before `wait` runs), and create/close on a shared
+pool. That is host-only. It is not a QEMU multi-core result and it qualifies nothing physical. (2) In the QEMU driver, revoke,
+close and cancel "while waiting" are still the peer task's step. The host threaded cases close from a second thread; they are
+not asynchronous interrupts. (3) The op ids, the call frame cell layout, the second return value of
 PIPE_CREATE, the capability resource layout, the pool size (4 pipes) and STREAM_DUP's capability form (rights and a target table
 instead of a descriptor number) are this kernel's choices, UNVERIFIED against a frozen contract. (4) A ck_cap_table has 8 slots,
 below the draft's "3 standard streams plus 16 open streams" per session; a session with more streams needs a larger table.

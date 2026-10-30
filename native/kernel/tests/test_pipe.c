@@ -1,9 +1,17 @@
 /* test_pipe.c -- host tests for core/pipe.c (aienos-mv#428): the fixture corpus in tests/fixtures/pipe/ (format in its
  * README.md), then producer / consumer transfers through the scheduler (core/pipe_drive.h), revocation mid-stream,
- * epoch staleness and the versioned op table. Every case ends with both capability tables and the pipe pool empty. */
+ * epoch staleness and the versioned op table, then pthreads (concurrent read/write, close while parked, shared-pool
+ * create/close). Every case ends with both capability tables and the pipe pool empty. */
+#define _GNU_SOURCE
 #include <dirent.h>
+#include <errno.h>
+#include <pthread.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include "ck_test.h"
 #include "pipe.h"
 #include "pipe_drive.h"
@@ -209,7 +217,7 @@ static void vec_wake(void *ctx, unsigned pipe, unsigned end)
     (void)pipe;
     (void)end;
 }
-static const struct ck_pipe_hooks vec_hooks = { 0, vec_wait, vec_wake };
+static const struct ck_pipe_hooks vec_hooks = { 0, vec_wait, vec_wake, 0 };
 
 static uint64_t stat_of(const char *k, int *ok)
 {
@@ -573,6 +581,484 @@ static void test_dispatch(void)
     CHECK(ck_pipe_dispatch(&pool, &ta, &tb, 0, 0, 0, 0, &ret) == OSH_E_INVALID_ARG);
 }
 
+/* A close that fails must not add to the release count. The forged cap is removed (STALE) and still not counted.
+ * A pipe-tagged index outside the pool is DENIED, left in the table, and not counted. */
+static void test_release_count(void)
+{
+    fresh_tables();
+    ck_pipe_pool_init(&pool, 0);
+    struct ck_handle r, w, forged, outside;
+    CHECK(ck_pipe_create(&pool, &ta, &r, &w) == OSH_E_OK);
+    uint32_t epoch = pool.pipes[0].epoch;
+    CHECK(ck_cap_insert(&ta, ck_pipe_resource(0, CK_PIPE_END_READ, epoch + 1), CK_R_READ, &forged) == CK_CAP_OK);
+    CHECK(ck_cap_insert(&ta, ck_pipe_resource(7, CK_PIPE_END_WRITE, 1), CK_R_WRITE, &outside) == CK_CAP_OK);
+    CHECK(ck_pipe_release_table(&pool, &ta) == 2);
+    CHECK(ck_cap_lookup(&ta, forged, 0, 0) == CK_CAP_INVALID);
+    CHECK(ck_cap_lookup(&ta, outside, 0, 0) == CK_CAP_OK);
+    CHECK(ck_cap_remove(&ta, outside) == CK_CAP_OK);
+    CHECK(all_empty());
+}
+
+/* Blocking write must commit the bytes it snapshotted, not a buffer the peer rewrote while the writer was parked. */
+static uint8_t toctou_src[4] = { 1, 2, 3, 4 };
+static struct ck_handle toctou_src_rd;
+
+static unsigned toctou_wait(void *ctx, unsigned pipe, unsigned end)
+{
+    (void)ctx;
+    (void)pipe;
+    (void)end;
+    memset(toctou_src, 0xA5, sizeof toctou_src);
+    uint8_t dump[4];
+    size_t n = 0;
+    unsigned e = ck_stream_read(&pool, &ta, toctou_src_rd, dump, 4, 0, &n);
+    if (e != OSH_E_OK || n != 4)
+        return OSH_E_IO;
+    return OSH_E_OK;
+}
+
+static void toctou_wake(void *ctx, unsigned pipe, unsigned end)
+{
+    (void)ctx;
+    (void)pipe;
+    (void)end;
+}
+
+static void test_toctou_snapshot(void)
+{
+    fresh_tables();
+    static const struct ck_pipe_hooks hooks = { 0, toctou_wait, toctou_wake, 0 };
+    ck_pipe_pool_init(&pool, &hooks);
+    struct ck_handle r, w;
+    size_t n = 0;
+    CHECK(ck_pipe_create(&pool, &ta, &r, &w) == OSH_E_OK);
+    toctou_src_rd = r;
+    memset(big, 0x11, CK_PIPE_CAPACITY);
+    CHECK(ck_stream_write(&pool, &ta, w, big, CK_PIPE_CAPACITY, 0, &n) == OSH_E_OK && n == CK_PIPE_CAPACITY);
+    toctou_src[0] = 1;
+    toctou_src[1] = 2;
+    toctou_src[2] = 3;
+    toctou_src[3] = 4;
+    CHECK(ck_stream_write(&pool, &ta, w, toctou_src, 4, CK_PIPE_F_BLOCK, &n) == OSH_E_OK && n == 4);
+    CHECK(toctou_src[0] == 0xA5 && toctou_src[3] == 0xA5);
+    int bad = 0;
+    for (size_t got = 0; got < CK_PIPE_CAPACITY;) {
+        uint8_t b[64];
+        size_t want = CK_PIPE_CAPACITY - got;
+        if (want > sizeof b)
+            want = sizeof b;
+        size_t rn = 0;
+        if (ck_stream_read(&pool, &ta, r, b, want, 0, &rn) != OSH_E_OK || rn != want) {
+            bad = 1;
+            break;
+        }
+        for (size_t i = 0; i < rn; i++) {
+            uint8_t expect = (got + i) < CK_PIPE_CAPACITY - 4 ? 0x11 : (uint8_t)(got + i - (CK_PIPE_CAPACITY - 4) + 1);
+            if (b[i] != expect)
+                bad = 1;
+        }
+        got += rn;
+    }
+    CHECK(!bad);
+    CHECK(ck_stream_close(&pool, &ta, r) == OSH_E_OK && ck_stream_close(&pool, &ta, w) == OSH_E_OK);
+    CHECK(all_empty());
+}
+
+/* Host threads. The wait hook is a counting semaphore: a wake that lands before wait runs is still observed. */
+struct host_sync {
+    pthread_mutex_t mu;
+    pthread_cond_t cv;
+    unsigned pending[CK_PIPE_POOL_PIPES][2];
+    int in_window, peer_done, use_window, timed_out;
+};
+
+static struct host_sync host;
+
+static void on_alarm(int sig)
+{
+    (void)sig;
+    const char msg[] = "test_pipe: timeout (lock or wakeup)\n";
+    ssize_t wr = write(STDERR_FILENO, msg, sizeof msg - 1);
+    (void)wr;
+    _Exit(1);
+}
+
+static void host_lock(void)
+{
+    pthread_mutex_lock(&host.mu);
+}
+
+static void host_unlock(void)
+{
+    pthread_mutex_unlock(&host.mu);
+}
+
+static int wait_pred(int *pred)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 3;
+    while (!*pred) {
+        if (pthread_cond_timedwait(&host.cv, &host.mu, &ts) == ETIMEDOUT)
+            return -1;
+    }
+    return 0;
+}
+
+static void host_before(void *ctx)
+{
+    struct host_sync *s = ctx;
+    if (!s->use_window)
+        return;
+    host_lock();
+    s->in_window = 1;
+    pthread_cond_broadcast(&s->cv);
+    int bad = wait_pred(&s->peer_done);
+    if (bad)
+        s->timed_out = 1;
+    host_unlock();
+}
+
+static unsigned host_wait(void *ctx, unsigned pipe, unsigned end)
+{
+    struct host_sync *s = ctx;
+    host_lock();
+    if (!s->use_window) {
+        s->in_window = 1;
+        pthread_cond_broadcast(&s->cv);
+    }
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 3;
+    while (s->pending[pipe][end] == 0) {
+        if (pthread_cond_timedwait(&s->cv, &s->mu, &ts) == ETIMEDOUT) {
+            s->timed_out = 1;
+            host_unlock();
+            return OSH_E_INTERRUPTED;
+        }
+    }
+    s->pending[pipe][end]--;
+    host_unlock();
+    return OSH_E_OK;
+}
+
+static void host_wake(void *ctx, unsigned pipe, unsigned end)
+{
+    struct host_sync *s = ctx;
+    host_lock();
+    s->pending[pipe][end]++;
+    pthread_cond_broadcast(&s->cv);
+    host_unlock();
+}
+
+static void host_reset(int window)
+{
+    host_lock();
+    memset(host.pending, 0, sizeof host.pending);
+    host.in_window = host.peer_done = host.timed_out = 0;
+    host.use_window = window;
+    host_unlock();
+}
+
+static int wait_window(void)
+{
+    host_lock();
+    int bad = wait_pred(&host.in_window);
+    host_unlock();
+    return bad;
+}
+
+static void mark_peer(void)
+{
+    host_lock();
+    host.peer_done = 1;
+    pthread_cond_broadcast(&host.cv);
+    host_unlock();
+}
+
+struct xfer {
+    struct ck_cap_table *table;
+    struct ck_handle h;
+    size_t total, chunk, moved, bad;
+    unsigned err;
+    int reader;
+};
+
+static void *xfer_thread(void *arg)
+{
+    struct xfer *x = arg;
+    size_t off = 0;
+    while (off < x->total) {
+        size_t want = x->total - off;
+        if (want > x->chunk)
+            want = x->chunk;
+        uint8_t tmp[1024];
+        size_t n = 0;
+        unsigned e;
+        if (x->reader) {
+            e = ck_stream_read(&pool, x->table, x->h, tmp, want, CK_PIPE_F_BLOCK, &n);
+            if (e != OSH_E_OK || n == 0) {
+                x->err = e == OSH_E_OK ? 0xffu : e;
+                return 0;
+            }
+            for (size_t i = 0; i < n; i++)
+                x->bad += tmp[i] != pd_byte(off + i);
+        } else {
+            for (size_t i = 0; i < want; i++)
+                tmp[i] = pd_byte(off + i);
+            e = ck_stream_write(&pool, x->table, x->h, tmp, want, CK_PIPE_F_BLOCK, &n);
+            if (e != OSH_E_OK || n == 0) {
+                x->err = e == OSH_E_OK ? 0xffu : e;
+                return 0;
+            }
+        }
+        off += n;
+    }
+    x->moved = off;
+    if (x->reader) {
+        size_t n = 0;
+        uint8_t b;
+        unsigned e = ck_stream_read(&pool, x->table, x->h, &b, 1, CK_PIPE_F_BLOCK, &n);
+        if (e != OSH_E_OK || n != 0)
+            x->err = e == OSH_E_OK ? 0xffu : e;
+        ck_stream_close(&pool, x->table, x->h);
+    } else {
+        unsigned e = ck_stream_close(&pool, x->table, x->h);
+        if (e != OSH_E_OK)
+            x->err = e;
+    }
+    return 0;
+}
+
+static void *nb_thread(void *arg)
+{
+    struct xfer *x = arg;
+    size_t off = 0;
+    while (off < x->total) {
+        size_t want = x->total - off;
+        if (want > x->chunk)
+            want = x->chunk;
+        uint8_t tmp[256];
+        size_t n = 0;
+        unsigned e;
+        if (x->reader) {
+            e = ck_stream_read(&pool, x->table, x->h, tmp, want, 0, &n);
+            if (e == OSH_E_WOULD_BLOCK) {
+                sched_yield();
+                continue;
+            }
+            if (e != OSH_E_OK || n == 0) {
+                x->err = e == OSH_E_OK ? 0xffu : e;
+                return 0;
+            }
+            for (size_t i = 0; i < n; i++)
+                x->bad += tmp[i] != pd_byte(off + i);
+        } else {
+            for (size_t i = 0; i < want; i++)
+                tmp[i] = pd_byte(off + i);
+            e = ck_stream_write(&pool, x->table, x->h, tmp, want, 0, &n);
+            if (e == OSH_E_WOULD_BLOCK) {
+                sched_yield();
+                continue;
+            }
+            if (e != OSH_E_OK || n == 0) {
+                x->err = e == OSH_E_OK ? 0xffu : e;
+                return 0;
+            }
+        }
+        off += n;
+    }
+    x->moved = off;
+    if (!x->reader) {
+        unsigned e = ck_stream_close(&pool, x->table, x->h);
+        if (e != OSH_E_OK)
+            x->err = e;
+    } else {
+        for (;;) {
+            uint8_t b;
+            size_t n = 0;
+            unsigned e = ck_stream_read(&pool, x->table, x->h, &b, 1, 0, &n);
+            if (e == OSH_E_WOULD_BLOCK) {
+                sched_yield();
+                continue;
+            }
+            if (e != OSH_E_OK || n != 0)
+                x->err = e == OSH_E_OK ? 0xffu : e;
+            break;
+        }
+        ck_stream_close(&pool, x->table, x->h);
+    }
+    return 0;
+}
+
+struct pair_job {
+    struct ck_cap_table *table;
+    unsigned err;
+    int n;
+};
+
+static void *pair_thread(void *arg)
+{
+    struct pair_job *j = arg;
+    for (int i = 0; i < j->n; i++) {
+        struct ck_handle r, w;
+        unsigned e = ck_pipe_create(&pool, j->table, &r, &w);
+        if (e != OSH_E_OK) {
+            j->err = e;
+            return 0;
+        }
+        uint8_t b[8], out[8];
+        for (int k = 0; k < 8; k++)
+            b[k] = (uint8_t)(i + k);
+        size_t n = 0;
+        e = ck_stream_write(&pool, j->table, w, b, 8, 0, &n);
+        if (e != OSH_E_OK || n != 8) {
+            j->err = e == OSH_E_OK ? 0xffu : e;
+            return 0;
+        }
+        e = ck_stream_read(&pool, j->table, r, out, 8, 0, &n);
+        if (e != OSH_E_OK || n != 8 || memcmp(out, b, 8) != 0) {
+            j->err = e == OSH_E_OK ? 0xffu : e;
+            return 0;
+        }
+        if (ck_stream_close(&pool, j->table, r) != OSH_E_OK || ck_stream_close(&pool, j->table, w) != OSH_E_OK) {
+            j->err = OSH_E_IO;
+            return 0;
+        }
+    }
+    return 0;
+}
+
+struct one_call {
+    struct ck_cap_table *table;
+    struct ck_handle h;
+    int is_write;
+    unsigned err;
+    size_t n;
+    uint8_t buf[4];
+};
+
+static void *one_call_thread(void *arg)
+{
+    struct one_call *c = arg;
+    if (c->is_write)
+        c->err = ck_stream_write(&pool, c->table, c->h, c->buf, 4, CK_PIPE_F_BLOCK, &c->n);
+    else
+        c->err = ck_stream_read(&pool, c->table, c->h, c->buf, 4, CK_PIPE_F_BLOCK, &c->n);
+    return 0;
+}
+
+static void join_one(pthread_t th, struct one_call *c, unsigned want, size_t want_n)
+{
+    pthread_join(th, 0);
+    CHECK(c->err == want);
+    CHECK(c->n == want_n);
+    CHECK(!host.timed_out);
+}
+
+static void test_close_park(int window, int break_writer)
+{
+    fresh_tables();
+    host_reset(window);
+    struct ck_pipe_hooks hooks = { &host, host_wait, host_wake, host_before };
+    ck_pipe_pool_init(&pool, &hooks);
+    struct ck_handle r, w;
+    CHECK(ck_pipe_create(&pool, &ta, &r, &w) == OSH_E_OK);
+    struct one_call call;
+    memset(&call, 0, sizeof call);
+    pthread_t th;
+    if (break_writer) {
+        size_t n = 0;
+        memset(big, 0x22, CK_PIPE_CAPACITY);
+        CHECK(ck_stream_write(&pool, &ta, w, big, CK_PIPE_CAPACITY, 0, &n) == OSH_E_OK && n == CK_PIPE_CAPACITY);
+        call.table = &ta;
+        call.h = w;
+        call.is_write = 1;
+        call.buf[0] = call.buf[1] = call.buf[2] = call.buf[3] = 9;
+        CHECK(pthread_create(&th, 0, one_call_thread, &call) == 0);
+        CHECK(wait_window() == 0);
+        CHECK(ck_stream_close(&pool, &ta, r) == OSH_E_OK);
+        if (window)
+            mark_peer();
+        join_one(th, &call, OSH_E_BROKEN_PIPE, 0);
+        CHECK(pool.total.bytes_written == CK_PIPE_CAPACITY);
+        CHECK(ck_stream_close(&pool, &ta, w) == OSH_E_OK);
+    } else {
+        call.table = &ta;
+        call.h = r;
+        CHECK(pthread_create(&th, 0, one_call_thread, &call) == 0);
+        CHECK(wait_window() == 0);
+        CHECK(ck_stream_close(&pool, &ta, w) == OSH_E_OK);
+        if (window)
+            mark_peer();
+        join_one(th, &call, OSH_E_OK, 0);
+        CHECK(pool.total.eof == 1);
+        CHECK(ck_stream_close(&pool, &ta, r) == OSH_E_OK);
+    }
+    CHECK(all_empty());
+}
+
+static void test_concurrent(void)
+{
+    signal(SIGALRM, on_alarm);
+    alarm(60);
+    static const struct ck_pipe_hooks hooks = { &host, host_wait, host_wake, host_before };
+    const size_t total = 128u * 1024u;
+    for (int iter = 0; iter < 4; iter++) {
+        fresh_tables();
+        host_reset(0);
+        ck_pipe_pool_init(&pool, &hooks);
+        struct ck_handle r0, w, r;
+        CHECK(ck_pipe_create(&pool, &ta, &r0, &w) == OSH_E_OK);
+        CHECK(ck_stream_dup(&pool, &ta, r0, &tb, CK_R_READ, &r) == OSH_E_OK);
+        CHECK(ck_stream_close(&pool, &ta, r0) == OSH_E_OK);
+        struct xfer wr = { .table = &ta, .h = w, .total = total, .chunk = 1000 };
+        struct xfer rd = { .table = &tb, .h = r, .total = total, .chunk = 700, .reader = 1 };
+        pthread_t tw, tr;
+        CHECK(pthread_create(&tw, 0, xfer_thread, &wr) == 0);
+        CHECK(pthread_create(&tr, 0, xfer_thread, &rd) == 0);
+        pthread_join(tw, 0);
+        pthread_join(tr, 0);
+        CHECK(wr.err == 0 && rd.err == 0);
+        CHECK(wr.moved == total && rd.moved == total && rd.bad == 0);
+        CHECK(!host.timed_out);
+        CHECK(all_empty());
+    }
+    fresh_tables();
+    ck_pipe_pool_init(&pool, 0);
+    struct ck_handle r0, w, r;
+    CHECK(ck_pipe_create(&pool, &ta, &r0, &w) == OSH_E_OK);
+    CHECK(ck_stream_dup(&pool, &ta, r0, &tb, CK_R_READ, &r) == OSH_E_OK);
+    CHECK(ck_stream_close(&pool, &ta, r0) == OSH_E_OK);
+    struct xfer wr = { .table = &ta, .h = w, .total = total, .chunk = 256 };
+    struct xfer rd = { .table = &tb, .h = r, .total = total, .chunk = 128, .reader = 1 };
+    pthread_t tw, tr;
+    CHECK(pthread_create(&tw, 0, nb_thread, &wr) == 0);
+    CHECK(pthread_create(&tr, 0, nb_thread, &rd) == 0);
+    pthread_join(tw, 0);
+    pthread_join(tr, 0);
+    CHECK(wr.err == 0 && rd.err == 0);
+    CHECK(wr.moved == total && rd.moved == total && rd.bad == 0);
+    CHECK(all_empty());
+
+    test_close_park(1, 0);
+    test_close_park(1, 1);
+    test_close_park(0, 0);
+    test_close_park(0, 1);
+
+    fresh_tables();
+    ck_pipe_pool_init(&pool, 0);
+    struct pair_job ja = { .table = &ta, .n = 80 };
+    struct pair_job jb = { .table = &tb, .n = 80 };
+    CHECK(pthread_create(&tw, 0, pair_thread, &ja) == 0);
+    CHECK(pthread_create(&tr, 0, pair_thread, &jb) == 0);
+    pthread_join(tw, 0);
+    pthread_join(tr, 0);
+    CHECK(ja.err == 0 && jb.err == 0);
+    CHECK(all_empty());
+    alarm(0);
+}
+
 int main(int argc, char **argv)
 {
     _Static_assert(CK_PIPE_CAPACITY >= 65536u, "section 8.5 minimum");
@@ -583,5 +1069,12 @@ int main(int argc, char **argv)
     test_revoke_midstream(CK_PIPE_F_BLOCK);
     test_epoch_and_forgery();
     test_dispatch();
+    test_release_count();
+    test_toctou_snapshot();
+    CHECK(pthread_mutex_init(&host.mu, 0) == 0);
+    CHECK(pthread_cond_init(&host.cv, 0) == 0);
+    test_concurrent();
+    pthread_cond_destroy(&host.cv);
+    pthread_mutex_destroy(&host.mu);
     return ck_t_verdict("test_pipe");
 }

@@ -38,10 +38,28 @@
  * pool's wait hook instead of returning WOULD_BLOCK, and retries (re-checking authority) after the hook returns OK.
  * A blocking call returns as soon as it moved at least one byte (partial I/O; the caller loops). The kernel's hook
  * yields to the scheduler; the host test simulates it. Without a wait hook a blocking call returns WOULD_BLOCK.
+ * A blocking write copies the bytes it may commit into a kernel buffer before it parks (at most CK_PIPE_WRITE_SNAP
+ * of them) and the retry reads that buffer, not the caller memory. A write that does not park copies once, under
+ * the pool lock, straight into the ring.
+ *
+ * Locking. One ticket lock covers the pool (every pipe, the ref counts, the ring, the stats, the live count).
+ * core/smp.c is the kernel's SMP primitive and it synchronises with __atomic_*; there is no separate spinlock
+ * type, so the ticket lock uses those same orders. create, read, write, close, dup, revoke, cancel, release and
+ * ck_pipe_pool_empty all take it. It is not IRQ-safe: pipe ops are not called from interrupt handlers. It is never
+ * held across wait or wake, so a hook may call back into the pipe. The waiter increments waiting[end] under the
+ * lock before dropping it; a waker calls the wake hook after dropping the lock, and only when that count was
+ * non-zero. wait must still observe a wake that ran before wait blocked (check the hook's own flag under the
+ * hook's lock before sleeping). before_wait, if set, runs in that window; production leaves it NULL.
+ * ck_pipe_pool_init is single-threaded, before the pool is shared.
+ *
+ * Caller buffers. ck_stream_read, ck_stream_write and ck_pipe_dispatch do not check that a pointer is in a
+ * caller's address space. This tree has no access_ok or copy_from_user. The syscall layer must validate the
+ * range, or pass a kernel buffer. Those three entry points treat the pointer as that buffer.
  *
  * Memory: a fixed pool of CK_PIPE_POOL_PIPES pipes with CK_PIPE_CAPACITY bytes each, all static; nothing grows.
- * Pure logic, no hardware: host-tested in tests/test_pipe.c (fixtures in tests/fixtures/pipe/), driven in QEMU by
- * core/pipe_test.c (CK_PIPE_TEST). Host and QEMU evidence qualify nothing physical. */
+ * Pure logic, no hardware: host-tested in tests/test_pipe.c (fixtures in tests/fixtures/pipe/, plus host threads
+ * for concurrent read, write and close), driven in QEMU by core/pipe_test.c (CK_PIPE_TEST). The QEMU driver is
+ * one kernel thread. Host and QEMU evidence qualify nothing physical. */
 #ifndef AIENOS_CK_PIPE_H
 #define AIENOS_CK_PIPE_H
 
@@ -79,6 +97,10 @@ enum ck_pipe_op {
 };
 
 #define CK_PIPE_F_BLOCK 0x1u /* read / write flag: park through the wait hook instead of WOULD_BLOCK */
+/* Bytes a blocking write snapshots before it parks. Kept under 4 KiB so a nested park still fits a 16 KiB
+ * secondary-core stack (core/smp.c). A longer blocking write returns a partial count and the caller loops. */
+#define CK_PIPE_WRITE_SNAP 1024u
+_Static_assert(CK_PIPE_WRITE_SNAP >= 1u && CK_PIPE_WRITE_SNAP <= 4096u, "snapshot must fit a secondary stack");
 
 /* Rights a create gives each end beyond its data right, and the only rights a dup may carry. */
 #define CK_PIPE_CTL_RIGHTS (CK_R_DERIVE | CK_R_GRANT | CK_R_REVOKE)
@@ -108,17 +130,20 @@ struct ck_pipe {
     uint32_t epoch; /* 0 = never created */
     uint32_t reader_refs, writer_refs;
     uint32_t flags;
-    uint32_t waiting[2]; /* callers parked in the wait hook, per end */
+    uint32_t waiting[2]; /* callers parked in the wait hook, per end; only touched under the pool lock */
     struct ck_pipe_stats stats; /* this incarnation; reset at create */
 };
 
 /* Wait / wake hook. wait: the caller would block on (pipe, end); return OSH_E_OK to retry the operation (it re-checks
  * authority) or an error (normally OSH_E_INTERRUPTED) to give up; the operation then returns it with no byte moved.
- * wake: (pipe, end) may proceed (bytes, space, close, revoke or cancel); called only when that end has a waiter. */
+ * Called without the pool lock. A wake for this end may already have run; wait must not sleep through it.
+ * wake: (pipe, end) may proceed (bytes, space, close, revoke or cancel); called only when that end has a waiter,
+ * and only after the pool lock is dropped. before_wait: optional, same window, NULL in production. */
 struct ck_pipe_hooks {
     void *ctx;
     unsigned (*wait)(void *ctx, unsigned pipe, unsigned end);
     void (*wake)(void *ctx, unsigned pipe, unsigned end);
+    void (*before_wait)(void *ctx);
 };
 
 struct ck_pipe_pool {
@@ -126,11 +151,14 @@ struct ck_pipe_pool {
     const struct ck_pipe_hooks *hooks; /* may be 0 */
     struct ck_pipe_stats total;        /* every incarnation since init */
     unsigned live;                     /* pipes currently live */
+    /* Ticket lock. ticket is the next number handed out; serving is the number now inside.
+     * Both 0 is unlocked. Only __atomic_* touches them. */
+    uint32_t lock_ticket, lock_serving;
 };
 
 void ck_pipe_pool_init(struct ck_pipe_pool *p, const struct ck_pipe_hooks *hooks);
-/* 1 if no pipe is live (every end of every pipe was closed). */
-int ck_pipe_pool_empty(const struct ck_pipe_pool *p);
+/* 1 if no pipe is live (every end of every pipe was closed). Takes the pool lock. */
+int ck_pipe_pool_empty(struct ck_pipe_pool *p);
 
 /* PIPE_CREATE: a new pipe, both ends inserted into t. LIMIT if the pool or the table is full (nothing is left
  * allocated). The draft's PIPE_CREATE takes no binding, so no prior capability is required (UNVERIFIED). */
@@ -152,7 +180,8 @@ unsigned ck_stream_dup(struct ck_pipe_pool *p, struct ck_cap_table *from, struct
 unsigned ck_pipe_revoke(struct ck_pipe_pool *p, const struct ck_cap_table *t, struct ck_handle h);
 /* Interrupt the end h names (its data right needed). */
 unsigned ck_pipe_cancel(struct ck_pipe_pool *p, const struct ck_cap_table *t, struct ck_handle h);
-/* Section 12 cleanup: closes every pipe capability in t. Returns how many were closed. */
+/* Section 12 cleanup: closes every pipe capability in t. Returns how many STREAM_CLOSE calls returned OK.
+ * A failure is not counted. STALE (the capability was released, but it named a dead incarnation) is a failure. */
 unsigned ck_pipe_release_table(struct ck_pipe_pool *p, struct ck_cap_table *t);
 
 /* ---- versioned op table ----
@@ -162,7 +191,9 @@ unsigned ck_pipe_release_table(struct ck_pipe_pool *p, struct ck_cap_table *t);
  * the read destination or the write source. Check order, first failure wins, all before any effect: frame shorter
  * than 4 cells, bad magic or nonzero reserved -> INVALID_ARG; abi_version not CK_PIPE_ABI_VERSION or an unknown op
  * -> NOT_SUPPORTED; wrong cell count, a generation-0 handle or unknown flag bits -> INVALID_ARG.
- * Result: {error, value} as in section 8; PIPE_CREATE also fills value2 (the write end). value2 is UNVERIFIED. */
+ * Result: {error, value} as in section 8; PIPE_CREATE also fills value2 (the write end). value2 is UNVERIFIED.
+ * slice / slice_len are not checked against a user address space. The syscall layer validates the range or
+ * passes a kernel buffer; this function treats slice as that buffer (see the caller-buffer note above). */
 struct ck_pipe_ret {
     uint32_t error;
     uint64_t value, value2;
