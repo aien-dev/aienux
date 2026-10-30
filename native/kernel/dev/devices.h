@@ -32,6 +32,8 @@ const disk_dev *ck_dev_slots_disk(int *rc_out);
 const disk_dev *ck_dev_inbox_disk(int *rc_out);
 /* Revoke the NVMe function's bus mastering once the last disk user (the
  * Store stage) is done, or after a failed bind; prints the dma_gate line.
- * The boot disk is unavailable afterwards. */
+ * The boot disk is unavailable afterwards. Ownership is returned only when
+ * bus mastering is off and the SMMU stream is back to abort; a refused abort
+ * keeps the stream confined and the function owned, and a later call retries. */
 void ck_dev_nvme_release(void);
 #endif
