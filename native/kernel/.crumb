@@ -57,14 +57,14 @@
           "purpose": "Directory native/kernel/artifact. Purpose not yet described by a human."
         },
         {
-          "digest": "275b50ae4076d50b26ae6d8c4ee75c331629b5e78a71c6e2f61f7a6e2a635606",
+          "digest": "60a098058f4277f4d584988b10e3f768987517f35d346fae52b032a2a9aece86",
           "last_commit": "b7ab44bf",
           "name": "core",
           "purpose": "Directory native/kernel/core. Purpose not yet described by a human."
         },
         {
-          "digest": "41794b17b28a7290757288202b665a2d71f09a041f05058a13e55a080710ae18",
-          "last_commit": "f45d00ad",
+          "digest": "c943647976dcb5c770e04fc9da06f921c581866c680449cb5a483de3226e4483",
+          "last_commit": "c01180eb",
           "name": "dev",
           "purpose": "Directory native/kernel/dev. Purpose not yet described by a human."
         },
@@ -81,33 +81,33 @@
           "purpose": "Directory native/kernel/mm. Purpose not yet described by a human."
         },
         {
-          "digest": "4e5184ce714a8b0c5d16019337b7d77f57792a3f4a592d92cd8545dce2042dea",
-          "last_commit": "f45d00ad",
+          "digest": "007a51e72c3f3064b7ad4c12575067a8db6c71d9820d057ab7aa101e129e431a",
+          "last_commit": "832bcbd9",
           "name": "svc",
           "purpose": "Directory native/kernel/svc. Purpose not yet described by a human."
         },
         {
-          "digest": "a8880cfbeb9538ee6fa9784d115339e1af0df7bd58ca2c683e5138548b4104ee",
-          "last_commit": "4b897d35",
+          "digest": "c90db8713d6ae7ec55d252ef3cc96f168804c0fa7e77509a1ef4f6b41bf5cc78",
+          "last_commit": "89e296db",
           "name": "tests",
           "purpose": "Directory native/kernel/tests. Purpose not yet described by a human."
         },
         {
-          "digest": "7863ced57b54d23a2e3c2aa02ab53468462616b44cf256f71a530a35f6ecb25d",
-          "last_commit": "41119ceb",
+          "digest": "b9e7c05043b82668b22343765e7ca61d06f5132dacbb623bd333e3e9e577eafc",
+          "last_commit": "89e296db",
           "name": "tools",
           "purpose": "Hosted (Linux-built) checkers for the native kernel, run by `make -C native/kernel test`; nothin"
         }
       ],
-      "children_root": "sha256:41c3657f7ee8a48e19b93f4ea795bf420e356263f4c433a963ea561608f64a5e",
-      "compiled_at": "2026-10-30T02:50:25Z",
+      "children_root": "sha256:db7aca3ab2a9313ec8872d3cbc1b0a2c23b128738b9c4b14b63ff703d66c669f",
+      "compiled_at": "2026-10-30T11:34:25Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:0397aed4cf29359733f55880791468788984e0cdf1452cbdfb140665910cec0a",
+      "digest": "sha256:2e72eee62b390f473413fe29890e216fb710836a74d2976811d690f0ce307d92",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 427,
-      "generated_at_commit": "b7ab44bf552dddc7e4f98b08a9b42f4b58b6fbc6",
-      "source_tree": "sha256:96617f062350b4a4ffbdf4ca22ffc5747959e99f45894f237abc4f79830b03ba"
+      "files": 429,
+      "generated_at_commit": "97e14bae3012d80154fa30cd784b3068f1c5fb3e",
+      "source_tree": "sha256:43c188808a2fdefcc7ffa51ff6b3ca3c27f1075ca7af522e0518ad9ab6f46321"
     },
     "owner_lane": "",
     "provenance": {
