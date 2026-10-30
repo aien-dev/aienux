@@ -37,8 +37,10 @@ buffer is a caller-provided workspace (`st_workspace` about 0.9 MiB,
 * C -> Rust (`tests/rust_crosscheck.sh`, 48 checks, 512 and 4096 geometry):
   the Rust `aienos-store-tool` runs `tear-closure`, `corrupt-kind` and all 8
   `inject` cases on images the C engine wrote; the C engine then gives the
-  same mount or refusal as Rust's own `Store::open`. Tool built from aienos
-  7b023f6; the store and tool sources are identical at origin/main 913b962.
+  same mount or refusal as Rust's own `Store::open`. The Rust tool for that
+  check was built from 7b023f6; the Rust store and tool sources matched
+  913b962. They still match that commit aside from the Apache-2.0 headers
+  (#448). 913b962 is not current origin/main.
 * Rust -> C: no Rust-written image is used. That direction is covered by the
   golden vectors only.
 * Discrepancy found by reading (not run in Rust): Rust `preflight`
@@ -120,12 +122,16 @@ collision).
 ## Not done
 
 * Kernel binding: done. The C kernel links the sealed Store (`native/kernel/stage.mk`,
-  `svc/store_boot.c`). It runs in the QEMU Store gates and on the Raspberry Pi 5
+  `native/kernel/svc/store_boot.c`). It runs in the QEMU Store gates and on the Raspberry Pi 5
   SD card with throwaway secrets (`docs/native/PI5-4-UNLOCK-RUNS.md`,
   `docs/native/PI5-6-AGENT-RUNS.md`).
 * Physical NVMe qualification: not run; nothing here claims it.
 * Whole-disk rollback: the anchor is on the same disk, so rolling back both
   regions together is not detected (a test records this). That needs TPM NV
   (TRUST-1).
-* Key rotation, more than 8 objects or 16 KiB per sealed transaction, and
+* `K_vol` rotation (ADR 0017 section 2.7 item 2; `active_key_epoch` stays 1),
+  more than 8 objects or 16 KiB per sealed transaction, and
   repair of a DegradedRecovery mount (it stays read-only, as in Rust).
+  Recovery-secret rotation (section 2.7 item 1) is implemented: the
+  KeySlotManifest chain is in `store_sealed.c`, and
+  `ck_store_rotate_recovery` is in `native/kernel/svc/store_boot.c`.

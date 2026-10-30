@@ -46,7 +46,7 @@ RFC 4231 HMAC cases 1 and 2, and every vector in the Rust crate's unit tests.
 ## Limitations
 
 - This library's own tests run on the build machine only. The C kernel links
-  it through the sealed Store (`native/kernel/Makefile`, `stage.mk`), so it also
+  it through the sealed Store (`native/kernel/Makefile`, `native/kernel/stage.mk`), so it also
   runs in the QEMU Store gates and in the Pi 5 Store runs with throwaway
   secrets (`docs/native/PI5-4-UNLOCK-RUNS.md`). No timing or side-channel
   measurement was made in any of those runs.

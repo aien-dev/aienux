@@ -50,7 +50,8 @@ Build: `make -C native/kernel pi5-diag` (output `PI5DIAG.EFI`, copy to the card 
 
 **AIENOS-IMAC-BOOT-0 diagnostic, the same `diag_main.c` built for x86_64 ->
 `IMACDIAG.EFI`:** the first AIENOS code for an x86_64 machine, a 2017 iMac (Intel
-Core i5-7500, AMD Radeon Pro, Fusion Drive; no T2 chip, so its firmware starts unsigned
+Core i5-7500, AMD Radeon Pro, Fusion Drive, `evidence/imac_boot0_2026-10-16/`; no T2 chip
+(hardware-unverified), so its firmware starts unsigned
 images). Same report and ACPI copies as the Pi diagnostic, plus `diag_x86.c`:
 CPUID identity, features, topology and CPU mode; SMBIOS type 0/1/2 identity (no
 serial numbers); every PCI function through configuration ports 0xCF8/0xCFC (reads

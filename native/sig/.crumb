@@ -14,20 +14,20 @@
       "children": [
         {
           "digest": "7c0efcd3de51e7064cd262d7c09f366099301d4d46b827abcadac60ea1b42549",
-          "last_commit": "cea54bea",
+          "last_commit": "f45d00ad",
           "name": "tests",
           "purpose": "Directory native/sig/tests. Purpose not yet described by a human."
         }
       ],
       "children_root": "sha256:f4eba8a5dc57ed10d9e6011655429a86bba98077105f6b95e801be83b9acba15",
-      "compiled_at": "2026-10-30T02:54:03Z",
+      "compiled_at": "2026-10-30T11:54:31Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:fcacaa56954408fe71d86237b9d408b52a4480eda54f5c3ce737c66d912aeffd",
+      "digest": "sha256:6f0bf10c76df492d27ae642792476c1138bc73f0d897b3ddca04605ac07b4268",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 10,
-      "generated_at_commit": "3ab0a75872f163e488eff4ef7d9850564f5915a6",
-      "source_tree": "sha256:0e2e6720ce2e51738c3eadb4296b983a1f4926603408b00383c794351e4cd5c9"
+      "generated_at_commit": "fd4ac5b5bdf13645e310e506c997ca18c39b7fe2",
+      "source_tree": "sha256:375fba3882847dae450e928a5623208e9621122798dc067a8036d2dd3c04085c"
     },
     "owner_lane": "",
     "provenance": {
