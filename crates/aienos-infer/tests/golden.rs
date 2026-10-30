@@ -31,7 +31,8 @@ use std::collections::BTreeMap;
 fn model_dir() -> std::path::PathBuf {
     match std::env::var_os("AIENOS_INFER_MODEL_DIR") {
         Some(d) => d.into(),
-        None => std::path::Path::new(&std::env::var_os("HOME").unwrap_or_default()).join("models/aien-mail"),
+        None => std::path::Path::new(&std::env::var_os("HOME").unwrap_or_default())
+            .join("models/aien-mail"),
     }
 }
 
@@ -116,7 +117,9 @@ fn real_file_matches_hf_metadata_hash() {
     // Line 2 of the HF cache metadata is the file's sha256 (etag).
     let want = meta.lines().nth(1).unwrap().trim().to_string();
     assert_eq!(want.len(), 64);
-    let out = std::process::Command::new("sha256sum").arg(model_path()).output();
+    let out = std::process::Command::new("sha256sum")
+        .arg(model_path())
+        .output();
     let Ok(out) = out else {
         eprintln!("SKIP: no sha256sum");
         return;

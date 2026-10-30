@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Canonical, bounded parser and identity primitives for Binary Artifact v0.
 //! Persistent data is decoded byte-by-byte; no input is reinterpreted as a
 //! Rust struct and no parser path allocates.
