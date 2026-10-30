@@ -1,0 +1,605 @@
+note SPDX-License-Identifier: MIT
+note Builds the Allen iMac boot image with the seeded compiler alone: protective MBR,
+note GPT with one FAT32 EFI System Partition, \EFI\BOOT\BOOTX64.EFI and STARTUP.NSH.
+note No host partitioning or FAT tool is used; every byte is written by this program.
+note Geometry is fixed so the same EFI bytes always give the same image digest:
+note   disk 196608 sectors, ESP 2048..196574 (194527 sectors), FAT32 512-byte sectors,
+note   1 sector per cluster, 32 reserved sectors, 2 FATs of 1497 sectors, 191501 clusters.
+
+const TOTS ulong 196608
+const ESPST ulong 2048
+const ESPOF ulong 1048576
+const ESPS ulong 194527
+const RSV ulong 32
+const FATSZ ulong 1497
+const FATS ulong 1497
+const CLUS ulong 191501
+const BKLBA ulong 196607
+const BKENT ulong 196575
+const LASTU ulong 196574
+const RDIR ulong 2
+const EDIR ulong 3
+const BDIR ulong 4
+const FCLS ulong 5
+const VOLID ulong 2065321822
+const DDATE ulong 23897
+const ECOUNT ulong 128
+const ESIZE ulong 128
+const IMGLN ulong 100663296
+const EOC ulong 268435455
+
+global Nes ulong 1
+global Err ulong 1
+global Tv ulong 4
+
+fn s16 S edit uchar 512 off ulong v ulong to void
+put S off uchar and v 255
+put S add off 1 uchar and shr v 8 255
+end
+
+fn s32 S edit uchar 512 off ulong v ulong to void
+put S off uchar and v 255
+put S add off 1 uchar and shr v 8 255
+put S add off 2 uchar and shr v 16 255
+put S add off 3 uchar and shr v 24 255
+end
+
+fn s64 S edit uchar 512 off ulong v ulong to void
+s32 edit S off v
+s32 edit S add off 4 shr v 32
+end
+
+fn g64 S edit uchar 16384 off ulong v ulong to void
+put S off uchar and v 255
+put S add off 1 uchar and shr v 8 255
+put S add off 2 uchar and shr v 16 255
+put S add off 3 uchar and shr v 24 255
+put S add off 4 uchar and shr v 32 255
+put S add off 5 uchar and shr v 40 255
+put S add off 6 uchar and shr v 48 255
+put S add off 7 uchar and shr v 56 255
+end
+
+fn scrc S view uchar 512 n ulong to ulong
+note CRC32 of the first n bytes of the working sector.
+c = ulong 4294967295
+i = ulong 0
+while lt i n bound 512
+c = xor c ulong get S i
+k = ulong 0
+while lt k 8 bound 8
+if eq and c 1 1
+c = xor shr c 1 3988292384
+else
+c = shr c 1
+end
+k = add k 1
+end
+i = add i 1
+end
+ret xor c 4294967295
+end
+
+fn gcrc G view uchar 16384 to ulong
+note CRC32 of the whole 16384-byte GPT entry array.
+c = ulong 4294967295
+i = ulong 0
+while lt i 16384 bound 20000
+c = xor c ulong get G i
+k = ulong 0
+while lt k 8 bound 8
+if eq and c 1 1
+c = xor shr c 1 3988292384
+else
+c = shr c 1
+end
+k = add k 1
+end
+i = add i 1
+end
+ret xor c 4294967295
+end
+
+fn zsec S edit uchar 512 to void
+i = ulong 0
+while lt i 512 bound 512
+put S i uchar 0
+i = add i 1
+end
+end
+
+fn zsecs fd long S edit uchar 512 n ulong to void
+i = ulong 0
+while lt i n bound 2100
+zsec edit S
+if lt write int fd S 0 512 512
+put Err 0 add get Err 0 1
+end
+i = add i 1
+end
+end
+
+fn swr fd long S view uchar 512 to void
+if lt write int fd S 0 512 512
+put Err 0 add get Err 0 1
+end
+end
+
+fn gwr fd long G view uchar 16384 to void
+if lt write int fd G 0 16384 16384
+put Err 0 add get Err 0 1
+end
+end
+
+fn datap fi int fo long to void
+note Copy the EFI payload one cluster at a time, zero padding a short final read. No size ceiling.
+C = new uchar 512 0
+i = ulong 0
+while lt i get Nes 0 bound 200000
+zsec edit C
+r = read fi C 0 512
+if lt r 0
+put Err 0 add get Err 0 1
+end
+if lt write int fo C 0 512 512
+put Err 0 add get Err 0 1
+end
+i = add i 1
+end
+end
+
+fn seek fd long off ulong to void
+r = fseek int fd long off 0
+if lt r 0
+put Err 0 add get Err 0 1
+end
+end
+
+fn spcs S edit uchar 512 off ulong n ulong to void
+i = ulong 0
+while lt i n bound 12
+put S add off i uchar 32
+i = add i 1
+end
+end
+
+fn dent S edit uchar 512 off ulong at ulong clus ulong sz ulong to void
+note One 32-byte directory entry; the name bytes were written before this call.
+put S add off 11 uchar at
+put S add off 12 uchar 0
+put S add off 13 uchar 0
+s16 edit S add off 14 0
+s16 edit S add off 16 DDATE
+s16 edit S add off 18 DDATE
+s16 edit S add off 20 shr clus 16
+s16 edit S add off 22 0
+s16 edit S add off 24 DDATE
+s16 edit S add off 26 and clus 65535
+s32 edit S add off 28 sz
+end
+
+fn fatvl c ulong to ulong
+note FAT32 chain value for one cluster index; EOC marks the end of a chain.
+last = add FCLS sub get Nes 0 1
+nsh = add FCLS get Nes 0
+if lt c RDIR
+ret 0
+end
+if lt c FCLS
+ret EOC
+end
+if lt c last
+ret add c 1
+end
+if eq c last
+ret EOC
+end
+if eq c nsh
+ret EOC
+end
+ret 0
+end
+
+fn fspar to void
+note FAT32 free-cluster count and next free cluster for the current EFI size.
+n = get Nes 0
+put Tv 0 sub sub CLUS 4 n
+put Tv 1 add add RDIR 4 n
+end
+
+fn fats S edit uchar 512 idx ulong to void
+note Build FAT sector idx from the chain function so both copies are identical.
+zsec edit S
+i = ulong 0
+while lt i 128 bound 128
+c = add mul idx 128 i
+if lt c add CLUS 2
+v = fatvl c
+if eq c 0
+v = 4294967288
+end
+if eq c 1
+v = EOC
+end
+s32 edit S mul i 4 v
+end
+i = add i 1
+end
+end
+
+fn mbrmk S edit uchar 512 to void
+zsec edit S
+put S 446 uchar 0
+put S 450 uchar 238
+put S 454 uchar 1
+put S 458 uchar and sub TOTS 1 255
+put S 459 uchar and shr sub TOTS 1 8 255
+put S 460 uchar and shr sub TOTS 1 16 255
+put S 461 uchar and shr sub TOTS 1 24 255
+put S 510 uchar 85
+put S 511 uchar 170
+end
+
+fn gpthd S edit uchar 512 cur ulong ent ulong back ulong ecr ulong to void
+note Build one GPT header sector and return the CRC32 of its 92 bytes.
+zsec edit S
+put S 0 uchar 69
+put S 1 uchar 70
+put S 2 uchar 73
+put S 3 uchar 32
+put S 4 uchar 80
+put S 5 uchar 65
+put S 6 uchar 82
+put S 7 uchar 84
+s32 edit S 8 65536
+s32 edit S 12 92
+s32 edit S 20 0
+s64 edit S 24 cur
+s64 edit S 32 back
+s64 edit S 40 34
+s64 edit S 48 LASTU
+s32 edit S 56 305419896
+s32 edit S 60 2271560481
+s32 edit S 64 1432778632
+s32 edit S 68 3723482536
+s64 edit S 72 ent
+s32 edit S 80 ECOUNT
+s32 edit S 84 ESIZE
+s32 edit S 88 ecr
+s32 edit S 16 scrc view S 92
+end
+
+fn entar G edit uchar 16384 to void
+note Build the 128-entry GPT array; entry 0 is the EFI System Partition.
+i = ulong 0
+while lt i 16384 bound 20000
+put G i uchar 0
+i = add i 1
+end
+put G 0 uchar 40
+put G 1 uchar 115
+put G 2 uchar 42
+put G 3 uchar 193
+put G 4 uchar 31
+put G 5 uchar 248
+put G 6 uchar 210
+put G 7 uchar 17
+put G 8 uchar 186
+put G 9 uchar 75
+put G 10 uchar 0
+put G 11 uchar 160
+put G 12 uchar 201
+put G 13 uchar 62
+put G 14 uchar 201
+put G 15 uchar 59
+put G 16 uchar 17
+put G 17 uchar 34
+put G 18 uchar 51
+put G 19 uchar 68
+put G 20 uchar 85
+put G 21 uchar 102
+put G 22 uchar 119
+put G 23 uchar 136
+put G 24 uchar 153
+put G 25 uchar 170
+put G 26 uchar 187
+put G 27 uchar 204
+put G 28 uchar 221
+put G 29 uchar 238
+put G 30 uchar 255
+put G 31 uchar 0
+g64 edit G 32 ESPST
+g64 edit G 40 LASTU
+g64 edit G 48 0
+put G 56 uchar 65
+put G 58 uchar 76
+put G 60 uchar 76
+put G 62 uchar 69
+put G 64 uchar 78
+end
+
+fn bootsc S edit uchar 512 to void
+note FAT32 BPB for the ESP.
+zsec edit S
+put S 0 uchar 235
+put S 1 uchar 88
+put S 2 uchar 144
+put S 3 uchar 79
+put S 4 uchar 77
+put S 5 uchar 69
+put S 6 uchar 71
+put S 7 uchar 65
+put S 8 uchar 32
+put S 9 uchar 32
+put S 10 uchar 32
+s16 edit S 11 512
+put S 13 uchar 1
+s16 edit S 14 RSV
+put S 16 uchar 2
+s16 edit S 17 0
+s16 edit S 19 0
+put S 21 uchar 248
+s16 edit S 22 0
+s16 edit S 24 63
+s16 edit S 26 255
+s32 edit S 28 ESPST
+s32 edit S 32 ESPS
+s32 edit S 36 FATSZ
+s16 edit S 40 0
+s16 edit S 42 0
+s32 edit S 44 RDIR
+s16 edit S 48 1
+s16 edit S 50 6
+s32 edit S 52 0
+s32 edit S 56 0
+put S 64 uchar 128
+put S 66 uchar 41
+s32 edit S 67 VOLID
+put S 71 uchar 65
+put S 72 uchar 76
+put S 73 uchar 76
+put S 74 uchar 69
+put S 75 uchar 78
+spcs edit S 76 6
+put S 82 uchar 70
+put S 83 uchar 65
+put S 84 uchar 84
+put S 85 uchar 51
+put S 86 uchar 50
+spcs edit S 87 3
+put S 510 uchar 85
+put S 511 uchar 170
+end
+
+fn fsinf S edit uchar 512 frc ulong nxt ulong to void
+zsec edit S
+s32 edit S 0 1096897106
+s32 edit S 484 1631679090
+s32 edit S 488 frc
+s32 edit S 492 nxt
+s32 edit S 508 2857697280
+end
+
+fn rootd S edit uchar 512 to void
+note Volume label, EFI directory and the STARTUP.NSH file in the root cluster.
+zsec edit S
+put S 0 uchar 65
+put S 1 uchar 76
+put S 2 uchar 76
+put S 3 uchar 69
+put S 4 uchar 78
+spcs edit S 5 6
+dent edit S 0 8 0 0
+put S 32 uchar 69
+put S 33 uchar 70
+put S 34 uchar 73
+spcs edit S 35 8
+dent edit S 32 16 EDIR 0
+put S 64 uchar 83
+put S 65 uchar 84
+put S 66 uchar 65
+put S 67 uchar 82
+put S 68 uchar 84
+put S 69 uchar 85
+put S 70 uchar 80
+put S 71 uchar 32
+put S 72 uchar 78
+put S 73 uchar 83
+put S 74 uchar 72
+c = add FCLS get Nes 0
+dent edit S 64 32 c 27
+end
+
+fn efidr S edit uchar 512 to void
+zsec edit S
+put S 0 uchar 46
+spcs edit S 1 10
+dent edit S 0 16 EDIR 0
+put S 32 uchar 46
+put S 33 uchar 46
+spcs edit S 34 9
+dent edit S 32 16 0 0
+put S 64 uchar 66
+put S 65 uchar 79
+put S 66 uchar 79
+put S 67 uchar 84
+spcs edit S 68 7
+dent edit S 64 16 BDIR 0
+end
+
+fn bootd S edit uchar 512 to void
+zsec edit S
+put S 0 uchar 46
+spcs edit S 1 10
+dent edit S 0 16 BDIR 0
+put S 32 uchar 46
+put S 33 uchar 46
+spcs edit S 34 9
+dent edit S 32 16 EDIR 0
+put S 64 uchar 66
+put S 65 uchar 79
+put S 66 uchar 79
+put S 67 uchar 84
+put S 68 uchar 88
+put S 69 uchar 54
+put S 70 uchar 52
+put S 71 uchar 32
+put S 72 uchar 69
+put S 73 uchar 70
+put S 74 uchar 73
+dent edit S 64 32 FCLS get Tv 2
+end
+
+fn startn S edit uchar 512 to void
+zsec edit S
+put S 0 uchar 102
+put S 1 uchar 115
+put S 2 uchar 48
+put S 3 uchar 58
+put S 4 uchar 92
+put S 5 uchar 69
+put S 6 uchar 70
+put S 7 uchar 73
+put S 8 uchar 92
+put S 9 uchar 66
+put S 10 uchar 79
+put S 11 uchar 79
+put S 12 uchar 84
+put S 13 uchar 92
+put S 14 uchar 66
+put S 15 uchar 79
+put S 16 uchar 79
+put S 17 uchar 84
+put S 18 uchar 88
+put S 19 uchar 54
+put S 20 uchar 52
+put S 21 uchar 46
+put S 22 uchar 69
+put S 23 uchar 70
+put S 24 uchar 73
+put S 25 uchar 13
+put S 26 uchar 10
+end
+
+fn main to void
+Sct = new uchar 512 0
+Gpt = new uchar 16384 0
+Pth = new uchar 32 0
+
+put Pth 0 uchar 66
+put Pth 1 uchar 79
+put Pth 2 uchar 79
+put Pth 3 uchar 84
+put Pth 4 uchar 88
+put Pth 5 uchar 54
+put Pth 6 uchar 52
+put Pth 7 uchar 46
+put Pth 8 uchar 69
+put Pth 9 uchar 70
+put Pth 10 uchar 73
+
+fi = fopen Pth 0 11 0 0
+if lt fi 0
+exit 2
+end
+n = fseek int fi 0 2
+if lt n 1
+exit 3
+end
+q = fseek int fi 0 0
+if lt q 0
+exit 9
+end
+put Nes 0 ulong div add n 511 512
+if gt get Nes 0 sub CLUS 4
+exit 10
+end
+put Tv 2 ulong n
+fspar
+
+put Pth 0 uchar 105
+put Pth 1 uchar 109
+put Pth 2 uchar 97
+put Pth 3 uchar 99
+put Pth 4 uchar 45
+put Pth 5 uchar 98
+put Pth 6 uchar 111
+put Pth 7 uchar 111
+put Pth 8 uchar 116
+put Pth 9 uchar 46
+put Pth 10 uchar 105
+put Pth 11 uchar 109
+put Pth 12 uchar 103
+
+fo = fopen Pth 0 13 577 420
+if lt fo 0
+exit 4
+end
+if lt ftrunc int fo long IMGLN 0
+exit 5
+end
+
+mbrmk edit Sct
+swr fo view Sct
+entar edit Gpt
+cc = gcrc view Gpt
+gpthd edit Sct 1 2 BKLBA cc
+swr fo view Sct
+gwr fo view Gpt
+
+seek fo ESPOF
+bootsc edit Sct
+swr fo view Sct
+fsinf edit Sct get Tv 0 get Tv 1
+swr fo view Sct
+zsecs fo edit Sct 4
+bootsc edit Sct
+swr fo view Sct
+fsinf edit Sct get Tv 0 get Tv 1
+swr fo view Sct
+zsecs fo edit Sct 24
+
+i = ulong 0
+while lt i FATS bound 1500
+fats edit Sct i
+swr fo view Sct
+i = add i 1
+end
+i = ulong 0
+while lt i FATS bound 1500
+fats edit Sct i
+swr fo view Sct
+i = add i 1
+end
+
+rootd edit Sct
+swr fo view Sct
+efidr edit Sct
+swr fo view Sct
+bootd edit Sct
+swr fo view Sct
+
+datap int fi fo
+startn edit Sct
+swr fo view Sct
+
+seek fo mul BKENT 512
+gwr fo view Gpt
+seek fo mul BKLBA 512
+gpthd edit Sct BKLBA BKENT 1 cc
+swr fo view Sct
+
+if lt fsync int fo 0
+exit 6
+end
+if lt fclose int fo 0
+exit 7
+end
+if lt fclose int fi 0
+exit 9
+end
+if ne get Err 0 0
+exit 8
+end
+exit 0
+end
