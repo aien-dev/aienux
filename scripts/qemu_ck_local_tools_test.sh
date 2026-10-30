@@ -43,6 +43,7 @@ for cpu in qemu64 max; do
     grep -a 'local_test: PASS.*repeated=1000 real_cpl3=yes' "$out/$cpu.log"
     ! grep -a 'panic:' "$out/$cpu.log"
     grep -a 'local_courier: PASS real_cpl3_results=yes' "$out/$cpu.log"
+    grep -a 'local_direct: PASS result=56088 .*real_cpl3=yes' "$out/$cpu.log"
     wait "$oracle_pid"; oracle_pid=""
     cat "$run/oracle-pass.txt"
     kill "$relay_pid" 2>/dev/null || true; wait "$relay_pid" 2>/dev/null || true; relay_pid=""

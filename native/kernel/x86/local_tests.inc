@@ -122,6 +122,14 @@ void ck_local_selftest(void)
     r = ck_local_start(12,4,2,longtext,sizeof longtext); run_done(); memcpy(counts,r->output,sizeof counts);
     check(r->state == CK_LOCAL_RETURNED && counts[0] == 4096 && counts[1] == 1 && counts[2] == 1,
           "full input page");
+    ck_local_begin(13);
+    int64_t overflow[4][3] = {{3, INT64_MAX, 2}, {2, INT64_MIN, 1},
+                              {2, INT64_MAX, -1}, {3, INT64_MIN, -1}};
+    for (unsigned i = 0; i < 4; i++) {
+        r = ck_local_start(13, i + 1, 1, overflow[i], sizeof overflow[i]); run_done();
+        check(r->state == CK_LOCAL_TRAPPED && r->reason == 1 && !r->length,
+              "multiply/subtract overflow reports range failure without output");
+    }
 
     access_probe(kernel_root, 0, 0); access_probe(kernel_root, 1, 0);
     access_probe(CODE, 1, 0); access_probe(INPUT, 1, 0); access_probe(META, 1, 0);
@@ -216,5 +224,25 @@ void ck_local_selftest(void)
         check(done, "courier model loop completed");
         ck_local_wire_begin(0);
         ck_puts("local_courier: PASS real_cpl3_results=yes\n");
+        /* The model oracle has now exited. This must reach the same native
+         * arithmetic program and complete without any model connection. */
+        start = ck_rdtsc(); sent = done = 0;
+        ck_local_wire_begin(4243);
+        while (ck_rdtsc() - start < 5 * hz && !done) {
+            char line[320];
+            if (wire->ready() && !sent) {
+                const char job[] = "JOB 4243 do Calculate locally.\tWhat is 123 multiplied by 456?\tlocal-tools=v1";
+                check(!wire->send(job, sizeof job - 1), "direct arithmetic job sent"); sent = 1;
+            }
+            while (wire->take(line, sizeof line)) {
+                if (ck_local_wire_line(line)) continue;
+                if (strlen(line) == sizeof("SAY 4243 1/1 56,088.") - 1 && !memcmp(line, "SAY 4243 1/1 56,088.", sizeof("SAY 4243 1/1 56,088.") - 1)) done = 1;
+            }
+            ck_local_step(); ck_local_wire_step(wire);
+        }
+        check(done, "direct native arithmetic without model completed");
+        ck_local_wire_begin(0);
+        ck_printf("local_direct: PASS result=56088 elapsed_ms=%llu real_cpl3=yes\n",
+                  (unsigned long long)((ck_rdtsc() - start) / (hz / 1000)));
     }
 }
