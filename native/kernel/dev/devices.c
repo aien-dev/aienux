@@ -91,11 +91,13 @@ void ck_dev_nvme_release(void)
     }
     if (g_nvme.confined) {
         /* Bus mastering is off (or never came on); return the stream to
-         * abort as well, independently of the bus master state. */
+         * abort as well, independently of the bus master state. A failed
+         * abort leaves the stream live in the SMMU service, so it stays
+         * confined here too: ownership is kept and a later release retries. */
         int urc = ck_dma_unconfine(g_nvme.stream_id);
-        g_nvme.confined = 0;
+        if (urc == 0) g_nvme.confined = 0;
         ck_printf("smmu: nvme stream 0x%x %s (rc=%d)\n", g_nvme.stream_id,
-                  urc == 0 ? "returned to abort" : "abort FAILED", urc);
+                  urc == 0 ? "returned to abort" : "abort FAILED, stays confined", urc);
     }
     /* Ownership is given back only once DMA is fully off (bus master and stream). */
     if (!g_nvme.bm_on && !g_nvme.confined && !g_nvme.stuck) g_nvme.claimed = 0;
