@@ -1,0 +1,27 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [
+        {
+          "digest": "87907ee5c6857824b705d78468e0b6b8a0c4adf94dca0929ca39c076c3a62d02",
+          "last_commit": "",
+          "name": "spark-image",
+          "purpose": "Deterministic GPT FAT32 packaging for read-only aarch64 core boot"
+        }
+      ],
+      "children_root": "sha256:f66e8a9da302bf130e227169544e7011b7ec052b59d85617ea45de135ad23120",
+      "compiled_at": "2026-10-26T16:52:40Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:34003cd929e78814457231251c912b16e3207fb9753374db004bcca6775d56c4",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 2,
+      "generated_at_commit": "659ddd2d7e3e140cb9bf942c3171cbd9cf3d092e",
+      "source_tree": "sha256:9121a590add04faf36f06485ef046ea047e85429b4f9d097a956766186b08ba9"
+    }
+  },
+  "layer": "tooling",
+  "name": "tools",
+  "purpose": "First-party host artifact preparation tools",
+  "schema_version": "1.0.0"
+}
