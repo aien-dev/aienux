@@ -168,10 +168,11 @@ static int64_t number(const char **p)
     int64_t v = -1;
     if (*s >= '0' && *s <= '9') {
         int digits = 0;
-        for (v = 0; *s >= '0' && *s <= '9'; s++, digits++)
+        for (v = 0; *s >= '0' && *s <= '9'; s++) {
+            if (++digits > 9)
+                return -1; /* refuse before v can overflow */
             v = v * 10 + (*s - '0');
-        if (digits > 9)
-            return -1;
+        }
     } else {
         for (int i = 0; i < 21 && v < 0; i++) {
             const char *a = words[i], *b = s;

@@ -359,6 +359,13 @@ static void test_teach_restart(void)
     CHECK(says(ck_allen_answer(&m, "remember blue", 6), "Teach me like this"));
     CHECK(says(ck_allen_answer(&m, "what is 2 plus 2", 6), "2 plus 2 is 4."));
 
+    /* number(): nine digits are the limit; longer digit runs are refused before they can overflow */
+    CHECK(says(ck_allen_answer(&m, "what is 999999999 plus 1", 6), "999999999 plus 1 is 1000000000."));
+    CHECK(!strstr(ck_allen_answer(&m, "what is 1000000000 plus 1", 6), " is 1000000001"));
+    CHECK(!strstr(ck_allen_answer(&m, "what is 1 plus 1000000000", 6), " is 1000000001"));
+    CHECK(!strstr(ck_allen_answer(&m, "what is 999999999999999999999999 plus 1", 6), " plus "));
+    CHECK(!strstr(ck_allen_answer(&m, "what is 1 times 99999999999999999999999999999", 6), " times "));
+
     /* "restart": the memory goes to disk bytes and comes back in a new mind */
     m.mem.starts = 1;
     ck_allen_mem_encode(&m.mem, 5, u);
