@@ -46,20 +46,20 @@
         },
         {
           "digest": "e891c078bec120c3fdb14e13b7dd25d69054f608c2ea632adf2fd2b6e45d8fa1",
-          "last_commit": "9f2e4cef",
+          "last_commit": "6c952979",
           "name": "tools",
           "purpose": "First-party host artifact preparation tools"
         }
       ],
       "children_root": "sha256:7c5afc1c612aef3f506be56d70fa538d5283bfd8f8c61fd2b8c4ef2566e99c0d",
-      "compiled_at": "2026-10-30T02:53:37Z",
+      "compiled_at": "2026-10-30T03:30:36Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:25e3c07ce357c21d7b4ec67c13da5075a90f06bd393253ea6318a51db4916ee9",
+      "digest": "sha256:620907d5d468f9bab21e07a9f7a61ab3f409aa6068e35bfceea6087f6aed1b41",
       "evidence_files": 236,
       "evidence_root": "sha256:55ef5621f09577ce1ada90d990955aec996d15e16a9b0f6953ecb90f3ca499df",
       "files": 3549,
-      "generated_at_commit": "9f2e4cef4b53bc147516eee438b78658641e4cf5",
-      "source_tree": "sha256:ad964a4a15e2ac6b2666bda2452a64c69258ef225482cfdf59186357d1404eeb"
+      "generated_at_commit": "f94f6f6dca5fe9b92456fd990b507c740fab8108",
+      "source_tree": "sha256:e8ff761b687cf1bb56e327d32da3a32ad8082cb43871ecbb45eaa03bb00e17d0"
     },
     "owner_lane": "",
     "provenance": {
