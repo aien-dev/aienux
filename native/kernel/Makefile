@@ -2340,12 +2340,14 @@ IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(
 	$(IMACKERN_DIR)/fat_boot.o $(IMACKERN_DIR)/sha512.o $(IMACKERN_DIR)/ct.o $(IMACKERN_DIR)/panel_x86.o \
 	$(IMACKERN_DIR)/gpu_x86.o $(IMACKERN_DIR)/swap_x86.o $(IMACKERN_DIR)/bench_x86.o \
 	$(IMACKERN_DIR)/setup_inv.o $(IMACKERN_DIR)/setup_wizard.o $(IMACKERN_DIR)/setup_store.o $(IMACKERN_DIR)/setup_x86.o
-# Lab-only objects: the report and Allen's Ethernet courier, the swap receiver's trampoline, the owner key
-# table it verifies with (generated below), and slot verification. Ed25519 is shared
-# with local-tool admission in all images.
+# Every image verifies owner signatures before installing a boot image.
+# No configured keys means an empty trust store and no boot-image installation.
+IMACKERN_SLOT_KEYS_C := $(IMACKERN_DIR)/imac_slot_keys.c
+IMACKERN_KEY_SRC := $(if $(strip $(CK_TEST_SLOT_KEY)),--test-key,$(if $(strip $(CK_SLOT_KEYS)),--keys $(abspath $(CK_SLOT_KEYS)),))
+IMACKERN_OBJS += $(IMACKERN_DIR)/slot_select.o $(IMACKERN_DIR)/imac_slot_keys.o
+# Lab-only objects: the report, Ethernet courier and swap trampoline.
 IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o $(IMACKERN_DIR)/courier_udp_x86.o \
-	$(IMACKERN_DIR)/slot_select.o \
-	$(IMACKERN_DIR)/swap_tramp.o $(IMACKERN_DIR)/imac_slot_keys.o
+	$(IMACKERN_DIR)/swap_tramp.o
 # The far side of Allen's Ethernet courier (x86/courier_udp.h): broadcast by default, a lab address overrides.
 CK_COURIER_PEER ?= 255.255.255.255
 # Symbols only the lab image may contain; the default image is checked for them after linking.
@@ -2359,10 +2361,8 @@ endif
 ifeq ($(CK_X86_BENCH_TEST),1)
 IMACKERN_CFLAGS += -DCK_X86_BENCH_TEST=1
 endif
-# The lab kernel's swap owner keys: the same table NETLDR.EFI verifies with (ck_slot_tool keys-c).
-# CK_SLOT_KEYS=<owner public keys file>, or CK_TEST_SLOT_KEY=1 (RFC 8032 TEST key: QEMU tests only).
-IMACKERN_SLOT_KEYS_C := $(IMACKERN_DIR)/imac_slot_keys.c
-IMACKERN_KEY_SRC := $(if $(strip $(CK_TEST_SLOT_KEY)),--test-key,$(if $(strip $(CK_SLOT_KEYS)),--keys $(abspath $(CK_SLOT_KEYS)),))
+# Lab swap requires configured owner keys (the default image may have none).
+# CK_TEST_SLOT_KEY=1 embeds RFC 8032 TEST keys, for QEMU only.
 ifeq ($(strip $(IMACKERN_KEY_SRC)),)
 $(error the lab kernel (CK_X86_REPORT=1) needs swap owner keys: give CK_SLOT_KEYS=<owner public keys file>, or CK_TEST_SLOT_KEY=1 (TEST key, QEMU tests only))
 endif
@@ -2453,7 +2453,9 @@ $(IMACKERN_DIR)/swap_tramp.o: $(X86K)/swap_tramp.S
 	$(X86CC) -c $(ASFLAGS) -o $@ $<
 $(IMACKERN_SLOT_KEYS_C): $(SLOT_TOOL) FORCE
 	@mkdir -p $(dir $@)
-	@$(SLOT_TOOL) keys-c $(IMACKERN_KEY_SRC) --out $@
+	@if [ -n "$(IMACKERN_KEY_SRC)" ]; then $(SLOT_TOOL) keys-c $(IMACKERN_KEY_SRC) --out $@; \
+	else printf '#include <stdint.h>\nconst uint8_t ck_slot_loader_keys[1][32] = {{0}};\nconst unsigned ck_slot_loader_nkeys = 0;\n' > $@.tmp; \
+	  cmp -s $@.tmp $@ || mv $@.tmp $@; rm -f $@.tmp; fi
 $(IMACKERN_DIR)/imac_slot_keys.o: $(IMACKERN_SLOT_KEYS_C)
 $(IMACKERN_DIR)/bench_x86.o: $(X86K)/bench_x86.c $(X86K)/x86.h $(X86K)/bench_proto.h $(X86K)/bench_x86.h $(NATIVE)/argus/sha256.h
 # CK_X86_BENCH_KEY_FILE: a 32-byte key file (on the Spark ~/.config/aienos/imac-bench.key; the Spark tool
@@ -2540,7 +2542,7 @@ $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	  echo "$$r"; rm -f $@; exit 1; fi
 	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-REPORT" $@; then \
 	  echo "default iMac image carries the report header string"; rm -f $@; exit 1; fi
-	@if [ "$(CK_X86_REPORT)" != 1 ]; then s=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_slot_verify|ck_x86_swap_tramp|ck_x86_swap_read_inbox)$$' || true); \
+	@if [ "$(CK_X86_REPORT)" != 1 ]; then s=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] (ck_x86_swap_tramp|ck_x86_swap_read_inbox)$$' || true); \
 	  if [ -n "$$s" ]; then echo "default iMac image links the swap receiver (lab builds only):"; echo "$$s"; rm -f $@; exit 1; fi; fi
 	@f=$$($(X86NM) $@ | grep -E ' [TtDdBbRr] ck_x86_fwcfg_file$$' || true); s=$$(grep -aoE "opt/aienos/host|QEMU0002" $@ | sort -u | tr "\n" " "); \
 	if [ "$(CK_X86_HOSTDESC)" = 1 ]; then \

@@ -38,6 +38,9 @@
 #include "../../boot/slot_format.h"
 #include "x86.h"
 
+extern const uint8_t ck_slot_loader_keys[][32];
+extern const unsigned ck_slot_loader_nkeys;
+
 #define ALLEN_PART_MIB 1024u
 #define BOOT_PART_MIB 256u
 
@@ -113,8 +116,10 @@ static int add_section(const disk_dev *d, const ck_gpt_info *gi)
  * network loader handed over a verified kernel, that kernel is installed as
  * \EFI\BOOT\BOOTX64.EFI, so the next start needs no stick and no network
  * (Drake approved a small boot section in free space on this disk,
- * 2026-10-17). Its SHA-512 is checked again here against the signed
- * manifest. A disk that already has another system's EFI System Partition is
+ * 2026-10-17). Its manifest signature and image SHA-512 are checked again
+ * here against the kernel's configured owner keys, before any boot-section
+ * write window is opened. An image built without owner keys cannot install.
+ * A disk that already has another system's EFI System Partition is
  * never touched. Without a handed-over kernel only what is there is reported.
  * Writes happen only inside the windows opened here and closed right after:
  * the GPT blocks while the partition is added, then the partition itself. */
@@ -164,10 +169,11 @@ static void boot_section(const disk_dev *d)
         return;
     }
     uint64_t t0 = ck_rdtsc();
-    uint8_t dig[AIENOS_SHA512_DIGEST_LEN];
-    aienos_sha512(obj + CK_SLOT_UNIT, (size_t)m->image_len, dig);
-    if (memcmp(dig, m->image_sha512, sizeof dig)) {
-        ck_puts("boot_disk: the kernel's SHA-512 differs from its signed manifest; nothing installed\n");
+    struct ck_slot_eval verified;
+    if (!ck_slot_verify(m, obj + CK_SLOT_UNIT, np->object_len - CK_SLOT_UNIT,
+                        ck_slot_loader_keys, ck_slot_loader_nkeys, &verified) ||
+        m->image_len > UINT32_MAX) {
+        ck_puts("boot_disk: owner signature or image verification failed; nothing installed\n");
         return;
     }
     if (rc == CK_GPT_ENOPART && d->block_size != 512u) {

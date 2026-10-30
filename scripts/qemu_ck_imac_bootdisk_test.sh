@@ -63,8 +63,8 @@ nb="${out}/host/ck_imac_netboot"
 gpt="${out}/host/ck_gpt_image"
 "${nb}" keygen "${work}/test.key" "${work}/test.pub" >/dev/null
 mk CK_NETLDR_KEYS="${work}/test.pub" CK_NETLDR_FALLBACK_S=8 imac-netldr
-mk imac-kernel
-make -s -C native/kernel X86_CROSS="${cross}" OUT="${out2}" AIENOS_COMMIT="${second}" imac-kernel >/dev/null
+mk CK_SLOT_KEYS="${work}/test.pub" imac-kernel
+make -s -C native/kernel X86_CROSS="${cross}" OUT="${out2}" AIENOS_COMMIT="${second}" CK_SLOT_KEYS="${work}/test.pub" imac-kernel >/dev/null
 push() { NETBOOT_TOOL_OUT="${out}" bash scripts/ck_imac_netboot_push.sh "$1" "${work}/test.key" "${work}/spool" >/dev/null; }
 
 stick="${work}/stick.img"
