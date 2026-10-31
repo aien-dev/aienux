@@ -1,0 +1,12 @@
+[package]
+name = "aienos-anchor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Aien's anchor: an append-only, signed, hash-chained store of checked facts (aienix#5)"
+
+[dependencies]
+aienos-crypto = { path = "../aienos-crypto" }
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["fast"] }

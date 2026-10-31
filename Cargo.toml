@@ -12,6 +12,7 @@ members = [
     "crates/aienos-accel",
     "crates/aienos-crypto",
     "crates/aienos-artifact",
+    "crates/aienos-anchor",
     "crates/aienos-artifact-tool",
     "crates/aienos-evidence",
     "crates/aienos-store-tool",

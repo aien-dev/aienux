@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Shared, allocation-free cryptographic primitives used by the kernel and
 //! host/bare-metal parsers.
 //!
