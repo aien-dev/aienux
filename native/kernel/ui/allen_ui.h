@@ -51,6 +51,10 @@ int ck_allen_ui_help(void);
 /* The whole screen is drawn again by the next frame, at once (after
  * something else wrote to it). */
 void ck_allen_ui_refresh(void);
+/* Allen sleeps (asleep = 1): the screen goes dark but for a faint mark where he
+ * was, nothing moves; asleep = 0 brings the sky back, at once. */
+void ck_allen_ui_sleep(int asleep, uint64_t now);
+int ck_allen_ui_asleep(void);
 /* Frames drawn, the slowest and the average (microseconds). */
 void ck_allen_ui_stats(uint32_t *frames, uint32_t *slowest_us, uint32_t *average_us);
 

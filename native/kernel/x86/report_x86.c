@@ -192,7 +192,7 @@ size_t ck_x86_report_frame(const uint8_t mac[6], uint64_t run, const char *repor
 
 #ifndef CK_X86_REPORT_HOST
 /* Lab build only. Holds for `seconds` (longer while ck_x86_hold_step moves the
- * end out: typing, or Allen's window until goodbye), sending the allowlisted report every
+ * end out: typing, or Allen's window, which stays up through sleep), sending the allowlisted report every
  * 2 s while the link is up. Without a working network it only waits. Returns
  * the rounds sent. */
 unsigned ck_x86_report_hold(uint64_t tsc_hz, unsigned seconds)

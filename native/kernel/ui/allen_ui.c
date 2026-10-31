@@ -51,6 +51,8 @@ static struct {
     volatile char lock;
     volatile int refresh;
     unsigned input_gen, said_gen, map_gen, wake_gen;
+    int sleep;
+    unsigned sleep_gen;
     char input[TEXT_MAX];
     unsigned input_len;
     char line[TEXT_MAX], reply[TEXT_MAX];
@@ -84,6 +86,8 @@ static struct {
     unsigned input_len;
     uint32_t key_t;
     unsigned seen_input, seen_said, seen_map, seen_wake;
+    int asleep; /* dark screen, nothing drawn but the mark */
+    unsigned seen_sleep;
     int input_moved;
     /* the conversation */
     struct words now, next; /* now: on screen; next: what Allen will say */
@@ -498,9 +502,24 @@ static void present(const ck_rect *r)
     }
 }
 
+/* Asleep: black, and a faint point of light where Allen was, so a dark room
+ * still shows the computer is on. */
+static void dark(const ck_rect *r)
+{
+    for (int32_t y = r->y; y < r->y + r->h; y++)
+        for (int32_t x = 0; x < r->w; x++)
+            ui.back[(size_t)y * (size_t)ui.w + r->x + x] = 0;
+    ck_glow(&ui.cv, r, ui.cx * 16 + 8, ui.cy * 16 + 8, S(6) * 16, CK_RGB(120, 130, 160), 40); /* radius in 1/16 px */
+    present(r);
+}
+
 static void compose(const ck_rect *r)
 {
     uint32_t t = ui.t;
+    if (ui.asleep) {
+        dark(r);
+        return;
+    }
     ck_night_base(&ui.night, &ui.cv, r);
     ck_night_lights(&ui.night, &ui.cv, r, ui.shimmer, ui.level * ui.shimmer >> 9);
     int32_t rad;
@@ -620,6 +639,11 @@ static void take_notes(uint32_t t)
         if (!ui.on)
             ui.on = 1, ui.wake_t = t, ui.quiet_t = ck_max((int32_t)t, (int32_t)FORMED_MS);
     }
+    if (note.sleep_gen != ui.seen_sleep) {
+        ui.seen_sleep = note.sleep_gen;
+        ui.asleep = note.sleep;
+        mark_all(); /* the whole screen changes either way */
+    }
     if (note.input_gen != ui.seen_input) {
         ui.seen_input = note.input_gen;
         if (note.input_len > ui.input_len)
@@ -675,6 +699,8 @@ static void advance(uint32_t t)
 {
     uint32_t prev = ui.last, dt = t - prev;
     take_notes(t);
+    if (ui.asleep)
+        return; /* nothing moves while Allen sleeps; the tiles marked on the way in are drawn once */
     /* the sky */
     ck_night_at(&ui.night, t);
     if (t < CK_NIGHT_FADE_END_MS + FRAME_MS * 2)
@@ -890,6 +916,16 @@ void ck_allen_ui_refresh(void)
     note.refresh = 1;
     unlock();
 }
+
+void ck_allen_ui_sleep(int asleep, uint64_t now)
+{
+    (void)now;
+    lock();
+    note.sleep = asleep != 0;
+    note.sleep_gen++;
+    unlock();
+}
+int ck_allen_ui_asleep(void) { return ui.asleep; }
 
 void ck_allen_ui_wake(const char *footer, uint64_t now)
 {

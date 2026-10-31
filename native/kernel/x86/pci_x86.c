@@ -385,6 +385,8 @@ const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_fram
                     }
                     res.pci_functions++;
                     uint8_t ht = (uint8_t)(cr32(cfg, 0x0c) >> 16);
+                    ck_printf("pci: fn %02x:%02x.%u id=%04x:%04x class=%06x\n", bus, dev, fn, idr & 0xffffu, idr >> 16,
+                              cr32(cfg, 8) >> 8); /* every function, for the driver inventory */
                     if (nfound < PCI_MAX)
                         found[nfound++] = (struct pfn){cfg, (uint8_t)bus, (uint8_t)dev, (uint8_t)fn, ht,
                                                        (uint16_t)idr, (uint16_t)(idr >> 16), cr32(cfg, 8) >> 8};

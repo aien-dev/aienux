@@ -20,7 +20,7 @@
 #           first ("Welcome back, Drake. I still remember 1 thing you taught me,
 #           and your 1 note."), answers "what is my favorite color", "what is
 #           the gate code" and "how many times have you restarted" from the
-#           disk, then goodbye.
+#           disk, then goodbye (Allen sleeps; QEMU is then stopped).
 #   other   a copy of the disk after boot 1 on another machine, under a model
 #           on no list ("WDC WD10EZEX"): the section alone makes it Allen's,
 #           memory and the note load (booting anywhere).
@@ -136,11 +136,11 @@ say() {
     echo "sendkey ret" >&3
     exec 3>&-
 }
-off() { # name: wait for QEMU to power off by itself after goodbye
-    local i
-    for i in $(seq 1 300); do running "$1" || return 0; sleep 1; done
+off() { # name: after goodbye Allen sleeps (the kernel says so within a few seconds); then QEMU is stopped
+    local r=1
+    wait_for "$1" 60 '^power: Allen asleep' && r=0
     stop "$1"
-    return 1
+    return $r
 }
 ready='^keyboard: type a line and press Enter'
 
@@ -186,8 +186,8 @@ else
     fail "1: the note was not written first"
 fi
 chk "1: goodbye saves the line count" "${work}/one.txt" '^allen_memory: saved generation 5 to copy [AB] \(1 fact, 1 note\)'
-chk "1: ACPI S5 power off" "${work}/one.txt" '^power: off via ACPI S5 '
-[[ ${b1_off} == 1 ]] && pass "1: QEMU powered off by itself" || fail "1: QEMU still running"
+chk "1: Allen asleep after goodbye" "${work}/one.txt" '^power: Allen asleep'
+[[ ${b1_off} == 1 ]] && pass "1: sleep seen before QEMU was stopped" || fail "1: no sleep after goodbye"
 nochk "1: no write refused by the fence" "${work}/one.txt" 'ahci_write: .*refused'
 nochk "1: no failed save" "${work}/one.txt" 'save FAILED'
 
@@ -251,7 +251,7 @@ txt two >"${work}/two.txt"
 txt other >"${work}/other.txt"
 txt fresh >"${work}/fresh.txt"
 
-echo "== boot 2: the same disk after a power off =="
+echo "== boot 2: the same disk after a stop =="
 chk "2: Allen's section found" "${work}/two.txt" '^allen_memory: Allen'"'"'s section is on disk [0-9]+ \([0-9]+ blocks of 512 bytes\)$'
 chk "2: AIENOS partition found, not added again" "${work}/two.txt" '^allen_memory: AIENOS partition found, entry [0-9]+, first_lba='"${pf:-x}"' last_lba='"${pl:-x}"'$'
 nochk "2: no second partition" "${work}/two.txt" 'AIENOS partition added'
@@ -262,8 +262,8 @@ chk "2: Allen welcomes Drake back first" "${work}/two.txt" '^allen: Welcome back
 chk "2: the fact remembered across the power off" "${work}/two.txt" '^allen: Your favorite color is blue\.$'
 chk "2: the note handed back across the power off" "${work}/two.txt" '^allen: From your notes: the gate code is 4471\.$'
 chk "2: the start count remembered" "${work}/two.txt" "^allen: This is start number 2 for me, and I've answered [0-9]+ lines in all\.\$"
-chk "2: ACPI S5 power off" "${work}/two.txt" '^power: off via ACPI S5 '
-[[ ${b2_off} == 1 ]] && pass "2: QEMU powered off by itself" || fail "2: QEMU still running"
+chk "2: Allen asleep after goodbye" "${work}/two.txt" '^power: Allen asleep'
+[[ ${b2_off} == 1 ]] && pass "2: sleep seen before QEMU was stopped" || fail "2: no sleep after goodbye"
 nochk "2: no write refused by the fence" "${work}/two.txt" 'ahci_write: .*refused'
 
 echo "== other: the same section on another machine, under a model on no list =="

@@ -495,6 +495,25 @@ int main(int argc, char **argv)
         run_to(m0 + 15000);
         CHECK(added(&P, sky, mx, my, mw, mh) < 400, "map: it goes again after a while");
     }
+    /* ---- sleep: dark but for a faint mark, nothing moves; waking brings the sky back ---- */
+    {
+        ck_allen_ui_sleep(1, now_us);
+        uint32_t s0 = (uint32_t)(now_us / 1000);
+        run_to(s0 + 200);
+        CHECK(ck_allen_ui_asleep(), "sleep: asleep after ck_allen_ui_sleep(1)");
+        unsigned lit = 0;
+        for (uint32_t y = 0; y < H; y += 4)
+            for (uint32_t x = 0; x < W; x += 4)
+                lit += (fb[(size_t)y * W + x] & 0xffffffu) != 0;
+        CHECK(lit > 3 && lit < 4000, "sleep: the screen is dark but for a faint mark (more than one pixel)");
+        memcpy(copy, fb, (size_t)W * H * 4);
+        run_to(s0 + 2000);
+        CHECK(differ(fb, copy, W, W, H, 0) == 0, "sleep: nothing moves while asleep");
+        ck_allen_ui_sleep(0, now_us);
+        run_to(s0 + 2300);
+        CHECK(!ck_allen_ui_asleep(), "sleep: awake after ck_allen_ui_sleep(0)");
+        CHECK(differ(fb, copy, W, W, H, 0) > 100000, "sleep: the sky is back after waking");
+    }
     uint32_t frames, slowest, average;
     ck_allen_ui_stats(&frames, &slowest, &average);
     printf("note: %u frames at 3840x2160 on one core of this host: average %u us, slowest %u us\n", frames, average,

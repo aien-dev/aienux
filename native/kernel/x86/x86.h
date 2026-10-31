@@ -198,6 +198,7 @@ void ck_x86_kbd_done(void);
  * that changed the line, line(text) after each Enter (after its
  * "keyboard_line:" line). Either may be NULL. */
 void ck_x86_kbd_sink(void (*edit)(const char *buf, unsigned len), void (*line)(const char *text));
+void ck_x86_kbd_discard(void); /* drop the line being typed (the key that woke Allen) */
 /* kmain_x86.c: one step of the screen hold: waiting keys (which may move *end
  * out) and the window's animation. Called in every hold loop. */
 void ck_x86_hold_step(uint64_t *end);

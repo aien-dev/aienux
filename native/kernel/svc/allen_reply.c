@@ -802,7 +802,7 @@ const char *ck_allen_answer(ck_allen_mind *m, const char *line, uint64_t awake_s
                                        "what can i ask", "commands", 0};
     if (any(f, help))
         return "I learn what you teach me (remember my car is red) and keep notes (save the gate code is 4471), "
-               "then hand them back when you ask. Type goodbye to end.";
+               "then hand them back when you ask. Goodbye puts me to sleep.";
     static const char *const your_name[] = {"what is your name", "whats your name", "what s your name",
                                             "your name", 0};
     if (any(f, your_name))
@@ -906,7 +906,7 @@ const char *ck_allen_answer(ck_allen_mind *m, const char *line, uint64_t awake_s
         return m->out;
     }
     if (find(f, "good night"))
-        return "Good night. Type goodbye when you want this computer to turn off.";
+        return "Good night. Type goodbye and I sleep; hold the power button 4 seconds to turn this computer off.";
     static const char *const test[] = {"test", "testing", "can you hear me", "are you there", 0};
     if (any(f, test))
         return "I hear you. Everything is working.";

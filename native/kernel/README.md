@@ -275,6 +275,34 @@ night line, the drawing cores, the codec mapped through the command rings,
 the chirp stream running and its stop. `AIENOS_IMAC_KERNEL_KEEP_DIR=<dir>`
 keeps each run's serial log and a `.wav` recording of its sound.
 
+**Microphone (first cut, 2026-10-18).** On the same controller the first input stream records
+1 s from the microphone right after the chirp starts, then `ck_x86_hda_step` stops it and prints
+what arrived: `sound: microphone recorded 1000 ms: N samples, P% nonzero (first at i), peak,
+rms, dc`. Behind a CS8409 on an Apple board the built-in microphone is a digital microphone
+wired into the bridge (iMac boards: pin 0x45 to converter 0x23, DMIC2; MacBook Pro boards: 0x44
+to 0x22, DMIC1; source: davidjo/snd_hda_macbookpro `patch_cirrus_real84.h`, which replays what
+macOS sends): coefficient 0x09 selects it, 0x82 turns on its clock, the pin gets In Enable
+(HDA 7.3.3.13) and the converter the stream tag, 44.1 kHz 24-bit. Any other codec gets its
+first analogue input converter fed by a microphone or line-in pin. The QEMU kernel test uses
+`hda-duplex` (line-in pin 0x05 to converter 0x04) and requires the path, the stream running
+and the summary; QEMU feeds silence, so 0% nonzero there is expected. On the iMac the summary
+line in the lab report is the receipt for whether any sound comes through; the mainline Linux
+driver never got this microphone working, so a silent first run is a real possibility and the
+next step is then the bridge's coefficient dump against the macOS replay.
+
+**Device inventory.** The PCI walk prints one `pci: fn bus:dev.fn id=vendor:device class=...` line
+for every function it finds, before the drivers claim theirs. On the real machine these lines are
+the ground truth for which drivers are still missing (lab report allowlist: `pci:`).
+
+**Sleep.** "goodbye", or a tap of the power button, puts Allen to sleep: the screen goes
+black but for a faint point of light where he was, nothing moves, nothing is typed. Any key or
+another tap wakes him and the sky comes back at once (the waking key is not typed). Holding the
+power button 4 s is still the chipset's own hard power-off. The button is read by polling the
+PM1 status register named in the ACPI FADT (bit 8, PWRBTN_STS; its interrupt enable is cleared so
+the firmware never sees the press); the QEMU keyboard test drives it with the monitor's
+`system_powerdown`. Without a keyboard there is no window and no sleep: the screen holds
+CK_X86_HOLD_S seconds, then ACPI S5.
+
 **Keyboard and Allen's window.** `x86/xhci_x86.c` drives a wired USB boot
 keyboard (polled xHCI, through USB 2.0 hubs). When one is ready, Allen wakes:
 the person is his guest. A quiet glass bar comes up at the bottom for what
@@ -291,7 +319,12 @@ talk, your name for the session, facts about the machine, how long it has been
 awake and sums said in words ("what is 12 times 4"); anything else gives "I
 don't know that yet." Answers print as `allen: <answer>` on the console. The
 window has no idle countdown: it stays up until "goodbye" (then ACPI S5, or a
-restart in the lab image) or the power button. The conversation stays on the computer: `keyboard_line:` and `allen:`
+restart in the lab image) or the power button. Unplugging the keyboard and plugging it
+(or another) back in works: the driver watches the keyboard's root port, prints
+`keyboard: unplugged`, releases the old device and runs discovery again, then
+`keyboard: ready` once more (the QEMU test does exactly this from outside the
+guest). A keyboard plugged in for the first time after start-up is not found: the
+controller is halted when no keyboard was there at start. The conversation stays on the computer: `keyboard_line:` and `allen:`
 are off the lab report's allowlist, which carries only `screen: Allen
 answered (N characters in, M out)`. Without a keyboard or the memory the text
 screen and its 60 s hold stay. Tests: `scripts/ck_allen_ui_test.sh` (host) and

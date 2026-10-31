@@ -26,7 +26,22 @@
  * silence after it. A stream loops by design (the controller
  * has no play-once), so ck_x86_hda_step stops it once the chirp is over.
  * Register offsets and bits: Linux's hda_register.h and hda_verbs.h; the
- * Intel PCI settings are in pci_x86.c (docs-read records). */
+ * Intel PCI settings are in pci_x86.c (docs-read records).
+ *
+ * The microphone: on the same controller the first input stream records
+ * CAP_MS of sound into memory. Behind a CS8409 on an Apple board the built-in
+ * microphone is a digital microphone wired straight into the bridge (pin 0x45
+ * to converter 0x23 on iMac boards, DMIC2; 0x44 to 0x22 on MacBook Pro
+ * boards, DMIC1: davidjo/snd_hda_macbookpro real84.h cs_8409_capture_real,
+ * which replays macOS); the bridge's coefficient 0x09 selects the microphone
+ * (DMICx_MO=10b, SR=1) and 0x82 turns on its clock (DMICx_SCL_EN), then the
+ * pin's input path is enabled (HDA 7.3.3.13 In Enable) and the converter is
+ * given the stream's tag. Any other codec gets its first analogue input
+ * converter with a path from a line-in or microphone pin. Once the time is
+ * up ck_x86_hda_step stops the stream and reports what arrived (samples,
+ * nonzero share, peak, rms, dc) so the first real run says whether sound
+ * comes through at all. 24-bit samples sit left-justified in 32-bit
+ * containers (HDA 4.5.1). */
 #include "../core/ck_internal.h"
 #include "../mm/frames.h"
 #include "../ui/chirp.h"
@@ -99,6 +114,7 @@
 #define P_GPIO 0x11
 #define P_AMP_OUT 0x12
 #define W_AUD_OUT 0
+#define W_AUD_IN 1
 #define W_MIX 2
 #define W_SEL 3
 #define W_PIN 4
@@ -110,9 +126,12 @@
 #define WC_POWER (1u << 10)
 #define PC_HP_DRV (1u << 3)
 #define PC_OUT (1u << 4)
+#define PC_IN (1u << 5)
 #define PC_EAPD (1u << 16)
 #define FMT_48K_16_STEREO 0x0011u
 #define TAG 1u                /* the stream's tag; the converters listen for it */
+#define CAP_TAG 2u            /* the microphone stream's tag */
+#define CAP_MS 1000u          /* how long the microphone is recorded */
 #define CHUNK 65536u          /* bytes per buffer descriptor */
 #define HDA_TAIL_MS 8000u     /* silence after the chirp, so a late stop never replays it */
 #define MAX_NID 128u
@@ -130,6 +149,12 @@ static unsigned g_fmt; /* the stream format: FMT_48K_16_STEREO unless a codec ta
 static volatile uint8_t *play_bar;
 static unsigned play_sd;
 static uint64_t play_t0;
+/* the microphone stream */
+static volatile uint8_t *cap_bar;
+static unsigned cap_sd, cap_a, cap_adc, cap_pin, cap_fmt;
+static uint8_t *cap_buf;
+static size_t cap_bytes;
+static uint64_t cap_t0;
 
 static uint8_t r8(unsigned o) { return g_bar[o]; }
 static uint16_t r16(unsigned o) { return *(volatile uint16_t *)(g_bar + o); }
@@ -482,7 +507,35 @@ static void cs_amp_on(unsigned chip, unsigned slot)
         i2c_write(chip, regs[k][0], regs[k][0] == 0x03 ? 0x80u | slot : regs[k][0] == 0x04 ? CS_AMP_VOLUME : regs[k][1]);
 }
 
-static unsigned cs8409_apple(unsigned a, unsigned afg, char *say, size_t say_n)
+/* The built-in digital microphone behind the bridge (real84.h cs_8409_capture_real,
+ * intmike_format_setup_enable, intmike_volume_setup, intmike_stream_on_nid). */
+static void cs_mic_open(unsigned a, uint32_t sub)
+{
+    unsigned pin = 0x45, adc = 0x23, dmic = 2, mo = 0x0080, scl = 0x0002; /* iMac boards */
+    if (sub != 0x106b1000 && sub != 0x106b0f00 && sub != 0x106b0e00) {
+        pin = 0x44; adc = 0x22; dmic = 1; mo = 0x0020; scl = 0x0001; /* MacBook Pro boards */
+    }
+    if (W[pin].type != W_PIN || W[adc].type != W_AUD_IN) {
+        ck_printf("sound: codec=%u CS8409 microphone: no pin 0x%02x / converter 0x%02x pair; not recorded\n", a, pin, adc);
+        return;
+    }
+    verb(a, adc, V_POWER, 0, 0);
+    verb(a, adc, V_FORMAT, FMT_441_24_STEREO, 0);
+    unsigned c9 = coef_get(0x09), c82 = coef_get(0x82);
+    coef_set(0x09, c9 | mo | 0x0003u); /* DMICx_MO=10b, DMIC1/2_SR=1 */
+    verb(a, adc, V_CONNECT_SEL, 0, 0);
+    verb(a, adc, V_AMP, 0x7000u | 0x27u, 0); /* input, both channels, unmuted, macOS's gain step */
+    coef_set(0x82, c82 | scl);               /* DMICx_SCL_EN: the microphone's clock */
+    verb(a, pin, V_PIN_CTL, 0x20, 0);        /* In Enable */
+    verb(a, adc, V_STREAM, CAP_TAG << 4, 0);
+    cap_a = a;
+    cap_adc = adc;
+    cap_pin = pin;
+    cap_fmt = FMT_441_24_STEREO;
+    ck_printf("sound: codec=%u CS8409 microphone: pin 0x%02x -> converter 0x%02x (DMIC%u), coef 0x09 0x%04x->0x%04x, "
+              "0x82 0x%04x->0x%04x, gain step 0x27\n", a, pin, adc, dmic, c9, coef_get(0x09), c82, coef_get(0x82));
+}
+static unsigned cs8409_apple(unsigned a, unsigned afg, uint32_t sub, char *say, size_t say_n)
 {
     static const uint8_t amps[4] = {0xd8, 0xda, 0xdc, 0xde};
     static const uint8_t amp_reset[][2] = {{0x01, 0xfc}, {0x02, 0x04}, {0x03, 0x80}, {0x04, 0xcf}, {0x06, 0x51},
@@ -563,6 +616,7 @@ static unsigned cs8409_apple(unsigned a, unsigned afg, char *say, size_t say_n)
     verb(a, 0x02, V_STREAM, TAG << 4, 0);
     verb(a, 0x03, V_STREAM, TAG << 4, 0);
     g_fmt = FMT_441_24_STEREO;
+    cs_mic_open(a, sub);
     ck_printf("sound: codec=%u CS8409 bridge set up: 4 amplifiers at 0x%02x volume, %u I2C transfer(s) unconfirmed%s, "
               "coef 0x01=0x%04x 0x17=0x%04x 0x82=0x%04x; %u ms\n", a, CS_AMP_VOLUME, cs_i2c_bad,
               cs_i2c_bad > 12 ? " (gave up)" : "", coef_get(0x01), coef_get(0x17), coef_get(0x82),
@@ -626,7 +680,7 @@ static unsigned codec_open(unsigned ctrl, unsigned a, char *say, size_t say_n)
             verb(a, cs4208_words[k][0], cs4208_words[k][1], cs4208_words[k][2], 0);
     if (id == 0x10138409 && (sub >> 16) == 0x106b && W[0x24].type == W_PIN && W[0x25].type == W_PIN &&
         W[0x02].type == W_AUD_OUT && W[0x03].type == W_AUD_OUT)
-        return cs8409_apple(a, afg, say, say_n);
+        return cs8409_apple(a, afg, sub, say, say_n);
     /* output pins, speakers first: device 1 speaker, 0 line out, 2 headphone */
     static const unsigned order[3] = {1, 0, 2};
     unsigned opened = 0;
@@ -648,6 +702,33 @@ static unsigned codec_open(unsigned ctrl, unsigned a, char *say, size_t say_n)
             for (unsigned i = 1; i < plen && m < (int)say_n - 6; i++)
                 m += ck_snprintf(say + m, say_n - (size_t)m, i > 1 ? ",0x%02x" : "0x%02x", path[i]);
         }
+    /* the first analogue input converter fed by a microphone or line-in pin */
+    for (unsigned nid = first; nid < first + n && nid < MAX_NID && !cap_adc; nid++) {
+        const struct wid *x = &W[nid];
+        if (x->type != W_AUD_IN || (x->caps & WC_DIGITAL))
+            continue;
+        for (unsigned k = 0; k < x->nconn; k++) {
+            const struct wid *p = &W[x->conn[k]];
+            unsigned dev = p->cfg >> 20 & 15u;
+            if (p->type != W_PIN || !(p->pincap & PC_IN) || (p->cfg >> 30) == 1 || (dev != 0xa && dev != 8))
+                continue;
+            verb(a, nid, V_POWER, 0, 0);
+            verb(a, x->conn[k], V_POWER, 0, 0);
+            verb(a, x->conn[k], V_PIN_CTL, 0x20, 0); /* In Enable */
+            verb(a, nid, V_CONNECT_SEL, k, 0);
+            if (x->caps & WC_IN_AMP)
+                verb(a, nid, V_AMP, 0x7000u | zero_db(x->caps & WC_AMP_OVRD ? x->amp_in : afg_in), 0);
+            verb(a, nid, V_FORMAT, g_fmt, 0);
+            verb(a, nid, V_STREAM, CAP_TAG << 4, 0);
+            cap_a = a;
+            cap_adc = nid;
+            cap_pin = x->conn[k];
+            cap_fmt = g_fmt;
+            ck_printf("sound: codec=%u microphone: pin 0x%02x (%s) -> converter 0x%02x\n", a, cap_pin,
+                      dev == 0xa ? "mic" : "line in", nid);
+            break;
+        }
+    }
     if (opened && (sub >> 16) == 0x106b && gpio) { /* Apple: the GPIOs switch the amplifiers on */
         unsigned all = gpio >= 8 ? 0xffu : (1u << gpio) - 1u;
         verb(a, afg, V_GPIO_MASK, all, 0);
@@ -736,6 +817,104 @@ static int stream_play(unsigned ctrl, unsigned sd, uint8_t *buf, size_t bytes, u
     return 0;
 }
 
+/* CAP_MS of the microphone into buf through input stream sd (one buffer, the
+ * stream loops over it; ck_x86_hda_step stops it and reads it). */
+static int stream_capture(unsigned ctrl, unsigned sd, uint8_t *buf, size_t bytes, uint64_t *bdl)
+{
+    unsigned s = SD0 + 0x20 * sd;
+    w8(s, 0);
+    wait8(s, RUN, 0, 10);
+    w8(s, SRST);
+    if (wait8(s, SRST, SRST, 10)) {
+        ck_printf("sound: ctrl=%u input stream did not enter reset\n", ctrl);
+        return -1;
+    }
+    w8(s, 0);
+    if (wait8(s, SRST, 0, 10)) {
+        ck_printf("sound: ctrl=%u input stream did not leave reset\n", ctrl);
+        return -1;
+    }
+    const unsigned rate = cap_fmt == FMT_441_24_STEREO ? 44100u : 48000u, fb = cap_fmt == FMT_441_24_STEREO ? 8u : 4u;
+    size_t used = (size_t)rate * CAP_MS / 1000u * fb & ~(size_t)127;
+    if (used > bytes)
+        used = bytes & ~(size_t)127;
+    memset(buf, 0, used);
+    flush(buf, used);
+    unsigned entries = (unsigned)((used + CHUNK - 1) / CHUNK);
+    for (unsigned k = 0; k < entries; k++) {
+        size_t off = (size_t)k * CHUNK, len = used - off < CHUNK ? used - off : CHUNK;
+        bdl[2 * k] = (uint64_t)(uintptr_t)(buf + off);
+        bdl[2 * k + 1] = (uint64_t)len;
+    }
+    flush(bdl, (size_t)entries * 16);
+    w32(s + SD_CBL, (uint32_t)used);
+    w16(s + SD_LVI, (uint16_t)(entries - 1));
+    w16(s + SD_FMT, (uint16_t)cap_fmt);
+    w32(s + SD_BDLPL, (uint32_t)(uintptr_t)bdl);
+    w32(s + SD_BDLPU, (uint32_t)((uint64_t)(uintptr_t)bdl >> 32));
+    w8(s + 2, (uint8_t)((r8(s + 2) & 0x0fu) | CAP_TAG << 4));
+    w8(s + SD_STS, 0x1c);
+    cap_t0 = ck_rdtsc();
+    w8(s, RUN);
+    spin_us(2000);
+    ck_printf("sound: ctrl=%u stream %u recording %u ms from the microphone (pin 0x%02x -> converter 0x%02x, format "
+              "0x%04x, %u bytes); position after 2 ms %u bytes, status 0x%02x\n", ctrl, sd, CAP_MS, cap_pin, cap_adc,
+              cap_fmt, (unsigned)used, r32(s + SD_LPIB), r8(s + SD_STS));
+    cap_bar = g_bar;
+    cap_sd = s;
+    cap_buf = buf;
+    cap_bytes = used;
+    return 0;
+}
+static uint32_t isqrt64(uint64_t v)
+{
+    uint64_t r = 0, bit = 1ull << 62;
+    while (bit > v)
+        bit >>= 2;
+    while (bit) {
+        if (v >= r + bit) {
+            v -= r + bit;
+            r = (r >> 1) + bit;
+        } else
+            r >>= 1;
+        bit >>= 2;
+    }
+    return (uint32_t)r;
+}
+/* The recording stopped and summed up: how much of it is sound at all. */
+static void capture_done(void)
+{
+    volatile uint8_t *b = cap_bar;
+    cap_bar = 0;
+    uint32_t pos = *(volatile uint32_t *)(b + cap_sd + SD_LPIB);
+    uint8_t sts = b[cap_sd + SD_STS];
+    b[cap_sd] = 0;
+    verb(cap_a, cap_adc, V_STREAM, 0, 0);
+    verb(cap_a, cap_pin, V_PIN_CTL, 0, 0);
+    flush(cap_buf, cap_bytes);
+    const int wide = cap_fmt == FMT_441_24_STEREO;
+    size_t n = cap_bytes / (wide ? 4u : 2u), nz = 0, first = n;
+    int32_t peak = 0;
+    int64_t sum = 0;
+    uint64_t sq = 0;
+    for (size_t i = 0; i < n; i++) {
+        int32_t v = wide ? ((const int32_t *)cap_buf)[i] >> 16 : ((const int16_t *)cap_buf)[i];
+        if (v) {
+            nz++;
+            if (first == n)
+                first = i;
+        }
+        int32_t m = v < 0 ? -v : v;
+        if (m > peak)
+            peak = m;
+        sum += v;
+        sq += (uint64_t)((int64_t)v * v);
+    }
+    ck_printf("sound: microphone recorded %u ms: %u samples, %u%% nonzero (first at %u), peak %d, rms %u, dc %d (16-bit "
+              "scale), position %u bytes, status 0x%02x\n", CAP_MS, (unsigned)n, (unsigned)(n ? nz * 100 / n : 0),
+              (unsigned)first, peak, n ? isqrt64(sq / n) : 0u, (int)(n ? sum / (int64_t)n : 0), pos, sts);
+}
+
 int ck_x86_hda_start(unsigned ctrl, volatile uint8_t *bar, struct ck_frames *fr, uint64_t tsc_hz, uint64_t night_t0,
                      int play)
 {
@@ -743,6 +922,7 @@ int ck_x86_hda_start(unsigned ctrl, volatile uint8_t *bar, struct ck_frames *fr,
     g_hz = tsc_hz;
     g_fmt = FMT_48K_16_STEREO;
     rings = 0;
+    cap_adc = 0;
     uint16_t gcap = r16(GCAP);
     unsigned iss = gcap >> 8 & 15u, oss = gcap >> 12 & 15u, bss = gcap >> 3 & 31u, nsd = iss + oss + bss;
     unsigned running = 0, corb_on = r8(CORBCTL) & RUN, rirb_on = r8(RIRBCTL) & RUN;
@@ -805,6 +985,16 @@ int ck_x86_hda_start(unsigned ctrl, volatile uint8_t *bar, struct ck_frames *fr,
     ck_printf("sound: ctrl=%u opened %u output pin(s): %s\n", ctrl, opened, say);
     if (!play)
         return 0;
+    if (cap_adc && iss) {
+        size_t cb = (size_t)44100u * CAP_MS / 1000u * 8u;
+        cb = (cb + CK_PAGE - 1) & ~(size_t)(CK_PAGE - 1);
+        uint64_t cpa, cbpa;
+        if (!fr || ck_frames_alloc(fr, cb / CK_PAGE, CK_PAGE, &cpa) || ck_frames_alloc(fr, 1, CK_PAGE, &cbpa))
+            ck_printf("sound: ctrl=%u no memory for the microphone (%llu KiB)\n", ctrl, (unsigned long long)(cb >> 10));
+        else
+            stream_capture(ctrl, 0, (uint8_t *)(uintptr_t)cpa, cb, (uint64_t *)(uintptr_t)cbpa);
+    } else if (cap_adc)
+        ck_printf("sound: ctrl=%u has no input stream; the microphone is not recorded\n", ctrl);
     if (!night_t0) {
         ck_printf("sound: ctrl=%u ready; no night running, so no chirp\n", ctrl);
         return 0;
@@ -827,6 +1017,8 @@ int ck_x86_hda_start(unsigned ctrl, volatile uint8_t *bar, struct ck_frames *fr,
 
 void ck_x86_hda_step(void)
 {
+    if (cap_bar && (ck_rdtsc() - cap_t0) * 1000 / g_hz >= CAP_MS + 100u)
+        capture_done();
     if (!play_bar || (ck_rdtsc() - play_t0) * 1000 / g_hz < CK_CHIRP_END_MS + 200u)
         return;
     volatile uint8_t *b = play_bar;
