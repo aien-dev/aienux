@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Stage the B7b PROBE build of the FULL C kernel hardware image (native/kernel
 # `make full CK_B7B_PROBE=1 CK_HARDWARE_STAGING=1`) on Machine 1 for exactly
 # one attended boot: the B7b campaign (aienos#286, docs/campaigns/
@@ -48,12 +63,12 @@
 #      directory, docs/NATIVE_BOOT_ONE_TIME.md invariant 4) with a
 #      STAGED-CK-B7B.TXT record;
 #   4. creates a boot entry WITHOUT adding it to BootOrder (BootOrder is
-#      restored if anything changed it), checks that Boot0004 AIENOSRECOV is
+#      restored if anything changed it), checks that Boot0002 AIENOSRECOV is
 #      still there, and sets BootNext once.
 #
 # It never reboots. The firmware consumes BootNext on that boot, so the next
 # boot after it returns to the normal BootOrder (Linux). The boot itself is
-# attended: Drake at the machine, AIENOSRECOV stick inserted (Boot0004),
+# attended: Drake at the machine, AIENOSRECOV stick inserted (Boot0002),
 # camera on, witness present (B7B-PHYSICAL-BOOT-PREP.md sections 2 to 5).
 #
 # Carried unknowns (B7B-PHYSICAL-BOOT-PREP.md section 8), unchanged by this
@@ -87,7 +102,7 @@ image="${out}/full-hardware-staging/BOOTAA64.EFI"
 image_b="${out_b}/full-hardware-staging/BOOTAA64.EFI"
 loader='\EFI\AIENOS\aienos-ck-b7b.efi'
 label="AIENOS C kernel B7b probe (one-time)"
-recov_entry="0004"
+recov_entry="0002"
 recov_label="AIENOSRECOV"
 hold_s=120
 secure_boot_var="/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
@@ -177,7 +192,7 @@ cross=""
 [[ "$(uname -m)" == aarch64 ]] || cross="aarch64-linux-gnu-"
 for o in "${out}" "${out_b}"; do
     run make -s -C native/kernel CROSS="${cross}" OUT="${o}" AIENOS_COMMIT="${commit}" full \
-        CK_B7B_PROBE=1 CK_HARDWARE_STAGING=1 \
+        CK_B7B_PROBE=1 CK_B7B_EVENT_READOUT=1 CK_HARDWARE_STAGING=1 \
         CK_OWNER_PUBKEYS="${owner_pubkeys:-<owner pubkeys file>}" \
         CK_MACHINE_ID="${machine_id:-<machine id file>}" CK_FB_HOLD_S="${hold_s}"
 done
@@ -187,6 +202,7 @@ if [[ "${mode}" == apply ]]; then
     [[ "${digest}" == "${digest_b}" ]] \
         || { echo "STOP: the two probe builds differ (${digest} vs ${digest_b}); the image is not reproducible"; exit 1; }
     grep -aqF "b7b_probe: start segment=" "${image}" || { echo "STOP: the image carries no B7b probe"; exit 1; }
+    grep -aqF "b7b_events: final begin all_sids=yes" "${image}" || { echo "STOP: the image carries no SMMU event readout"; exit 1; }
     grep -aqF "screen: gop " "${image}" || { echo "STOP: the image has no screen console"; exit 1; }
     grep -aqF "xhci_acpi: " "${image}" || { echo "STOP: the image has no platform xHCI discovery"; exit 1; }
     grep -aqF "recovery_access: " "${image}" || { echo "STOP: the image has no recovery access hook"; exit 1; }
@@ -196,7 +212,7 @@ if [[ "${mode}" == apply ]]; then
     echo "image sha256:  ${digest} (build A and build B equal)"
 else
     echo "+ (compare the two digests: STOP if they differ)"
-    echo "+ (check the image: B7b probe for segment 15, screen console, xhci_acpi discovery and recovery_access present; no TEST-ONLY, TEST Store, TEST machine id or segment 0 marker)"
+    echo "+ (check the image: B7b probe for segment 15, all-SID SMMU event readout, screen console, xhci_acpi discovery and recovery_access present; no TEST-ONLY, TEST Store, TEST machine id or segment 0 marker)"
     digest="(computed after the build)"
     digest_b="(computed after the build)"
 fi
@@ -209,7 +225,7 @@ record="${evidence_dir}/STAGED-CK-B7B.TXT"
 if [[ "${mode}" == apply ]]; then
     cat >"${record}" <<EOF
 aienos_commit: ${commit}
-image: C kernel B7b probe hardware staging image (make full CK_B7B_PROBE=1 CK_HARDWARE_STAGING=1), CK_FB_HOLD_S=${hold_s}
+image: C kernel B7b probe hardware staging image (make full CK_B7B_PROBE=1 CK_B7B_EVENT_READOUT=1 CK_HARDWARE_STAGING=1), CK_FB_HOLD_S=${hold_s}
 image_sha256_build_b: ${digest_b}
 probe: PCI segment 15 requester 0x100 on SMMUv3 instance 1, one page, no DMA
 image_sha256: ${digest}

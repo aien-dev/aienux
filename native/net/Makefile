@@ -4,7 +4,7 @@
 # Hosted only: native binding waits for a C kernel, production keys for M5.
 #
 #   make            build out/libaienos_net.a
-#   make test       protocol tests + control-transport loss/recovery + virtio-net
+#   make test       protocol tests + control-transport loss/recovery + virtio-net + RTL8127 chip model
 #                   (QEMU config dumps, simulated hostile device) + lib-checks
 #                   + diff-check (pinned C/Rust-reference agreement digest)
 #   make sanitize   the same tests under ASan+UBSan (Linux)
@@ -35,7 +35,7 @@ DIFF_DIGEST = 9ddf33a859ade2d92d0e86a213d29d682708b0ac308239a7b6f003dbf9a5cdfe
 # build (out/net_diff_ref). C-only pin, recorded 2026-10-01; no Rust run.
 DIFF_DIGEST_FIXED = 034151b28953e23cbcdc2b805885ea88887b3da52e46369e8c01bd5b276241cb
 
-SRCS = aienos_net.c aienos_virtio_pci.c aienos_virtio_net.c aienos_ctl.c x25519.c aienos_sec.c
+SRCS = aienos_net.c aienos_virtio_pci.c aienos_virtio_net.c aienos_ctl.c x25519.c aienos_sec.c aienos_rtl8127.c aienos_report.c
 # M6-B links (never edits) the in-house AES-GCM-SIV/HMAC and Ed25519 code.
 CRYPTO_SRCS = ../crypto/aes.c ../crypto/polyval.c ../crypto/gcm_siv.c ../crypto/hmac.c ../crypto/ct.c
 SIG_SRCS = ../sig/ed25519.c ../sig/sha512.c ../sig/ct.c
@@ -75,17 +75,20 @@ $(OUT)/vnet_test: tests/vnet_test.c $(LIB)
 	$(CC) $(CFLAGS) -o $@ $< $(LIB)
 $(OUT)/net_diff_ref: tests/net_diff.c $(SRCS) $(DEP_SRCS) $(wildcard *.h) | $(OUT)
 	$(CC) $(CFLAGS) -DAIENOS_VIRTIO_PCI_REFERENCE_COMPAT -o $@ tests/net_diff.c $(SRCS) $(DEP_SRCS)
+$(OUT)/rtl8127_test: tests/rtl8127_test.c $(LIB)
+	$(CC) $(CFLAGS) -o $@ $< $(LIB)
 $(OUT)/x25519_test: tests/x25519_test.c $(LIB)
 	$(CC) $(CFLAGS) -o $@ $< $(LIB)
 $(OUT)/sec_test: tests/sec_test.c $(LIB)
 	$(CC) $(CFLAGS) -o $@ $< $(LIB)
 
-test: lib-checks $(OUT)/net_test $(OUT)/ctl_test $(OUT)/vnet_test $(OUT)/x25519_test $(OUT)/sec_test diff-check
+test: lib-checks $(OUT)/net_test $(OUT)/ctl_test $(OUT)/vnet_test $(OUT)/rtl8127_test $(OUT)/x25519_test $(OUT)/sec_test diff-check
 	./$(OUT)/net_test $(SEED) $(ITERS)
 	./$(OUT)/ctl_test
 	./$(OUT)/x25519_test
 	./$(OUT)/sec_test
 	./$(OUT)/vnet_test
+	./$(OUT)/rtl8127_test
 
 # Protocol objects must not allocate, read a clock or do their own I/O.
 lib-checks: $(OBJS)
@@ -132,6 +135,8 @@ ifeq ($(shell uname -s),Linux)
 	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 ./$(OUT)/sec_test_asan
 	$(CC) $(CFLAGS) $(SANFLAGS) -o $(OUT)/vnet_test_asan tests/vnet_test.c $(SRCS) $(DEP_SRCS)
 	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 ./$(OUT)/vnet_test_asan
+	$(CC) $(CFLAGS) $(SANFLAGS) -o $(OUT)/rtl8127_test_asan tests/rtl8127_test.c $(SRCS) $(DEP_SRCS)
+	ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 ./$(OUT)/rtl8127_test_asan
 	@echo "NET_SANITIZE: PASS"
 else
 	@echo "sanitize: Linux only"

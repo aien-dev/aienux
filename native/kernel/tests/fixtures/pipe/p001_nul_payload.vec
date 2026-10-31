@@ -1,0 +1,11 @@
+case nul_payload
+kind positive
+# bytes including NUL and 0xFF pass byte for byte; last writer closed -> EOF once drained
+create R W A => OK
+write W "a\x00b\x00\xff\x00" => OK n=6
+read R 16 => OK n=6 data="a\x00b\x00\xff\x00"
+close W => OK
+read R 16 => OK n=0
+check eof=1 bytes_written=6 bytes_read=6
+close R => OK
+check empty

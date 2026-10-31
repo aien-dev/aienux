@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* osh_op.c -- see osh_op.h. The adapter side of OSH on AIENOS: request record in, one capability-checked platform
  * operation out. No lexing, parsing or expansion happens here. No libc calls (host and kernel builds share it). */
 #include "osh_op.h"
@@ -38,10 +54,7 @@ __attribute__((unused)) static int same(const void *a, const void *b, size_t n)
 
 const char *osh_err_name(unsigned e)
 {
-    static const char *const n[] = { "OK", "DENIED", "REVOKED", "STALE", "NOT_FOUND", "UNAVAILABLE", "INVALID_ARG", "LIMIT",
-                                     "INTERRUPTED", "BROKEN_PIPE", "IO", "OUTCOME_UNKNOWN", "CAP_DOMAIN_MISMATCH",
-                                     "CAP_GEN_NARROW", "NOT_SUPPORTED", "WOULD_BLOCK", "PARTIAL_LAUNCH" };
-    return e < sizeof n / sizeof n[0] ? n[e] : "IO"; /* section 8.6: an unknown code is IO, never OK */
+    return osh_err_label(e); /* osh_err.h; section 8.6: an unknown code is IO, never OK */
 }
 
 const char *osh_outcome_name(unsigned o)

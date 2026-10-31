@@ -1,4 +1,5 @@
 # tests/gates/aienos-verify-all.gate
+# Timeout 60m: with its own cold target/ the full harness took 1591 s (26.5 min) on the Spark on 2026-10-19.
 # Mirrors hosted: ci.yml (disabled_manually on GitHub) 'bash scripts/verify_all.sh' (verification harness + QEMU boot test); declared, not an active hosted job
 gate: AIENOS-VERIFY-ALL
 manifest_version: 2
@@ -16,6 +17,6 @@ run:
 expects:
   exit: 0
   verdict: PASS
-timeout: 30m
+timeout: 60m
 exactness: EXACT
 cache_scope: machine

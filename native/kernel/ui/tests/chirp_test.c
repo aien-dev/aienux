@@ -1,10 +1,13 @@
 /* chirp_test.c -- host test of the startup sound (ui/chirp.c). Writes the
  * whole sound as chirp.wav into the folder given, for a person to listen to.
  * Prints CHIRP_TEST: PASS (n checks) or the first failure. */
+#define _POSIX_C_SOURCE 200809L /* fdopen, O_CLOEXEC under -std=c11 */
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../chirp.h"
 
@@ -49,7 +52,11 @@ static void put16(FILE *f, uint32_t v)
 
 static int write_wav(const char *path, const int16_t *s, uint32_t frames)
 {
-    FILE *f = fopen(path, "wb");
+    /* 0644, not fopen's 0666 & ~umask: the sound file must not be world-writable. */
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
+    if (fd >= 0 && !f)
+        close(fd);
     if (!f)
         return -1;
     uint32_t bytes = frames * 4;

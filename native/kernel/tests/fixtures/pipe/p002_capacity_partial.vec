@@ -1,0 +1,15 @@
+case capacity_partial
+kind negative
+# a finite buffer: a write past capacity is partial, a write on a full pipe is WOULD_BLOCK, never unbounded
+create R W A => OK
+fill W 65000 41 => OK n=65000
+fill W 1000 42 => OK n=536
+write W "x" => WOULD_BLOCK
+check max_resident=65536 would_block=1
+read R 100 => OK n=100
+fill W 200 43 => OK n=100
+write W "x" => WOULD_BLOCK
+check max_resident=65536 would_block=2
+close W => OK
+close R => OK
+check empty

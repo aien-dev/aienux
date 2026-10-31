@@ -1,0 +1,99 @@
+# gb10_gsp.devc -- the GB10B GSP start-up on BAR0 as a device contract (ADR 0021 devc 1, class gpu-boot;
+# L332 rung 1, L346).
+#
+# This file is the second, independent statement of what ../gsp_mmio.c does. crates/aienos-devc
+# (branch feat/devc-gpu) compiles it into
+#   gen/gsb_contract.c     the same API as ../gsp_mmio.h (ck_gsp_mmio_boot, ck_gsp_mmio_notify), with
+#                          its own register offsets and bits taken from the lines below, not from gsp_mmio.h
+#   gen/gb10_gsp_boot.md   the documentation page
+# The hand-written ../gsp_mmio.c stays as the reference twin. Both must pass test_gsp_mmio against the
+# simulated SEC2 + GSP and produce the same register trace in every scenario of gsp_boot_trace.
+#
+# Grammar (class gpu-boot): one statement per line, "#" to end of line is a comment, strings in double
+# quotes, numbers decimal or 0x hex. Steps in `boot` and `notify` come from a closed list; the checker
+# refuses unsafe orders (see gen/gb10_gsp_boot.md).
+
+devc 1
+device gb10-gsp-boot
+prefix ck_gsp
+class gpu-boot
+transport pci-bar
+
+# ---- evidence: the driver-source lines this contract is written from ----
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:27" "#define NV_PSEC_FALCON_MAILBOX0 0x00840040 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:30" "#define NV_PSEC_FALCON_MAILBOX1 0x00840044 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:32" "#define NV_PSEC_QUEUE_HEAD(i) (0x00840c00+(i)*8) /* RW-4A */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:36" "#define NV_PSEC_QUEUE_TAIL(i) (0x00840c04+(i)*8) /* RW-4A */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:40" "#define NV_PSEC_EMEMC(i) (0x00840ac0+(i)*8) /* RW-4A */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:42" "#define NV_PSEC_EMEMC_OFFS 7:2 /* RWIVF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:44" "#define NV_PSEC_EMEMC_BLK 15:8 /* RWIVF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:46" "#define NV_PSEC_EMEMC_AINCW 24:24 /* RWIVF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_sec_pri.h:54" "#define NV_PSEC_EMEMD(i) (0x00840ac4+(i)*8) /* RW-4A */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb10b/dev_gsp.h:27" "#define NV_PGSP 0x113fff:0x110000 /* RW--D */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_falcon_v4.h:27" "#define NV_PFALCON_FALCON_MAILBOX0 0x00000040 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_falcon_v4.h:30" "#define NV_PFALCON_FALCON_MAILBOX1 0x00000044 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_falcon_v4.h:34" "#define NV_PFALCON_FALCON_OS 0x00000080 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_falcon_v4.h:39" "#define NV_PFALCON_FALCON_HWCFG2 0x000000f4 /* R--4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_falcon_v4.h:79" "#define NV_PFALCON_FALCON_HWCFG2_RISCV_BR_PRIV_LOCKDOWN 13:13 /* R--VF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/ampere/ga102/dev_riscv_pri.h:27" "#define NV_FALCON2_GSP_BASE 0x00111000"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_riscv_pri.h:58" "#define NV_PRISCV_RISCV_CPUCTL 0x00000388 /* RW-4R */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/hopper/gh100/dev_riscv_pri.h:68" "#define NV_PRISCV_RISCV_CPUCTL_ACTIVE_STAT 7:7 /* R-IVF */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/common/inc/swref/published/blackwell/gb20b/dev_gsp.h:33" "#define NV_PGSP_QUEUE_HEAD(i) (0x00110c00+(i)*8) /* RW-4A */"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/sec2/arch/blackwell/kernel_sec2_gb10b.c:39" "#define SEC2_EMEM_CHANNEL_RM_SIZE 1024"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/sec2/arch/blackwell/kernel_sec2_gb10b.c:271" "const NvU32 privErrTargetLocked = 0xBADF4100U;"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/sec2/arch/blackwell/kernel_sec2_gb10b.c:272" "const NvU32 privErrTargetLockedMask = 0xFFFFFF00U;"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/sec2/arch/blackwell/kernel_sec2_gb10b.c:292" "const NvU32 cmdHandlingState = 0xc001cafe;"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/sec2/arch/blackwell/kernel_sec2_gb10b.c:730" "_ksec2UpdateQueueHeadTail_GB10B(pGpu, pKernelSec2, 0, paddedSize - sizeof(NvU32));"
+manual "NVIDIA open-gpu-kernel-modules 580.173.02" "src/nvidia/src/kernel/gpu/gsp/arch/hopper/kernel_gsp_gh100.c:956" "kflcnRegWrite_HAL(pGpu, pKernelFalcon, NV_PFALCON_FALCON_OS, pRiscvDesc->appVersion);"
+# No chip has run this contract. GB10B silicon behaviour beyond the driver source is UNVERIFIED.
+proven gpu-sim aienos-host 2026-10-21 test_gsp_mmio pending
+
+# ---- constants (C: GSB_<NAME> in the generated file) ----
+const EMEM_CHANNEL_BYTES 1024
+const EMEM_DW_PER_BLK 64
+const SEC2_CMD_BUSY 0xc001cafe
+const PRIV_LOCKED 0xBADF4100
+const PRIV_LOCKED_MASK 0xFFFFFF00
+
+# ---- register windows and registers: window NAME bar N base B size S; reg WIN NAME OFF WIDTH ACCESS ----
+window sec2 bar 0 base 0x840000 size 0x1000
+window gsp bar 0 base 0x110000 size 0x4000
+reg sec2 SEC2_MAILBOX0 0x040 4 rw
+reg sec2 SEC2_MAILBOX1 0x044 4 rw
+reg sec2 EMEMC0 0xac0 4 rw
+reg sec2 EMEMD0 0xac4 4 rw
+reg sec2 QHEAD0 0xc00 4 rw
+reg sec2 QTAIL0 0xc04 4 rw
+reg gsp GSP_MAILBOX0 0x040 4 rw
+reg gsp GSP_MAILBOX1 0x044 4 rw
+reg gsp FALCON_OS 0x080 4 rw
+reg gsp HWCFG2 0x0f4 4 ro
+reg gsp GSP_QHEAD0 0xc00 4 rw
+reg gsp CPUCTL 0x1388 4 rw
+
+# ---- register bits and fields: bit NAME REG N; field NAME REG HI:LO ----
+bit AINCW EMEMC0 24
+bit LOCKDOWN HWCFG2 13
+bit ACTIVE CPUCTL 7
+field OFFS EMEMC0 7:2
+field BLK EMEMC0 15:8
+
+# ---- the start-up (ck_gsp_mmio_boot) ----
+boot
+  require-packet EMEM_CHANNEL_BYTES else E_ARG
+  wait-equal QHEAD0 QTAIL0 budget polls_can_send else E_BUSY
+  emem-send EMEMC0 EMEMD0 AINCW OFFS BLK EMEM_DW_PER_BLK else E_EMEM
+  post-tail QTAIL0
+  doorbell QHEAD0
+  wait-not SEC2_MAILBOX0 SEC2_CMD_BUSY budget polls_cmd into sec2_mb0 timeout-read SEC2_MAILBOX1 sec2_mb1 else E_SEC2
+  wait-released HWCFG2 PRIV_LOCKED PRIV_LOCKED_MASK budget polls_mask into hwcfg2 else E_MASK
+  wait-lockdown GSP_MAILBOX0 GSP_MAILBOX1 LOCKDOWN budget polls_lockdown else E_LOCKDOWN
+  refuse-nonzero GSP_MAILBOX0 into gsp_mb0 else E_FMC
+  write FALCON_OS app_version
+  require-bit ACTIVE into cpuctl else E_RISCV
+end
+
+# ---- new command-queue elements for GSP-RM (ck_gsp_mmio_notify) ----
+notify
+  write GSP_QHEAD0 0
+end

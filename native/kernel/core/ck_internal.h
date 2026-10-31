@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* ck_internal.h -- declarations shared inside the C kernel core (boot stub,
  * arch, mm, core). Not part of the stage contract (that is ck.h). */
 #ifndef AIENOS_CK_INTERNAL_H
@@ -127,6 +143,9 @@ void ck_smp_run(void);
 #ifdef CK_B7B_PROBE
 /* Cut B7b preparation probe (core/smmu_svc.c), probe build only. */
 void ck_b7b_probe(void);
+#ifdef CK_B7B_EVENT_READOUT
+void ck_b7b_event_readout(void);
+#endif
 #endif
 void ck_fpu_run(void); /* core/fpu.c: probe build only (CK_RUST_LIBS), else a no-op */
 void ck_infer_run(void); /* core/infer.c: probe build only (CK_INFER_LIB), else a no-op */

@@ -1,0 +1,12 @@
+case eof_after_drain
+kind positive
+create R W A => OK
+write W "abc" => OK n=3
+close W => OK
+read R 2 => OK n=2 data="ab"
+read R 2 => OK n=1 data="c"
+read R 2 => OK n=0
+read R 2 => OK n=0
+check eof=2
+close R => OK
+check empty

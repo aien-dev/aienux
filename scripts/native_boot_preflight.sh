@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # native_boot_preflight.sh -- READ-ONLY preflight before an attended one-time
 # native AIENOS boot on the Spark (docs/native/PREFLIGHT-AND-RECOVERY.md
 # section 2). It only reads: `efibootmgr` with no arguments, the SecureBoot
@@ -24,7 +39,9 @@ set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 default_entry="0001"
-recov_entry="0004"
+# The recovery entry is identified by its partition GUID, never by its number: the same stick
+# was Boot0004 on 2026-09-25 and is Boot0002 on 2026-10-28 (docs/campaigns/B7B-PHYSICAL-BOOT-PREP.md).
+recov_partuuid="${AIENOS_RECOVERY_PARTUUID:-f227357c-1e80-4fd0-a55e-2efbef1dd25c}"
 recov_label="AIENOSRECOV"
 sb_default="/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 
@@ -42,10 +59,10 @@ preflight() {
         order="$(sed -n 's/^BootOrder: //p' <<<"${boot}")"
         next="$(sed -n 's/^BootNext: //p' <<<"${boot}")"
         current="$(sed -n 's/^BootCurrent: //p' <<<"${boot}")"
-        recov="$(grep -E "^Boot${recov_entry}\*? " <<<"${boot}" || true)"
+        recov="$(grep -iE "^Boot[0-9A-F]{4}\*? .*GPT,${recov_partuuid}," <<<"${boot}" || true)"
         echo "INFO  BootCurrent=${current:-?} BootOrder=${order:-?}"
-        [[ "${recov}" == *"${recov_label}"* ]] && ok "recovery stick: Boot${recov_entry} ${recov_label} listed" \
-            || stop "recovery stick: Boot${recov_entry} ${recov_label} not listed (got '${recov:-none}'); plug it in, see docs/RECOVERY_MEDIA_MACHINE1.md"
+        [[ "${recov}" == *"${recov_label}"* && $(grep -c . <<<"${recov}") == 1 ]] && ok "recovery stick: ${recov%%\**} ${recov_label} PARTUUID ${recov_partuuid} listed" \
+            || stop "recovery stick: exactly one ${recov_label} entry with PARTUUID ${recov_partuuid} not listed (got '${recov:-none}'); see docs/RECOVERY_MEDIA_MACHINE1.md"
         [[ "${order%%,*}" == "${default_entry}" ]] && ok "BootOrder starts with ${default_entry} (Linux, the permanent default)" \
             || stop "BootOrder does not start with ${default_entry} (got '${order:-none}')"
         [[ -z "${next}" ]] && ok "BootNext is not set (no other one-time boot pending)" \
@@ -88,7 +105,7 @@ preflight() {
 
 if [[ "${1:-}" == --self-test ]]; then
     st=0; t="$(mktemp -d)"; trap 'rm -rf "${t}"' EXIT
-    good=$'BootCurrent: 0001\nTimeout: 5 seconds\nBootOrder: 0001,0003\nBoot0001* ubuntu\nBoot0003* UEFI PXE\nBoot0004* AIENOSRECOV'
+    good=$'BootCurrent: 0001\nTimeout: 5 seconds\nBootOrder: 0001,0003\nBoot0001* ubuntu\nBoot0003* UEFI PXE\nBoot0002* AIENOSRECOV\tHD(1,GPT,f227357c-1e80-4fd0-a55e-2efbef1dd25c,0x800,0x1df000)/File(\\EFI\\BOOT\\BOOTAA64.EFI)'
     printf '\0\0\0\0\0' >"${t}/sb_off"; printf '\0\0\0\0\1' >"${t}/sb_on"
     esp="/"   # any mounted path stands in for the ESP in the self-test
     printf 'img' >"${t}/img"; dig="$(sha256sum "${t}/img" | cut -c1-64)"
@@ -98,7 +115,9 @@ if [[ "${1:-}" == --self-test ]]; then
     }
     case_ "good state is READY" 0 "${good}" "${t}/sb_off" "${t}/noflag" "" "${t}/img" "${dig}"
     case_ "BootNext pending -> NOT_READY" 1 "${good}"$'\nBootNext: 0000' "${t}/sb_off" "${t}/noflag" "" "" ""
-    case_ "recovery stick absent -> NOT_READY" 1 "${good/Boot0004\* AIENOSRECOV/}" "${t}/sb_off" "${t}/noflag" "" "" ""
+    case_ "recovery stick absent -> NOT_READY" 1 "${good/Boot0002\* AIENOSRECOV/}" "${t}/sb_off" "${t}/noflag" "" "" ""
+    case_ "AIENOSRECOV label on another PARTUUID -> NOT_READY" 1 "${good/f227357c/0badc0de}" "${t}/sb_off" "${t}/noflag" "" "" ""
+    case_ "recovery entry renumbered (Boot0004) is still READY" 0 "${good/Boot0002/Boot0004}" "${t}/sb_off" "${t}/noflag" "" "${t}/img" "${dig}"
     case_ "BootOrder not Linux first -> NOT_READY" 1 "${good/BootOrder: 0001,0003/BootOrder: 0000,0001}" "${t}/sb_off" "${t}/noflag" "" "" ""
     case_ "booted from another entry -> NOT_READY" 1 "${good/BootCurrent: 0001/BootCurrent: 0004}" "${t}/sb_off" "${t}/noflag" "" "" ""
     case_ "Secure Boot on -> NOT_READY" 1 "${good}" "${t}/sb_on" "${t}/noflag" "" "" ""

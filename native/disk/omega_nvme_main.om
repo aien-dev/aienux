@@ -1,0 +1,28 @@
+note SPDX-License-Identifier: Apache-2.0
+note Manifest bytes: serial[20], firmware[8], NSID u32, extent start/count u64,
+note request LBA u64, count u32, repetitions u32, approved u32, reserved u32.
+note All integers little endian. Approval here is fixture binding, not hardware authority.
+fn main to int
+getmanifest
+if ne man32 68 0
+ret 20
+end
+r = initialize
+if ne r 0
+report r
+ret r
+end
+n = man32 60
+if or eq n 0 gt n 64
+ret 33
+end
+for i ulong n
+r = readblocks man64 48 man32 56
+if ne r 0
+report r
+ret r
+end
+end
+report 0
+ret 0
+end

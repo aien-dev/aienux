@@ -1,0 +1,9 @@
+case close_reader_race
+kind negative
+# a writer parked at capacity when the last reader closes wakes to BROKEN_PIPE
+create R W A => OK
+fill W 65536 62 => OK n=65536
+bwrite W "z" close R => BROKEN_PIPE
+check broken_pipe=1 waits=1 wakeups=1
+close W => OK
+check empty

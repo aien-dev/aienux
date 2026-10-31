@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # qemu_verify_recovery_media.sh: Verify standalone recovery environment in QEMU AArch64
 # Invariant: BOOTS WITH ZERO HARD DISKS ATTACHED. Internal NVMe must not be present.
 # Proves 100% RAM disk self-containment under rdinit=/init.
@@ -28,11 +43,20 @@ if [[ -z "${PROD_VMLINUZ}" ]]; then
 fi
 
 KERNEL_IMAGE="${WORK_DIR}/vmlinuz"
+# /boot/vmlinuz-* is root 0600 on Ubuntu. The Spark judge runs gates as aien-run with no_new_privs, so sudo
+# cannot copy it there; the operator keeps a read-only copy of the same kernel at $HOME/boot/vmlinuz (root 0644,
+# HOME=/var/lib/aien-run), the way it provides $HOME/models. Use that copy only when the kernel cannot be read.
+JUDGE_VMLINUZ="${HOME:-/nonexistent}/boot/vmlinuz"
 if [[ -r "${PROD_VMLINUZ}" ]]; then
     cp "${PROD_VMLINUZ}" "${KERNEL_IMAGE}"
-else
-    sudo -n cp "${PROD_VMLINUZ}" "${KERNEL_IMAGE}"
+elif sudo -n cp "${PROD_VMLINUZ}" "${KERNEL_IMAGE}" 2>/dev/null; then
     sudo -n chown "$(id -u):$(id -g)" "${KERNEL_IMAGE}"
+elif [[ -r "${JUDGE_VMLINUZ}" ]]; then
+    echo "NOTE  ${PROD_VMLINUZ} is not readable and sudo is unavailable; using the read-only copy ${JUDGE_VMLINUZ}"
+    cp "${JUDGE_VMLINUZ}" "${KERNEL_IMAGE}"
+else
+    echo "Error: cannot read ${PROD_VMLINUZ} (no sudo, no ${JUDGE_VMLINUZ})" >&2
+    exit 1
 fi
 
 INITRD_TMP="${WORK_DIR}/aienos-recovery-standalone-initrd.img"

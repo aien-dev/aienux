@@ -1,0 +1,12 @@
+# Reference-oracle tool for native/om/lm1b (not part of the aienux workspace).
+[package]
+name = "lm1b-manifest-dump"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[dependencies]
+aienos-infer = { path = "../../../../../crates/aienos-infer" }
+
+[workspace]

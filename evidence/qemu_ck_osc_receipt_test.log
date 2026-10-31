@@ -1,0 +1,52 @@
+PASS  boot disk built: ck_store_image: /tmp/tmp.1icyY5AMJN/nvme.img artifacts=15 store_generation=5 (TEST identity, TEST keys)
+Could not open option rom 'vgabios-ramfb.bin': No such file or directory
+qemu exit 0 after 6 s (commit 98676f2960de)
+PASS  left firmware and entered the kernel
+PASS  kernel read all fifteen candidates (one unit, fourteen receipts) from the boot disk Store
+PASS  no kernel report line was truncated
+PASS  final report reached the console
+PASS  no kernel panic or fault report
+PASS  a01 admitted (the container check is unchanged)
+PASS  receipt policy line: qualification, TEST receipt anchor, the owner root as owner receipt anchor, launch requires a receipt
+PASS  a01.rcpt stored from the Store (bytes=416)
+PASS  l01.rcpt stored from the Store (bytes=416)
+PASS  n_altered.rcpt stored from the Store (bytes=416)
+PASS  n_stale.rcpt stored from the Store (bytes=416)
+PASS  n_revoked_id.rcpt stored from the Store (bytes=416)
+PASS  n_expired.rcpt stored from the Store (bytes=416)
+PASS  n_future.rcpt stored from the Store (bytes=416)
+PASS  n_target.rcpt stored from the Store (bytes=416)
+PASS  n_program.rcpt stored from the Store (bytes=416)
+PASS  n_length.rcpt stored from the Store (bytes=417)
+PASS  n_firmware.rcpt stored from the Store (bytes=416)
+PASS  n_deps.rcpt stored from the Store (bytes=416)
+PASS  n_checker.rcpt stored from the Store (bytes=416)
+PASS  a01.owner.rcpt stored from the Store (bytes=416)
+PASS  receipt totals: 14 seen, 14 stored
+PASS  self-test announces 19 launches
+PASS  valid receipt: the unit runs, add(1,2) RETURNED 3
+PASS  no receipt: refused RECEIPT_MISSING (64)
+PASS  altered receipt (one byte of the executable digest flipped): RECEIPT_BAD_SIGNATURE (75)
+PASS  replayed receipt below the epoch floor: RECEIPT_STALE_EPOCH (77)
+PASS  revoked receipt id: RECEIPT_REVOKED (76), revoked=receipt_id
+PASS  revoked signer key (the TEST key fingerprint revoked): RECEIPT_REVOKED (76), revoked=signer_key
+PASS  expired receipt: RECEIPT_EXPIRED (78)
+PASS  receipt not yet valid: RECEIPT_NOT_YET_VALID (79)
+PASS  receipt for another target: RECEIPT_WRONG_TARGET (80)
+PASS  receipt for another executable (l01's): RECEIPT_EXECUTABLE_MISMATCH (83)
+PASS  receipt for another program: RECEIPT_PROGRAM_MISMATCH (82)
+PASS  receipt of the wrong length (417 bytes): RECEIPT_SIZE (65)
+PASS  TEST receipt under the release policy: RECEIPT_TEST_SIGNER_IN_PRODUCTION (73)
+PASS  receipt naming firmware: RECEIPT_WRONG_FIRMWARE (81)
+PASS  receipt with a dependency: RECEIPT_DEPENDENCIES_MISMATCH (88)
+PASS  receipt from an unlisted checker: RECEIPT_UNTRUSTED_CHECKER (86)
+PASS  owner receipt (signed on the owner YubiKey) in release mode: the unit runs, add(17,18) RETURNED 35
+PASS  valid receipt with code changed after admission: CODE_HASH_MISMATCH (16), nothing mapped or executed
+PASS  after every refusal, the valid receipt still runs the unit: add(20,22) RETURNED 42
+PASS  summary: 3 returned, 16 refused
+PASS  exactly 19 receipt launch lines
+PASS  every other refusal names a reason of its own
+PASS  only the receipt self-test ran
+label: QEMU (aarch64 virt), TEST signer, not physical
+AIENOS_CK_OSC_RECEIPT: PASS
+EXIT:0

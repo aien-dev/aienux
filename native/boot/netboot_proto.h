@@ -71,6 +71,16 @@ size_t nb_build(const struct nb_msg *m, uint8_t *out, size_t cap);
 int nb_parse(const uint8_t *b, size_t len, struct nb_msg *m);
 /* Number of NB_CHUNK pieces in an object of total bytes. */
 static inline uint32_t nb_chunks(uint32_t total) { return (total + NB_CHUNK - 1u) / NB_CHUNK; }
+/* Length of a DONE text: bytes before the first NUL, at most NB_TEXT_MAX.
+ * Reads no byte past text[NB_TEXT_MAX - 1], so text need not be terminated
+ * within the cap. */
+static inline size_t nb_text_len(const char *text)
+{
+    size_t n = 0;
+    while (n < NB_TEXT_MAX && text[n])
+        n++;
+    return n;
+}
 
 /* What the loader hands the kernel it starts, as that image's LoadOptions
  * (EFI_LOADED_IMAGE_PROTOCOL, UEFI 2.10 section 9.1): the processor clock

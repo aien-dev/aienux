@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* Lane 26 hosted tests: virtio PCI caps against real QEMU 8.2.2 config-space
  * dumps (tests/fixtures/), malformed caps, and the virtio-net split-virtqueue
  * driver against a simulated device in C that also plays hostile. Ends with
@@ -455,7 +471,8 @@ static void test_datapath(void)
         if (s.wire_len[(s.nwire - 1) % 8] != len || memcmp(s.wire[(s.nwire - 1) % 8], f, len)) bad++;
     }
     EQ(bad, 0);
-    CHECK(s.q[0].used_idx < 70000u); /* wrapped */
+    /* 16-bit used index: 70000 completions wrap once, residue 70000 mod 2^16. */
+    EQ(s.q[0].used_idx, (uint16_t)70000u); /* wrapped */
     EQ(s.faults, 0);
     check_descs(&d);
 }

@@ -1,0 +1,17 @@
+case handle_reuse
+kind negative
+# a closed handle is stale even after its slot is reused by a new pipe (generation check)
+create R W A => OK
+close R => OK
+close W => OK
+create R2 W2 A => OK
+read R 1 => STALE
+write W "x" => STALE
+close R => STALE
+cancel W => STALE
+revoke W => STALE
+write W2 "ok" => OK n=2
+read R2 8 => OK n=2 data="ok"
+close R2 => OK
+close W2 => OK
+check empty

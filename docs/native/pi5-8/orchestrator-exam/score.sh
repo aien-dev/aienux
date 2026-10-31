@@ -1,4 +1,19 @@
 #!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Score results/<name>.<split>.<mode>.jsonl. usage: score.sh <name> <split> <mode>   -> one TSV row (see header with --header)
 # Columns: model split mode n json_parse% schema_valid% action% exact% args_strict% args_lenient% refuse% clarify% none% safe% overblock%
 # schema_valid: whole reply (trimmed) is one JSON object with exactly the keys action,args, a listed action, and the right args shape.
