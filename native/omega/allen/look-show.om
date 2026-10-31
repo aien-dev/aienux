@@ -360,6 +360,11 @@ put Dprm i get Hmin i
 end
 put Inlen 0 n
 put Dprmn 0 n
+if inmatch
+hmkey 13
+ininstall ulong get Sh 11
+ret
+end
 if ghask
 put Dmo 0 1
 put Sh 5 1

@@ -1,0 +1,158 @@
+note SPDX-License-Identifier: MIT
+note Install: the typed line `install allen on this computer` copies the running firmware image
+note from the stick's volume to the one other volume that already holds \EFI\BOOT\BOOTX64.EFI
+note (the internal EFI System Partition the C kernel made), through the compiler's file word
+note (efi 11: sub 0 counts volumes and finds the boot one, 1 reads that file, 2 writes it).
+note Nothing happens at boot; only the typed line installs. Needs look-home.om (Hmsay, hmsaid)
+note and base.om (In, Inlen) before it in the unit; look-show.om calls inmatch and ininstall.
+note Ins: 0 last attempt (ms), 1 bytes written, 2 failing step (0 none), 3 status low 16 bits.
+global Inimg uchar 4194304
+global Ins ulong 4
+text Incmd "install allen on this computer"
+text Inok "Installed on this computer: "
+text Inok2 " bytes. Shut down, take the stick out, start me again."
+text Inno "Not installed: "
+text Inno2 " status "
+text Insteps "count|boot volume|no other volume holds Allen|more than one volume holds Allen|read|write|size"
+fn inmatch to bool
+note The typed line, letters in either case, equals the command.
+n = get Inlen 0
+if ne n len Incmd
+ret false
+end
+for i ulong n
+c = get In i
+if and ge c 65 le c 90
+c = add c 32
+end
+if ne c get Incmd i
+ret false
+end
+end
+ret true
+end
+fn inchar at ulong c uchar to ulong
+if lt at len Hmsay
+put Hmsay at c
+end
+ret add at 1
+end
+fn innum at ulong v ulong to ulong
+note Decimal digits of v at position at; returns the position after them.
+d = ulong 1
+t = v
+while ge t 10
+t = div t 10
+d = add d 1
+end
+e = add at d
+p = e
+for i ulong d
+p = sub p 1
+q = inchar p uchar add 48 rem v 10
+v = div v 10
+end
+ret e
+end
+fn instep at ulong k ulong to ulong
+note Field k of Insteps (fields separated by |) at position at.
+f = ulong 0
+for i ulong len Insteps
+c = get Insteps i
+if eq c 124
+f = add f 1
+else
+if eq f k
+at = inchar at c
+end
+end
+end
+ret at
+end
+fn infail step ulong st ulong to void
+put Ins 2 add step 1
+put Ins 3 and st 65535
+at = ulong 0
+for i ulong len Inno
+at = inchar at get Inno i
+end
+at = instep at step
+for i ulong len Inno2
+at = inchar at get Inno2 i
+end
+at = innum at and st 65535
+at = inchar at 46
+put Hmsayn 0 at
+hmsaid
+end
+fn insaid bytes ulong to void
+put Ins 1 bytes
+put Ins 2 0
+put Ins 3 0
+at = ulong 0
+for i ulong len Inok
+at = inchar at get Inok i
+end
+at = innum at bytes
+for i ulong len Inok2
+at = inchar at get Inok2 i
+end
+put Hmsayn 0 at
+hmsaid
+end
+fn inholds k ulong to bool
+note True when volume k holds \EFI\BOOT\BOOTX64.EFI: a read succeeds, or fails only
+note because the file is larger than Inimg (file word code 24).
+rd = efi 11 or 1 shl k 8 Inimg 0 len Inimg
+if eq shr rd 63 0
+ret true
+end
+ret eq and rd 255 24
+end
+fn ininstall now ulong to void
+put Ins 0 now
+r = efi 11 0 Inimg 0 0
+if eq shr r 63 1
+infail 0 r
+ret
+end
+n = and r 255
+boot = and shr r 8 255
+if eq boot 255
+infail 1 n
+ret
+end
+found = ulong 0
+tgt = ulong 0
+for k ulong n
+if ne k boot
+if inholds k
+found = add found 1
+tgt = k
+end
+end
+end
+if eq found 0
+infail 2 n
+ret
+end
+if gt found 1
+infail 3 found
+ret
+end
+rd = efi 11 or 1 shl boot 8 Inimg 0 len Inimg
+if eq shr rd 63 1
+infail 4 rd
+ret
+end
+wr = efi 11 or 2 shl tgt 8 Inimg 0 rd
+if eq shr wr 63 1
+infail 5 wr
+ret
+end
+if ne wr rd
+infail 6 wr
+ret
+end
+insaid wr
+end
