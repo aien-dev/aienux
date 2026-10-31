@@ -21,6 +21,8 @@ global Ntsxy long 2
 global Ntwarp long 3
 global Ntcor long 12
 global Ntwt long 4
+global Ntlr long 8
+global Ntlit0 ulong 257
 global Ntb long 4
 global Ntd long 4
 global Ntg long 5
@@ -142,6 +144,11 @@ end
 end
 note ntinit: tables, the sky (skmake), the appearance map, state at t = 0 (ck_night_init).
 fn ntinit to void
+note The ripple's light over one black: pkadd for every light value, computed once (most of
+note the sky is one black, so the per-pixel add becomes a table read; same bytes).
+for a ulong 257
+put Ntlit0 a pkadd 0 5663920 a
+end
 for i ulong 256
 c = shr ulong add 16384 pkcos mul i 256 1
 c2 = shr mul c c 14
@@ -326,21 +333,30 @@ end
 ntlensbox
 ntripple t last
 end
-fn ntsrow r long ix long ix1 long fx ulong to ulong
-ret pkmix ulong get Nsky add r ix ulong get Nsky add r ix1 fx
-end
-note ntsample: the sky at (sx, sy) in 16ths, bilinear (night.c sample).
+note ntsample: the sky at (sx, sy) in 16ths, bilinear (night.c sample). The four taps are
+note read in place; when they agree (most of the sky is one black) no mix is needed, as pkmix
+note itself would answer: it returns d when d equals c.
 fn ntsample sx long sy long to ulong
 sx = pkclamp sub sx 8 0 mul sub get Lg 0 1 16
 sy = pkclamp sub sy 8 0 mul sub get Lg 1 1 16
 ix = shr sx 4
-iy = shr sy 4
+iy = mul shr sy 4 get Lg 0
 ix1 = pkmin add ix 1 sub get Lg 0 1
-iy1 = pkmin add iy 1 sub get Lg 1 1
+iy1 = iy
+if lt shr sy 4 sub get Lg 1 1
+iy1 = add iy get Lg 0
+end
+a = ulong get Nsky add iy ix
+b = ulong get Nsky add iy ix1
+c = ulong get Nsky add iy1 ix
+d = ulong get Nsky add iy1 ix1
+if and eq a b and eq c d eq a c
+ret a
+end
 fx = mul ulong and sx 15 16
-a = ntsrow mul iy get Lg 0 ix ix1 fx
-b = ntsrow mul iy1 get Lg 0 ix ix1 fx
-ret pkmix a b mul ulong and sy 15 16
+a = pkmix a b fx
+c = pkmix c d fx
+ret pkmix a c mul ulong and sy 15 16
 end
 fn ntlens1 e long dx long dy long d2 long out long to void
 in = div mul mul e e 484 100
@@ -415,6 +431,9 @@ if lt get Ntt 0 6800
 c = ntfadepx c x y
 end
 if ne light 0
+if and eq c 0 le light 256
+ret get Ntlit0 light
+end
 ret pkadd c 5663920 light
 end
 ret c
@@ -452,8 +471,17 @@ note ntnearpx: one pixel next to a hole, exact warp plus the shadow disc and rin
 fn ntnearpx x long y long to ulong
 X = add mul x 16 8
 Y = add mul y 16 8
-ntwarp X Y
-c = ntsample add X get Ntwarp 0 add Y get Ntwarp 1
+note ntwarp in place: the lens of every hole, then the ripple, into Ntsxy and Ntwarp 2.
+put Ntsxy 0 0
+put Ntsxy 1 0
+put Ntwarp 2 0
+for i ulong get Nthol 0
+ntlens0 X Y mul i 4
+end
+if ne get Ntrip 1 0
+ntwripple X Y
+end
+c = ntsample add X get Ntsxy 0 add Y get Ntsxy 1
 c = ntfinal c x y ulong get Ntwarp 2
 for i ulong get Nthol 0
 c = ntshadow c X Y mul i 4
@@ -565,33 +593,51 @@ put Ntcor add c 4 get Ntwarp 1
 put Ntcor add c 8 get Ntwarp 2
 end
 end
-fn ntdot b ulong to long
-s = mul get Ntcor b get Ntwt 0
-s = add s mul get Ntcor add b 1 get Ntwt 1
-s = add s mul get Ntcor add b 2 get Ntwt 2
-s = add s mul get Ntcor add b 3 get Ntwt 3
-ret shr s 8
+note ntgpx: one pixel of a grid block at wx (odd sixteenths across the block): the warp and
+note light interpolated between the row's left and right edge values Ntlr (ntgridrow), then the
+note sky sample and the fade or the ripple light (ntfinal in place). The edge form equals the
+note four-corner dot of night.c exactly: (16-wx)(c0(16-wy) + c2 wy) + wx(c1(16-wy) + c3 wy).
+fn ntgpx x long y long wx long to ulong
+wi = sub 16 wx
+sx = mul get Ntlr 0 wi
+sx = add sx mul get Ntlr 3 wx
+sy = mul get Ntlr 1 wi
+sy = add sy mul get Ntlr 4 wx
+l = mul get Ntlr 2 wi
+l = add l mul get Ntlr 5 wx
+sx = shr sx 8
+sy = shr sy 8
+l = shr l 8
+sx = add add mul x 16 8 sx
+sy = add add mul y 16 8 sy
+c = ntsample sx sy
+if lt get Ntt 0 6800
+c = ntfadepx c x y
 end
-fn ntgpx x long y long to ulong
-sx = ntdot 0
-sy = ntdot 4
-l = ulong ntdot 8
-c = ntsample add add mul x 16 8 sx add add mul y 16 8 sy
-ret ntfinal c x y l
+if ne l 0
+if and eq c 0 le l 256
+ret get Ntlit0 ulong l
 end
-fn ntwts wx long wy long to void
-put Ntwt 0 mul sub 16 wx sub 16 wy
-put Ntwt 1 mul wx sub 16 wy
-put Ntwt 2 mul sub 16 wx wy
-put Ntwt 3 mul wx wy
+ret pkadd c 5663920 ulong l
+end
+ret c
 end
 fn ntgridrow y long bx long wy long to void
 p = mul y get Lg 0
+wi = sub 16 wy
+for k ulong 3
+b = mul k 4
+v = mul get Ntcor b wi
+v = add v mul get Ntcor add b 2 wy
+put Ntlr k v
+v = mul get Ntcor add b 1 wi
+v = add v mul get Ntcor add b 3 wy
+put Ntlr add k 3 v
+end
 n = ulong sub get Ntb 2 get Ntb 0
 for i ulong n
 x = add get Ntb 0 long i
-ntwts add mul 2 sub x bx 1 wy
-put Nfrm add p x uint ntgpx x y
+put Nfrm add p x uint ntgpx x y add mul 2 sub x bx 1
 end
 end
 fn ntgridblk bx long by long to void

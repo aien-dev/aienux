@@ -78,34 +78,37 @@ end
 fn shmarkall to void
 put Sh 3 1
 end
-fn shpix i ulong at ulong half ulong to void
-c = get Nfrm i
-if eq half 0
+fn shrowa i ulong at ulong n ulong to void
+note n pixels from Nfrm[i..] as BGRA into Efa[at..] (rows of the upper half).
+for k ulong n
+c = get Nfrm add i k
 put Efa at uchar and c 255
 put Efa add at 1 uchar and shr c 8 255
 put Efa add at 2 uchar and shr c 16 255
 put Efa add at 3 0
-else
+at = add at 4
+end
+end
+fn shrowb i ulong at ulong n ulong to void
+note The same into Efb (rows of the lower half).
+for k ulong n
+c = get Nfrm add i k
 put Efb at uchar and c 255
 put Efb add at 1 uchar and shr c 8 255
 put Efb add at 2 uchar and shr c 16 255
 put Efb add at 3 0
+at = add at 4
 end
 end
 fn shrow y ulong x0 ulong n ulong to void
 note One row's pixels x0..x0+n-1 from Nfrm into the BGRA half that holds row y.
 w = ulong get Lg 0
 hh = ulong get Sh 2
-half = ulong 0
-ry = y
-if ge y hh
-half = 1
-ry = sub y hh
-end
 i = add mul y w x0
-at = mul add mul ry w x0 4
-for k ulong n
-shpix add i k add at mul k 4 half
+if lt y hh
+shrowa i mul i 4 n
+else
+shrowb i mul add mul sub y hh w x0 4 n
 end
 put Shrow y 1
 end
