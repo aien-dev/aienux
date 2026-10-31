@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* kmain_x86.c -- AIENOS-IMAC-KERNEL-0: the C kernel core on x86_64, first
+/* kmain_x86.c -- AIENOS-KERNEL-0: the C kernel core on x86_64, first
  * cut, for the 2017 iMac (iMac18,3, Core i5-7500) and QEMU q35.
  *
  * After ExitBootServices (efi_x86.c) on the firmware's page tables:
@@ -33,17 +33,21 @@
  * local APIC (xAPIC) with its timer at 100 Hz for 20 ticks, the MADT CPU
  * count, the secondary cores started and parked (smp_x86.S), the AHCI and
  * NVMe disks read-only and a look at the Ethernet chip (pci_x86.c,
- * ahci_x86.c), and the final report. It holds the screen CK_X86_HOLD_S seconds and
+ * ahci_x86.c), and the final report. With a keyboard, Allen's window, whose
+ * memory lives in its own partition of the approved hard disk (memory_x86.c,
+ * the only disk writes). It holds the screen CK_X86_HOLD_S seconds and
  * powers off through ACPI S5 (FADT PM1 control + the DSDT's \_S5 package); the lab image
  * (CK_X86_REPORT=1) restarts through the FADT reset register instead, back
  * into its network loader (native/boot/net_loader.c).
- * Scheduling on the secondary cores, disk writes, the network driver and VT-d
+ * Scheduling on the secondary cores, the network driver and VT-d
  * are later cuts. No runtime service
  * is called. QEMU runs of this path qualify nothing physical. */
 #include "../core/ck_internal.h"
 #include "../core/handoff_check.h"
 #include "../mm/frames.h"
 #include "../mm/heap.h"
+#include "../svc/allen_reply.h"
+#include "../ui/allen_ui.h"
 #include "x86.h"
 
 #ifndef AIENOS_COMMIT
@@ -278,6 +282,238 @@ static void acpi_reset(void)
 }
 #endif
 
+/* Allen on the screen (ui/allen_ui.c) with its first local answers
+ * (svc/allen_reply.c). Every Enter gets an answer on the console
+ * ("allen: ..."); when a keyboard is ready and the RAM for drawing is there,
+ * the screen switches from the boot report to Allen's window, which stays
+ * up (no idle countdown) until "goodbye" is typed or the power button is
+ * held. Without either, the text screen and its timed hold stay as they were. */
+static int allen_on;
+static uint64_t allen_bye; /* TSC when Allen said goodbye; 0 = still talking */
+static uint64_t allen_woke; /* TSC when Allen's window took the screen */
+static void night_stats(const char *when);
+static ck_allen_facts allen_facts; /* filled at the summary line */
+static ck_allen_mind allen_mind;
+static ck_allen_notes allen_notes; /* loaded from disk at the window, or empty */
+
+static void allen_edit(const char *buf, unsigned len) { ck_allen_ui_input(buf, len, ck_rdtsc()); }
+
+/* The notes map beside the window: the newest live notes (point 0 the newest)
+ * and the links among them; every live note and link is counted. */
+static void allen_map(void)
+{
+    static uint32_t idx[CK_ALLEN_UI_MAP_NODES];
+    static uint8_t ea[CK_ALLEN_UI_MAP_LINKS], eb[CK_ALLEN_UI_MAP_LINKS];
+    unsigned n = 0, ne = 0, total = 0, links = 0;
+    int lit = -1;
+    for (uint32_t i = allen_notes.n; i-- > 0;) {
+        if (allen_notes.note[i].gone)
+            continue;
+        total++;
+        for (uint32_t j = i + 1; j < allen_notes.n; j++)
+            links += !allen_notes.note[j].gone && ck_allen_note_links(&allen_notes.note[i], &allen_notes.note[j]) > 0;
+        if (n == CK_ALLEN_UI_MAP_NODES)
+            continue;
+        if (allen_mind.lit == (int)i + 1)
+            lit = (int)n;
+        for (unsigned k = 0; k < n && ne < CK_ALLEN_UI_MAP_LINKS; k++)
+            if (ck_allen_note_links(&allen_notes.note[i], &allen_notes.note[idx[k]]) > 0) {
+                ea[ne] = (uint8_t)k;
+                eb[ne++] = (uint8_t)n;
+            }
+        idx[n++] = i;
+    }
+    ck_allen_ui_map(n, ea, eb, ne, lit, lit >= 0 ? allen_notes.note[idx[lit]].text : 0, total, links);
+}
+
+static void allen_line(const char *text)
+{
+    const char *reply = ck_allen_answer(&allen_mind, text, ck_rdtsc() / tsc_hz);
+    /* What was taught goes to disk before Allen says it will remember it: a
+     * note first, then the memory copy that counts it; goodbye saves the line
+     * count. A failed write is said out loud. */
+    int save = allen_mind.changed || reply == ck_allen_goodbye;
+    if (allen_mind.lasting && allen_mind.note_dirty &&
+        ck_x86_notes_write(&allen_notes, (uint32_t)allen_mind.note_dirty - 1u)) {
+        allen_mind.lasting = 0;
+        reply = ck_allen_save_failed;
+    }
+    if (allen_mind.lasting && save && ck_x86_memory_save(&allen_mind.mem)) {
+        allen_mind.lasting = 0;
+        if (allen_mind.changed)
+            reply = ck_allen_save_failed;
+    }
+    allen_mind.changed = 0;
+    if (allen_mind.map_changed || allen_mind.note_dirty)
+        allen_map();
+    allen_mind.map_changed = 0;
+    allen_mind.note_dirty = 0;
+    ck_printf("allen: %s\n", reply);
+    /* the only line about it the lab report may carry: lengths, no words */
+    ck_printf("screen: Allen answered (%u characters in, %u out)\n", (unsigned)strlen(text), (unsigned)strlen(reply));
+    ck_allen_ui_said(text, reply, ck_rdtsc());
+    if (reply == ck_allen_goodbye && !allen_bye)
+        allen_bye = ck_rdtsc() | 1;
+    if (reply == ck_allen_goodbye)
+        night_stats("by goodbye");
+}
+
+/* The startup screen (ui/allen_ui.c): the night sky from the moment the clock
+ * is measured, Allen formed in it by the time the keyboard is ready. Until
+ * the secondary cores are up the boot core draws a frame between console
+ * writes (night_tick); then the first secondary core draws the frames
+ * (draw_loop) and the next two draw strips of them (help_loop). draw_lock
+ * keeps to one frame at a time whoever draws it. */
+static uint32_t night_ms, night_mib;                     /* what is said about it once the console is up */
+static uint64_t night_t0;                                /* when the night began (TSC); the chirp keeps time with it */
+static uint64_t night_last, night_cost;                  /* the boot core's last frame and what it took */
+static volatile uint32_t draw_run, draw_on, draw_helpers; /* drawing allowed; a core draws frames; cores helping */
+static volatile uint8_t draw_lock;
+
+static uint64_t night_clock(void) { return ck_rdtsc(); }
+
+/* After each console write, while no secondary core draws: a frame when one
+ * is due, with at least twice a frame's drawing time between frames, so
+ * startup is not slowed by more than a third. */
+static void night_tick(void)
+{
+    ck_x86_hda_step();
+    uint64_t now = ck_rdtsc();
+    if (__atomic_load_n(&draw_on, __ATOMIC_ACQUIRE) || now - night_last < night_cost * 2 ||
+        __atomic_test_and_set(&draw_lock, __ATOMIC_ACQUIRE))
+        return;
+    if (ck_allen_ui_tick(now)) {
+        night_last = ck_rdtsc();
+        night_cost = night_last - now;
+    }
+    __atomic_clear(&draw_lock, __ATOMIC_RELEASE);
+}
+
+/* The secondary cores' work while the night is up; each returns to its halt
+ * once draw_stop clears draw_run. */
+static void draw_loop(void)
+{
+    __atomic_store_n(&draw_on, 1, __ATOMIC_RELEASE);
+    while (__atomic_load_n(&draw_run, __ATOMIC_ACQUIRE)) {
+        while (__atomic_test_and_set(&draw_lock, __ATOMIC_ACQUIRE))
+            ck_pause();
+        int drew = ck_allen_ui_tick(ck_rdtsc());
+        __atomic_clear(&draw_lock, __ATOMIC_RELEASE);
+        if (!drew)
+            ck_pause();
+    }
+    __atomic_store_n(&draw_on, 0, __ATOMIC_RELEASE);
+}
+static void help_loop(void)
+{
+    __atomic_fetch_add(&draw_helpers, 1, __ATOMIC_ACQ_REL);
+    while (__atomic_load_n(&draw_run, __ATOMIC_ACQUIRE))
+        if (!ck_allen_ui_help())
+            ck_pause();
+    __atomic_fetch_sub(&draw_helpers, 1, __ATOMIC_ACQ_REL);
+}
+
+/* Before text goes back on the screen: the drawing cores finish the frame in
+ * hand and stop. Waits at most 200 ms (a panic never hangs here); then the
+ * frame lock is held for good, so nothing draws over the text. */
+static void draw_stop(void)
+{
+    __atomic_store_n(&draw_run, 0, __ATOMIC_RELEASE);
+    if (!tsc_hz)
+        return;
+    uint64_t t0 = ck_rdtsc();
+    while ((draw_on || draw_helpers) && ck_rdtsc() - t0 < tsc_hz / 5)
+        ck_pause();
+    while (__atomic_test_and_set(&draw_lock, __ATOMIC_ACQUIRE) && ck_rdtsc() - t0 < tsc_hz / 5)
+        ck_pause();
+}
+
+static void night_stats(const char *when)
+{
+    uint32_t n, slowest, average;
+    ck_allen_ui_stats(&n, &slowest, &average);
+    ck_printf("screen: night: %u frames %s, average %u.%u ms, slowest %u.%u ms (drawn by %s)\n", n, when,
+              average / 1000, average / 100 % 10, slowest / 1000, slowest / 100 % 10,
+              draw_on ? "a secondary core" : "the boot core");
+}
+
+static void allen_window(void)
+{
+    static char footer[64];
+    volatile uint32_t *px;
+    uint32_t w, h, pitch, format;
+    uint64_t pa;
+    ck_allen_mind_init(&allen_mind, &allen_facts);
+    allen_mind.notes = &allen_notes;
+    if (ck_x86_memory_open(&allen_mind.mem, &allen_notes, tsc_hz)) {
+        allen_mind.lasting = 1;
+        allen_mind.mem.starts++;
+        if (ck_x86_memory_save(&allen_mind.mem))
+            allen_mind.lasting = 0;
+    } else {
+        allen_notes.n = 0; /* nothing half-loaded is kept */
+        allen_mind.mem.nnotes = 0;
+    }
+    ck_x86_kbd_sink(0, allen_line);
+    if (ck_x86_console_fb_get(&px, &w, &h, &pitch, &format)) {
+        ck_puts("screen: text only (no framebuffer for Allen's window)\n");
+        return;
+    }
+    allen_facts.screen_w = w;
+    allen_facts.screen_h = h;
+    allen_mind.facts = allen_facts;
+    if (!ck_allen_ui_started()) { /* the night could not start at boot: Allen's home starts here */
+        size_t need = ck_allen_ui_mem_bytes(w, h);
+        uint64_t pages = (need + CK_PAGE - 1) / CK_PAGE;
+        if (ck_frames_alloc(&frames, pages, CK_PAGE, &pa)) {
+            ck_printf("screen: text only (no %llu MiB for Allen's window)\n", (unsigned long long)(need >> 20));
+            return;
+        }
+        if (ck_allen_ui_start(px, w, h, pitch, format, (void *)(uintptr_t)pa, pages * CK_PAGE, tsc_hz, ck_rdtsc(),
+                              night_clock)) {
+            ck_puts("screen: text only (Allen's window refused the screen)\n");
+            ck_frames_free(&frames, pa, pages);
+            return;
+        }
+        night_mib = (uint32_t)(need >> 20);
+    }
+    ck_snprintf(footer, sizeof footer, "Type goodbye to %s this computer", CK_X86_REPORT ? "restart" : "turn off");
+    ck_printf("screen: Allen's window (%ux%u, %u MiB drawing memory)\n", w, h, night_mib);
+    ck_x86_console_fb_off();
+    ck_allen_ui_refresh(); /* whatever else was on the screen goes */
+    ck_allen_ui_wake(footer, ck_rdtsc());
+    ck_x86_kbd_sink(allen_edit, allen_line);
+    allen_on = 1;
+    allen_woke = ck_rdtsc();
+    night_stats("before Allen woke");
+    allen_map(); /* the notes loaded from disk, before the first word */
+    const char *hello = ck_allen_welcome(&allen_mind);
+    if (hello) {
+        ck_printf("allen: %s\n", hello);
+        ck_allen_ui_said(0, hello, ck_rdtsc());
+    }
+}
+
+void ck_x86_hold_step(uint64_t *end)
+{
+    ck_x86_hda_step();
+    ck_x86_kbd_hold_poll(end);
+    if (!allen_on)
+        return;
+    if (!__atomic_load_n(&draw_on, __ATOMIC_ACQUIRE) && !__atomic_test_and_set(&draw_lock, __ATOMIC_ACQUIRE)) {
+        ck_allen_ui_tick(ck_rdtsc()); /* no secondary core draws: this one does */
+        __atomic_clear(&draw_lock, __ATOMIC_RELEASE);
+    }
+    static int told;
+    if (!told && ck_rdtsc() - allen_woke > 20 * tsc_hz) {
+        told = 1;
+        night_stats("by 20 s after Allen woke");
+    }
+    /* No countdown while Allen's window is up; after goodbye, 4 s for the
+     * answer to appear, then the hold ends. */
+    *end = allen_bye ? allen_bye + 4 * tsc_hz : ~0ull;
+}
+
 static __attribute__((noreturn)) void finish(void)
 {
     ck_cli();
@@ -290,16 +526,40 @@ static __attribute__((noreturn)) void finish(void)
         for (;;)
             __asm__ volatile("hlt");
     }
+    if (CK_X86_HOLD_S && ck_x86_kbd_ready()) {
+        allen_window();
+        if (allen_on)
+            ck_puts("keyboard: type a line and press Enter; Allen's window stays on until you type goodbye\n");
+        else
+            ck_printf("keyboard: type a line and press Enter; the screen stays on until %u s after the last key\n",
+                      ck_x86_kbd_idle_s());
+    }
+    if (!allen_on) { /* no Allen's window: the startup text, not the night */
+        draw_stop();
+        ck_x86_console_fb_show();
+    }
     if (CK_X86_HOLD_S) {
 #if CK_X86_REPORT
         /* Lab build only (make imac-kernel CK_X86_REPORT=1): sends the
          * allowlisted, unauthenticated report if the network is up. */
-        ck_printf("power: holding the screen %u s, then restart\n", (unsigned)CK_X86_HOLD_S);
+        if (allen_on)
+            ck_puts("power: Allen's window stays on until goodbye (or the power button), then restart\n");
+        else
+            ck_printf("power: holding the screen %u s, then restart\n", (unsigned)CK_X86_HOLD_S);
         ck_x86_report_hold(tsc_hz, CK_X86_HOLD_S);
+        ck_x86_kbd_done();
 #else
         /* Default and resident builds: no report code is linked; nothing is sent. */
-        ck_printf("power: holding the screen %u s, then ACPI S5\n", (unsigned)CK_X86_HOLD_S);
-        delay_ms((uint64_t)CK_X86_HOLD_S * 1000u);
+        if (allen_on)
+            ck_puts("power: Allen's window stays on until goodbye (or the power button), then ACPI S5\n");
+        else
+            ck_printf("power: holding the screen %u s, then ACPI S5\n", (unsigned)CK_X86_HOLD_S);
+        uint64_t end = ck_rdtsc() + (uint64_t)CK_X86_HOLD_S * tsc_hz; /* typing moves it out */
+        while (ck_rdtsc() < end) {
+            ck_x86_hold_step(&end);
+            ck_pause();
+        }
+        ck_x86_kbd_done();
 #endif
     }
 #if CK_X86_REPORT
@@ -314,6 +574,8 @@ static __attribute__((noreturn)) void finish(void)
 void ck_panic(const char *fmt, ...)
 {
     ck_cli();
+    draw_stop();
+    ck_x86_console_fb_show(); /* a panic is always readable */
     va_list ap;
     va_start(ap, fmt);
     ck_puts("panic: ");
@@ -782,6 +1044,10 @@ static void ap_entry(void *arg)
     if ((ck_rdmsr(MSR_EFER) & EFER_NXE) && (ck_rd_cr0() & CR0_WP))
         __atomic_fetch_add(&ap_nx_wp, 1, __ATOMIC_SEQ_CST);
     __atomic_fetch_add(&ap_up, 1, __ATOMIC_SEQ_CST);
+    if (idx == 0) /* the first one draws the night's frames, the next two help */
+        draw_loop();
+    else if (idx < 3)
+        help_loop();
     for (;;)
         __asm__ volatile("cli; hlt");
 }
@@ -1026,10 +1292,36 @@ static void cpu_line(void)
     ck_printf("cpu: %s %s\n", vendor, b);
 }
 
+/* The night begins before anything is said on the screen; the text stays
+ * off it (still in the RAM copy and on COM1) until Allen's window takes
+ * over, or comes back if anything goes wrong. */
+static void night_start(const struct ck_handoff *h)
+{
+    if (h->fb_status != CK_HANDOFF_FB_PRESENT || !mm.fb_ok || !tsc_hz)
+        return;
+    size_t need = ck_allen_ui_mem_bytes(h->fb_width, h->fb_height);
+    uint64_t pages = (need + CK_PAGE - 1) / CK_PAGE, pa;
+    if (ck_frames_alloc(&frames, pages, CK_PAGE, &pa))
+        return;
+    uint64_t t0 = ck_rdtsc();
+    if (ck_allen_ui_start((volatile uint32_t *)(uintptr_t)h->fb_base, h->fb_width, h->fb_height, h->fb_pitch,
+                          h->fb_format, (void *)(uintptr_t)pa, pages * CK_PAGE, tsc_hz, t0, night_clock)) {
+        ck_frames_free(&frames, pa, pages);
+        return;
+    }
+    night_t0 = t0;
+    night_ms = (uint32_t)((ck_rdtsc() - t0) * 1000 / tsc_hz);
+    night_mib = (uint32_t)(need >> 20);
+    draw_run = 1;
+    ck_x86_console_fb_hold(night_tick);
+}
+
 static __attribute__((noreturn)) void kernel_main(void *arg)
 {
     (void)arg;
     const struct ck_handoff *h = hand;
+    tsc_measure(); /* first: the night runs on this clock */
+    night_start(h);
     if (h->fb_status == CK_HANDOFF_FB_PRESENT && mm.fb_ok) {
         uint32_t scale, cols, rows;
         if (ck_x86_console_fb_on((volatile void *)(uintptr_t)h->fb_base, h->fb_width, h->fb_height,
@@ -1039,6 +1331,9 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
                       (unsigned long long)h->fb_base, scale, cols, rows);
         else
             ck_puts("screen: refused (unusable geometry)\n");
+        if (draw_run)
+            ck_printf("screen: night: the sky made in %u ms (%u MiB drawing memory); stars, black holes, then Allen\n",
+                      night_ms, night_mib);
     } else if (h->fb_status == CK_HANDOFF_FB_PRESENT) {
         ck_puts("screen: refused (framebuffer overlaps RAM or lies above the mapped range)\n");
     } else {
@@ -1062,6 +1357,15 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
     ck_printf("memory: frame_ranges=%u free_bytes=%llu heap=0x%llx+%u heap_test=ok\n", frames.n,
               (unsigned long long)ck_frames_free_bytes(&frames), (unsigned long long)hp,
               (unsigned)(HEAP_PAGES * CK_PAGE));
+    uint64_t ram = 0;
+    for (uint64_t off = 0; off + hand->desc_size <= hand->map_size; off += hand->desc_size) {
+        const struct ck_efi_desc *d = (const void *)(uintptr_t)(hand->memory_map + off);
+        if (efi_ram(d->type))
+            ram += d->pages * CK_PAGE;
+    }
+    /* the firmware keeps a little for itself, so whole GiB rounded up is what is fitted */
+    ck_printf("ram: %llu MiB in the memory map, about %llu GiB fitted\n", (unsigned long long)(ram >> 20),
+              (unsigned long long)((ram + (1ull << 30) - 1) >> 30));
     ck_printf("stack: 0x%llx-0x%llx guard=0x%llx ist1=0x%llx\n",
               (unsigned long long)(uintptr_t)(kstack + 4096),
               (unsigned long long)(uintptr_t)(kstack + sizeof kstack), (unsigned long long)(uintptr_t)kstack,
@@ -1087,7 +1391,6 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
                  (unsigned long long)probe.err);
     wx_probes();
 
-    tsc_measure();
     if (!tsc_hz)
         ck_panic("timebase: no HPET and no CPUID leaf 0x16 frequency");
     ck_printf("timebase: %s period_fs=%llu tsc_hz=%llu\n", timebase, (unsigned long long)hpet_period_fs,
@@ -1116,12 +1419,17 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
         for (unsigned k = 0; k < sr.started; k++)
             n += (unsigned)ck_snprintf(ids + n, sizeof ids - n, k ? ",%u" : "%u", sr.up_ids[k]);
         ids[n] = 0;
-        ck_printf("smp: cpus=%u started=%u failed=%u bsp_id=%u ap_ids=%s trampoline=0x%llx state=halted\n",
+        ck_printf("smp: cpus=%u started=%u failed=%u bsp_id=%u ap_ids=%s trampoline=0x%llx state=%s helpers=%u\n",
                   sr.listed, sr.started, sr.failed, ar.id, sr.started ? ids : "none",
-                  (unsigned long long)tramp_pa);
+                  (unsigned long long)tramp_pa, draw_on ? "drawing" : "halted", draw_helpers);
     }
 
     const struct ck_x86_storage_result *st = ck_x86_storage(h->rsdp, &frames, tsc_hz, mm.top);
+    ck_x86_sound(&frames, tsc_hz, night_t0); /* before the keyboard: the chirp is already under way */
+    ck_x86_usb(&frames, tsc_hz);
+    allen_facts.cores = sr.started + 1;
+    allen_facts.sata_disks = st->ahci_disks;
+    allen_facts.nvme_disks = st->nvme_disks;
     wx_audit(sr.started);
     ck_puts("kernel: alive\n");
     ck_printf("summary: cores=%u/%u timer=ok sata_disks=%u nvme_disks=%u gpt_valid=%u writes=none net=%s\n",
@@ -1131,7 +1439,7 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
               : st->net_link == 1     ? "link-up"
               : st->net_link == 2     ? "link-down"
                                       : "seen");
-    ck_puts("AIENOS-IMAC-KERNEL-0 DONE\n");
+    ck_puts("AIENOS-KERNEL-0 DONE\n");
     ck_puts("note: QEMU qualifies nothing physical\n");
     finish();
 }

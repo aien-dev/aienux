@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* efi_x86.c -- UEFI stub of AIENOS-IMAC-KERNEL-0 (x86_64): the same job as
+/* efi_x86.c -- UEFI stub of AIENOS-KERNEL-0 (x86_64): the same job as
  * native/boot/efi_main.c does for the AArch64 kernel, on the same CHANDOF3
  * record (handoff.h), so core/handoff_check.c checks it unchanged.
  *
@@ -66,7 +66,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
         if (guid_eq(&st->ConfigurationTable[i].VendorGuid, &acpi20))
             h->rsdp = (uint64_t)(uintptr_t)st->ConfigurationTable[i].VendorTable;
 
-    ck_puts("AIENOS-IMAC-KERNEL-0\n");
+    ck_puts("AIENOS-KERNEL-0\n");
     ck_printf("report_kind: pre_exit\naienos_commit: %s\n", ck_commit());
     ck_puts("kernel_impl: c (native/kernel/x86, x86_64)\n");
     char v[80];

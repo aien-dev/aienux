@@ -24,7 +24,7 @@
 #     "v=2 auth=none" part headers).
 #  3. The receiver tools/ck_imac_report_listen.c rebuilds the report byte for
 #     byte from parts sent out of order and repeated, labels it
-#     unauthenticated, and refuses the retired v=1 raw-console format.
+#     unauthenticated, and refuses every older header (the retired v=1 raw-console format and the old name).
 # Hosted only; the BCM57766 itself cannot be emulated, and nothing here
 # touches a real network interface (the round trip runs over 127.0.0.1).
 # Ends with "AIENOS_IMAC_REPORT: PASS", "AIENOS_IMAC_REPORT: FAIL <why>" or
@@ -52,10 +52,10 @@ make -s -C $K X86_CROSS="$X" OUT="$W/build" CK_X86_REPORT=1 imac-kernel >>"$W/bu
     fail "lab imac-kernel build: $(tail -3 "$W/build.log")"
 d=$("${X}nm" "$W/build/imackern/imackern.elf" | grep -E " ($SYMS)\$" || true)
 [ -z "$d" ] || fail "default image has report symbols: $(echo $d)"
-grep -aq "AIENOS-IMAC-REPORT" "$W/build/IMACKERN.EFI" && fail "default image carries the report header"
+grep -aq "AIENOS-REPORT" "$W/build/IMACKERN.EFI" && fail "default image carries the report header"
 l=$("${X}nm" "$W/build/imackern-lab/imackern.elf" | grep -cE " ($SYMS)\$" || true)
 [ "$l" = 7 ] || fail "lab image has $l of 7 report symbols"
-grep -aq "AIENOS-IMAC-REPORT v=2 auth=none " "$W/build/IMACKERN-LAB.EFI" || fail "lab image lacks the v=2 auth=none header"
+grep -aq "AIENOS-REPORT v=2 auth=none " "$W/build/IMACKERN-LAB.EFI" || fail "lab image lacks the v=2 auth=none header"
 echo "build: default image report_symbols=0, lab image report_symbols=7"
 
 # 2. Host checks of the filter and frames.
@@ -85,8 +85,8 @@ until grep -q "^complete run=0123456789abcdef auth=none " "$W/out/listen.log"; d
 done
 cmp -s "$W/sent.txt" "$W/out/imac-0123456789abcdef.unauthenticated.txt" || fail "rebuilt report differs"
 [ "$(grep -c '^complete ' "$W/out/listen.log")" = 1 ] || fail "report written more than once"
-[ "$(grep -c '^ignored .*retired v=1 raw-console report$' "$W/out/listen.log")" = 1 ] ||
+[ "$(grep -c '^ignored .*retired older report header$' "$W/out/listen.log")" = 1 ] ||
     fail "listener did not refuse the v=1 datagram"
 ls "$W/out" | grep -q '00000000000000ff' && fail "listener wrote the v=1 datagram"
-grep '^ignored' "$W/out/listen.log" | grep -vq 'retired v=1' && fail "listener ignored a valid part"
+grep '^ignored' "$W/out/listen.log" | grep -vq 'retired older' && fail "listener ignored a valid part"
 echo "AIENOS_IMAC_REPORT: PASS"

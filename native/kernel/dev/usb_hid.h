@@ -46,9 +46,11 @@ typedef struct {
     uint8_t previous[CK_HID_MAX_KEYS];
 } ck_hid_decoder;
 
-/* Fixed keymap (US layout, the only one): usages a-z (shift: A-Z), 1-0,
- * space, '-', '.', '/', Enter, Backspace, Escape. Every other usage, and
- * shifted digits or punctuation, yields nothing. */
+/* Fixed keymap (US layout, the only one): every printable ASCII character a
+ * US keyboard types, with and without shift (a-z A-Z, 0-9 and !@#$%^&*(),
+ * space, and the symbol keys - = [ ] \ ; ' ` , . / and their shifted
+ * _ + { } | : " ~ < > ?), plus Enter, Backspace, Escape. Every other usage
+ * (function keys, arrows, Tab, the non-US key) yields nothing. */
 ck_key_event ck_hid_usage(uint8_t usage, int shift);
 /* Decode one 8-byte report: one event per usage that was not pressed in the
  * previous report (key repeat is not generated). A phantom/rollover report

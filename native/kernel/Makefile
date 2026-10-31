@@ -2558,13 +2558,16 @@ $(IMACDIAG_EFI): $(IMACDIAG_ELF)
 	@echo "built $@ (commit $(AIENOS_COMMIT))"
 imac-diag: $(IMACDIAG_EFI)
 
-# ---- IMACKERN.EFI: AIENOS-IMAC-KERNEL-0, the C kernel core on x86_64 (2017 iMac) ----
+# ---- IMACKERN.EFI: AIENOS-KERNEL-0, the C kernel core on x86_64 (2017 iMac) ----
 # x86/efi_x86.c (stub: GOP, RSDP, memory map, ExitBootServices, CHANDOF3) + x86/kmain_x86.c
 # (GDT/TSS/IDT, own page tables, guard page, HPET-timed TSC, local APIC timer, ACPI S5)
 # + x86/pci_x86.c (PCI walk; AHCI via x86/ahci_x86.c and NVMe via ../disk/disk_nvme.c, both
 # read-only, GPT checked by dev/disk_part.c; a look at the Ethernet chip) + x86/smp_x86.S
-# (secondary cores started and parked) + x86/tg3_x86.c (BCM57766 Ethernet: link detection; no
-# transmit in the default image)
+# (secondary cores started and parked) + x86/xhci_x86.c (USB boot keyboard, polled, hubs; key
+# decode and line editor from dev/usb_hid.c) + x86/tg3_x86.c (BCM57766 Ethernet: link detection; no
+# transmit in the default image) + ui/allen_ui.c, ui/allen_font.c (Allen's window on the screen, drawn
+# with its own stroke typeface; ui/night.c, the night sky of the startup, and ui/mind.c, Allen's presence, on ui/paint.c;
+# drawn by the secondary cores) + svc/allen_reply.c (Allen's first local answers)
 # + x86/trap.S + x86/console_x86.c (COM1 when present, GOP framebuffer), on the
 # arch-neutral core: fbcon, fmt, acpi, handoff_check, frames, heap. Same toolchain and PE
 # header as IMACDIAG. Copy to a FAT stick as EFI/BOOT/BOOTX64.EFI.
@@ -2573,7 +2576,7 @@ imac-diag: $(IMACDIAG_EFI)
 #   make imac-kernel CK_X86_REPORT=1 -> $(OUT)/IMACKERN-LAB.EFI (own object dir)
 # adds x86/report_x86.c + ../../net/aienos_net.c and tg3 transmit (-DCK_X86_REPORT=1): during the
 # hold it broadcasts only allowlisted console lines (ck_x86_report_filter, never the raw console)
-# as UDP to port 47031, header "AIENOS-IMAC-REPORT v=2 auth=none": UNAUTHENTICATED, never a
+# as UDP to port 47031, header "AIENOS-REPORT v=2 auth=none": UNAUTHENTICATED, never a
 # receipt, evidence or a command. Host test scripts/ck_imac_report_test.sh, receiver
 # tools/ck_imac_report_listen.c. The default image, and any resident or service (ALLEN) build,
 # must not contain it: the link step below fails a default image that has a report symbol.
@@ -2589,14 +2592,18 @@ else
 $(error CK_X86_REPORT must be 0 (default) or 1 (lab-only network report))
 endif
 IMACKERN_ELF := $(IMACKERN_DIR)/imackern.elf
-IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net
+IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net \
+	-I$(NATIVE)/argus
 IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(IMACKERN_DIR)/efi_gop.o \
 	$(IMACKERN_DIR)/kmain_x86.o $(IMACKERN_DIR)/console_x86.o $(IMACKERN_DIR)/trap.o \
 	$(IMACKERN_DIR)/fbcon.o $(IMACKERN_DIR)/fmt.o $(IMACKERN_DIR)/acpi.o $(IMACKERN_DIR)/handoff_check.o \
 	$(IMACKERN_DIR)/frames.o $(IMACKERN_DIR)/heap.o $(IMACKERN_DIR)/libc_min.o \
 	$(IMACKERN_DIR)/ahci_x86.o $(IMACKERN_DIR)/disk_part.o $(IMACKERN_DIR)/disk.o \
 	$(IMACKERN_DIR)/pci_x86.o $(IMACKERN_DIR)/smp_x86.o $(IMACKERN_DIR)/disk_nvme.o \
-	$(IMACKERN_DIR)/tg3_x86.o
+	$(IMACKERN_DIR)/tg3_x86.o $(IMACKERN_DIR)/xhci_x86.o $(IMACKERN_DIR)/hda_x86.o $(IMACKERN_DIR)/usb_hid.o $(IMACKERN_DIR)/sha256.o \
+	$(IMACKERN_DIR)/allen_ui.o $(IMACKERN_DIR)/allen_font.o $(IMACKERN_DIR)/allen_reply.o \
+	$(IMACKERN_DIR)/paint.o $(IMACKERN_DIR)/night.o $(IMACKERN_DIR)/mind.o $(IMACKERN_DIR)/chirp.o \
+	$(IMACKERN_DIR)/allen_memory.o $(IMACKERN_DIR)/allen_notes.o $(IMACKERN_DIR)/gpt_add.o $(IMACKERN_DIR)/memory_x86.o
 IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o
 # Symbols only the lab image may contain; the default image is checked for them after linking.
 IMACKERN_REPORT_SYMS := ck_x86_report_hold|ck_x86_report_frame|ck_x86_report_filter|ck_x86_report_parts|ck_x86_tg3_send|ck_x86_tg3_drain|net_udp_build
@@ -2608,7 +2615,7 @@ IMACKERN_HDRS := $(X86K)/x86.h $(BOOT)/handoff.h $(BOOT)/efi.h $(KDIR)/core/ck_i
 $(IMACKERN_DIR)/efi_entry_x86_64.o: $(BOOT)/efi_entry_x86_64.S
 $(IMACKERN_DIR)/efi_x86.o: $(X86K)/efi_x86.c $(IMACKERN_HDRS)
 $(IMACKERN_DIR)/efi_gop.o: $(BOOT)/efi_gop.c $(IMACKERN_HDRS)
-$(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(OUT)/commit.stamp
+$(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/allen_reply.h $(OUT)/commit.stamp
 $(IMACKERN_DIR)/console_x86.o: $(X86K)/console_x86.c $(IMACKERN_HDRS) $(KDIR)/core/fbcon.h
 $(IMACKERN_DIR)/trap.o: $(X86K)/trap.S
 $(IMACKERN_DIR)/fbcon.o: $(KDIR)/core/fbcon.c $(KDIR)/core/fbcon.h $(KDIR)/core/font8x8.h
@@ -2625,6 +2632,21 @@ $(IMACKERN_DIR)/pci_x86.o: $(X86K)/pci_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.
 $(IMACKERN_DIR)/smp_x86.o: $(X86K)/smp_x86.S
 $(IMACKERN_DIR)/disk_nvme.o: $(NATIVE)/disk/disk_nvme.c $(NATIVE)/disk/disk_nvme.h $(NATIVE)/disk/disk.h
 $(IMACKERN_DIR)/tg3_x86.o: $(X86K)/tg3_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h
+$(IMACKERN_DIR)/xhci_x86.o: $(X86K)/xhci_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h $(KDIR)/dev/usb_hid.h
+$(IMACKERN_DIR)/hda_x86.o: $(X86K)/hda_x86.c $(IMACKERN_HDRS) $(KDIR)/mm/frames.h $(KDIR)/ui/chirp.h $(KDIR)/ui/night.h
+$(IMACKERN_DIR)/usb_hid.o: $(KDIR)/dev/usb_hid.c $(KDIR)/dev/usb_hid.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/sha256.o: $(NATIVE)/argus/sha256.c $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/allen_ui.o: $(KDIR)/ui/allen_ui.c $(KDIR)/ui/allen_ui.h $(KDIR)/ui/allen_font.h $(KDIR)/ui/night.h $(KDIR)/ui/mind.h $(KDIR)/ui/paint.h
+$(IMACKERN_DIR)/allen_font.o: $(KDIR)/ui/allen_font.c $(KDIR)/ui/allen_font.h
+$(IMACKERN_DIR)/paint.o: $(KDIR)/ui/paint.c $(KDIR)/ui/paint.h $(KDIR)/ui/allen_font.h
+$(IMACKERN_DIR)/night.o: $(KDIR)/ui/night.c $(KDIR)/ui/night.h $(KDIR)/ui/paint.h
+$(IMACKERN_DIR)/chirp.o: $(KDIR)/ui/chirp.c $(KDIR)/ui/chirp.h $(KDIR)/ui/night.h
+$(IMACKERN_DIR)/mind.o: $(KDIR)/ui/mind.c $(KDIR)/ui/mind.h $(KDIR)/ui/paint.h
+$(IMACKERN_DIR)/allen_reply.o: $(KDIR)/svc/allen_reply.c $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_notes.h
+$(IMACKERN_DIR)/allen_notes.o: $(KDIR)/svc/allen_notes.c $(KDIR)/svc/allen_notes.h
+$(IMACKERN_DIR)/allen_memory.o: $(KDIR)/svc/allen_memory.c $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_notes.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/gpt_add.o: $(KDIR)/dev/gpt_add.c $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
+$(IMACKERN_DIR)/memory_x86.o: $(X86K)/memory_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_notes.h $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h
 $(IMACKERN_DIR)/report_x86.o: $(X86K)/report_x86.c $(X86K)/report_x86.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h
 $(IMACKERN_DIR)/aienos_net.o: $(NATIVE)/net/aienos_net.c $(NATIVE)/net/aienos_net.h
 $(sort $(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS)):
@@ -2633,8 +2655,10 @@ $(sort $(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS)):
 $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	@if grep -nE -- 'rt->|RuntimeServices' $(X86K)/*.c; then \
 	  echo "the x86 kernel calls a UEFI runtime service; it must never call one"; exit 1; fi
-	@if grep -nE "define ATA_" $(X86K)/ahci_x86.c | grep -vE "ATA_(IDENTIFY 0xec|READ_DMA_EXT 0x25)$$"; then \
-	  echo "ahci_x86.c defines an ATA command other than IDENTIFY and READ DMA EXT; the driver is read-only"; exit 1; fi
+	@if grep -nE "define ATA_" $(X86K)/ahci_x86.c | grep -vE "ATA_(IDENTIFY 0xec|READ_DMA_EXT 0x25|WRITE_DMA_EXT 0x35|FLUSH_CACHE_EXT 0xea)$$"; then \
+	  echo "ahci_x86.c defines an ATA command other than IDENTIFY, READ/WRITE DMA EXT and FLUSH CACHE EXT"; exit 1; fi
+	@if grep -nE "ck_x86_ahci_allow\(" $(X86K)/*.c | grep -vE "^$(X86K)/(memory_x86\.c|ahci_x86\.c:[0-9]+:int ck_x86_ahci_allow\()"; then \
+	  echo "only memory_x86.c may open a write range on an AHCI disk"; exit 1; fi
 	@if grep -nE "nvme_(write|flush)\(" $(X86K)/*.c; then \
 	  echo "the x86 kernel calls nvme_write or nvme_flush; its disks are read-only"; exit 1; fi
 	@mkdir -p $(dir $@)
@@ -2653,7 +2677,7 @@ $(IMACKERN_ELF): $(IMACKERN_OBJS) $(BOOT)/image_x86_64.ld
 	elif [ -n "$$r" ]; then \
 	  echo "default iMac image links the lab-only network report (build it with CK_X86_REPORT=1 only):"; \
 	  echo "$$r"; rm -f $@; exit 1; fi
-	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-IMAC-REPORT" $@; then \
+	@if [ "$(CK_X86_REPORT)" != 1 ] && grep -aq "AIENOS-REPORT" $@; then \
 	  echo "default iMac image carries the report header string"; rm -f $@; exit 1; fi
 $(IMACKERN_EFI): $(IMACKERN_ELF)
 	$(X86OBJCOPY) -O binary $< $@

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# qemu_ck_imac_kernel_test.sh -- QEMU test for IMACKERN.EFI (AIENOS-IMAC-KERNEL-0,
+# qemu_ck_imac_kernel_test.sh -- QEMU test for IMACKERN.EFI (AIENOS-KERNEL-0,
 # native/kernel/x86). QEMU is an emulator: a PASS here qualifies nothing about a
 # 2017 iMac or any other real x86_64 machine.
 #
@@ -23,7 +23,7 @@
 # (two CPU models; the kernel drives the local APIC in xAPIC mode on both). Each run
 # must leave boot services, switch to the kernel's own page tables, prove the guard
 # page, measure the TSC against the HPET, take 20 local APIC timer interrupts, print
-# start the three other cores (-smp 4) and park them, find both SATA disks behind
+# start the three other cores (-smp 4) drawing the night sky of the startup, find both SATA disks behind
 # the q35 AHCI controller and an NVMe disk with its own GPT and read them without
 # writing (the ESP, and a data disk with a GPT whose AIENOS partition the kernel
 # must locate where ck_gpt_image wrote it; the data disk must be byte-identical
@@ -88,12 +88,16 @@ chk() { # description, file, pattern
 run() { # name, -cpu model, expected APIC mode
     local name="$1" cpu="$2" mode="$3" log="${work}/$1.log" txt="${work}/$1.txt"
     cp "${vars_fd}" "${work}/vars.fd"
+    # AIENOS_IMAC_KERNEL_KEEP_DIR: keep each run's serial log (.txt) and a recording of its sound (.wav) there
+    local audio="none,id=snd0" keep="${AIENOS_IMAC_KERNEL_KEEP_DIR:-}"
+    [[ -z "${keep}" ]] || audio="wav,id=snd0,path=${keep}/${name}.wav,out.frequency=48000,out.channels=2,out.format=s16"
     qemu-system-x86_64 -M q35 -accel tcg -cpu "${cpu}" -smp 4 -m 1024 \
         -drive if=pflash,format=raw,readonly=on,file="${code_fd}" \
         -drive if=pflash,format=raw,file="${work}/vars.fd" \
         -drive if=none,id=esp,format=raw,file="${img}" -device ide-hd,drive=esp,bus=ide.0 \
         -drive if=none,id=data,format=raw,file="${data}" -device ide-hd,drive=data,bus=ide.1 \
         -drive if=none,id=nvm,format=raw,file="${nvm}" -device nvme,drive=nvm,serial=AIENOSQEMU \
+        -audiodev "${audio}" -device ich9-intel-hda -device hda-output,audiodev=snd0 \
         -display none -nic none -serial file:"${log}" -no-reboot &
     qpid=$!
     local self_exit=0
@@ -105,8 +109,9 @@ run() { # name, -cpu model, expected APIC mode
     wait "${qpid}" 2>/dev/null || true
     qpid=""
     tr -d '\r' <"${log}" >"${txt}" 2>/dev/null || : >"${txt}"
+    [[ -z "${keep}" ]] || cp "${txt}" "${keep}/${name}.txt"
     echo "== run ${name} (-cpu ${cpu}) =="
-    chk "${name}: title" "${txt}" '^AIENOS-IMAC-KERNEL-0$'
+    chk "${name}: title" "${txt}" '^AIENOS-KERNEL-0$'
     chk "${name}: commit" "${txt}" "^aienos_commit: ${commit}\$"
     chk "${name}: GOP found" "${txt}" '^gop: ok '
     chk "${name}: RSDP" "${txt}" '^acpi_rsdp: 0x[0-9a-f]*[1-9a-f][0-9a-f]*$'
@@ -128,10 +133,17 @@ run() { # name, -cpu model, expected APIC mode
     chk "${name}: ESP has no GPT" "${txt}" "^ahci_gpt: ctrl=0 disk=0 refused: no protective MBR\$"
     chk "${name}: data disk identified" "${txt}" "^ahci_disk: ctrl=0 disk=1 port=1 link=gen[0-9] model=\"QEMU HARDDISK\" blocks=131072 block=512 mib=64 access=read-only\$"
     chk "${name}: data disk AIENOS partition where written" "${txt}" "^ahci_gpt: ctrl=0 disk=1 gpt=valid used=3 aienos first_lba=${a_first} last_lba=${a_last}\$"
-    chk "${name}: three secondary cores started" "${txt}" "^smp: cpus=4 started=3 failed=0 bsp_id=0 ap_ids=[0-9]+,[0-9]+,[0-9]+ trampoline=0x[0-9a-f]+ state=halted\$"
+    chk "${name}: three secondary cores started, drawing the night" "${txt}" "^smp: cpus=4 started=3 failed=0 bsp_id=0 ap_ids=[0-9]+,[0-9]+,[0-9]+ trampoline=0x[0-9a-f]+ state=drawing helpers=[0-2]\$"
     chk "${name}: NVMe controller found" "${txt}" "^pci: nvme [0-9a-f:.]+ id=1b36:0010 "
     chk "${name}: NVMe disk identified" "${txt}" "^nvme_disk: ctrl=0 disk=0 version=1\\.[0-9]+ nsid=1 blocks=65536 block=512 mib=32 access=read-only\$"
     chk "${name}: NVMe AIENOS partition where written" "${txt}" "^nvme_gpt: ctrl=0 disk=0 gpt=valid used=3 aienos first_lba=${n_first} last_lba=${n_last}\$"
+    chk "${name}: the night began at boot" "${txt}" "^screen: night: the sky made in [0-9]+ ms \([0-9]+ MiB drawing memory\); stars, black holes, then Allen\$"
+    chk "${name}: sound controller found" "${txt}" "^pci: sound [0-9a-f:.]+ id=8086:293e class=0403[0-9a-f]{2} "
+    chk "${name}: sound controller looked at" "${txt}" "^sound: ctrl=0 version=1\\.0 streams out=[1-9][0-9]* "
+    chk "${name}: codec mapped through the command rings" "${txt}" "^sound: codec=0 id=1af4:[0-9a-f]{4} sub=[0-9a-f]{4}:[0-9a-f]{4} rev=0x[0-9a-f]{8} afg=1 power=D0 widgets=0x02\\.\\.0x03 "
+    chk "${name}: output path opened" "${txt}" "^sound: ctrl=0 opened 1 output pin\\(s\\): codec 0 pins 0x03\\(line\\)<-0x02\$"
+    chk "${name}: chirp stream running" "${txt}" "^sound: ctrl=0 stream 4 playing the chirp from night [0-9]+ ms .* position after 2 ms [1-9][0-9]* bytes, status 0x[0-9a-f]{2}\$"
+    chk "${name}: chirp stream stopped after the chirp" "${txt}" "^sound: chirp over; stream stopped at night [0-9]+ ms "
     chk "${name}: no Ethernet in this VM" "${txt}" "^net: no Ethernet controller\$"
     chk "${name}: storage summary" "${txt}" "^storage: pci_functions=[1-9][0-9]* ahci_controllers=1 disks=2 nvme_controllers=1 nvme_disks=1 gpt_valid=2 writes=none\$"
     chk "${name}: one-line summary" "${txt}" "^summary: cores=4/4 timer=ok sata_disks=2 nvme_disks=1 gpt_valid=2 writes=none net=none\$"
@@ -141,7 +153,7 @@ run() { # name, -cpu model, expected APIC mode
     chk "${name}: W^X audit, only code executable, every core" "${txt}" '^wx_audit: ok wx_pages=0 exec_pages=([1-9][0-9]*) text_pages=\1 exec_outside_text=0 ro_writable=0 cores_nx_wp=4/4 trampoline=retired$'
     if grep -aq '^wx: TEST-ONLY' "${txt}"; then echo "FAIL  ${name}: default image is a W^X mutant"; fails=$((fails + 1)); fi
     chk "${name}: kernel alive" "${txt}" '^kernel: alive$'
-    chk "${name}: DONE" "${txt}" '^AIENOS-IMAC-KERNEL-0 DONE$'
+    chk "${name}: DONE" "${txt}" '^AIENOS-KERNEL-0 DONE$'
     chk "${name}: ACPI S5 power off" "${txt}" '^power: off via ACPI S5 pm1a=0x[0-9a-f]+ '
     if grep -aqE '^(panic|power: still running|power: halted)' "${txt}"; then
         echo "FAIL  ${name}: panic or failed power off"; fails=$((fails + 1))

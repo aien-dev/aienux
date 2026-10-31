@@ -230,15 +230,15 @@ int ck_gpt_find_type(const disk_dev *d, const uint8_t type[16], ck_part *p, ck_g
     if (rc) return rc;
     if (bcrc != get32(g_hdr + H_ECRC)) return CK_GPT_EBACKUP;
 
+    info->first_usable = first_u;
+    info->last_usable = last_u;
+    info->entries = g.num;
+    info->entry_size = g.esize;
     if (sem) {
         p->first_lba = 0;
         p->blocks = 0;
         return sem;
     }
-    info->first_usable = first_u;
-    info->last_usable = last_u;
-    info->entries = g.num;
-    info->entry_size = g.esize;
     p->valid = 1;
     p->dev.block_count = p->blocks;
     return CK_GPT_OK;

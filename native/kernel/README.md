@@ -24,7 +24,7 @@ Real hardware runs so far: Raspberry Pi 5 test images (records in
 | `gpu/` | GB10 GPU memory side, cut D, host only: GPU page tables in the format the NVIDIA driver uses for GB10, a bounded GPU buffer allocator with per-buffer cache policy and quarantine, one compute channel (ring, USERD, instance block, doorbell), and a simulated GB10 to test them on. Not linked into any image; never run on the chip. See "GB10 GPU memory (simulated)" below. |
 | `tests/` | Host unit tests. |
 | `third_party/omega/` | The canonical Omega Cortex store, byte for byte from the omega commit in `omega.lock` (checked by `scripts/omega_lock_check.sh`); built freestanding by `svc/cortex_store.c` over the sealed Store through `svc/cortex_journal.c` (native v1 plan P06). |
-| `x86/` | x86_64 port, first cut (AIENOS-IMAC-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
+| `x86/` | x86_64 port, first cut (AIENOS-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
 | `../boot/` | Minimal UEFI entry stub (one image with the kernel). |
 
 ## Build and test
@@ -165,7 +165,7 @@ of them:
   host tools) are still present as data in every image, including hardware
   staging; the ordinary loader trusts no anchor.
 
-## 2017 iMac image (AIENOS-IMAC-KERNEL-0, x86_64)
+## 2017 iMac image (AIENOS-KERNEL-0, x86_64)
 
     make -C native/kernel imac-kernel        # target/native-kernel/IMACKERN.EFI
     scripts/qemu_ck_imac_kernel_test.sh      # QEMU q35 + OVMF, two CPU models, ends AIENOS_IMAC_KERNEL
@@ -210,7 +210,7 @@ kernel diagnostic keys; everything else, including `memory:`, is dropped
 whole, so chat, keys, tokens and credentials cannot enter it), as UDP
 broadcast from 0.0.0.0 to 255.255.255.255 port 47031 (TTL 1), in 1 KiB parts
 that each start with
-`AIENOS-IMAC-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
+`AIENOS-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
 Anyone on the LAN can read or forge these datagrams; the run id and checksum
 are not authenticity, so a report is never a receipt, evidence or a command.
 Future service diagnostics belong on the authenticated transport with an
@@ -221,6 +221,84 @@ and rebuilds each run into `OUTDIR/imac-<run>.unauthenticated.txt`;
 `scripts/ck_imac_report_test.sh` checks the default and lab builds' symbols,
 the allowlist (sentinel lines never leave), the frames and reassembly on the
 host.
+
+**Startup: the night sky.** The moment the clock is measured, before anything
+is printed, `ui/allen_ui.c` takes the screen and starts the night
+(`ui/night.c`): a dark sky fades in over about seven seconds, the brightest
+stars first, with the Milky Way, its dust and six galaxies; two black holes
+appear, bending the starlight round them, circle and spiral in on the
+inspiral law (separation as t^(1/4), angle as t^(5/8), t the time left),
+merge at 12 s in a flash, and a ripple runs out across the sky. From the light
+of the merger Allen gathers (`ui/mind.c`): no face and no body, a mind drawn as
+light, about a hundred points on and inside a sphere joined by fine threads,
+turning slowly round a warm heart, with sparks running along the threads.
+The startup text stays off the screen (`ck_x86_console_fb_hold`) until
+Allen's window takes over; a panic, or no window, stops the drawing and
+brings the text back. Every pixel is worked out from its position and the
+time, so a frame redraws only the parts that change, in strips: once the
+secondary cores are up, the first draws the frames and the next two draw
+strips of them (`smp: ... state=drawing helpers=2`); before that the boot core
+draws a frame between console writes. Kernel lines: `screen: night: the sky
+made in ...` and `screen: night: N frames ..., average ... ms, slowest ...
+ms` (when Allen wakes, 20 s later, and at goodbye).
+`ui/chirp.c` is the matching sound: a quick "blirp", the last 0.6 s of the
+gravitational-wave chirp of the same inspiral, raised into hearing (200 Hz
+sweeping to 1000 Hz, loudness as pitch^(2/3)), peaking at the merger and
+ringing out within 0.3 s: under a second in all, worked out from the formula. `x86/hda_x86.c` plays
+it: on each HD Audio controller it stops any DMA the firmware left running, resets the link with
+the settle times Linux uses, talks to the codecs through the command rings
+(CORB/RIRB, polled), maps every widget of each codec onto the report
+(`sound: codec=N w=0x.. ...`), opens every speaker, line-out and headphone
+path back to a converter (power, routing, 0 dB, pin drive, EAPD; on Apple
+boards the codec GPIOs), and on the first controller with a path runs one
+output stream: the chirp from the moment the night has reached, then 8 s of
+silence; the stream is stopped once the chirp is over. Intel controllers get
+Linux's PCI settings first (`pci_x86.c`). In QEMU the recording of what the
+guest played matches the chirp sample for sample, starting at the night's
+moment. A Cirrus CS8409 bridge on an Apple board (the desktop test
+computer's codec) gets its own set-up instead: its four speaker amplifiers
+sit behind it on its own I2C bus, so the driver sets the bridge's defaults,
+resets the amplifiers into shutdown, sets the TDM slots and clocks, configures
+and switches on each amplifier and synchronises the two converters, following
+the sequence davidjo/snd_hda_macbookpro replays from macOS. That sequence only
+plays 44.1 kHz 24-bit, so behind a CS8409 the chirp is resampled to that
+(`ck_chirp_fill_441`, host tested against the 48 kHz sound). The amplifiers
+run 24 dB under the level macOS uses. **Heard on the test computer
+(2026-10-18):** all four amplifiers answered (no I2C transfer unconfirmed)
+and the chirp played; at 12 dB under it was very loud and the old ten-second
+chirp too long, hence the quieter level and the short blirp. QEMU has no
+CS8409, so this path is checked only on that machine.
+Tests: `scripts/ck_allen_ui_test.sh` (host; pictures in
+`target/native-kernel-allen-ui/`), `scripts/ck_chirp_test.sh` (the sound as
+`target/native-kernel-chirp/chirp.wav`); the QEMU kernel test requires the
+night line, the drawing cores, the codec mapped through the command rings,
+the chirp stream running and its stop. `AIENOS_IMAC_KERNEL_KEEP_DIR=<dir>`
+keeps each run's serial log and a `.wav` recording of its sound.
+
+**Keyboard and Allen's window.** `x86/xhci_x86.c` drives a wired USB boot
+keyboard (polled xHCI, through USB 2.0 hubs). When one is ready, Allen wakes:
+the person is his guest. A quiet glass bar comes up at the bottom for what
+they type; on Enter the line rises from the bar into him, he thinks (he draws
+in, turns faster, sparks cascade), then answers under him word by word while
+the galaxies shimmer with his voice, all in Allen's own stroke typeface
+(`ui/allen_font.c`, every printable ASCII character as pen strokes,
+rasterized with integer math). Nothing else is on the screen unless it is in
+use: the bar fades when the conversation rests (a key brings it back), his
+words fade once read, and the notes map (a small constellation) shows only
+when a note is saved or handed back. Each Enter gets a local answer from
+`svc/allen_reply.c`: "Hello Allen" gives "Hello Humanity."; it also knows small
+talk, your name for the session, facts about the machine, how long it has been
+awake and sums said in words ("what is 12 times 4"); anything else gives "I
+don't know that yet." Answers print as `allen: <answer>` on the console. The
+window has no idle countdown: it stays up until "goodbye" (then ACPI S5, or a
+restart in the lab image) or the power button. The conversation stays on the computer: `keyboard_line:` and `allen:`
+are off the lab report's allowlist, which carries only `screen: Allen
+answered (N characters in, M out)`. Without a keyboard or the memory the text
+screen and its 60 s hold stay. Tests: `scripts/ck_allen_ui_test.sh` (host) and
+`scripts/qemu_ck_imac_keyboard_test.sh` (QEMU, types "Hello Allen", keeps a
+screenshot as `target/native-kernel-imac-keyboard/allen-qemu.png`). What Allen
+learns and the notes it keeps are saved in its section of the disk
+(`svc/allen_memory.c`, `x86/memory_x86.c`) and come back after a restart.
 
 Output: the GOP framebuffer
 (`core/fbcon.c`, lines from before ExitBootServices replayed onto it) and COM1
@@ -374,9 +452,13 @@ What is implemented (NEXT-PHASE-3 cut 1):
   `dev/usb_kbd.c` resets the controller, finds the first connected port with
   a USB HID boot keyboard, addresses it, configures its interrupt IN
   endpoint and polls it. Polled only: no interrupts, no scheduler, no Store.
-- **Key decode** to one small fixed US keymap (`dev/usb_hid.c`): a-z (with
-  Shift: A-Z), 0-9, space, `-`, `.`, `/`, Enter, Backspace, Escape. Every
-  other key is ignored. A held key produces one event, not a repeat.
+- **Key decode** to one fixed US keymap (`dev/usb_hid.c`): every printable
+  character a US keyboard types, with and without Shift (letters, digits and
+  `!@#$%^&*()`, space, and the symbol keys with their shifted pairs, `?`
+  included), plus Enter, Backspace, Escape. Function keys, arrows, Tab and the
+  non-US key are ignored. A held key produces one event, not a repeat. The
+  console's commands match whole words only, so symbols can only make an
+  unknown command; Allen's facts keep letters, digits and spaces.
 - **Line input** with echo and a bound of 64 characters. One key past the
   bound makes the whole line fail closed: at Enter it is refused
   (`keyboard_line: overflow (line refused: N keys typed, limit 64)`) and never

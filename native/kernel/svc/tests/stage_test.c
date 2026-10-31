@@ -2046,7 +2046,23 @@ static void test_usb_hid(void)
     CHECK(ck_hid_usage(0x04, 0).kind == CK_KEY_CHAR && ck_hid_usage(0x04, 0).c == 'a');
     CHECK(ck_hid_usage(0x1d, 1).c == 'Z');
     CHECK(ck_hid_usage(0x1e, 0).c == '1' && ck_hid_usage(0x27, 0).c == '0');
-    CHECK(ck_hid_usage(0x1e, 1).kind == CK_KEY_NONE); /* shifted digit: not in the keymap */
+    CHECK(ck_hid_usage(0x1e, 1).c == '!' && ck_hid_usage(0x27, 1).c == ')' && ck_hid_usage(0x1f, 1).c == '@');
+    CHECK(ck_hid_usage(0x38, 1).kind == CK_KEY_CHAR && ck_hid_usage(0x38, 1).c == '?'); /* the question mark */
+    CHECK(ck_hid_usage(0x38, 0).c == '/' && ck_hid_usage(0x37, 0).c == '.' && ck_hid_usage(0x37, 1).c == '>');
+    CHECK(ck_hid_usage(0x34, 0).c == '\'' && ck_hid_usage(0x34, 1).c == '"' && ck_hid_usage(0x31, 0).c == '\\');
+    CHECK(ck_hid_usage(0x2d, 1).c == '_' && ck_hid_usage(0x33, 1).c == ':' && ck_hid_usage(0x35, 1).c == '~');
+    CHECK(ck_hid_usage(0x32, 0).kind == CK_KEY_NONE && ck_hid_usage(0x2b, 0).kind == CK_KEY_NONE); /* non-US, Tab */
+    {
+        int all = 1; /* every printable character but space comes from exactly one key */
+        for (int ch = 0x21; ch <= 0x7e; ch++) {
+            int n = 0;
+            for (int u = 0x04; u <= 0x38; u++)
+                for (int s = 0; s < 2; s++)
+                    n += ck_hid_usage((uint8_t)u, s).kind == CK_KEY_CHAR && ck_hid_usage((uint8_t)u, s).c == ch;
+            all &= n == 1;
+        }
+        CHECK(all);
+    }
     CHECK(ck_hid_usage(0x28, 0).kind == CK_KEY_ENTER && ck_hid_usage(0x2a, 0).kind == CK_KEY_BACKSPACE);
     CHECK(ck_hid_usage(0x29, 0).kind == CK_KEY_ESCAPE && ck_hid_usage(0x2c, 0).c == ' ');
     CHECK(ck_hid_usage(0x3a, 0).kind == CK_KEY_NONE); /* F1 */

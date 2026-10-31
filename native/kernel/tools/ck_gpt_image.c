@@ -27,6 +27,8 @@
  *         two-aienos      same, sentinel-b also has the AIENOS type
  *         aienos-outside  sentinel-a, AIENOS [9, M+1): ends past the disk
  *         aienos-overlap  sentinel-a [1,9), AIENOS [5,M-7), sentinel-b
+ *         one-old         sentinel-a only; the rest unused (Allen memory gate)
+ *         one-whole       one empty Linux partition [1, M-1): no unused gap
  *         no-gpt          sentinel fills only: no protective MBR, no GPT
  *         esp-model ESP_MIB MODEL_FILE   ESP + model in 3 out-of-order
  *                         extents (see esp_model below; model ingest gate)
@@ -211,13 +213,18 @@ static int cmd_create(int argc, char **argv)
         n = 2;
     } else if (!strcmp(lay, "aienos-overlap")) {
         p[1].first = 5 * per;
+    } else if (!strcmp(lay, "one-old")) {
+        n = 1; /* sentinel-a only: the rest of the disk unused */
+    } else if (!strcmp(lay, "one-whole")) {
+        p[0] = (gw_part){gw_linux_type, 1 * per, (mib - 1u) * per - 1u, "whole", 0};
+        n = 1;
     } else if (!strcmp(lay, "no-gpt")) {
         flags |= GW_NO_GPT;
     } else {
         return usage();
     }
     if (gw_write(argv[2], bs, blocks, p, n, flags)) return 1;
-    int has = strcmp(lay, "no-aienos") != 0;
+    int has = strcmp(lay, "no-aienos") && strcmp(lay, "one-old") && strcmp(lay, "one-whole");
     printf("gpt_image bs=%u blocks=%llu aienos_first_lba=%llu aienos_last_lba=%llu\n", bs,
            (unsigned long long)blocks, has ? (unsigned long long)p[1].first : 0ull,
            has ? (unsigned long long)p[1].last : 0ull);
