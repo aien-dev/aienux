@@ -82,4 +82,20 @@ static inline size_t nb_text_len(const char *text)
     return n;
 }
 
+/* What the loader hands the kernel it starts, as that image's LoadOptions
+ * (EFI_LOADED_IMAGE_PROTOCOL, UEFI 2.10 section 9.1): the processor clock
+ * (TSC, counting since power-on) when the loader began and when it started
+ * the kernel, and, for a network kernel, where the verified object (4096-byte
+ * signed manifest + image) lies, in the loader's EfiLoaderData pages, which
+ * the kernel's frame allocator never hands out. The kernel installs that
+ * object on its disk's boot section (kernel/dev/fat_boot.h). */
+#define NB_PASS_MAGIC "AIENNLP1"
+struct nb_pass {
+    uint8_t magic[8];
+    uint64_t loader_tsc;  /* the loader's first instruction */
+    uint64_t start_tsc;   /* just before StartImage */
+    uint64_t object;      /* physical address of the verified object; 0: none (a local kernel) */
+    uint64_t object_len;  /* manifest + image bytes */
+};
+
 #endif /* AIENOS_NETBOOT_PROTO_H */

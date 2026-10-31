@@ -19,7 +19,9 @@
  *      the reason, nothing runs, back to step 2.
  *   4. Verified: DONE status 0, SNP Shutdown + Stop + CloseProtocol (no
  *      firmware DMA into memory the kernel will own), LoadImage from the
- *      verified buffer, StartImage.
+ *      verified buffer, StartImage, with LoadOptions = struct nb_pass
+ *      (netboot_proto.h): the loader's clock stamps and where the verified
+ *      object lies, so the kernel can install it on its own disk.
  *   No answer at all for CK_NETLDR_FALLBACK_S seconds: start the kernel on the
  *   stick itself (\EFI\AIENOS\IMACKERN.EFI on this loader's volume), so the
  *   iMac still runs AIENOS with the Spark disconnected. That file is trusted
@@ -387,11 +389,16 @@ static int net_recv(const uint8_t nonce[16], uint64_t deadline, struct nb_msg *o
 }
 
 /* ---- starting a kernel ------------------------------------------------------ */
-static void start_image(const char *what, void *buf, uint64_t len)
+static struct nb_pass pass; /* the kernel copies it before it leaves boot services */
+
+/* obj: the verified object (manifest + image) for a network kernel, 0 for the local one */
+static void start_image(const char *what, void *buf, uint64_t len, const uint8_t *obj, uint64_t obj_len)
 {
     static const EFI_GUID lidp_guid = LOADED_IMAGE_DEVICE_PATH_GUID_INIT;
+    static const EFI_GUID li_guid = EFI_LOADED_IMAGE_PROTOCOL_GUID_INIT;
     void *dp = 0;
     EFI_HANDLE child = 0;
+    EFI_LOADED_IMAGE_PROTOCOL *li = 0;
     bs->HandleProtocol(self, &lidp_guid, &dp);
     EFI_STATUS s = ((load_image_fn)bs->LoadImage)(0, self, dp, buf, len, &child);
     if (s != EFI_SUCCESS) {
@@ -400,6 +407,14 @@ static void start_image(const char *what, void *buf, uint64_t len)
     }
     say("netldr: starting the %s kernel (%llu bytes)\n", what, (unsigned long long)len);
     watchdog(300);
+    memcpy(pass.magic, NB_PASS_MAGIC, 8);
+    pass.object = (uint64_t)(uintptr_t)obj;
+    pass.object_len = obj ? obj_len : 0;
+    if (bs->HandleProtocol(child, &li_guid, (void **)&li) == EFI_SUCCESS && li) {
+        li->LoadOptions = &pass;
+        li->LoadOptionsSize = sizeof pass;
+    }
+    pass.start_tsc = rdtsc();
     s = ((start_image_fn)bs->StartImage)(child, 0, 0);
     say("netldr: the %s kernel returned status=0x%llx\n", what, (unsigned long long)s);
 }
@@ -437,7 +452,7 @@ static void start_local(void)
     f->Close(f);
     root->Close(root);
     if (pa && got > 0 && got < LOCAL_MAX)
-        start_image("local", (void *)(uintptr_t)pa, got);
+        start_image("local", (void *)(uintptr_t)pa, got, 0, 0);
     else if (pa)
         say("netldr: local kernel unreadable or larger than %llu bytes\n", (unsigned long long)LOCAL_MAX);
     if (pa)
@@ -578,13 +593,14 @@ static int exchange(void)
     done(nonce, 0, "verified, starting");
     bs->Stall(200000); /* let the last frames leave before the NIC is stopped */
     net_close();
-    start_image("network", obj + CK_SLOT_UNIT, m->image_len);
+    start_image("network", obj + CK_SLOT_UNIT, m->image_len, obj, total);
     bs->FreePages(pa, pages);
     return R_BOOT;
 }
 
 EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
 {
+    pass.loader_tsc = rdtsc();
     conout = st->ConOut;
     bs = st->BootServices;
     self = image;

@@ -300,6 +300,26 @@ screenshot as `target/native-kernel-imac-keyboard/allen-qemu.png`). What Allen
 learns and the notes it keeps are saved in its section of the disk
 (`svc/allen_memory.c`, `x86/memory_x86.c`) and come back after a restart.
 
+**Starting from its own disk.** When the network loader (`../boot/net_loader.c`)
+starts a kernel it hands it a `struct nb_pass` (`../boot/netboot_proto.h`) as
+LoadOptions: the processor clock when the loader began, and where the verified
+object (signed manifest + image) lies in the loader's memory. The kernel checks
+the image's SHA-512 against the manifest again and installs it on the disk that
+holds Allen's section, in a 256 MiB EFI System Partition it adds in unused
+space (`dev/gpt_add.c` `ck_gpt_add`; never on a disk that already has another
+system's), as `\EFI\BOOT\BOOTX64.EFI` on a FAT32 volume it writes itself
+(`dev/fat_boot.c`, Microsoft FAT32 specification 1.03). Two slots: the new
+kernel goes into the one the firmware does not start, then a single directory
+sector switches over, so a power cut leaves the old kernel or the new one,
+never a mix; the same kernel again writes nothing. After that the firmware
+starts AIENOS from the disk with no stick and no network. Every start prints
+`boot_time:` (milliseconds since power on: firmware, loader, kernel, Allen's
+window) and `boot_disk:` (what the boot section holds). Tests:
+`scripts/ck_fat_boot_test.sh` (host: power cuts at every sampled block,
+`fsck.fat` and mtools as outside readers) and
+`scripts/qemu_ck_imac_bootdisk_test.sh` (QEMU: install over the network, then
+start from the disk alone, then a second kernel into the other slot).
+
 Output: the GOP framebuffer
 (`core/fbcon.c`, lines from before ExitBootServices replayed onto it) and COM1
 when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
@@ -308,7 +328,7 @@ when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
 cores and attaches a SATA data disk and an NVMe disk, each with a GPT from
 `ck_gpt_image`, and fails unless three cores check in, the kernel finds each
 AIENOS partition where the tool wrote it and both disks are byte-identical
-afterwards. Not yet: work scheduled on the other cores, x2APIC, disk writes,
+afterwards. Not yet: work scheduled on the other cores, x2APIC,
 VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.

@@ -124,7 +124,7 @@ void ck_x86_console_fb_show(void);
 struct ck_frames;
 struct ck_x86_storage_result {
     unsigned pci_functions, ahci_ctrls, ahci_disks, nvme_ctrls, nvme_disks, gpt_valid;
-    unsigned net_found, net_link; /* net_link: 0 not read, 1 up, 2 down */
+    unsigned net_found, net_link; /* net_link: 0 not read, 1 up, 2 down, 3 not up yet (driver running) */
     unsigned net_driver;          /* 0 not tried, 1 running, 2 failed */
 };
 const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_frames *fr, uint64_t tsc_hz,
@@ -142,9 +142,21 @@ int ck_x86_ahci_allow(unsigned index, uint64_t first, uint64_t last);
 /* Closes every write range of the disk. */
 void ck_x86_ahci_allow_none(unsigned index);
 
+/* efi_x86.c: what the network loader handed this kernel (boot/netboot_proto.h),
+ * or 0 when it was not started by the loader (the firmware started it from a
+ * disk, or another loader). *object_dropped: the loader named an object that
+ * was not in its own memory, so it was ignored. */
+struct nb_pass;
+const struct nb_pass *ck_x86_netldr_pass(int *object_dropped);
+
+/* kmain_x86.c: marks the end of a start-up step (TSC now) for boot_time's
+ * breakdown; name is a short static string. */
+void ck_x86_step(const char *name);
+
 /* memory_x86.c: Allen's memory and notes on a hard disk (svc/allen_memory.h).
  * open: finds the disk holding Allen's section (or adds one on an approved
- * disk, in unused space), lists its partitions, loads the newest copy into
+ * disk, in unused space), lists its partitions, installs the network loader's
+ * verified kernel on the boot section beside it (fat_boot.h), loads the newest copy into
  * *mem and the notes it counts into *notes. 1 when saves will reach the disk,
  * 0 when Allen remembers only until power off. save, notes_write (note index,
  * written before the save that counts it): 0 or -1 (then nothing more is

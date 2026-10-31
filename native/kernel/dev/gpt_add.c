@@ -12,7 +12,7 @@ static uint64_t g_f[CK_GPT_MAX_USED], g_l[CK_GPT_MAX_USED];
 
 /* UEFI 2.10 table 5-5 offsets, as in disk_part.c */
 enum { H_CRC = 16, H_SIZE = 12, H_GUID = 56, H_ENT_LBA = 72, H_ECRC = 88 };
-static const char part_name[] = "AIENOS Allen memory";
+static const ck_gpt_new allen_memory = {ck_aienos_part_type, "AIENOS Allen memory", "aienos.allen.memory.v1"};
 
 static uint32_t get32(const uint8_t *p)
 {
@@ -67,8 +67,10 @@ int ck_gpt_list(const disk_dev *d, void (*fn)(void *ctx, const ck_gpt_entry *e),
             continue;
         ck_gpt_entry out;
         out.index = i;
-        for (int k = 0; k < 16; k++)
+        for (int k = 0; k < 16; k++) {
             out.type[k] = e[k];
+            out.uguid[k] = e[16 + k];
+        }
         out.first = get64(e + 32);
         out.last = get64(e + 40);
         unsigned n = 0;
@@ -93,14 +95,72 @@ static void header_crc(uint8_t *h, uint32_t ecrc)
     put32(h + H_CRC, ck_crc32(0, h, get32(h + H_SIZE)));
 }
 
-int ck_gpt_add_aienos(const disk_dev *d, uint64_t blocks, uint64_t align, ck_gpt_added *out)
+/* The unique GUID of a partition this file adds: SHA-256 over the label
+ * (with its terminator), the disk GUID and the first LBA, cut to 16 bytes and
+ * marked version 4 / variant 1. */
+static void unique_guid(const char *label, const uint8_t *disk_guid, uint64_t first, uint8_t out[16])
+{
+    uint8_t dig[32], lba8[8];
+    size_t n = 0;
+    while (label[n])
+        n++;
+    put64(lba8, first);
+    sha256_ctx h;
+    sha256_init(&h);
+    sha256_update(&h, (const uint8_t *)label, n + 1u);
+    sha256_update(&h, disk_guid, 16);
+    sha256_update(&h, lba8, 8);
+    sha256_final(&h, dig);
+    for (int i = 0; i < 16; i++)
+        out[i] = dig[i];
+    out[7] = (uint8_t)((out[7] & 0x0f) | 0x40);
+    out[8] = (uint8_t)((out[8] & 0x3f) | 0x80);
+}
+
+int ck_gpt_is_ours(const disk_dev *d, const ck_gpt_new *spec, uint32_t index)
 {
     ck_part p;
     ck_gpt_info gi;
-    if (!out || !blocks || !align)
+    int rc = ck_gpt_find_type(d, spec->type, &p, &gi);
+    if (rc != CK_GPT_OK)
+        return rc;
+    uint32_t bytes, blocks;
+    if (index != gi.part_index || (rc = load(d, &gi, &bytes, &blocks)))
+        return rc ? rc : 0;
+    const uint8_t *e = g_ent + (uint64_t)index * gi.entry_size;
+    uint8_t want[16];
+    unique_guid(spec->label, g_ph + H_GUID, get64(e + 32), want);
+    for (int i = 0; i < 16; i++)
+        if (e[16 + i] != want[i])
+            return 0;
+    for (unsigned i = 0; i < 36; i++) {
+        uint16_t c = (uint16_t)(e[56 + 2 * i] | e[57 + 2 * i] << 8);
+        if (c != (uint8_t)spec->name[i])
+            return 0;
+        if (!c)
+            break;
+    }
+    return 1;
+}
+
+int ck_gpt_add_aienos(const disk_dev *d, uint64_t blocks, uint64_t align, ck_gpt_added *out)
+{
+    return ck_gpt_add(d, &allen_memory, blocks, align, out);
+}
+
+int ck_gpt_add(const disk_dev *d, const ck_gpt_new *spec, uint64_t blocks, uint64_t align, ck_gpt_added *out)
+{
+    ck_part p;
+    ck_gpt_info gi;
+    if (!out || !blocks || !align || !spec || !spec->type || !spec->name || !spec->label)
+        return CK_GPT_EGEOM;
+    size_t name_len = 0;
+    while (spec->name[name_len])
+        name_len++;
+    if (name_len > 36)
         return CK_GPT_EGEOM;
     *out = (ck_gpt_added){0, 0, 0, 0};
-    int rc = ck_gpt_find_aienos(d, &p, &gi);
+    int rc = ck_gpt_find_type(d, spec->type, &p, &gi);
     if (rc == CK_GPT_OK) {
         out->first = p.first_lba;
         out->last = p.first_lba + p.blocks - 1u;
@@ -151,30 +211,17 @@ int ck_gpt_add_aienos(const disk_dev *d, uint64_t blocks, uint64_t align, ck_gpt
     if (!found)
         return CK_GPT_ENOSPACE;
 
-    /* The new entry. Its unique GUID: SHA-256 over a label, the disk GUID
-     * and the first LBA, cut to 16 bytes and marked version 4 / variant 1. */
+    /* The new entry, its unique GUID from unique_guid. */
     uint8_t *e = g_ent + (uint64_t)slot * gi.entry_size;
     for (uint32_t i = 0; i < gi.entry_size; i++)
         e[i] = 0;
     for (int i = 0; i < 16; i++)
-        e[i] = ck_aienos_part_type[i];
-    uint8_t dig[32], lba8[8];
-    static const char label[] = "aienos.allen.memory.v1";
-    put64(lba8, at);
-    sha256_ctx h;
-    sha256_init(&h);
-    sha256_update(&h, (const uint8_t *)label, sizeof label);
-    sha256_update(&h, g_ph + H_GUID, 16);
-    sha256_update(&h, lba8, 8);
-    sha256_final(&h, dig);
-    for (int i = 0; i < 16; i++)
-        e[16 + i] = dig[i];
-    e[16 + 7] = (uint8_t)((e[16 + 7] & 0x0f) | 0x40);
-    e[16 + 8] = (uint8_t)((e[16 + 8] & 0x3f) | 0x80);
+        e[i] = spec->type[i];
+    unique_guid(spec->label, g_ph + H_GUID, at, e + 16);
     put64(e + 32, at);
     put64(e + 40, at + blocks - 1u);
-    for (unsigned i = 0; part_name[i]; i++)
-        e[56 + 2 * i] = (uint8_t)part_name[i];
+    for (unsigned i = 0; i < name_len; i++)
+        e[56 + 2 * i] = (uint8_t)spec->name[i];
 
     uint32_t ecrc = ck_crc32(0, g_ent, bytes);
     header_crc(g_ph, ecrc);
@@ -185,7 +232,7 @@ int ck_gpt_add_aienos(const disk_dev *d, uint64_t blocks, uint64_t align, ck_gpt
         disk_write(d, 1, 1, g_ph) != DISK_OK || disk_flush(d) != DISK_OK)
         return CK_GPT_EWRITE;
 
-    rc = ck_gpt_find_aienos(d, &p, &gi);
+    rc = ck_gpt_find_type(d, spec->type, &p, &gi);
     if (rc != CK_GPT_OK || p.first_lba != at || p.blocks != blocks || gi.part_index != slot)
         return CK_GPT_EVERIFY;
     out->first = at;

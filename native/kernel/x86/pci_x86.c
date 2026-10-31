@@ -223,8 +223,9 @@ static void net_look(const struct pfn *f)
               bmsr & 0x20 ? 1u : 0u);
 }
 
-/* Drives the BCM57766 (tg3_x86.c) and waits up to 8 s for the link, so the
- * summary and the report can say whether the network is up. */
+/* Drives the BCM57766 (tg3_x86.c) and looks at the link once. Nothing at
+ * start-up waits for it (autonegotiation takes seconds); the report, the only
+ * user of the network, polls the link itself during the hold. */
 static void net_drive(const struct pfn *f, struct ck_frames *fr)
 {
     uint32_t lo = cr32(f->cfg, 0x10), hi = (lo & 6) == 4 ? cr32(f->cfg, 0x14) : 0;
@@ -236,15 +237,9 @@ static void net_drive(const struct pfn *f, struct ck_frames *fr)
         return;
     }
     res.net_driver = 1;
-    uint64_t t0 = ck_rdtsc();
-    while (!ck_x86_tg3_link() && ck_rdtsc() - t0 < 8 * g_tsc_hz) {
-        uint64_t t1 = ck_rdtsc();
-        while (ck_rdtsc() - t1 < g_tsc_hz / 4)
-            ck_pause();
-    }
-    res.net_link = ck_x86_tg3_link() ? 1 : 2;
+    res.net_link = ck_x86_tg3_link() ? 1 : 3;
     if (res.net_link != 1)
-        ck_puts("net_tg3: no link after 8 s (cable unplugged?); the report is sent if it comes up during the hold\n");
+        ck_puts("net_tg3: link not up yet (autonegotiation under way, or no cable); the report goes out once it is\n");
 }
 
 /* Brings a function to D0 through its power management capability, if it has
@@ -414,15 +409,18 @@ const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_fram
         res.ahci_ctrls++;
     }
     res.ahci_disks = ck_x86_ahci_disks();
+    ck_x86_step("disk");
     for (unsigned i = 0; i < nfound; i++)
         if (found[i].cls == 0x010802 && (found[i].ht & 0x7f) == 0)
             nvme_start(&found[i], fr);
+    ck_x86_step("nvme");
     for (unsigned i = 0; i < nfound; i++)
         if ((found[i].cls >> 8) == 0x0200 && (found[i].ht & 0x7f) == 0)
             net_look(&found[i]);
     for (unsigned i = 0; i < nfound; i++)
         if ((found[i].cls >> 8) == 0x0200 && (found[i].ht & 0x7f) == 0 && !res.net_driver)
             net_drive(&found[i], fr);
+    ck_x86_step("network");
     if (!res.net_found)
         ck_puts("net: no Ethernet controller\n");
     ck_printf("storage: pci_functions=%u ahci_controllers=%u disks=%u nvme_controllers=%u nvme_disks=%u "

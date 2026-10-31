@@ -2593,7 +2593,7 @@ $(error CK_X86_REPORT must be 0 (default) or 1 (lab-only network report))
 endif
 IMACKERN_ELF := $(IMACKERN_DIR)/imackern.elf
 IMACKERN_CFLAGS := $(X86CFLAGS) -I$(KDIR)/include -I$(KDIR)/mm -I$(KDIR)/dev -I$(NATIVE)/disk -I$(NATIVE)/net \
-	-I$(NATIVE)/argus
+	-I$(NATIVE)/argus -I$(NATIVE)/sig
 IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(IMACKERN_DIR)/efi_gop.o \
 	$(IMACKERN_DIR)/kmain_x86.o $(IMACKERN_DIR)/console_x86.o $(IMACKERN_DIR)/trap.o \
 	$(IMACKERN_DIR)/fbcon.o $(IMACKERN_DIR)/fmt.o $(IMACKERN_DIR)/acpi.o $(IMACKERN_DIR)/handoff_check.o \
@@ -2603,7 +2603,8 @@ IMACKERN_OBJS := $(IMACKERN_DIR)/efi_entry_x86_64.o $(IMACKERN_DIR)/efi_x86.o $(
 	$(IMACKERN_DIR)/tg3_x86.o $(IMACKERN_DIR)/xhci_x86.o $(IMACKERN_DIR)/hda_x86.o $(IMACKERN_DIR)/usb_hid.o $(IMACKERN_DIR)/sha256.o \
 	$(IMACKERN_DIR)/allen_ui.o $(IMACKERN_DIR)/allen_font.o $(IMACKERN_DIR)/allen_reply.o \
 	$(IMACKERN_DIR)/paint.o $(IMACKERN_DIR)/night.o $(IMACKERN_DIR)/mind.o $(IMACKERN_DIR)/chirp.o \
-	$(IMACKERN_DIR)/allen_memory.o $(IMACKERN_DIR)/allen_notes.o $(IMACKERN_DIR)/gpt_add.o $(IMACKERN_DIR)/memory_x86.o
+	$(IMACKERN_DIR)/allen_memory.o $(IMACKERN_DIR)/allen_notes.o $(IMACKERN_DIR)/gpt_add.o $(IMACKERN_DIR)/memory_x86.o \
+	$(IMACKERN_DIR)/fat_boot.o $(IMACKERN_DIR)/sha512.o $(IMACKERN_DIR)/ct.o
 IMACKERN_REPORT_OBJS := $(IMACKERN_DIR)/report_x86.o $(IMACKERN_DIR)/aienos_net.o
 # Symbols only the lab image may contain; the default image is checked for them after linking.
 IMACKERN_REPORT_SYMS := ck_x86_report_hold|ck_x86_report_frame|ck_x86_report_filter|ck_x86_report_parts|ck_x86_tg3_send|ck_x86_tg3_drain|net_udp_build
@@ -2613,7 +2614,7 @@ IMACKERN_CFLAGS += -DCK_X86_REPORT=1
 endif
 IMACKERN_HDRS := $(X86K)/x86.h $(BOOT)/handoff.h $(BOOT)/efi.h $(KDIR)/core/ck_internal.h $(KDIR)/include/ck.h
 $(IMACKERN_DIR)/efi_entry_x86_64.o: $(BOOT)/efi_entry_x86_64.S
-$(IMACKERN_DIR)/efi_x86.o: $(X86K)/efi_x86.c $(IMACKERN_HDRS)
+$(IMACKERN_DIR)/efi_x86.o: $(X86K)/efi_x86.c $(IMACKERN_HDRS) $(BOOT)/netboot_proto.h
 $(IMACKERN_DIR)/efi_gop.o: $(BOOT)/efi_gop.c $(IMACKERN_HDRS)
 $(IMACKERN_DIR)/kmain_x86.o: $(X86K)/kmain_x86.c $(IMACKERN_HDRS) $(KDIR)/core/handoff_check.h $(KDIR)/mm/frames.h $(KDIR)/mm/heap.h $(KDIR)/ui/allen_ui.h $(KDIR)/svc/allen_reply.h $(OUT)/commit.stamp
 $(IMACKERN_DIR)/console_x86.o: $(X86K)/console_x86.c $(IMACKERN_HDRS) $(KDIR)/core/fbcon.h
@@ -2646,7 +2647,11 @@ $(IMACKERN_DIR)/allen_reply.o: $(KDIR)/svc/allen_reply.c $(KDIR)/svc/allen_reply
 $(IMACKERN_DIR)/allen_notes.o: $(KDIR)/svc/allen_notes.c $(KDIR)/svc/allen_notes.h
 $(IMACKERN_DIR)/allen_memory.o: $(KDIR)/svc/allen_memory.c $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_reply.h $(KDIR)/svc/allen_notes.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
 $(IMACKERN_DIR)/gpt_add.o: $(KDIR)/dev/gpt_add.c $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h $(NATIVE)/disk/disk.h $(NATIVE)/argus/sha256.h
-$(IMACKERN_DIR)/memory_x86.o: $(X86K)/memory_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_notes.h $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h
+$(IMACKERN_DIR)/memory_x86.o: $(X86K)/memory_x86.c $(IMACKERN_HDRS) $(KDIR)/svc/allen_memory.h $(KDIR)/svc/allen_notes.h $(KDIR)/dev/gpt_add.h $(KDIR)/dev/disk_part.h \
+	$(KDIR)/dev/fat_boot.h $(BOOT)/netboot_proto.h $(BOOT)/slot_format.h $(NATIVE)/sig/aienos_sig.h
+$(IMACKERN_DIR)/fat_boot.o: $(KDIR)/dev/fat_boot.c $(KDIR)/dev/fat_boot.h $(NATIVE)/disk/disk.h
+$(IMACKERN_DIR)/sha512.o: $(NATIVE)/sig/sha512.c $(NATIVE)/sig/aienos_sig.h
+$(IMACKERN_DIR)/ct.o: $(NATIVE)/sig/ct.c $(NATIVE)/sig/aienos_sig.h
 $(IMACKERN_DIR)/report_x86.o: $(X86K)/report_x86.c $(X86K)/report_x86.h $(IMACKERN_HDRS) $(NATIVE)/net/aienos_net.h
 $(IMACKERN_DIR)/aienos_net.o: $(NATIVE)/net/aienos_net.c $(NATIVE)/net/aienos_net.h
 $(sort $(IMACKERN_OBJS) $(IMACKERN_REPORT_OBJS)):

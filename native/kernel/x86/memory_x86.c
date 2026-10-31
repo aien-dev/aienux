@@ -15,7 +15,10 @@
  *      installer instead, on the disk its owner picks there;
  *   3. every partition of the chosen disk is listed ("ahci_part:"), a record
  *      of the layout as found;
- *   4. the write range is set to the units of the section Allen uses (the two
+ *   4. the boot section beside it (boot_section below): the network loader's
+ *      verified kernel installed as \EFI\BOOT\BOOTX64.EFI so the disk starts
+ *      AIENOS by itself;
+ *   5. the write range is set to the units of the section Allen uses (the two
  *      memory copies and the note units, svc/allen_memory.h) and nothing
  *      else; the newest valid copy is loaded, then the notes it counts.
  * NVMe disks are never written (no write path exists). With no usable disk
@@ -26,9 +29,16 @@
 #include "../svc/allen_memory.h"
 #include "disk_part.h"
 #include "gpt_add.h"
+#include "fat_boot.h"
+#include "aienos_sig.h"
+#include "../../boot/netboot_proto.h"
+#include "../../boot/slot_format.h"
 #include "x86.h"
 
 #define ALLEN_PART_MIB 1024u
+#define BOOT_PART_MIB 256u
+
+static const ck_gpt_new boot_spec = {ck_esp_part_type, "AIENOS boot", "aienos.boot.v1"};
 
 /* Disks whose owner approved adding Allen's section to them. */
 static const char *const approved_disks[] = {"APPLE HDD ST1000DM003", 0};
@@ -95,6 +105,118 @@ static int add_section(const disk_dev *d, const ck_gpt_info *gi)
     return 1;
 }
 
+/* The boot section beside Allen's (dev/fat_boot.h), on the same disk: when the
+ * network loader handed over a verified kernel, that kernel is installed as
+ * \EFI\BOOT\BOOTX64.EFI, so the next start needs no stick and no network
+ * (Drake approved a small boot section in free space on this disk,
+ * 2026-10-17). Its SHA-512 is checked again here against the signed
+ * manifest. A disk that already has another system's EFI System Partition is
+ * never touched. Without a handed-over kernel only what is there is reported.
+ * Writes happen only inside the windows opened here and closed right after:
+ * the GPT blocks while the partition is added, then the partition itself. */
+static uint32_t boot_serial(const ck_part *bp)
+{
+    return (uint32_t)(bp->first_lba ^ bp->first_lba >> 32) * 2654435761u ^ 0x41494e42u;
+}
+
+static void boot_section(const disk_dev *d)
+{
+    int dropped = 0;
+    const struct nb_pass *np = ck_x86_netldr_pass(&dropped);
+    const uint8_t *obj = np && np->object ? (const uint8_t *)(uintptr_t)np->object : 0;
+    ck_part bp;
+    ck_gpt_info gi;
+    ck_fatb_state st;
+    if (dropped)
+        ck_puts("boot_disk: the loader named a kernel outside its own memory; ignored\n");
+    int rc = ck_gpt_find_type(d, ck_esp_part_type, &bp, &gi);
+    if (rc == CK_GPT_OK && ck_gpt_is_ours(d, &boot_spec, gi.part_index) != 1) {
+        ck_puts("boot_disk: this disk already has another system's boot section; not touched\n");
+        return;
+    }
+    if (rc != CK_GPT_OK && rc != CK_GPT_ENOPART) {
+        ck_printf("boot_disk: %s; not touched\n", ck_gpt_add_strerror(rc));
+        return;
+    }
+    if (!obj) {
+        if (rc == CK_GPT_ENOPART)
+            ck_puts("boot_disk: no boot section yet (made when the network loader starts a kernel)\n");
+        else if ((rc = ck_fatb_state_read(&bp.dev, boot_serial(&bp), &st)) != CK_FATB_OK)
+            ck_printf("boot_disk: the boot section could not be read (%s)\n", ck_fatb_strerror(rc));
+        else if (!st.ours)
+            ck_printf("boot_disk: the boot section is not as AIENOS wrote it: %s byte %u is 0x%02x, not 0x%02x\n",
+                      st.where, st.at, st.got, st.want);
+        else if (st.slot >= 0)
+            ck_printf("boot_disk: \\EFI\\BOOT\\BOOTX64.EFI on disk %u: %u bytes (slot %c)\n", disk_index,
+                      st.image_len, 'A' + st.slot);
+        else
+            ck_puts("boot_disk: the boot section holds no complete kernel\n");
+        return;
+    }
+    const struct ck_slot_manifest *m = (const void *)obj;
+    if (np->object_len <= CK_SLOT_UNIT || memcmp(m->magic, CK_SLOT_MANIFEST_MAGIC, 8) ||
+        m->image_len != np->object_len - CK_SLOT_UNIT) {
+        ck_puts("boot_disk: the loader's object is not a manifest and its image; nothing installed\n");
+        return;
+    }
+    uint64_t t0 = ck_rdtsc();
+    uint8_t dig[AIENOS_SHA512_DIGEST_LEN];
+    aienos_sha512(obj + CK_SLOT_UNIT, (size_t)m->image_len, dig);
+    if (memcmp(dig, m->image_sha512, sizeof dig)) {
+        ck_puts("boot_disk: the kernel's SHA-512 differs from its signed manifest; nothing installed\n");
+        return;
+    }
+    if (rc == CK_GPT_ENOPART && d->block_size != 512u) {
+        ck_printf("boot_disk: %u-byte sectors: the boot section handles 512 only; nothing added\n", d->block_size);
+        return;
+    }
+    if (rc == CK_GPT_ENOPART) {
+        uint64_t per_mib = (1024u * 1024u) / d->block_size;
+        ck_gpt_added a;
+        if (ck_x86_ahci_allow(disk_index, 1, gi.first_usable - 1u) ||
+            ck_x86_ahci_allow(disk_index, gi.last_usable + 1u, gi.last_lba))
+            rc = CK_GPT_EWRITE;
+        else
+            rc = ck_gpt_add(d, &boot_spec, (uint64_t)BOOT_PART_MIB * per_mib, per_mib, &a);
+        ck_x86_ahci_allow_none(disk_index);
+        if (rc) {
+            ck_printf("boot_disk: boot section not added: %s%s\n", ck_gpt_add_strerror(rc),
+                      rc == CK_GPT_EWRITE || rc == CK_GPT_EVERIFY ? " (the GPT may need a look)" : "; nothing was written");
+            return;
+        }
+        ck_printf("boot_disk: boot section added, entry %u, first_lba=%llu last_lba=%llu (%u MiB, EFI System "
+                  "Partition); the existing partitions were not touched\n", a.index, (unsigned long long)a.first,
+                  (unsigned long long)a.last, BOOT_PART_MIB);
+        if ((rc = ck_gpt_find_type(d, ck_esp_part_type, &bp, &gi))) {
+            ck_printf("boot_disk: %s after adding it\n", ck_gpt_add_strerror(rc));
+            return;
+        }
+    }
+    uint16_t dd, tt;
+    ck_fatb_dos_time(m->timestamp, &dd, &tt);
+    ck_fatb_result r;
+    if (ck_x86_ahci_allow(disk_index, bp.first_lba, bp.first_lba + bp.blocks - 1u))
+        rc = CK_FATB_EIO;
+    else
+        rc = ck_fatb_install(&bp.dev, boot_serial(&bp), 1, obj, obj + CK_SLOT_UNIT, (uint32_t)m->image_len, dd, tt,
+                             &r);
+    ck_x86_ahci_allow_none(disk_index);
+    char commit[13];
+    memcpy(commit, m->commit, 12);
+    commit[12] = 0;
+    uint64_t ms = hz ? (ck_rdtsc() - t0) * 1000 / hz : 0;
+    if (rc)
+        ck_printf("boot_disk: install FAILED: %s; the computer still starts from the stick\n", ck_fatb_strerror(rc));
+    else if (!r.written)
+        ck_printf("boot_disk: this kernel (commit %s, generation %llu) is already \\EFI\\BOOT\\BOOTX64.EFI (slot %c); "
+                  "nothing written\n", commit, (unsigned long long)m->generation, 'A' + r.slot);
+    else
+        ck_printf("boot_disk: installed this kernel (commit %s, generation %llu, %llu bytes) as \\EFI\\BOOT\\BOOTX64.EFI, "
+                  "slot %c%s, %u blocks in %llu ms, read back exact; the computer can now start without the stick\n",
+                  commit, (unsigned long long)m->generation, (unsigned long long)m->image_len, 'A' + r.slot,
+                  r.formatted ? ", new FAT32 volume" : "", r.sectors_written, (unsigned long long)ms);
+}
+
 int ck_x86_memory_open(ck_allen_memory *mem, ck_allen_notes *notes, uint64_t tsc_hz)
 {
     hz = tsc_hz;
@@ -140,6 +262,8 @@ int ck_x86_memory_open(ck_allen_memory *mem, ck_allen_notes *notes, uint64_t tsc
     if (homes)
         ck_printf("allen_memory: AIENOS partition found, entry %u, first_lba=%llu last_lba=%llu\n", gi.part_index,
                   (unsigned long long)part.first_lba, (unsigned long long)(part.first_lba + part.blocks - 1u));
+
+    boot_section(d);
 
     uint64_t units = (uint64_t)CK_ALLEN_DISK_UNITS * CK_ALLEN_MEM_UNIT / d->block_size;
     if (part.blocks < units || ck_x86_ahci_allow(disk_index, part.first_lba, part.first_lba + units - 1u))
