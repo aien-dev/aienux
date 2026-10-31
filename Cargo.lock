@@ -28,6 +28,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "aienos-anchor"
+version = "0.1.0"
+dependencies = [
+ "aienos-crypto",
+ "ed25519-dalek",
+]
+
+[[package]]
 name = "aienos-artifact"
 version = "0.1.0"
 dependencies = [
