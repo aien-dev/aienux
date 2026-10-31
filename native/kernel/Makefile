@@ -505,6 +505,21 @@ endif
 OUT ?= $(REPO)/target/native-kernel-test-rollback-$(strip $(CK_TEST_ROLLBACK))
 SMP_TEST_FLAGS += -DCK_TEST_ROLLBACK_$(subst -,_,$(shell echo '$(strip $(CK_TEST_ROLLBACK))' | tr a-z A-Z))=1
 endif
+# AIENOS-NATIVE-PIPE-1 (aienos-mv#428): CK_PIPE_TEST=1 adds the TEST-ONLY pipe self-test (core/pipe_test.c, gate
+# scripts/qemu_ck_pipe_test.sh): after "kernel: alive" it drives the pipe primitive (core/pipe.c) with a producer and a
+# consumer task through the scheduler and prints pipe_check lines. Own OUT; announces itself; refused with
+# CK_HARDWARE_STAGING and CK_SERVICE. Default images are checked to carry no trace of it (pipe_check).
+CK_PIPE_TEST ?=
+ifneq ($(strip $(CK_PIPE_TEST)),)
+ifneq ($(strip $(CK_PIPE_TEST)),1)
+$(error CK_PIPE_TEST must be empty or 1)
+endif
+ifneq ($(strip $(CK_HARDWARE_STAGING)),)
+$(error CK_PIPE_TEST (TEST-only pipe self-test) cannot be combined with CK_HARDWARE_STAGING)
+endif
+OUT ?= $(REPO)/target/native-kernel-test-pipe
+SMP_TEST_FLAGS += -DCK_PIPE_TEST=1
+endif
 # SLOTLDR.EFI trusted keys (native v1 plan P11 cut 2a; native/boot/slot_loader.c,
 # make slot-loader):
 #   CK_SLOT_KEYS=<file>  owner public keys, "owner_root_ed25519 <64 hex>" lines
@@ -685,7 +700,7 @@ endif
 ifneq ($(strip $(CK_CONSOLE_SESSION)),)
 $(error CK_SERVICE cannot be combined with CK_CONSOLE_SESSION)
 endif
-ifneq ($(strip $(CK_TEST_XHCI_MUTATION)$(CK_TEST_STORE_CRASH)$(CK_TEST_CONTINUITY)$(CK_TEST_FWCFG_ARTIFACTS)$(CK_TEST_SMP_SKIP_CPU)$(CK_TEST_ROLLBACK)$(CK_TEST_STALE_HANDOFF)$(CK_TEST_DISK_XLATE_BYPASS)),)
+ifneq ($(strip $(CK_TEST_XHCI_MUTATION)$(CK_TEST_STORE_CRASH)$(CK_TEST_CONTINUITY)$(CK_TEST_FWCFG_ARTIFACTS)$(CK_TEST_SMP_SKIP_CPU)$(CK_TEST_ROLLBACK)$(CK_TEST_STALE_HANDOFF)$(CK_TEST_DISK_XLATE_BYPASS)$(CK_PIPE_TEST)),)
 $(error CK_SERVICE cannot be combined with a CK_TEST_* flag)
 endif
 endif
@@ -977,6 +992,9 @@ ART_C += $(KDIR)/core/artifact_card.c $(KDIR)/core/artifact_card_stage.c
 CORE_C += $(BOOT)/efi_artifact.c
 endif
 CORE_C += $(ART_C)
+ifeq ($(strip $(CK_PIPE_TEST)),1)
+CORE_C += $(KDIR)/core/pipe.c $(KDIR)/core/pipe_test.c
+endif
 CORE_S := $(BOOT)/efi_entry.S $(KDIR)/arch/vectors.S $(KDIR)/arch/m3.S $(KDIR)/arch/smp_entry.S
 HDRS := $(wildcard $(KDIR)/include/*.h $(KDIR)/*/*.h $(BOOT)/*.h)
 
@@ -1278,6 +1296,15 @@ define rollback_check
 	fi
 endef
 
+# pipe_check(elf): only a CK_PIPE_TEST image may carry the TEST-only pipe self-test, and it must announce itself.
+define pipe_check
+	@if [ "$(strip $(CK_PIPE_TEST))" = 1 ]; then \
+	  grep -aqF "TEST-ONLY pipe self-test" $(1) || { echo "pipe test image lacks its TEST-ONLY announcement"; rm -f $(1); exit 1; }; \
+	else \
+	  if grep -aqF "TEST-ONLY pipe self-test" $(1); then echo "default image carries the TEST-ONLY pipe self-test"; rm -f $(1); exit 1; fi; \
+	fi
+endef
+
 # smp_check(elf): only a CK_TEST_SMP_SKIP_CPU image may carry the SMP mutation
 # announcement, and such an image must carry it.
 define smp_check
@@ -1389,6 +1416,7 @@ $(ELF): $(CORE_OBJS) $(BOOT)/image.ld
 	@if [ -z "$(strip $(CK_TEST_STALE_HANDOFF))" ] && grep -aqF "TEST-ONLY stale handoff" $@; then \
 	  echo "default image carries the TEST-only stale handoff"; rm -f $@; exit 1; fi
 	$(call rollback_check,$@)
+	$(call pipe_check,$@)
 	@s=$$($(KNM) $@ | grep -E ' [TtDdBbWwVv] ck_stage_(devices|security|store|quiesce)$$' || true); \
 	if [ -n "$$s" ]; then echo "core image defines stage symbols: $$s"; rm -f $@; exit 1; fi
 	$(call fwcfg_check,$@)
@@ -1399,6 +1427,7 @@ $(ELF): $(CORE_OBJS) $(BOOT)/image.ld
 $(FULL_ELF): $(CORE_OBJS) $(STAGE_BUILT) $(BOOT)/image.ld
 	$(call link_image,$@,$(CORE_OBJS) $(STAGE_LINK) $(CK_RUST_LIBS) $(CK_INFER_LIB))
 	$(call rollback_check,$@)
+	$(call pipe_check,$@)
 	@for s in $(FULL_STAGE_SYMS); do \
 	  $(KNM) $@ | grep -qE " [TW] $$s$$" || { echo "full image lacks $$s"; rm -f $@; exit 1; }; done
 	$(call fwcfg_check,$@)
@@ -1425,7 +1454,7 @@ HOST_SRCS := $(KDIR)/core/fmt.c $(KDIR)/core/acpi.c $(KDIR)/core/smmu.c $(KDIR)/
 	$(KDIR)/core/line_rx.c $(KDIR)/core/klog.c $(KDIR)/core/klog_slot.c $(KDIR)/core/cpufeat.c $(KDIR)/core/unlock_req.c $(KDIR)/core/agent_cmd.c $(KDIR)/core/artifact_card.c
 TESTS := test_fmt test_frames test_pt test_acpi test_acpi_dev test_heap test_smmu test_sched test_ipc test_artifact test_osc_unit test_osc_launch test_osc_admit test_osc_receipt test_entropy test_handoff test_fbcon test_osh_op \
 	test_continuity_codec test_continuity_resolve test_continuity_commit test_continuity_recovery test_continuity_geometry \
-	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card \
+	test_continuity_subject test_continuity_subject_provision test_lifecycle test_console_rx test_klog test_klog_slot test_pi5 test_pi5_marker test_pi5_rng test_cpufeat test_dma_window test_pi5_pcie test_pi5_net test_pi5_gem test_unlock_req test_context test_agent_cmd test_artifact_card test_pipe \
 	test_netboot_text test_gb10_gsp_boot
 TESTS += test_gpu_sim test_gsp_mmio
 HCFLAGS := -std=gnu11 -O1 -g -Wall -Wextra -Werror -I$(KDIR)/core -I$(KDIR)/mm -I$(KDIR)/tests -I$(BOOT)
@@ -1459,6 +1488,42 @@ $(OUT)/host/test_osh_op_mutant: $(KDIR)/tests/test_osh_op.c $(OSH_OP_SRCS) $(KDI
 osh-op-mutant: $(OUT)/host/test_osh_op_mutant
 	@if $< > $<.log 2>&1; then cat $<.log; echo "test_osh_op mutant (permission check always OK): PASSED, test does not catch it"; exit 1; \
 	else grep -F "test_osh_op: FAIL" $<.log && echo "test_osh_op mutant (permission check always OK): FAILS as required"; fi
+
+# Native pipe primitive (core/pipe.c, aienos-mv#428): pure logic over ipc.c capability tables, driven through sched.c by
+# core/pipe_drive.h. Own rule: the test reads the fixture corpus in tests/fixtures/pipe/.
+PIPE_SRCS := $(KDIR)/core/pipe.c $(KDIR)/core/ipc.c $(KDIR)/core/sched.c
+PIPE_DEPS := $(KDIR)/tests/test_pipe.c $(PIPE_SRCS) $(KDIR)/tests/ck_test.h $(HDRS) $(wildcard $(KDIR)/tests/fixtures/pipe/*)
+PIPE_DEF := -DPIPE_FIXTURE_DIR='"$(abspath $(KDIR)/tests/fixtures/pipe)"'
+# core/ is not a -I ahead of the system headers: <sched.h> must stay POSIX for the
+# pthread host test. Quoted includes still find core/ headers (the sources live there,
+# and -idirafter covers the test file).
+PIPE_HCFLAGS := -std=gnu11 -O1 -g -Wall -Wextra -Werror -I$(KDIR)/mm -I$(KDIR)/tests -I$(BOOT) -idirafter $(KDIR)/core -pthread
+$(OUT)/host/test_pipe: $(PIPE_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
+
+$(OUT)/host-san/test_pipe: $(PIPE_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(SANFLAGS) $(PIPE_DEF) -o $@ $< $(PIPE_SRCS)
+
+# TEST-ONLY mutant of core/pipe.c: a write does not check the WRITE right or the end. test_pipe must FAIL against it
+# (red before green); "make test" fails if the test stops catching it. Host only.
+$(OUT)/host/test_pipe_mutant: $(PIPE_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(PIPE_DEF) -DCK_PIPE_MUTANT_SKIP_RIGHTS -o $@ $< $(PIPE_SRCS)
+
+pipe-mutant: $(OUT)/host/test_pipe_mutant
+	@if $< > $<.log 2>&1; then cat $<.log; echo "test_pipe mutant (write right not checked): PASSED, test does not catch it"; exit 1; \
+	else grep -F "test_pipe: FAIL" $<.log && echo "test_pipe mutant (write right not checked): FAILS as required"; fi
+
+# TEST-ONLY mutant: ck_pipe_dispatch does not reject a slice outside [user_lo, user_hi). test_pipe must FAIL.
+$(OUT)/host/test_pipe_slice_mutant: $(PIPE_DEPS)
+	@mkdir -p $(dir $@)
+	$(HOSTCC) $(PIPE_HCFLAGS) $(PIPE_DEF) -DCK_PIPE_MUTANT_SKIP_SLICE -o $@ $< $(PIPE_SRCS)
+
+pipe-slice-mutant: $(OUT)/host/test_pipe_slice_mutant
+	@if $< > $<.log 2>&1; then cat $<.log; echo "test_pipe mutant (user slice not checked): PASSED, test does not catch it"; exit 1; \
+	else grep -F "test_pipe: FAIL" $<.log && echo "test_pipe mutant (user slice not checked): FAILS as required"; fi
 
 # N3 context assembly + approval binding (core/context.c, core/context_proposal.c, aienos#329): pure logic over
 # the argus SHA-256. Own rule (needs sha256.c). The mutant skips the foreign-binding check: test_context must
@@ -1580,8 +1645,8 @@ smmu-l2-mutants: $(OUT)/host/test_smmu
 	else echo "mutant flag refused under CK_HARDWARE_STAGING"; fi; \
 	if [ $$fail = 0 ]; then echo "CK_SMMU_L2_MUTANTS: PASS"; else echo "CK_SMMU_L2_MUTANTS: FAIL"; exit 1; fi
 
-test: $(addprefix $(OUT)/host/,$(TESTS)) osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check
-	@fail=0; for t in $(filter-out osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check,$^); do $$t || fail=1; done; \
+test: $(addprefix $(OUT)/host/,$(TESTS)) osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant pipe-mutant pipe-slice-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check
+	@fail=0; for t in $(filter-out osc-receipt-mutants osc-receipt-release osc-code-flip-guard handoff-mutant acpi-dev-mutant iort-mutants smmu-l2-mutants osh-op-mutant pipe-mutant pipe-slice-mutant context-mutant agent-cmd-mutant artifact-card-mutant artifact-tier-pi5 artifact-tier-mutant test-continuity-subject-restart gsp-fw-inspect-test gsp-cot-test gsp-bindata-test gsp-bootargs-test gsp-rpc-test gb10-gsp-free gb10-gsp-nvhdr-check gb10-gsp-mutants slot-test slot-free package-test slot-loader-check,$^); do $$t || fail=1; done; \
 	if [ $$fail = 0 ]; then echo "CK_CORE_HOST: PASS"; else echo "CK_CORE_HOST: FAIL"; exit 1; fi
 
 sanitize: $(addprefix $(OUT)/host-san/,$(TESTS))

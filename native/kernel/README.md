@@ -633,6 +633,36 @@ low-water free bytes.
   lists (whole pages). Tables, stack, heap and pool come from it and are never
   handed out again.
 
+## Native pipes (AIENOS-NATIVE-PIPE-1, aienos-mv#428)
+
+`core/pipe.c` / `core/pipe.h` make a pipe a kernel primitive: two independently scheduled operations exchange ordered
+bytes through a bounded buffer, with no intermediate file. It is a byte stream, separate from the 56-byte typed
+message ring of `core/ipc.h`; it reuses only the ipc.h capability tables.
+
+- **Contract.** OSH_PLATFORM_ABI (aien-protocols-mv `specs/osh-platform/`, read at `fb5fca98e667`, v1 DRAFT, unfrozen):
+  PIPE_CREATE, STREAM_READ / WRITE / CLOSE / DUP (section 8.1), at least 64 KiB per pipe (8.5), the error codes of 8.6
+  (one shared copy in `core/osh_err.h`, also used by `core/osh_op.h`), epoch staleness (4.4) and authority at the
+  moment of the effect (9.2). Choices the draft does not pin are marked UNVERIFIED in `pipe.h`.
+- **Ends are capabilities.** The read end holds `CK_R_READ`, the write end `CK_R_WRITE`, never both; optional
+  `CK_R_DERIVE` (dup in the same table), `CK_R_GRANT` (dup into another principal's table) and `CK_R_REVOKE`. Every
+  operation calls `ck_cap_lookup` when it acts, so a handle that was closed, reused or revoked is refused even if it
+  was valid a moment earlier (STALE, DENIED, REVOKED).
+- **Bounded.** A static pool of `CK_PIPE_POOL_PIPES` (4) pipes of `CK_PIPE_CAPACITY` (65536) bytes; nothing is allocated.
+  A write past the free space is partial, a write on a full pipe returns WOULD_BLOCK (or parks with `CK_PIPE_F_BLOCK`
+  through the pool's wait / wake hook, which the kernel points at the scheduler). Last writer closed: reads return 0
+  bytes once drained (EOF). No reader: BROKEN_PIPE. Revoke scrubs the buffer and no byte is delivered after it; cancel
+  makes the next or the blocked call on that end return INTERRUPTED with no byte moved. Counters (bytes, max resident,
+  WOULD_BLOCK, waits, wakeups, cancellations, revocations, refusals) are in `struct ck_pipe_stats`.
+- **Versioned op table.** `ck_pipe_dispatch` takes a platform call frame (magic `OSHF`, `CK_PIPE_ABI_VERSION` 1, op id,
+  reserved, arguments) and refuses malformed frames and unknown ops or versions (INVALID_ARG, NOT_SUPPORTED) before any
+  effect.
+- **Tests.** `make test` runs `test_pipe` (the 20-case corpus in `tests/fixtures/pipe/`, format in its README, plus
+  producer / consumer transfers through `core/sched.c`) and `pipe-mutant` (the write-right check removed: the test must
+  fail); `make sanitize` runs it under ASan+UBSan. `scripts/qemu_ck_pipe_test.sh` builds the TEST-ONLY `CK_PIPE_TEST=1`
+  image and checks the in-kernel run (GATES.md, PIPE). Host and QEMU evidence qualify nothing physical.
+- **Not yet.** Task execution and shell dispatch over pipes are separate issues; the kernel's blocking hook yields
+  cooperatively inside one kernel thread, it does not switch M3 threads.
+
 ## Notes for stage code
 
 - `ck_puts` prints the string as given; it does not add a newline.

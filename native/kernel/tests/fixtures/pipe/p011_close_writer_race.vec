@@ -1,0 +1,8 @@
+case close_writer_race
+kind positive
+# a reader parked on an empty pipe when the last writer closes wakes to EOF (0 bytes, OK)
+create R W A => OK
+bread R 4 close W => OK n=0
+check eof=1 waits=1 wakeups=1
+close R => OK
+check empty

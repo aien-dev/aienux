@@ -138,6 +138,10 @@ static __attribute__((noreturn)) void rollback_test_end(void)
 }
 #endif
 
+#ifdef CK_PIPE_TEST
+void ck_pipe_selftest(void);
+#endif
+
 static __attribute__((noreturn)) void ck_el1_main(void *arg)
 {
     struct ck_handoff *h = arg;
@@ -227,6 +231,10 @@ static __attribute__((noreturn)) void ck_el1_main(void *arg)
 
 #if defined(CK_TEST_ROLLBACK_CPU_FAULT) || defined(CK_TEST_ROLLBACK_HANG)
     rollback_test_end();
+#endif
+#ifdef CK_PIPE_TEST
+    /* TEST-ONLY pipe self-test (core/pipe_test.c, scripts/qemu_ck_pipe_test.sh); never in a production image. */
+    ck_pipe_selftest();
 #endif
 
     {

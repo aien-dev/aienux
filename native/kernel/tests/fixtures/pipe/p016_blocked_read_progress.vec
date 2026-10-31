@@ -1,0 +1,11 @@
+case blocked_read_progress
+kind positive
+# a parked reader wakes when bytes arrive and returns them (partial: what is there)
+create R W B => OK
+bread R 8 write W "hi\x00" => OK n=3 data="hi\x00"
+check waits=1 wakeups=1
+bwrite W "yo" none => OK n=2
+read R 8 => OK n=2 data="yo"
+close R => OK
+close W => OK
+check empty

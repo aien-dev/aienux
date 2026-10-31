@@ -1,0 +1,13 @@
+case revoke_blocked_read
+kind negative
+# a reader parked on an empty pipe wakes on revoke and gets REVOKED; nothing flows afterwards
+create R W A => OK
+bread R 4 revoke W => REVOKED
+check revocations=1 waits=1 wakeups=1
+write W "x" => REVOKED
+read R 1 => REVOKED
+dup R X A r => REVOKED
+cancel R => REVOKED
+close R => OK
+close W => OK
+check empty bytes_read=0

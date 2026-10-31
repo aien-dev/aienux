@@ -868,6 +868,36 @@ real asynchronous events. (4) Numeric resource-class and operation ids, the REVO
 are this adapter's choices (UNVERIFIED against a frozen contract). (5) The request digest covers the request cells and the OUT
 bytes; the contract's exact digest input is not defined (UNVERIFIED). (6) The "task" is the adapter's session; the EL0 shell units
 hold no capability (caps=0) and the check is made by the kernel-side adapter.
+## PIPE: the native bounded byte pipe (AIENOS-NATIVE-PIPE-1, aienos-mv#428) -> CK `PIPE` (scripts/qemu_ck_pipe_test.sh)
+
+Label: **QEMU (aarch64 virt), TEST build, not physical.** Host and QEMU evidence qualify nothing physical; nothing here ran on
+a Spark, a Pi or the iMac. Contract: OSH_PLATFORM_ABI sections 4.4, 8.1, 8.5, 8.6, 9 read at aien-protocols-mv `fb5fca98e667`
+(v1 DRAFT, unfrozen). The image is `make CK_PIPE_TEST=1` (own OUT `target/native-kernel-test-pipe`, refused with
+`CK_HARDWARE_STAGING` and `CK_SERVICE`; default images are checked to carry no trace of it). After `kernel: alive` it runs
+`core/pipe_test.c`: a producer and a consumer task, step functions interleaved by `core/sched.c`, each holding one end of a
+`core/pipe.c` pipe in its own capability table (`core/ipc.c`), through the same driver as the host test (`core/pipe_drive.h`);
+then the boot goes on to its report and PSCI reset. Checks, one boot, every one with both tables and the pool empty afterwards:
+160 KiB payload with every fifth byte NUL byte for byte; a slow consumer fills the 64 KiB pipe and the producer sees WOULD_BLOCK;
+EOF after the last writer closes; never more than the capacity buffered; the blocking variant parks and wakes through the
+scheduler; BROKEN_PIPE with no reader; a write after revoke refused with 0 bytes delivered after it; a revoke mid-transfer with no
+read succeeding afterwards; a closed handle STALE after its slot is reused; an unknown op and another ABI version NOT_SUPPORTED;
+cancel INTERRUPTED once with no byte moved. Host test `test_pipe` (the 20-case corpus in `tests/fixtures/pipe/` plus the
+scheduler transfers, also under ASan+UBSan); a mutant that skips the write-right check must fail it (`make pipe-mutant`).
+Limits: (1) the kernel's wait hook yields cooperatively to the scheduler inside one kernel thread; the QEMU image does not
+context-switch a blocked pipe op onto another core. Host `test_pipe` does, with pthreads: concurrent read/write, close while
+the peer is parked (including the window after the waiter is published and before `wait` runs), and create/close on a shared
+pool. That is host-only. It is not a QEMU multi-core result and it qualifies nothing physical. (2) In the QEMU driver, revoke,
+close and cancel "while waiting" are still the peer task's step. The host threaded cases close from a second thread; they are
+not asynchronous interrupts. (3) The op ids, the call frame cell layout, the second return value of
+PIPE_CREATE, the capability resource layout, the pool size (4 pipes) and STREAM_DUP's capability form (rights and a target table
+instead of a descriptor number) are this kernel's choices, UNVERIFIED against a frozen contract. (4) A ck_cap_table has 8 slots,
+below the draft's "3 standard streams plus 16 open streams" per session; a session with more streams needs a larger table.
+(5) No QEMU negative control mutates the kernel image; the red-before-green control is the host mutant.
+
+| # | Check | CK gate | Status |
+|---|---|---|---|
+| 221 | `CK_PIPE_TEST=1` image: 11 `pipe_check` lines PASS with `tables_empty=1`, `pipe_test: done checks=11 failed=0 capacity=65536 pool_pipes=4`, payload detail `bytes=163840 ... mismatches=0 would_block>0`, revoked write `n=0 ... bytes_delivered=0`, boot report reached, no panic, QEMU exit 0 | PIPE | QEMU PASS (2026-10-18, base ee34c7d plus this change, QEMU 8.2.2, AIENOS_CK_PIPE PASS; hardware NOT_RUN) |
+
 
 ## LIFECYCLE: resident production lifecycle (native v1 plan P03, P04 cuts 1-2b, P05 cut 1, P06 cuts 2-4; C-only) -> CK `LIFECYCLE` (scripts/qemu_ck_lifecycle_test.sh)
 
