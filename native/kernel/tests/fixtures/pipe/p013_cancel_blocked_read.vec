@@ -1,0 +1,12 @@
+case cancel_blocked_read
+kind negative
+# cancel interrupts a parked reader once, no byte moved; the next call runs normally
+create R W A => OK
+bread R 4 cancel R => INTERRUPTED
+check cancellations=1 waits=1 wakeups=1
+read R 4 => WOULD_BLOCK
+write W "ok" => OK n=2
+read R 4 => OK n=2 data="ok"
+close W => OK
+close R => OK
+check empty

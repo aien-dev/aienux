@@ -471,7 +471,8 @@ static void test_datapath(void)
         if (s.wire_len[(s.nwire - 1) % 8] != len || memcmp(s.wire[(s.nwire - 1) % 8], f, len)) bad++;
     }
     EQ(bad, 0);
-    CHECK(s.q[0].used_idx < 70000u); /* wrapped */
+    /* 16-bit used index: 70000 completions wrap once, residue 70000 mod 2^16. */
+    EQ(s.q[0].used_idx, (uint16_t)70000u); /* wrapped */
     EQ(s.faults, 0);
     check_descs(&d);
 }

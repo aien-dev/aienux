@@ -7,9 +7,11 @@
  * INIT, SIPI, SIPI with the page number as the vector. A core then starts
  * here in real mode at CS = page >> 4, IP = 0, and walks: 16-bit -> 32-bit
  * protected mode (the trampoline's own flat GDT) -> PAE + the kernel's page
- * tables + EFER.LME + paging -> 64-bit, then calls entry(arg) on its own
- * stack (-mabi=ms: the argument in rcx, 32 bytes of shadow space). If entry
- * returns, the core halts with interrupts off. */
+ * tables + EFER.LME/NXE + paging and CR0.WP -> 64-bit, then calls entry(arg)
+ * on its own stack (-mabi=ms: the argument in rcx, 32 bytes of shadow space).
+ * If entry returns, the core halts with interrupts off. Once paging is on the
+ * page is read-only executable (W^X, kmain_x86.c tramp_prot), so the GDT
+ * descriptors carry their accessed bit already: the CPU never writes them. */
 
     .text
     .globl ck_x86_tramp_start, ck_x86_tramp_end
@@ -44,10 +46,10 @@ tramp_pm32:
     mov %eax, %cr3
     mov $0xc0000080, %ecx              /* EFER */
     rdmsr
-    or $0x100, %eax                    /* LME */
+    or $0x900, %eax                    /* LME + NXE: the kernel's tables carry NX bits */
     wrmsr
     mov %cr0, %eax
-    or $0x80000000, %eax               /* PG */
+    or $0x80010000, %eax               /* PG + WP: read-only pages bind this core too */
     mov %eax, %cr0
     ljmpl *(ck_x86_tramp_far64 - ck_x86_tramp_start)(%ebx)
 
@@ -70,9 +72,9 @@ tramp_lm64:
     .p2align 3
 tramp_gdt:
     .quad 0
-    .quad 0x00cf9a000000ffff           /* 0x08: 32-bit code */
-    .quad 0x00cf92000000ffff           /* 0x10: data */
-    .quad 0x00209a0000000000           /* 0x18: 64-bit code */
+    .quad 0x00cf9b000000ffff           /* 0x08: 32-bit code, accessed */
+    .quad 0x00cf93000000ffff           /* 0x10: data, accessed */
+    .quad 0x00209b0000000000           /* 0x18: 64-bit code, accessed */
 ck_x86_tramp_gdtr:
     .word 31
     .long 0                            /* page + (tramp_gdt - start) */

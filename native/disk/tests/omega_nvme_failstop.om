@@ -1,0 +1,23 @@
+note SPDX-License-Identifier: Apache-2.0
+note Verification-only: an uncertain completion must reject a second read and reopen.
+fn main to int
+getmanifest
+r = initialize
+if ne r 0
+report r
+ret r
+end
+r = readblocks man64 48 man32 56
+if ne get st 0 0
+again = readblocks man64 48 man32 56
+if ne again 10
+ret 91
+end
+again = initialize
+if ne again 10
+ret 92
+end
+end
+report r
+ret r
+end

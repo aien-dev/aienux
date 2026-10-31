@@ -1,0 +1,11 @@
+case stalled_consumer
+kind negative
+# a writer parked behind a consumer that never reads gives up INTERRUPTED at the wait bound, no byte moved
+create R W A => OK
+fill W 65536 63 => OK n=65536
+bwrite W "z" none => INTERRUPTED
+check waits=2 would_block=2 cancellations=1 bytes_written=65536
+read R 3 => OK n=3 data="ccc"
+close R => OK
+close W => OK
+check empty

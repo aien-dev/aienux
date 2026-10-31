@@ -23,7 +23,11 @@
  * allocator over the memory map (mm/frames.c), own 4-level page tables that
  * identity map [0, top) with 2 MiB pages (RAM write-back, the rest uncached,
  * the GOP framebuffer write-combining through PAT entry 1) and a 4 KiB guard
- * page under the kernel stack, CR3 switched and the stack moved. Then: the
+ * page under the kernel stack, CR3 switched and the stack moved. W^X (#409):
+ * EFER.NXE and CR0.WP on every core, the image's code read-only executable,
+ * its read-only data read-only no-execute, everything else (data, bss,
+ * stacks, heap, MMIO, framebuffer) no-execute; probes and an audit of every
+ * leaf prove it. W^X is not process isolation. Then: the
  * screen console (core/fbcon.c), heap (mm/heap.c), the guard page proven to
  * fault and the fault contained, the TSC measured against the HPET, the
  * local APIC (xAPIC) with its timer at 100 Hz for 20 ticks, the MADT CPU
@@ -68,6 +72,29 @@
 #define PTE_PCD 0x10ull
 #define PTE_PS 0x80ull
 #define PTE_ADDR 0x000ffffffffff000ull
+#define MSR_EFER 0xc0000080u
+#define EFER_NXE (1ull << 11)
+#define CR0_WP (1ull << 16)
+
+/* W^X negative controls (make IMACKERN_WX_MUTANT=..., QEMU only, never
+ * deployed): no_nx drops every NX bit, text_writable leaves the code
+ * writable. The W^X probes below must then fail. */
+#define PTE_XD (1ull << 63) /* the hardware execute-disable bit */
+#ifdef CK_X86_WX_MUTANT_NO_NX
+#define PTE_NX 0ull
+#else
+#define PTE_NX PTE_XD
+#endif
+#ifdef CK_X86_WX_MUTANT_TEXT_RW
+#define TEXT_W PTE_W
+#else
+#define TEXT_W 0ull
+#endif
+
+/* image_x86_64.ld, runtime addresses: [image_base, text_start) PE header,
+ * [text_start, text_end) code, [ro_start, ro_end) rodata/relocs/GOT, then
+ * data and bss up to image_end. All page aligned. */
+extern char __image_base[], __text_start[], __text_end[], __ro_start[], __ro_end[], __image_end[];
 
 const char *ck_commit(void) { return AIENOS_COMMIT; }
 
@@ -368,6 +395,7 @@ struct mm {
     int fb_ok;
 };
 static struct mm mm;
+static uint64_t *pds[MAP_TOP_MAX >> 30];
 
 static uint64_t *table_new(void)
 {
@@ -384,6 +412,45 @@ static uint64_t *table_new(void)
 static int efi_ram(uint32_t type)
 {
     return type <= 10 && type != 0 && type != 8;
+}
+
+static int in_range(uint64_t p, const char *lo, const char *hi)
+{
+    return p >= (uint64_t)(uintptr_t)lo && p < (uint64_t)(uintptr_t)hi;
+}
+
+/* One 4 KiB page of a split 2 MiB page (cache bits from the 2 MiB entry):
+ * the stack guard unmapped, code RX, the PE header and read-only data R+NX,
+ * everything else RW+NX (the trampoline page included until smp_start). */
+static uint64_t leaf_4k(uint64_t p, uint64_t cache)
+{
+    if (p == (uint64_t)(uintptr_t)kstack)
+        return 0;
+    if (in_range(p, __text_start, __text_end))
+        return p | PTE_P | TEXT_W | cache;
+    if (in_range(p, __image_base, __text_start) || in_range(p, __ro_start, __ro_end))
+        return p | PTE_P | PTE_NX | cache;
+    return p | PTE_P | PTE_W | PTE_NX | cache;
+}
+
+/* The 2 MiB page holding a, split into 4 KiB pages at the protection
+ * boundaries above; a no-op when it already is. */
+static void split_2m(uint64_t a)
+{
+    uint64_t *e = &pds[a >> 30][(a >> 21) & 511];
+    if (!(*e & PTE_PS))
+        return;
+    uint64_t cache = *e & (PTE_PCD | PTE_PWT), *pt = table_new();
+    a &= ~((2ull << 20) - 1);
+    for (uint64_t j = 0; j < 512; j++)
+        pt[j] = leaf_4k(a | j << 12, cache);
+    *e = (uint64_t)(uintptr_t)pt | PTE_P | PTE_W;
+}
+
+static uint64_t *pte_4k(uint64_t a)
+{
+    uint64_t e = pds[a >> 30][(a >> 21) & 511];
+    return (uint64_t *)(uintptr_t)(e & PTE_ADDR) + ((a >> 12) & 511);
 }
 
 static void mm_build(void)
@@ -427,30 +494,26 @@ static void mm_build(void)
     /* Every 2 MiB page starts uncached (PCD|PWT, PAT index 3): device memory
      * (local APIC, I/O APIC, HPET, PCI BARs) whatever the MTRRs say. Pages
      * that hold RAM from the memory map become write-back (index 0), the
-     * framebuffer write-combining (PWT alone, index 1, set to WC below). The
-     * 2 MiB page holding the stack guard is split into 4 KiB pages. */
-    static uint64_t *pds[MAP_TOP_MAX >> 30];
+     * framebuffer write-combining (PWT alone, index 1, set to WC below).
+     * Every 2 MiB page is no-execute; the ones holding the image or the
+     * trampoline are split into 4 KiB pages (leaf_4k) after the cache types
+     * are set. */
     if (ck_rd_cr4() & (1ull << 12))
         ck_panic("paging: firmware runs 5-level paging (CR4.LA57); this kernel builds 4-level tables");
+    uint32_t x[4];
+    ck_cpuid(0x80000000, 0, x);
+    if (x[0] < 0x80000001)
+        ck_panic("paging: no CPUID leaf 0x80000001, so no NX");
+    ck_cpuid(0x80000001, 0, x);
+    if (!(x[3] & (1u << 20)))
+        ck_panic("paging: CPU has no NX (execute disable); this kernel needs it for W^X");
     uint64_t *pml4 = table_new(), *pdpt = table_new();
     pml4[0] = (uint64_t)(uintptr_t)pdpt | PTE_P | PTE_W;
-    uint64_t guard = (uint64_t)(uintptr_t)kstack;
     for (uint64_t g = 0; g < top >> 30; g++) {
         uint64_t *pd = pds[g] = table_new();
         pdpt[g] = (uint64_t)(uintptr_t)pd | PTE_P | PTE_W;
-        for (uint64_t i = 0; i < 512; i++) {
-            uint64_t a = g << 30 | i << 21;
-            if (a <= guard && guard < a + (2ull << 20)) {
-                uint64_t *pt = table_new();
-                for (uint64_t j = 0; j < 512; j++) {
-                    uint64_t p = a | j << 12;
-                    pt[j] = p == guard ? 0 : (p | PTE_P | PTE_W);
-                }
-                pd[i] = (uint64_t)(uintptr_t)pt | PTE_P | PTE_W;
-                continue;
-            }
-            pd[i] = a | PTE_P | PTE_W | PTE_PS | PTE_PCD | PTE_PWT;
-        }
+        for (uint64_t i = 0; i < 512; i++)
+            pd[i] = (g << 30 | i << 21) | PTE_P | PTE_W | PTE_PS | PTE_PCD | PTE_PWT | PTE_NX;
     }
     for (uint64_t off = 0; off + h->desc_size <= h->map_size; off += h->desc_size) {
         const struct ck_efi_desc *d = (const void *)(uintptr_t)(h->memory_map + off);
@@ -468,6 +531,11 @@ static void mm_build(void)
         if (*e & PTE_PS)
             *e = (*e & ~PTE_PCD) | PTE_PWT;
     }
+    for (uint64_t a = (uint64_t)(uintptr_t)__image_base & ~((2ull << 20) - 1); a < (uint64_t)(uintptr_t)__image_end;
+         a += 2ull << 20)
+        split_2m(a);
+    if (tramp_pa)
+        split_2m(tramp_pa);
     for (uint64_t g = 0; g < top >> 30; g++)
         for (uint64_t i = 0; i < 512; i++) {
             uint64_t e = pds[g][i];
@@ -489,7 +557,11 @@ static void mm_build(void)
         ck_panic("paging: CPU has no PAT");
     __asm__ volatile("wbinvd" ::: "memory");
     ck_wrmsr(0x277, 0x0007040600070106ull);
+    /* NX bits are reserved (every access faults) until EFER.NXE is set;
+     * CR0.WP makes read-only pages bind the kernel too. */
+    ck_wrmsr(MSR_EFER, ck_rdmsr(MSR_EFER) | EFER_NXE);
     ck_wr_cr3(mm.root);
+    __asm__ volatile("mov %0, %%cr0" ::"r"(ck_rd_cr0() | CR0_WP) : "memory");
     /* Toggling CR4.PGE drops global TLB entries the firmware's tables left. */
     uint64_t cr4 = ck_rd_cr4();
     if (cr4 & 0x80) {
@@ -520,7 +592,7 @@ int ck_x86_map_mmio(uint64_t pa, uint64_t len)
         uint64_t *pd = sub_table(sub_table(pml4, (unsigned)(a >> 39) & 511), (unsigned)(a >> 30) & 511);
         uint64_t *e = &pd[(a >> 21) & 511];
         if (!(*e & PTE_P)) {
-            *e = a | PTE_P | PTE_W | PTE_PS | PTE_PCD | PTE_PWT;
+            *e = a | PTE_P | PTE_W | PTE_PS | PTE_PCD | PTE_PWT | PTE_NX;
             mm.pages_uc++;
         }
         __asm__ volatile("invlpg (%0)" ::"r"(a) : "memory");
@@ -683,7 +755,7 @@ struct smp_report {
     uint32_t ids[SMP_MAX], up_ids[SMP_MAX];
     const char *why;
 };
-static volatile uint32_t ap_up, ap_ids[SMP_MAX];
+static volatile uint32_t ap_up, ap_ids[SMP_MAX], ap_nx_wp; /* ap_nx_wp: cores that came up with EFER.NXE and CR0.WP */
 
 static void delay_us(uint64_t us)
 {
@@ -707,6 +779,8 @@ static void ap_entry(void *arg)
     apic_wr(APIC_TPR, 0);
     apic_wr(APIC_SVR, 0x100 | VEC_SPURIOUS);
     ap_ids[idx] = apic_rd(APIC_ID) >> 24;
+    if ((ck_rdmsr(MSR_EFER) & EFER_NXE) && (ck_rd_cr0() & CR0_WP))
+        __atomic_fetch_add(&ap_nx_wp, 1, __ATOMIC_SEQ_CST);
     __atomic_fetch_add(&ap_up, 1, __ATOMIC_SEQ_CST);
     for (;;)
         __asm__ volatile("cli; hlt");
@@ -739,6 +813,16 @@ static uint32_t tramp_at(const char *sym)
     return (uint32_t)(tramp_pa + (uint64_t)(uintptr_t)(sym - ck_x86_tramp_start));
 }
 
+/* The trampoline page is never writable and executable at once: RW+NX while
+ * it is filled, RX while a core runs it, R+NX once the cores are parked (a
+ * parked core runs nothing, so no TLB shootdown). */
+static void tramp_prot(uint64_t bits)
+{
+    uint64_t *e = pte_4k(tramp_pa);
+    *e = (*e & (PTE_ADDR | PTE_PCD | PTE_PWT)) | PTE_P | bits;
+    __asm__ volatile("invlpg (%0)" ::"r"(tramp_pa) : "memory");
+}
+
 static void smp_start(const struct apic_report *ar, struct smp_report *sr)
 {
     const uint8_t *m = ck_acpi_lookup(hand->rsdp, "APIC");
@@ -753,8 +837,11 @@ static void smp_start(const struct apic_report *ar, struct smp_report *sr)
         sr->why = "page tables above 4 GiB";
     else if (size > CK_PAGE)
         sr->why = "trampoline larger than a page";
-    if (sr->why)
+    if (sr->why) {
+        if (tramp_pa)
+            tramp_prot(PTE_NX);
         return;
+    }
     memcpy((void *)(uintptr_t)tramp_pa, ck_x86_tramp_start, size);
     tramp_put32(ck_x86_tramp_gdtr + 2, tramp_at(ck_x86_tramp_gdt));
     tramp_put32(ck_x86_tramp_far32, tramp_at(ck_x86_tramp_pm32));
@@ -771,8 +858,10 @@ static void smp_start(const struct apic_report *ar, struct smp_report *sr)
             continue;
         }
         unsigned before = ap_up;
+        tramp_prot(PTE_W | PTE_NX);
         tramp_put64(ck_x86_tramp_stack, st + AP_STACK_PAGES * CK_PAGE);
         tramp_put64(ck_x86_tramp_arg, before);
+        tramp_prot(0);
         __asm__ volatile("mfence" ::: "memory");
         int bad = icr_send(id, 0x4500); /* INIT, assert */
         delay_ms(10);
@@ -790,6 +879,126 @@ static void smp_start(const struct apic_report *ar, struct smp_report *sr)
         if (ap_up > before + 1)
             break; /* a core checked in twice or out of turn: stop starting more */
     }
+    tramp_prot(PTE_NX);
+}
+
+/* ---- W^X (#409) ----
+ * Each probe arms the #PF catcher (ck_x86_trap), touches one address and
+ * resumes after the access. The store writes back the byte it read, so a
+ * build that lets it through changes nothing. The execute probe jumps to
+ * `jmp *%rax` (rax = the resume label), so code that does run comes straight
+ * back and the probe sees no fault. Error code bits: P 0, W 1, RSVD 3, I/D 4. */
+static int probe_write(uint64_t a)
+{
+    probe.hit = 0;
+    probe.armed = 1;
+    __asm__ volatile("lea 1f(%%rip), %%rax\n\t"
+                     "mov %%rax, %0\n\t"
+                     "movb (%1), %%cl\n\t"
+                     "movb %%cl, (%1)\n"
+                     "1:"
+                     : "=m"(probe.resume)
+                     : "r"(a)
+                     : "rax", "rcx", "memory");
+    probe.armed = 0;
+    return probe.hit && probe.cr2 == a && (probe.err & 0x1b) == 0x03;
+}
+
+static int probe_exec(uint8_t *buf)
+{
+    buf[0] = 0xff; /* jmp *%rax */
+    buf[1] = 0xe0;
+    uint64_t a = (uint64_t)(uintptr_t)buf;
+    probe.hit = 0;
+    probe.armed = 1;
+    __asm__ volatile("lea 1f(%%rip), %%rax\n\t"
+                     "mov %%rax, %0\n\t"
+                     "jmp *%1\n"
+                     "1:"
+                     : "=m"(probe.resume)
+                     : "r"(a)
+                     : "rax", "memory");
+    probe.armed = 0;
+    return probe.hit && probe.cr2 == a && (probe.err & 0x1b) == 0x11;
+}
+
+static void wx_probes(void)
+{
+    uint64_t efer = ck_rdmsr(MSR_EFER), cr0 = ck_rd_cr0();
+    uint8_t *hb = ck_heap_alloc(&heap, 16);
+    uint8_t sb[16];
+    if (!hb)
+        ck_panic("wx: no heap for the execute probe");
+    int tw = probe_write((uint64_t)(uintptr_t)__text_start), rw = probe_write((uint64_t)(uintptr_t)__ro_start);
+    int hx = probe_exec(hb), sx = probe_exec(sb);
+    ck_heap_free(&heap, hb);
+    const char *f = "fault", *n = "ALLOWED";
+    if (!(efer & EFER_NXE) || !(cr0 & CR0_WP) || !tw || !rw || !hx || !sx)
+        ck_panic("wx: FAIL nx=%s wp=%s text_write=%s ro_write=%s heap_exec=%s stack_exec=%s",
+                 efer & EFER_NXE ? "on" : "off", cr0 & CR0_WP ? "on" : "off", tw ? f : n, rw ? f : n,
+                 hx ? f : n, sx ? f : n);
+    ck_puts("wx: ok nx=on wp=on text_write=fault ro_write=fault heap_exec=fault stack_exec=fault\n");
+}
+
+/* Every present leaf of the live tables (identity map, MMIO above it, the
+ * trampoline): no page may be writable and executable, the executable ones
+ * must be exactly the code, and the PE header and read-only data must not
+ * be writable. Counts are 4 KiB pages. */
+static void wx_audit(unsigned started)
+{
+    uint64_t wx = 0, ex = 0, ex_out = 0, ro_w = 0, text = (uint64_t)(__text_end - __text_start) >> 12;
+    const uint64_t *pml4 = (const uint64_t *)(uintptr_t)mm.root;
+    for (uint64_t i = 0; i < 512; i++) {
+        if (!(pml4[i] & PTE_P))
+            continue;
+        const uint64_t *pdpt = (const uint64_t *)(uintptr_t)(pml4[i] & PTE_ADDR);
+        for (uint64_t j = 0; j < 512; j++) {
+            if (!(pdpt[j] & PTE_P))
+                continue;
+            if (pdpt[j] & PTE_PS) { /* 1 GiB page: never built here, counted if present */
+                if (!(pdpt[j] & PTE_XD)) {
+                    ex += 1u << 18, ex_out += 1u << 18;
+                    wx += pdpt[j] & PTE_W ? 1u << 18 : 0;
+                }
+                continue;
+            }
+            const uint64_t *pd = (const uint64_t *)(uintptr_t)(pdpt[j] & PTE_ADDR);
+            for (uint64_t k = 0; k < 512; k++) {
+                uint64_t e = pd[k];
+                if (!(e & PTE_P))
+                    continue;
+                if (e & PTE_PS) {
+                    if (!(e & PTE_XD)) {
+                        ex += 512, ex_out += 512;
+                        wx += e & PTE_W ? 512 : 0;
+                    }
+                    continue;
+                }
+                const uint64_t *pt = (const uint64_t *)(uintptr_t)(e & PTE_ADDR);
+                for (uint64_t l = 0; l < 512; l++) {
+                    uint64_t p = i << 39 | j << 30 | k << 21 | l << 12;
+                    if (!(pt[l] & PTE_P))
+                        continue;
+                    if ((pt[l] & PTE_W) && (in_range(p, __image_base, __text_start) || in_range(p, __ro_start, __ro_end)))
+                        ro_w++;
+                    if (pt[l] & PTE_XD)
+                        continue;
+                    ex++;
+                    ex_out += !in_range(p, __text_start, __text_end);
+                    wx += !!(pt[l] & PTE_W);
+                }
+            }
+        }
+    }
+    if (wx || ex != text || ex_out || ro_w || ap_nx_wp != started)
+        ck_panic("wx_audit: FAIL wx_pages=%llu exec_pages=%llu text_pages=%llu exec_outside_text=%llu ro_writable=%llu "
+                 "cores_nx_wp=%u/%u",
+                 (unsigned long long)wx, (unsigned long long)ex, (unsigned long long)text,
+                 (unsigned long long)ex_out, (unsigned long long)ro_w, ap_nx_wp + 1, started + 1);
+    ck_printf("wx_audit: ok wx_pages=0 exec_pages=%llu text_pages=%llu exec_outside_text=0 ro_writable=0 "
+              "cores_nx_wp=%u/%u trampoline=%s\n",
+              (unsigned long long)ex, (unsigned long long)text, ap_nx_wp + 1, started + 1,
+              tramp_pa ? "retired" : "none");
 }
 
 /* ---- the kernel ---- */
@@ -876,6 +1085,7 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
     else
         ck_panic("guard_page: FAIL hit=%d cr2=0x%llx error=0x%llx", probe.hit, (unsigned long long)probe.cr2,
                  (unsigned long long)probe.err);
+    wx_probes();
 
     tsc_measure();
     if (!tsc_hz)
@@ -912,6 +1122,7 @@ static __attribute__((noreturn)) void kernel_main(void *arg)
     }
 
     const struct ck_x86_storage_result *st = ck_x86_storage(h->rsdp, &frames, tsc_hz, mm.top);
+    wx_audit(sr.started);
     ck_puts("kernel: alive\n");
     ck_printf("summary: cores=%u/%u timer=ok sata_disks=%u nvme_disks=%u gpt_valid=%u writes=none net=%s\n",
               sr.started + 1, sr.listed, st->ahci_disks, st->nvme_disks, st->gpt_valid,
@@ -931,6 +1142,9 @@ void ck_x86_kernel_entry(struct ck_handoff *h)
     hand = h;
     tables_load();
     ck_puts("\nreport_kind: kernel\n");
+#if defined(CK_X86_WX_MUTANT_NO_NX) || defined(CK_X86_WX_MUTANT_TEXT_RW)
+    ck_puts("wx: TEST-ONLY W^X mutant build, page permissions deliberately broken, never deploy\n");
+#endif
     ck_printf("exit_boot_services: ok attempts=%u\n", h->exit_attempts);
     cpu_line();
     ck_puts("descriptors: gdt=5 tss=yes ist1=df,nmi,mc idt=256\n");

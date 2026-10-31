@@ -1,0 +1,11 @@
+case revoke_blocked_write
+kind negative
+# a writer parked on a full pipe wakes on revoke; the 64 KiB already buffered is scrubbed, never delivered
+create R W A => OK
+fill W 65536 61 => OK n=65536
+bwrite W "z" revoke R => REVOKED
+check revocations=1 waits=1 wakeups=1 bytes_written=65536
+read R 1 => REVOKED
+close W => OK
+close R => OK
+check empty bytes_read=0
