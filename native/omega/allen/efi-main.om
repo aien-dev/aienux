@@ -336,6 +336,7 @@ put Sh 5 1
 end
 chstep now ne get Es 6 0
 shanswer
+ststep ne get Es 6 0
 eftransmit now
 if not shstep now
 ret 6

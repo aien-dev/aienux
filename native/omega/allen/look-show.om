@@ -7,7 +7,9 @@ note Only rectangles that changed are composed; their rows are blitted from two 
 note halves (Efa rows 0..hh-1, Efb rows hh..h-1; each at most 16 MiB, the compiler's array limit).
 note Sh: 0 ms at start, 1 last t, 2 rows per half (hh), 3 full redraw pending, 4 frames drawn,
 note 5 repository screen dirty, 6 last full-screen compose ms, 7 fade strip, 8 the request is
-note with the Spark (thinking), 9 unused, 10 the ripple radius last drawn, 11 now (ms).
+note with the Spark (thinking), 9 the fade's last full pass is done, 10 the ripple radius last
+note drawn, 11 now (ms), 12 the ripple was on screen last frame, 13 pixels composed this frame,
+note 14 rectangles composed this frame, 15 this frame redrew the whole screen (look-stat.om).
 global Sh long 16
 global Efa uchar 16777216
 global Efb uchar 16777216
@@ -126,6 +128,7 @@ ret shblit hh sub add y0 rows hh
 end
 arg = or or w shl rows 32 shl y0 48
 n = mul mul w rows 4
+put Stw 10 add get Stw 10 n
 st = ulong 0
 if lt y0 hh
 st = efi 3 arg Efa mul mul y0 w 4 n
@@ -179,6 +182,9 @@ h = get Lg 1
 shcompose 0 0 w h
 shrepo
 shconvert 0 0 w h
+put Sh 13 mul w h
+put Sh 14 1
+put Sh 15 1
 put Shdn 0 0
 put Sh 3 0
 end
@@ -186,6 +192,7 @@ fn shrects to void
 note Every marked rectangle: compose and convert. Rectangles may overlap; drawing twice is harmless
 note because every layer is a pure function of position and time.
 n = get Shdn 0
+px = long 0
 for i ulong n
 at = mul i 4
 x = get Shd at
@@ -194,7 +201,11 @@ w = get Shd add at 2
 h = get Shd add at 3
 shcompose x y w h
 shconvert x y w h
+px = add px mul w h
 end
+put Sh 13 px
+put Sh 14 long n
+put Sh 15 0
 put Shdn 0 0
 end
 fn shtwinkles to void
@@ -345,7 +356,15 @@ shrects
 end
 put Sh 1 long t
 put Sh 4 add get Sh 4 1
-ret shflush
+t1 = efms
+ok = shflush
+shstat now t1 efms t
+ret ok
+end
+fn shstat t0 ulong t1 ulong t2 ulong t ulong to void
+note The frame's clocks and what it composed, for the stopwatch (look-stat.om).
+rf = ulong add mul get Sh 14 2 get Sh 15
+stframe t0 t1 t2 t ulong get Sh 13 rf
 end
 fn shsubmit to void
 note Enter in the bar: a recognised repository request opens the repository screen; anything else
@@ -360,6 +379,10 @@ put Dprm i get Hmin i
 end
 put Inlen 0 n
 put Dprmn 0 n
+if stasked
+hmkey 13
+ret
+end
 if ghask
 put Dmo 0 1
 put Sh 5 1

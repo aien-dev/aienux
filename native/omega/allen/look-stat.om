@@ -1,0 +1,148 @@
+note SPDX-License-Identifier: MIT
+note Allen's look, the stopwatch: what a second of frames costs on the machine that runs the show.
+note look-show.om stamps three clocks a frame (before the decision, after compose and conversion,
+note after the blit); once a second the sums become one line
+note   STAT s=<second> t=<ms into the show> f=<frames> cc=<compose+convert ms> bl=<blit ms>
+note   r=<rectangles> px=<pixels composed> full=<full redraws> max=<slowest frame ms>
+note   lens=<w>x<h> rip=<ripple radius> kb=<KiB blitted>
+note sent as one datagram to the courier's port (the relay drops anything that is not courier
+note wire; tcpdump on the Spark reads it) and kept as Allen's answer to the typed line `stats`.
+note Stw: 0 second start ms, 1 frames, 2 compose+convert ms, 3 blit ms, 4 rectangles, 5 pixels,
+note 6 full redraws, 7 slowest frame ms, 8 seconds counted, 9 a line waits in Stt for the wire,
+note 10 bytes blitted.
+global Stw ulong 16
+global Stv ulong 16
+global Stt uchar 256
+global Sttn ulong 1
+global Stdig uchar 24
+text Stfmt "STAT s=# t=# f=# cc=# bl=# r=# px=# full=# max=# lens=#x# rip=# kb=#"
+text Stkey "stats"
+fn stput c uchar to void
+n = get Sttn 0
+if lt n len Stt
+put Stt n c
+put Sttn 0 add n 1
+end
+end
+fn stnum v ulong to void
+n = ulong 0
+while gt v 9 bound 24
+put Stdig n uchar rem v 10
+v = div v 10
+n = add n 1
+end
+put Stdig n uchar v
+n = add n 1
+for i ulong n
+stput add uchar 48 get Stdig sub sub n 1 i
+end
+end
+fn stdiff a ulong b ulong to ulong
+note b - a, 0 when the clock failed or went backwards.
+if or lt b a eq b 18446744073709551615
+ret 0
+end
+ret sub b a
+end
+fn stline to void
+note Stfmt with every # replaced by the next value of Stv.
+put Sttn 0 0
+k = ulong 0
+for i ulong len Stfmt
+c = get Stfmt i
+if eq c 35
+stnum get Stv k
+k = add k 1
+else
+stput c
+end
+end
+end
+fn stsecond now ulong t ulong to void
+put Stw 8 add get Stw 8 1
+put Stv 0 get Stw 8
+put Stv 1 t
+put Stv 2 get Stw 1
+put Stv 3 get Stw 2
+put Stv 4 get Stw 3
+put Stv 5 get Stw 4
+put Stv 6 get Stw 5
+put Stv 7 get Stw 6
+put Stv 8 get Stw 7
+put Stv 9 ulong pkmax get Ntlens 2 0
+put Stv 10 ulong pkmax get Ntlens 3 0
+put Stv 11 ulong pkmax get Ntrip 0 0
+put Stv 12 div get Stw 10 1024
+stline
+put Stw 9 1
+for i ulong 8
+put Stw i 0
+end
+put Stw 0 now
+put Stw 10 0
+end
+fn stframe t0 ulong t1 ulong t2 ulong t ulong px ulong rf ulong to void
+note One frame: t0 before the decision, t1 after compose and conversion, t2 after the blit;
+note t is the show's clock, px the pixels composed, rf twice the rectangles plus 1 for a
+note whole-screen redraw (six parameters is the language's limit).
+if eq get Stw 0 0
+put Stw 0 t0
+end
+put Stw 1 add get Stw 1 1
+put Stw 2 add get Stw 2 stdiff t0 t1
+put Stw 3 add get Stw 3 stdiff t1 t2
+put Stw 4 add get Stw 4 shr rf 1
+put Stw 5 add get Stw 5 px
+put Stw 6 add get Stw 6 and rf 1
+d = stdiff t0 t2
+if gt d get Stw 7
+put Stw 7 d
+end
+if ge t2 add get Stw 0 1000
+stsecond t2 t
+end
+end
+fn ststep up bool to void
+note Offer the waiting line to the wire when the network is up and nothing is in flight; the
+note courier's own datagrams are offered again on their clock, so one frame of delay is harmless.
+if or eq get Stw 9 0 not up
+ret
+end
+if ne get Ntxlen 0 0
+ret
+end
+n = get Sttn 0
+if or eq n 0 gt n 1472
+put Stw 9 0
+ret
+end
+ntxzero
+for i ulong n
+put Ntx add 42 i get Stt i
+end
+nudp 4294967295 47033 47033 n true
+nqueue 7 add 42 n
+put Stw 9 0
+end
+fn stasked to bool
+note True when the typed line is `stats`: the last line becomes what Allen says.
+n = get Hminn 0
+if ne n len Stkey
+ret false
+end
+for i ulong n
+if ne get Hmin i get Stkey i
+ret false
+end
+end
+n = get Sttn 0
+if gt n len Hmsay
+n = len Hmsay
+end
+for i ulong n
+put Hmsay i get Stt i
+end
+put Hmsayn 0 n
+hmsaid
+ret true
+end
