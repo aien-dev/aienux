@@ -9,7 +9,12 @@ aienos-artifact-tool inspect FILE.aien
 aienos-artifact-tool id FILE.aien
 aienos-artifact-tool sign INPUT.aien OUTPUT.aien
 aienos-artifact-tool verify FILE.aien
+aienos-artifact-tool receipt ...
 ```
+
+`receipt` has its own subcommands (`inspect`, `check`, `from-hex`,
+`sign-test`, `verify`); `aienos-artifact-tool receipt` with no further
+arguments prints their usage.
 
 `pack` accepts UTF-8 JSON with exactly these top-level fields:
 

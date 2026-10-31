@@ -1,0 +1,15 @@
+case cancel_pending_write
+kind negative
+# a cancel with no waiter interrupts the next call on that end only
+create R W A => OK
+cancel W => OK
+read R 1 => WOULD_BLOCK
+write W "x" => INTERRUPTED
+write W "x" => OK n=1
+cancel R => OK
+read R 1 => INTERRUPTED
+read R 1 => OK n=1 data="x"
+check cancellations=2 bytes_read=1
+close R => OK
+close W => OK
+check empty

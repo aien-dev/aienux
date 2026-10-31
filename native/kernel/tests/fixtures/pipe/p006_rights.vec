@@ -1,0 +1,23 @@
+case rights
+kind negative
+# a read end cannot write and a write end cannot read; dup attenuates and never widens
+create R W A => OK
+write R "x" => DENIED
+read W 1 => DENIED
+dup R X A w => INVALID_ARG
+dup R X A rm => INVALID_ARG
+dup R RB B r => OK
+dup RB RC B r => DENIED
+dup RB RC A r => DENIED
+revoke RB => DENIED
+cancel W => OK
+dup W WB B wg => OK
+dup WB WC B wd => DENIED
+write WB "q" => INTERRUPTED
+write WB "q" => OK n=1
+read RB 4 => OK n=1 data="q"
+close RB => OK
+close WB => OK
+close R => OK
+close W => OK
+check empty refused=6

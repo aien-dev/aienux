@@ -1,3 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! PI5-8 host probe: can the engine's forward pass run an arbitrary llama-architecture GGUF,
 //! and does it produce the same greedy tokens as llama.cpp?
 //!
@@ -9,6 +24,7 @@
 //! usage: model_probe MODEL.gguf IDS_FILE N EOS_ID
 //!   IDS_FILE: text file whose first line is `ids <id> <id> ...` (or bare ids)
 //! Env: AIENOS_DOT=sdot (dotprod int8 path when the CPU has it; default f32 scalar).
+//! Env: AIENOS_BITS=1 also prints `bits <i> <u32>`, the f32 bits of each chosen logit.
 //! Output: one `key: value` line per fact, `step <i> <id>` lines in llama_ref's style.
 
 #![allow(clippy::chunks_exact_to_as_chunks)]
@@ -120,10 +136,15 @@ fn main() {
             );
         }
     }
+    // AIENOS_BITS=1: also print the f32 bits of each chosen logit (oracle for native/om/lm1b).
+    let bits = std::env::var("AIENOS_BITS").map(|v| v == "1").unwrap_or(false);
     let mut tok_us = Vec::new();
     for i in 0..n {
         let t = argmax(&st.logits);
         println!("step {i} {t}");
+        if bits {
+            println!("bits {i} {}", st.logits[t as usize].to_bits());
+        }
         if t == eos {
             println!("eog");
             break;

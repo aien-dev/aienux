@@ -1,0 +1,12 @@
+case zero_length
+kind negative
+# zero-length read and write move nothing; authority and state are still checked
+create R W A => OK
+write W "" => OK n=0
+read R 0 => OK n=0
+read R 4 => WOULD_BLOCK
+write R "" => DENIED
+close R => OK
+write W "" => BROKEN_PIPE
+close W => OK
+check empty

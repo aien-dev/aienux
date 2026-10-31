@@ -21,33 +21,33 @@
     "generated": {
       "children": [
         {
-          "digest": "8fa25040d5da98cfa76b5c39ed4b48f9f02252e42b00d0eaf84b99265813c0f1",
-          "last_commit": "1625f69",
+          "digest": "d5e0dbb856b190a009a618da34a3a91b9f337c06efb05dc7b895e748ecc46b79",
+          "last_commit": "f45d00ad",
           "name": "bridge",
           "purpose": "Directory native/argus/bridge. Purpose not yet described by a human."
         },
         {
-          "digest": "c519b9b561e14e4c8017f79c86093d14b250c72e5c17258d77507130dd420a44",
-          "last_commit": "09e59a8",
+          "digest": "1cffa7f63509d0df96a2366b926726a89481ce2e66f4beba2cf44f589dbc25cc",
+          "last_commit": "d7012755",
           "name": "docs",
           "purpose": "Directory native/argus/docs. Purpose not yet described by a human."
         },
         {
-          "digest": "9da71b144b276a79663b8240d09f6ee8ec187a336b45c48dc47adeca8012a11c",
-          "last_commit": "130aa20",
+          "digest": "a7593ba5ffb5299efb3d8571a42e70d98de830c36757e82c010dc406682938c4",
+          "last_commit": "f45d00ad",
           "name": "tests",
           "purpose": "Directory native/argus/tests. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:60f887eb1e514a9e647f622c81848e2accd452e38b157103e8a9f58a32bb1694",
-      "compiled_at": "2026-10-14T13:28:10Z",
+      "children_root": "sha256:5985d0b0d0e46c550b5e7128ec0c51e070c06114b1bd08107f392deb911cb779",
+      "compiled_at": "2026-10-30T11:54:31Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:50aa2fbd6ca356b7703517bc7ecf439f7b6e0a6b935d0ca6ca4c6f7caf23ce34",
+      "digest": "sha256:72ee4e94f3dc99d79ea4eb3bf619ad645c0b76d7009d1883e59adfbfce9c8ac2",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 47,
-      "generated_at_commit": "a0fa796235409ce465c467e8c72fbd977485d8f7",
-      "source_tree": "sha256:9511497343ad28d30fb7c58c0d11c87ab936d6e95ff561bf245ea2e5acbbb4f1"
+      "generated_at_commit": "fd4ac5b5bdf13645e310e506c997ca18c39b7fe2",
+      "source_tree": "sha256:88ea2959529bb6510ca9bf3d4816d2bc8bf6cd3d2c0d75949c22d3303b990649"
     },
     "owner_lane": "",
     "provenance": {

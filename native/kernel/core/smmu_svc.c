@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* smmu_svc.c -- the ck.h DMA isolation services (ck_dma_confine and
  * friends) over core/smmu.c, the IORT parser and the DMA pool. Kernel only
  * (the host tests drive core/smmu.c directly against a model SMMU).
@@ -244,6 +260,11 @@ static int map_reserved(struct ck_pt *pt, const struct ck_iort_route *rt, uint32
                           (unsigned long long)r->range[k].base, (unsigned long long)r->range[k].len);
                 return -1;
             }
+#ifdef CK_B7B_EVENT_READOUT
+            ck_printf("b7b_rmr: sid=0x%x base=0x%llx len=0x%llx flags=0x%x identity=yes\n",
+                      sid, (unsigned long long)r->range[k].base,
+                      (unsigned long long)r->range[k].len, r->flags);
+#endif
             (*n)++;
         }
     }
@@ -334,6 +355,36 @@ int ck_dma_unconfine(uint32_t stream_id)
     return 0;
 }
 
+#ifdef CK_B7B_EVENT_READOUT
+static void b7b_event(void *ctx, const struct ck_smmu_event *e)
+{
+    const struct inst *in = ctx;
+    ck_printf("b7b_event: instance=%u base=0x%llx sid=0x%x type=0x%02x name=%s addr=0x%llx "
+              "raw=%016llx,%016llx,%016llx,%016llx\n",
+              in->index, (unsigned long long)in->base, e->sid, e->type,
+              ck_smmu_event_name(e->type), (unsigned long long)e->addr,
+              (unsigned long long)e->raw[0], (unsigned long long)e->raw[1],
+              (unsigned long long)e->raw[2], (unsigned long long)e->raw[3]);
+}
+
+void ck_b7b_event_readout(void)
+{
+    ck_puts("b7b_events: final begin all_sids=yes\n");
+    for (uint32_t k = 0; k < CK_IORT_MAX_SMMUS; k++) {
+        struct inst *in = &g.inst[k];
+        if (in->state != 1) {
+            ck_printf("b7b_events: instance=%u state=%s\n", k,
+                      in->state == CK_SMMU_FAILED ? "failed" : "not-live");
+            continue;
+        }
+        struct ck_smmu_observation o = ck_smmu_observe_events(&in->regs, &in->t, b7b_event, in);
+        ck_printf("b7b_events: instance=%u base=0x%llx events=%u overflow=%d pending=%d\n",
+                  k, (unsigned long long)in->base, o.events, o.overflow, o.pending);
+    }
+    ck_puts("b7b_events: final end\n");
+}
+#endif
+
 int ck_dma_faults(uint32_t stream_id, struct ck_dma_fault *first)
 {
     int matched = 0, ovf = 0, any = 0;
@@ -348,7 +399,16 @@ int ck_dma_faults(uint32_t stream_id, struct ck_dma_fault *first)
             int o = 0;
             n = ck_smmu_read_events(&in->regs, &in->t, ev, 4, &o);
             ovf |= o;
+#ifdef CK_B7B_EVENT_READOUT
+            if (o)
+                ck_printf("b7b_events: instance=%u source=dma_faults overflow=1\n", k);
+#endif
             for (int i = 0; i < n; i++) {
+#ifdef CK_B7B_EVENT_READOUT
+                /* Report before filtering: other SIDs must not disappear when
+                 * a device's negative test consumes the shared event queue. */
+                b7b_event(in, &ev[i]);
+#endif
                 if (ev[i].sid != stream_id)
                     continue;
                 if (!matched && first) {

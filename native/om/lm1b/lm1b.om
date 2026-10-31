@@ -1,0 +1,2872 @@
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note lm1b: Llama-3.2-1B-Instruct Q4_K_M forward pass in seeded Omega (aienux native/om/lm1b, arch#314).
+note TEMPLATE. gen.sh expands the marker lines (GEN_...) into lm1b.om; edit this file, then run gen.sh.
+note Contract v1: fd 3 = model (pread only), fd 0 = request lines, fd 1 = response lines. See README.md.
+note Numbers mirror aienos-infer (src/math.rs, src/quant.rs, src/decode.rs, src/lib.rs) on its plain f32
+note path: same operations in the same order, one IEEE rounding per word, no fused multiply-add.
+note omc refuses a function that returns f32 (error 5), so float helpers return the f32 bits as uint.
+const NE ulong 2048
+const NF ulong 8192
+const NV ulong 128256
+const CTX ulong 256
+const KVD ulong 512
+const AX ulong 0
+const AH ulong 2048
+const AQ ulong 4096
+const AK ulong 6144
+const AV ulong 6656
+const AAT ulong 7168
+const AG ulong 9216
+const AU ulong 17408
+const AT ulong 25600
+const ASC ulong 27648
+const ARC ulong 27904
+const ARS ulong 27936
+const ALG ulong 32768
+const K3 ulong 0
+const K5 ulong 1
+const K7 ulong 2
+const K9 ulong 3
+const K6 ulong 4
+const K24 ulong 5
+const K120 ulong 6
+const K5040 ulong 7
+const K362 ulong 8
+const K720 ulong 9
+const K40320 ulong 10
+const KPI ulong 11
+const KTAU ulong 12
+const KPI2 ulong 13
+const KLN2 ulong 14
+const KL2E ulong 15
+const KSQ2 ulong 16
+const KHI ulong 17
+const KLO ulong 18
+const KNINF ulong 19
+const KEPS ulong 20
+const KNZ ulong 21
+const KSCALE ulong 22
+const KTS ulong 23
+const KM87 ulong 24
+const K88 ulong 25
+const SOB ulong 0
+const SCUR ulong 1
+const SMF ulong 2
+const SRB ulong 3
+const SDS ulong 4
+const SFLT ulong 5
+const SFILL ulong 6
+const SSTART ulong 7
+const SEOF ulong 8
+const SSKIP ulong 9
+const SLS ulong 10
+const SPC ulong 11
+const SPE ulong 12
+const SERR ulong 13
+const SIDS ulong 14
+const SIDN ulong 15
+const SNID ulong 16
+const SGEN ulong 17
+const SBUD ulong 18
+const SSTOP ulong 19
+const SFAULT ulong 20
+const SNTOK ulong 21
+const SCAN ulong 22
+const IBCAP ulong 65536
+const WLOAD ulong 0
+const WOK ulong 1
+const WBYTES ulong 2
+const WTENS ulong 3
+const WSHA ulong 4
+const WPASSES ulong 5
+const WJOB ulong 6
+const WSTATUS ulong 7
+const WCANCEL ulong 8
+const WREFUSED ulong 9
+const WREASON ulong 10
+const WTOKENS ulong 11
+const WBITS ulong 12
+const WACCT ulong 13
+const WROWB ulong 14
+const WSYNTAX ulong 15
+const WTOOLONG ulong 16
+const WTOOMANY ulong 17
+const WCONTEXT ulong 18
+const WBADID ulong 19
+const WRANGE ulong 20
+const WEMPTY ulong 21
+const WSIZE ulong 22
+const WMAGIC ulong 23
+const WHEADER ulong 24
+const WMANI ulong 25
+const WQMARK ulong 26
+const WGEN ulong 27
+const WBUDGET ulong 28
+const WSTOP ulong 29
+const WFAULT ulong 30
+const WIDS ulong 31
+const WREAD ulong 32
+const FSIZE ulong 807694368
+const NTENS ulong 147
+global m0 uchar 16777216
+global m1 uchar 16777216
+global m2 uchar 16777216
+global m3 uchar 16777216
+global m4 uchar 16777216
+global m5 uchar 16777216
+global m6 uchar 16777216
+global m7 uchar 16777216
+global m8 uchar 16777216
+global m9 uchar 16777216
+global m10 uchar 16777216
+global m11 uchar 16777216
+global m12 uchar 16777216
+global m13 uchar 16777216
+global m14 uchar 16777216
+global m15 uchar 16777216
+global m16 uchar 16777216
+global m17 uchar 16777216
+global m18 uchar 16777216
+global m19 uchar 16777216
+global m20 uchar 16777216
+global m21 uchar 16777216
+global m22 uchar 16777216
+global m23 uchar 16777216
+global m24 uchar 16777216
+global m25 uchar 16777216
+global m26 uchar 16777216
+global m27 uchar 16777216
+global m28 uchar 16777216
+global m29 uchar 16777216
+global m30 uchar 16777216
+global m31 uchar 16777216
+global m32 uchar 16777216
+global m33 uchar 16777216
+global m34 uchar 16777216
+global m35 uchar 16777216
+global m36 uchar 16777216
+global m37 uchar 16777216
+global m38 uchar 16777216
+global m39 uchar 16777216
+global m40 uchar 16777216
+global m41 uchar 16777216
+global m42 uchar 16777216
+global m43 uchar 16777216
+global m44 uchar 16777216
+global m45 uchar 16777216
+global m46 uchar 16777216
+global m47 uchar 16777216
+global m48 uchar 2388000
+global rb uchar 8192
+global ac f32 161024
+global kc f32 2097152
+global vc f32 2097152
+global nw f32 67584
+global rf f32 32
+global cf f32 32
+global kd f32 8
+global ko ulong 8
+global tof ulong 160
+global tty ulong 160
+global toff ulong 160
+global ttyp ulong 160
+global st ulong 32
+global ob uchar 65536
+global ib uchar 65536
+global mf uchar 65536
+global one uchar 8
+global ids ulong 512
+global tk ulong 512
+global tb ulong 512
+text tw "load            ok              bytes           tensors         sha256          passes          job             status          cancelled       refused         reason          tokens          bits            acct            rowbytes        syntax          toolong         toomany         context         badid           range           empty           size            magic           header          manifest        ?               gen             budget          stop            fault           ids             read            "
+text man "gguf 3 147 36\nkv 20 general.architecture 8 5 llama\nkv 12 general.type 8 5 model\nkv 12 general.name 8 21 Llama-3.2-1B-Instruct\nkv 16 general.finetune 8 8 Instruct\nkv 16 general.basename 8 21 Llama-3.2-1B-Instruct\nkv 20 general.quantized_by 8 7 Unsloth\nkv 18 general.size_label 8 2 1B\nkv 16 general.repo_url 8 30 https://huggingface.co/unsloth\nkv 17 llama.block_count 4 16\nkv 20 llama.context_length 4 131072\nkv 22 llama.embedding_length 4 2048\nkv 25 llama.feed_forward_length 4 8192\nkv 26 llama.attention.head_count 4 32\nkv 29 llama.attention.head_count_kv 4 8\nkv 20 llama.rope.freq_base 6 1223959552\nkv 38 llama.attention.layer_norm_rms_epsilon 6 925353388\nkv 26 llama.attention.key_length 4 64\nkv 28 llama.attention.value_length 4 64\nkv 16 llama.vocab_size 4 128256\nkv 26 llama.rope.dimension_count 4 64\nkv 20 tokenizer.ggml.model 8 4 gpt2\nkv 18 tokenizer.ggml.pre 8 9 llama-bpe\nkv 21 tokenizer.ggml.tokens 9 8 128256\nkv 25 tokenizer.ggml.token_type 9 5 128256\nkv 21 tokenizer.ggml.merges 9 8 280147\nkv 27 tokenizer.ggml.bos_token_id 4 128000\nkv 27 tokenizer.ggml.eos_token_id 4 128009\nkv 31 tokenizer.ggml.padding_token_id 4 128004\nkv 28 tokenizer.ggml.add_bos_token 7 1\nkv 23 tokenizer.chat_template 8 3827\nkv 28 general.quantization_version 4 2\nkv 17 general.file_type 4 15\nkv 21 quantize.imatrix.file 8 46\nkv 24 quantize.imatrix.dataset 8 45\nkv 30 quantize.imatrix.entries_count 5 112\nkv 29 quantize.imatrix.chunks_count 5 689\nt output_norm.weight 0 1 2048 1 0\nt rope_freqs.weight 0 1 32 1 8192\nt token_embd.weight 14 2 2048 128256 8320\nt blk.0.attn_k.weight 12 2 2048 512 215478400\nt blk.0.attn_norm.weight 0 1 2048 1 216068224\nt blk.0.attn_output.weight 12 2 2048 2048 216076416\nt blk.0.attn_q.weight 12 2 2048 2048 218435712\nt blk.0.attn_v.weight 14 2 2048 512 220795008\nt blk.0.ffn_down.weight 14 2 8192 2048 221655168\nt blk.0.ffn_gate.weight 12 2 2048 8192 235417728\nt blk.0.ffn_norm.weight 0 1 2048 1 244854912\nt blk.0.ffn_up.weight 12 2 2048 8192 244863104\nt blk.1.attn_k.weight 12 2 2048 512 254300288\nt blk.1.attn_norm.weight 0 1 2048 1 254890112\nt blk.1.attn_output.weight 12 2 2048 2048 254898304\nt blk.1.attn_q.weight 12 2 2048 2048 257257600\nt blk.1.attn_v.weight 14 2 2048 512 259616896\nt blk.1.ffn_down.weight 14 2 8192 2048 260477056\nt blk.1.ffn_gate.weight 12 2 2048 8192 274239616\nt blk.1.ffn_norm.weight 0 1 2048 1 283676800\nt blk.1.ffn_up.weight 12 2 2048 8192 283684992\nt blk.2.attn_k.weight 12 2 2048 512 293122176\nt blk.2.attn_norm.weight 0 1 2048 1 293712000\nt blk.2.attn_output.weight 12 2 2048 2048 293720192\nt blk.2.attn_q.weight 12 2 2048 2048 296079488\nt blk.2.attn_v.weight 12 2 2048 512 298438784\nt blk.2.ffn_down.weight 12 2 8192 2048 299028608\nt blk.2.ffn_gate.weight 12 2 2048 8192 308465792\nt blk.2.ffn_norm.weight 0 1 2048 1 317902976\nt blk.2.ffn_up.weight 12 2 2048 8192 317911168\nt blk.3.attn_k.weight 12 2 2048 512 327348352\nt blk.3.attn_norm.weight 0 1 2048 1 327938176\nt blk.3.attn_output.weight 12 2 2048 2048 327946368\nt blk.3.attn_q.weight 12 2 2048 2048 330305664\nt blk.3.attn_v.weight 12 2 2048 512 332664960\nt blk.3.ffn_down.weight 12 2 8192 2048 333254784\nt blk.3.ffn_gate.weight 12 2 2048 8192 342691968\nt blk.3.ffn_norm.weight 0 1 2048 1 352129152\nt blk.3.ffn_up.weight 12 2 2048 8192 352137344\nt blk.4.attn_k.weight 12 2 2048 512 361574528\nt blk.4.attn_norm.weight 0 1 2048 1 362164352\nt blk.4.attn_output.weight 12 2 2048 2048 362172544\nt blk.4.attn_q.weight 12 2 2048 2048 364531840\nt blk.4.attn_v.weight 14 2 2048 512 366891136\nt blk.4.ffn_down.weight 14 2 8192 2048 367751296\nt blk.4.ffn_gate.weight 12 2 2048 8192 381513856\nt blk.4.ffn_norm.weight 0 1 2048 1 390951040\nt blk.4.ffn_up.weight 12 2 2048 8192 390959232\nt blk.5.attn_k.weight 12 2 2048 512 400396416\nt blk.5.attn_norm.weight 0 1 2048 1 400986240\nt blk.5.attn_output.weight 12 2 2048 2048 400994432\nt blk.5.attn_q.weight 12 2 2048 2048 403353728\nt blk.5.attn_v.weight 12 2 2048 512 405713024\nt blk.5.ffn_down.weight 12 2 8192 2048 406302848\nt blk.5.ffn_gate.weight 12 2 2048 8192 415740032\nt blk.5.ffn_norm.weight 0 1 2048 1 425177216\nt blk.5.ffn_up.weight 12 2 2048 8192 425185408\nt blk.6.attn_k.weight 12 2 2048 512 434622592\nt blk.6.attn_norm.weight 0 1 2048 1 435212416\nt blk.6.attn_output.weight 12 2 2048 2048 435220608\nt blk.6.attn_q.weight 12 2 2048 2048 437579904\nt blk.6.attn_v.weight 12 2 2048 512 439939200\nt blk.6.ffn_down.weight 12 2 8192 2048 440529024\nt blk.6.ffn_gate.weight 12 2 2048 8192 449966208\nt blk.6.ffn_norm.weight 0 1 2048 1 459403392\nt blk.6.ffn_up.weight 12 2 2048 8192 459411584\nt blk.7.attn_k.weight 12 2 2048 512 468848768\nt blk.7.attn_norm.weight 0 1 2048 1 469438592\nt blk.7.attn_output.weight 12 2 2048 2048 469446784\nt blk.7.attn_q.weight 12 2 2048 2048 471806080\nt blk.7.attn_v.weight 14 2 2048 512 474165376\nt blk.7.ffn_down.weight 14 2 8192 2048 475025536\nt blk.7.ffn_gate.weight 12 2 2048 8192 488788096\nt blk.7.ffn_norm.weight 0 1 2048 1 498225280\nt blk.7.ffn_up.weight 12 2 2048 8192 498233472\nt blk.8.attn_k.weight 12 2 2048 512 507670656\nt blk.8.attn_norm.weight 0 1 2048 1 508260480\nt blk.8.attn_output.weight 12 2 2048 2048 508268672\nt blk.8.attn_q.weight 12 2 2048 2048 510627968\nt blk.8.attn_v.weight 12 2 2048 512 512987264\nt blk.8.ffn_down.weight 12 2 8192 2048 513577088\nt blk.8.ffn_gate.weight 12 2 2048 8192 523014272\nt blk.8.ffn_norm.weight 0 1 2048 1 532451456\nt blk.8.ffn_up.weight 12 2 2048 8192 532459648\nt blk.9.attn_k.weight 12 2 2048 512 541896832\nt blk.9.attn_norm.weight 0 1 2048 1 542486656\nt blk.9.attn_output.weight 12 2 2048 2048 542494848\nt blk.9.attn_q.weight 12 2 2048 2048 544854144\nt blk.9.attn_v.weight 12 2 2048 512 547213440\nt blk.9.ffn_down.weight 12 2 8192 2048 547803264\nt blk.9.ffn_gate.weight 12 2 2048 8192 557240448\nt blk.9.ffn_norm.weight 0 1 2048 1 566677632\nt blk.9.ffn_up.weight 12 2 2048 8192 566685824\nt blk.10.attn_k.weight 12 2 2048 512 576123008\nt blk.10.attn_norm.weight 0 1 2048 1 576712832\nt blk.10.attn_output.weight 12 2 2048 2048 576721024\nt blk.10.attn_q.weight 12 2 2048 2048 579080320\nt blk.10.attn_v.weight 14 2 2048 512 581439616\nt blk.10.ffn_down.weight 14 2 8192 2048 582299776\nt blk.10.ffn_gate.weight 12 2 2048 8192 596062336\nt blk.10.ffn_norm.weight 0 1 2048 1 605499520\nt blk.10.ffn_up.weight 12 2 2048 8192 605507712\nt blk.11.attn_k.weight 12 2 2048 512 614944896\nt blk.11.attn_norm.weight 0 1 2048 1 615534720\nt blk.11.attn_output.weight 12 2 2048 2048 615542912\nt blk.11.attn_q.weight 12 2 2048 2048 617902208\nt blk.11.attn_v.weight 12 2 2048 512 620261504\nt blk.11.ffn_down.weight 12 2 8192 2048 620851328\nt blk.11.ffn_gate.weight 12 2 2048 8192 630288512\nt blk.11.ffn_norm.weight 0 1 2048 1 639725696\nt blk.11.ffn_up.weight 12 2 2048 8192 639733888\nt blk.12.attn_k.weight 12 2 2048 512 649171072\nt blk.12.attn_norm.weight 0 1 2048 1 649760896\nt blk.12.attn_output.weight 12 2 2048 2048 649769088\nt blk.12.attn_q.weight 12 2 2048 2048 652128384\nt blk.12.attn_v.weight 12 2 2048 512 654487680\nt blk.12.ffn_down.weight 12 2 8192 2048 655077504\nt blk.12.ffn_gate.weight 12 2 2048 8192 664514688\nt blk.12.ffn_norm.weight 0 1 2048 1 673951872\nt blk.12.ffn_up.weight 12 2 2048 8192 673960064\nt blk.13.attn_k.weight 12 2 2048 512 683397248\nt blk.13.attn_norm.weight 0 1 2048 1 683987072\nt blk.13.attn_output.weight 12 2 2048 2048 683995264\nt blk.13.attn_q.weight 12 2 2048 2048 686354560\nt blk.13.attn_v.weight 14 2 2048 512 688713856\nt blk.13.ffn_down.weight 14 2 8192 2048 689574016\nt blk.13.ffn_gate.weight 12 2 2048 8192 703336576\nt blk.13.ffn_norm.weight 0 1 2048 1 712773760\nt blk.13.ffn_up.weight 12 2 2048 8192 712781952\nt blk.14.attn_k.weight 12 2 2048 512 722219136\nt blk.14.attn_norm.weight 0 1 2048 1 722808960\nt blk.14.attn_output.weight 12 2 2048 2048 722817152\nt blk.14.attn_q.weight 12 2 2048 2048 725176448\nt blk.14.attn_v.weight 14 2 2048 512 727535744\nt blk.14.ffn_down.weight 14 2 8192 2048 728395904\nt blk.14.ffn_gate.weight 12 2 2048 8192 742158464\nt blk.14.ffn_norm.weight 0 1 2048 1 751595648\nt blk.14.ffn_up.weight 12 2 2048 8192 751603840\nt blk.15.attn_k.weight 12 2 2048 512 761041024\nt blk.15.attn_norm.weight 0 1 2048 1 761630848\nt blk.15.attn_output.weight 12 2 2048 2048 761639040\nt blk.15.attn_q.weight 12 2 2048 2048 763998336\nt blk.15.attn_v.weight 14 2 2048 512 766357632\nt blk.15.ffn_down.weight 14 2 8192 2048 767217792\nt blk.15.ffn_gate.weight 12 2 2048 8192 780980352\nt blk.15.ffn_norm.weight 0 1 2048 1 790417536\nt blk.15.ffn_up.weight 12 2 2048 8192 790425728\ndata 7831456\n"
+text tslot "145146144001004003000002008006005007010013012009011017015014016019022021018020026024023025028031030027029035033032034037040039036038044042041043046049048045047053051050052055058057054056062060059061064067066063065071069068070073076075072074080078077079082085084081083089087086088091094093090092098096095097100103102099101107105104106109112111108110116114113115118121120117119125123122124127130129126128134132131133136139138135137143141140142"
+text sha "3f5a22426976ab26cfe84dba63c1d08391717abb1af893e10f1b2968d862dcc1"
+note ---- vendored SHA-256 (benchmarks-mv om/data/sha256.om at 567c5da, unchanged; see README) ----
+note SPDX-License-Identifier: AGPL-3.0-or-later
+note Incremental SHA-256 in native Omega. No runtime library calls.
+note Algorithm and constants checked against Omega seed/atlas/atlas.s2 and src/sha256.c
+note at seed ancestor 29b12760. Those files are references, never build inputs.
+note hmeta: buffered bytes, message bytes, state (0 active, 1 finalized, 2 error).
+note hfinal exposes 64 lowercase hexadecimal bytes in hd; reset before another message.
+global hk uint 64
+global hs uint 8
+global hm uint 64
+global hb uchar 64
+global hd uchar 64
+global hmeta ulong 3
+text hconst "428a2f9871374491b5c0fbcfe9b5dba53956c25b59f111f1923f82a4ab1c5ed5d807aa9812835b01243185be550c7dc372be5d7480deb1fe9bdc06a7c19bf174e49b69c1efbe47860fc19dc6240ca1cc2de92c6f4a7484aa5cb0a9dc76f988da983e5152a831c66db00327c8bf597fc7c6e00bf3d5a7914706ca63511429296727b70a852e1b21384d2c6dfc53380d13650a7354766a0abb81c2c92e92722c85a2bfe8a1a81a664bc24b8b70c76c51a3d192e819d6990624f40e3585106aa07019a4c1161e376c082748774c34b0bcb5391c0cb34ed8aa4a5b9cca4f682e6ff3748f82ee78a5636f84c878148cc7020890befffaa4506cebbef9a3f7c67178f2"
+text hseed "6a09e667bb67ae853c6ef372a54ff53a510e527f9b05688c1f83d9ab5be0cd19"
+text hhex "0123456789abcdef"
+
+fn hnibble c uchar to uint
+if le c 57
+ret uint sub c 48
+end
+ret uint sub c 87
+end
+
+fn hreset to void
+for i ulong 64
+v = uint 0
+for j ulong 8
+v = or shl v 4 hnibble get hconst add mul i 8 j
+end
+put hk i v
+end
+for i ulong 8
+v = uint 0
+for j ulong 8
+v = or shl v 4 hnibble get hseed add mul i 8 j
+end
+put hs i v
+end
+for i ulong 3
+put hmeta i 0
+end
+end
+
+fn hrot x uint n uint to uint
+ret or shr x n shl x sub 32 n
+end
+
+fn hsmall0 x uint to uint
+ret xor xor hrot x 7 hrot x 18 shr x 3
+end
+
+fn hsmall1 x uint to uint
+ret xor xor hrot x 17 hrot x 19 shr x 10
+end
+
+fn hbig0 x uint to uint
+ret xor xor hrot x 2 hrot x 13 hrot x 22
+end
+
+fn hbig1 x uint to uint
+ret xor xor hrot x 6 hrot x 11 hrot x 25
+end
+
+fn hblock to void
+for i ulong 16
+v = uint 0
+for j ulong 4
+v = or shl v 8 uint get hb add mul i 4 j
+end
+put hm i v
+end
+for j ulong 48
+i = add j 16
+v = add hsmall1 get hm sub i 2 get hm sub i 7
+v = add v hsmall0 get hm sub i 15
+put hm i add v get hm sub i 16
+end
+a = get hs 0
+b = get hs 1
+c = get hs 2
+d = get hs 3
+e = get hs 4
+f = get hs 5
+g = get hs 6
+h = get hs 7
+for i ulong 64
+t1 = add h hbig1 e
+t1 = add t1 xor and e f and not e g
+t1 = add t1 get hk i
+t1 = add t1 get hm i
+t2 = hbig0 a
+t2 = add t2 xor xor and a b and a c and b c
+h = g
+g = f
+f = e
+e = add d t1
+d = c
+c = b
+b = a
+a = add t1 t2
+end
+put hs 0 add get hs 0 a
+put hs 1 add get hs 1 b
+put hs 2 add get hs 2 c
+put hs 3 add get hs 3 d
+put hs 4 add get hs 4 e
+put hs 5 add get hs 5 f
+put hs 6 add get hs 6 g
+put hs 7 add get hs 7 h
+end
+
+fn hraw c uchar to void
+n = get hmeta 0
+put hb n c
+n = add n 1
+if eq n 64
+hblock
+n = ulong 0
+end
+put hmeta 0 n
+end
+
+fn hpush c uchar to bool
+if ne get hmeta 2 0
+ret false
+end
+if eq get hmeta 1 2305843009213693951
+put hmeta 2 2
+ret false
+end
+hraw c
+put hmeta 1 add get hmeta 1 1
+ret true
+end
+
+fn hfinal to bool
+if ne get hmeta 2 0
+ret false
+end
+bits = mul get hmeta 1 8
+hraw 128
+while ne get hmeta 0 56
+hraw 0
+end
+for i ulong 8
+shift = mul sub 7 i 8
+hraw uchar and shr bits shift 255
+end
+for i ulong 8
+v = get hs i
+for j ulong 8
+shift = uint mul sub 7 j 4
+digit = ulong and shr v shift 15
+put hd add mul i 8 j get hhex digit
+end
+end
+put hmeta 2 1
+ret true
+end
+note ---- output: one line at a time in ob, flushed on newline ----
+fn oc c uchar to void
+n = get st SOB
+put ob n c
+put st SOB add n 1
+end
+fn ow k ulong to void
+for i ulong 16
+c = get tw add mul k 16 i
+if eq c 32
+ret
+end
+oc c
+end
+end
+fn osp to void
+oc 32
+end
+fn ou v ulong to void
+d = new uchar 24 0
+n = ulong 0
+x = v
+while true bound 30
+put d n uchar add 48 rem x 10
+n = add n 1
+x = div x 10
+if eq x 0
+break
+end
+end
+for i ulong n
+oc get d sub sub n 1 i
+end
+end
+fn onl to void
+oc 10
+n = get st SOB
+r = write int 1 ob 0 n
+if ne r long n
+exit 4
+end
+put st SOB 0
+end
+fn refuse w ulong to void
+put st SOB 0
+ow WLOAD
+osp
+ow WREFUSED
+osp
+ow WREASON
+osp
+ow w
+onl
+exit 3
+end
+note ---- manifest text rebuilt from the header, compared byte for byte with the pinned text ----
+fn mc c uchar to void
+n = get st SMF
+if ge n 65536
+refuse WMANI
+end
+put mf n c
+put st SMF add n 1
+end
+fn mu v ulong to void
+d = new uchar 24 0
+n = ulong 0
+x = v
+while true bound 30
+put d n uchar add 48 rem x 10
+n = add n 1
+x = div x 10
+if eq x 0
+break
+end
+end
+for i ulong n
+mc get d sub sub n 1 i
+end
+end
+fn msg v ulong nb ulong to void
+note signed decimal of the low nb bits of v (nb 8, 16, 32 or 64)
+x = v
+neg1 = false
+if eq nb 64
+if ne shr x 63 0
+neg1 = true
+end
+else
+if ne and shr x sub nb 1 1 0
+neg1 = true
+x = or x not sub shl ulong 1 nb 1
+end
+end
+if neg1
+mc 45
+mu neg x
+else
+mu x
+end
+end
+fn hrd to ulong
+c = get st SCUR
+if ge c 16777216
+refuse WHEADER
+end
+put st SCUR add c 1
+ret ulong get m0 c
+end
+fn hrn n ulong to ulong
+v = ulong 0
+for i ulong n
+v = or v shl hrd mul i 8
+end
+ret v
+end
+fn mstr to void
+note a GGUF string: its length, then the bytes when short and plain (rule shared with the Rust dumper)
+n = hrn 8
+c = get st SCUR
+if gt n 16777216
+refuse WHEADER
+end
+if gt add c n 16777216
+refuse WHEADER
+end
+ok = le n 40
+for i ulong n
+b = get m0 add c i
+if or or lt b 32 gt b 126 or eq b 34 eq b 92
+ok = false
+end
+end
+mu n
+if ok
+mc 32
+for i ulong n
+mc get m0 add c i
+end
+end
+put st SCUR add c n
+end
+fn tsize e ulong to ulong
+if or or eq e 0 eq e 1 eq e 7
+ret 1
+end
+if or eq e 2 eq e 3
+ret 2
+end
+if or or eq e 4 eq e 5 eq e 6
+ret 4
+end
+if or or eq e 10 eq e 11 eq e 12
+ret 8
+end
+ret 0
+end
+fn mval t ulong to void
+note one metadata value of type t, as the manifest prints it
+if or or eq t 0 eq t 2 eq t 4
+mu hrn tsize t
+ret
+end
+if eq t 10
+mu hrn 8
+ret
+end
+if or eq t 6 eq t 12
+mu hrn tsize t
+ret
+end
+if eq t 7
+mu hrn 1
+ret
+end
+if or or eq t 1 eq t 3 eq t 5
+sz = tsize t
+msg hrn sz mul sz 8
+ret
+end
+if eq t 11
+msg hrn 8 64
+ret
+end
+if eq t 8
+mstr
+ret
+end
+if eq t 9
+e = hrn 4
+n = hrn 8
+mu e
+mc 32
+mu n
+sz = tsize e
+if ne sz 0
+c = get st SCUR
+if gt n 16777216
+refuse WHEADER
+end
+put st SCUR add c mul n sz
+ret
+end
+if ne e 8
+refuse WHEADER
+end
+if gt n 999999
+refuse WHEADER
+end
+for i ulong n
+k = hrn 8
+if gt k 16777216
+refuse WHEADER
+end
+put st SCUR add get st SCUR k
+end
+ret
+end
+refuse WHEADER
+end
+fn header to void
+put st SCUR 0
+put st SMF 0
+if ne hrn 4 1179993927
+refuse WMAGIC
+end
+v = hrn 4
+nt = hrn 8
+nk = hrn 8
+if or gt nt 160 gt nk 1024
+refuse WHEADER
+end
+mc 103
+mc 103
+mc 117
+mc 102
+mc 32
+mu v
+mc 32
+mu nt
+mc 32
+mu nk
+mc 10
+hkvs nk
+htens nt
+hdone nt
+end
+fn hkvs nk ulong to void
+for i ulong nk
+mc 107
+mc 118
+mc 32
+mstr
+t = hrn 4
+mc 32
+mu t
+mc 32
+mval t
+mc 10
+end
+end
+fn htens nt ulong to void
+for i ulong nt
+mc 116
+mc 32
+n = hrn 8
+c = get st SCUR
+if gt n 255
+refuse WHEADER
+end
+for j ulong n
+mc get m0 add c j
+end
+put st SCUR add c n
+nd = hrn 4
+if or lt nd 1 gt nd 2
+refuse WMANI
+end
+d0 = hrn 8
+d1 = ulong 1
+if eq nd 2
+d1 = hrn 8
+end
+ty = hrn 4
+of = hrn 8
+mc 32
+mu ty
+mc 32
+mu nd
+mc 32
+mu d0
+mc 32
+mu d1
+mc 32
+mu of
+mc 10
+put toff i of
+put ttyp i ty
+end
+end
+fn hdone nt ulong to void
+ds = and add get st SCUR 31 not ulong 31
+mc 100
+mc 97
+mc 116
+mc 97
+mc 32
+mu ds
+mc 10
+put st SDS ds
+n = get st SMF
+if ne n len man
+refuse WMANI
+end
+for i ulong n
+if ne get mf i get man i
+refuse WMANI
+end
+end
+for i ulong nt
+s = ulong 0
+for j ulong 3
+s = add mul s 10 ulong sub get tslot add mul i 3 j 48
+end
+put tof s add ds get toff i
+put tty s get ttyp i
+end
+end
+note ---- f16 and the K-quant dot products (src/half.rs, src/quant.rs) ----
+fn f16 lo uchar hi uchar to uint
+h = or uint lo shl uint hi 8
+sg = shl shr h 15 31
+ex = and shr h 10 31
+mn = and h 1023
+if eq ex 0
+if eq mn 0
+ret sg
+end
+m = mn
+sh = uint 0
+while lt m 1024 bound 16
+m = shl m 1
+sh = add sh 1
+end
+ret or or sg shl sub 113 sh 23 shl and m 1023 13
+end
+if eq ex 31
+ret or or sg 2139095040 shl mn 13
+end
+ret or or sg shl add ex 112 23 shl mn 13
+end
+fn scm o ulong j ulong to uint
+note scale_min_k4: scale in the low byte, min in the next byte
+if lt j 4
+a = get rb add o j
+b = get rb add o add j 4
+ret or uint and a 63 shl uint and b 63 8
+end
+a = get rb add o add j 4
+b = get rb add o sub j 4
+c = get rb add o j
+sc = or and a 15 shl shr b 6 4
+m = or shr a 4 shl shr c 6 4
+ret or uint sc shl uint m 8
+end
+fn dq4h s f32 qo ulong xj ulong sh ulong to uint
+note 32 weights of one Q4_K sub-block (low nibbles when sh is 0, high when 4), summed in order
+d1 = get kd 2
+n1 = get kd 3
+a = s
+for l ulong 32
+q = shr get rb add qo l sh
+w = sub mul d1 f32 and q 15 n1
+a = add a mul w get ac add xj l
+end
+ret bitcast uint a
+end
+fn dq4j o ulong xb ulong j ulong s f32 to uint
+note sub-blocks 2 j and 2 j + 1; kd holds d, dmin, then this sub-block scale and min
+p = scm add o 4 mul j 2
+put kd 2 mul get kd 0 f32 and p 255
+put kd 3 mul get kd 1 f32 shr p 8
+t = bitcast f32 dq4h s add o add 16 mul j 32 add xb mul j 64 0
+p = scm add o 4 add mul j 2 1
+put kd 2 mul get kd 0 f32 and p 255
+put kd 3 mul get kd 1 f32 shr p 8
+ret dq4h t add o add 16 mul j 32 add add xb mul j 64 32 4
+end
+fn dq4b o ulong xb ulong to uint
+note one Q4_K block (144 bytes at rb o) against 256 activations at ac xb: dequantize, then sum in order
+put kd 0 bitcast f32 f16 get rb o get rb add o 1
+put kd 1 bitcast f32 f16 get rb add o 2 get rb add o 3
+s = get cf KNZ
+for j ulong 4
+s = bitcast f32 dq4j o xb j s
+end
+ret bitcast uint s
+end
+fn dq4 nb ulong xo ulong to uint
+acc = f32 0.0
+for b ulong nb
+acc = add acc bitcast f32 dq4b mul b 144 add xo mul b 256
+end
+ret bitcast uint acc
+end
+fn i8f u uchar to uint
+v = int u
+if ge v 128
+v = sub v 256
+end
+ret bitcast uint f32 v
+end
+fn q6v k ulong p ulong to int
+note one 6-bit Q6_K weight minus 32 at k past ko 0 (low bits) and ko 1 (high bits); pass p picks
+note the nibble (p / 2) and the two high bits (2 p)
+lo = and shr get rb add get ko 0 k mul shr p 1 4 15
+hi = and shr get rb add get ko 1 k mul p 2 3
+ret sub int or lo shl hi 4 32
+end
+fn dq6g s f32 p ulong to uint
+note 16 weights sharing one scale (kd 4); activations at ac ko 2
+a = s
+xp = get ko 2
+ds = get kd 4
+for k ulong 16
+q = q6v k p
+a = add a mul mul ds f32 q get ac add xp k
+end
+ret bitcast uint a
+end
+fn dq6p s f32 to uint
+note pass of a Q6_K block: 32 weights, two scales; kd 0 holds d; ko 3..6 hold the pass bases
+a = s
+for g ulong 2
+put ko 0 add get ko 3 mul g 16
+put ko 1 add get ko 4 mul g 16
+put ko 2 add get ko 5 mul g 16
+c = get rb add get ko 6 g
+put kd 4 mul get kd 0 bitcast f32 i8f c
+a = bitcast f32 dq6g a get ko 7
+end
+ret bitcast uint a
+end
+fn q6set o ulong xb ulong hf ulong p ulong to void
+note bases of pass p of half hf: ko 3 low bits, ko 4 high bits, ko 5 activations, ko 6 scales, ko 7 p
+put ko 3 add o mul hf 64
+put ko 3 add get ko 3 mul and p 1 32
+put ko 4 add add o 128 mul hf 32
+put ko 5 add xb mul hf 128
+put ko 5 add get ko 5 mul p 32
+put ko 6 add add o 192 mul hf 8
+put ko 6 add get ko 6 mul p 2
+put ko 7 p
+end
+fn dq6b o ulong xb ulong to uint
+note one Q6_K block (210 bytes at rb o) against 256 activations at ac xb, in index order
+put kd 0 bitcast f32 f16 get rb add o 208 get rb add o 209
+s = get cf KNZ
+for hf ulong 2
+for p ulong 4
+q6set o xb hf p
+s = bitcast f32 dq6p s
+end
+end
+ret bitcast uint s
+end
+fn dq6 nb ulong xo ulong to uint
+acc = f32 0.0
+for b ulong nb
+acc = add acc bitcast f32 dq6b mul b 210 add xo mul b 256
+end
+ret bitcast uint acc
+end
+fn dv6g p ulong to void
+yp = get ko 2
+ds = get kd 4
+for k ulong 16
+q = q6v k p
+put ac add yp k mul ds f32 q
+end
+end
+fn dv6 nb ulong yo ulong to void
+note dequantize the Q6_K row in rb into ac at yo (the embedding lookup)
+for b ulong nb
+o = mul b 210
+put kd 0 bitcast f32 f16 get rb add o 208 get rb add o 209
+for hf ulong 2
+for p ulong 4
+q6set o add yo mul b 256 hf p
+for g ulong 2
+put ko 0 add get ko 3 mul g 16
+put ko 1 add get ko 4 mul g 16
+put ko 2 add get ko 5 mul g 16
+c = get rb add get ko 6 g
+put kd 4 mul get kd 0 bitcast f32 i8f c
+dv6g p
+end
+end
+end
+end
+end
+fn cpseg p ulong o ulong d ulong k ulong to void
+if eq p 0
+for i ulong k
+put rb add d i get m0 add o i
+end
+ret
+end
+if eq p 1
+for i ulong k
+put rb add d i get m1 add o i
+end
+ret
+end
+if eq p 2
+for i ulong k
+put rb add d i get m2 add o i
+end
+ret
+end
+if eq p 3
+for i ulong k
+put rb add d i get m3 add o i
+end
+ret
+end
+if eq p 4
+for i ulong k
+put rb add d i get m4 add o i
+end
+ret
+end
+if eq p 5
+for i ulong k
+put rb add d i get m5 add o i
+end
+ret
+end
+if eq p 6
+for i ulong k
+put rb add d i get m6 add o i
+end
+ret
+end
+if eq p 7
+for i ulong k
+put rb add d i get m7 add o i
+end
+ret
+end
+if eq p 8
+for i ulong k
+put rb add d i get m8 add o i
+end
+ret
+end
+if eq p 9
+for i ulong k
+put rb add d i get m9 add o i
+end
+ret
+end
+if eq p 10
+for i ulong k
+put rb add d i get m10 add o i
+end
+ret
+end
+if eq p 11
+for i ulong k
+put rb add d i get m11 add o i
+end
+ret
+end
+if eq p 12
+for i ulong k
+put rb add d i get m12 add o i
+end
+ret
+end
+if eq p 13
+for i ulong k
+put rb add d i get m13 add o i
+end
+ret
+end
+if eq p 14
+for i ulong k
+put rb add d i get m14 add o i
+end
+ret
+end
+if eq p 15
+for i ulong k
+put rb add d i get m15 add o i
+end
+ret
+end
+if eq p 16
+for i ulong k
+put rb add d i get m16 add o i
+end
+ret
+end
+if eq p 17
+for i ulong k
+put rb add d i get m17 add o i
+end
+ret
+end
+if eq p 18
+for i ulong k
+put rb add d i get m18 add o i
+end
+ret
+end
+if eq p 19
+for i ulong k
+put rb add d i get m19 add o i
+end
+ret
+end
+if eq p 20
+for i ulong k
+put rb add d i get m20 add o i
+end
+ret
+end
+if eq p 21
+for i ulong k
+put rb add d i get m21 add o i
+end
+ret
+end
+if eq p 22
+for i ulong k
+put rb add d i get m22 add o i
+end
+ret
+end
+if eq p 23
+for i ulong k
+put rb add d i get m23 add o i
+end
+ret
+end
+if eq p 24
+for i ulong k
+put rb add d i get m24 add o i
+end
+ret
+end
+if eq p 25
+for i ulong k
+put rb add d i get m25 add o i
+end
+ret
+end
+if eq p 26
+for i ulong k
+put rb add d i get m26 add o i
+end
+ret
+end
+if eq p 27
+for i ulong k
+put rb add d i get m27 add o i
+end
+ret
+end
+if eq p 28
+for i ulong k
+put rb add d i get m28 add o i
+end
+ret
+end
+if eq p 29
+for i ulong k
+put rb add d i get m29 add o i
+end
+ret
+end
+if eq p 30
+for i ulong k
+put rb add d i get m30 add o i
+end
+ret
+end
+if eq p 31
+for i ulong k
+put rb add d i get m31 add o i
+end
+ret
+end
+if eq p 32
+for i ulong k
+put rb add d i get m32 add o i
+end
+ret
+end
+if eq p 33
+for i ulong k
+put rb add d i get m33 add o i
+end
+ret
+end
+if eq p 34
+for i ulong k
+put rb add d i get m34 add o i
+end
+ret
+end
+if eq p 35
+for i ulong k
+put rb add d i get m35 add o i
+end
+ret
+end
+if eq p 36
+for i ulong k
+put rb add d i get m36 add o i
+end
+ret
+end
+if eq p 37
+for i ulong k
+put rb add d i get m37 add o i
+end
+ret
+end
+if eq p 38
+for i ulong k
+put rb add d i get m38 add o i
+end
+ret
+end
+if eq p 39
+for i ulong k
+put rb add d i get m39 add o i
+end
+ret
+end
+if eq p 40
+for i ulong k
+put rb add d i get m40 add o i
+end
+ret
+end
+if eq p 41
+for i ulong k
+put rb add d i get m41 add o i
+end
+ret
+end
+if eq p 42
+for i ulong k
+put rb add d i get m42 add o i
+end
+ret
+end
+if eq p 43
+for i ulong k
+put rb add d i get m43 add o i
+end
+ret
+end
+if eq p 44
+for i ulong k
+put rb add d i get m44 add o i
+end
+ret
+end
+if eq p 45
+for i ulong k
+put rb add d i get m45 add o i
+end
+ret
+end
+if eq p 46
+for i ulong k
+put rb add d i get m46 add o i
+end
+ret
+end
+if eq p 47
+for i ulong k
+put rb add d i get m47 add o i
+end
+ret
+end
+if eq p 48
+for i ulong k
+put rb add d i get m48 add o i
+end
+ret
+end
+trap 10
+end
+fn fb a ulong to uchar
+p = shr a 24
+o = and a 16777215
+if eq p 0
+ret get m0 o
+end
+if eq p 1
+ret get m1 o
+end
+if eq p 2
+ret get m2 o
+end
+if eq p 3
+ret get m3 o
+end
+if eq p 4
+ret get m4 o
+end
+if eq p 5
+ret get m5 o
+end
+if eq p 6
+ret get m6 o
+end
+if eq p 7
+ret get m7 o
+end
+if eq p 8
+ret get m8 o
+end
+if eq p 9
+ret get m9 o
+end
+if eq p 10
+ret get m10 o
+end
+if eq p 11
+ret get m11 o
+end
+if eq p 12
+ret get m12 o
+end
+if eq p 13
+ret get m13 o
+end
+if eq p 14
+ret get m14 o
+end
+if eq p 15
+ret get m15 o
+end
+if eq p 16
+ret get m16 o
+end
+if eq p 17
+ret get m17 o
+end
+if eq p 18
+ret get m18 o
+end
+if eq p 19
+ret get m19 o
+end
+if eq p 20
+ret get m20 o
+end
+if eq p 21
+ret get m21 o
+end
+if eq p 22
+ret get m22 o
+end
+if eq p 23
+ret get m23 o
+end
+if eq p 24
+ret get m24 o
+end
+if eq p 25
+ret get m25 o
+end
+if eq p 26
+ret get m26 o
+end
+if eq p 27
+ret get m27 o
+end
+if eq p 28
+ret get m28 o
+end
+if eq p 29
+ret get m29 o
+end
+if eq p 30
+ret get m30 o
+end
+if eq p 31
+ret get m31 o
+end
+if eq p 32
+ret get m32 o
+end
+if eq p 33
+ret get m33 o
+end
+if eq p 34
+ret get m34 o
+end
+if eq p 35
+ret get m35 o
+end
+if eq p 36
+ret get m36 o
+end
+if eq p 37
+ret get m37 o
+end
+if eq p 38
+ret get m38 o
+end
+if eq p 39
+ret get m39 o
+end
+if eq p 40
+ret get m40 o
+end
+if eq p 41
+ret get m41 o
+end
+if eq p 42
+ret get m42 o
+end
+if eq p 43
+ret get m43 o
+end
+if eq p 44
+ret get m44 o
+end
+if eq p 45
+ret get m45 o
+end
+if eq p 46
+ret get m46 o
+end
+if eq p 47
+ret get m47 o
+end
+if eq p 48
+ret get m48 o
+end
+trap 10
+end
+fn rowcp a ulong n ulong to void
+p = shr a 24
+o = and a 16777215
+k = n
+if gt add o n 16777216
+k = sub 16777216 o
+end
+cpseg p o 0 k
+if lt k n
+cpseg add p 1 0 k sub n k
+end
+end
+fn mv ti ulong xo ulong yo ulong rows ulong cols ulong to void
+ty = get tty ti
+nb = div cols 256
+rbs = mul nb 144
+if eq ty 14
+rbs = mul nb 210
+else
+if ne ty 12
+trap 10
+end
+end
+base = get tof ti
+for r ulong rows
+rowcp add base mul r rbs rbs
+v = f32 0.0
+if eq ty 12
+v = bitcast f32 dq4 nb xo
+else
+v = bitcast f32 dq6 nb xo
+end
+put ac add yo r v
+end
+put st SRB add get st SRB mul rows rbs
+end
+note ---- scalar math (src/math.rs) ----
+fn msqrt x f32 to uint
+if le x 0.0
+ret uint 0
+end
+y = bitcast f32 add shr bitcast uint x 1 532676608
+for i ulong 5
+y = mul 0.5 add y div x y
+end
+ret bitcast uint y
+end
+fn mexp a f32 to uint
+x = a
+if lt x get cf KM87
+x = get cf KM87
+end
+if gt x get cf K88
+x = get cf K88
+end
+sc = mul x get cf KL2E
+n = int 0
+if ge sc 0.0
+n = int add sc 0.5
+else
+n = int sub sc 0.5
+end
+nf = f32 n
+r = sub sub x mul nf get cf KHI mul nf get cf KLO
+t = add get cf K120 div r 720.0
+t = add get cf K24 mul r t
+t = add get cf K6 mul r t
+t = add 0.5 mul r t
+t = add 1.0 mul r t
+p = add 1.0 mul r t
+ret bitcast uint mul p bitcast f32 shl uint add n 127 23
+end
+fn mln a f32 to uint
+b = bitcast uint a
+e = sub int and shr b 23 255 127
+m = bitcast f32 or and b 8388607 1065353216
+if gt m get cf KSQ2
+m = mul m 0.5
+e = add e 1
+end
+y = div sub m 1.0 add m 1.0
+y2 = mul y y
+t = add get cf K9 div y2 11.0
+t = add get cf K7 mul y2 t
+t = add get cf K5 mul y2 t
+t = add get cf K3 mul y2 t
+t = add 1.0 mul y2 t
+s = mul y t
+ret bitcast uint add mul 2.0 s mul f32 e get cf KLN2
+end
+fn fmodp x f32 y f32 to uint
+note exact fmod for finite x >= 0 and normal y > 0 (integer long division, as musl fmodf)
+bx = bitcast uint x
+by = bitcast uint y
+ex = and shr bx 23 255
+ey = and shr by 23 255
+if or or ge ex 255 ne shr bx 31 0 or lt ey 24 ge ey 255
+trap 11
+end
+if lt x y
+ret bx
+end
+mx = ulong or and bx 8388607 8388608
+my = ulong or and by 8388607 8388608
+r = mx
+k = sub ex ey
+for i uint k
+if ge r my
+r = sub r my
+end
+r = shl r 1
+end
+if ge r my
+r = sub r my
+end
+if eq r 0
+ret uint 0
+end
+ret bitcast uint mul f32 r bitcast f32 shl sub ey 23 23
+end
+fn sincos a f32 i ulong to void
+r = bitcast f32 fmodp add a get cf KPI get cf KTAU
+if lt r 0.0
+r = add r get cf KTAU
+end
+x = sub r get cf KPI
+cs = f32 1.0
+if gt x get cf KPI2
+x = sub get cf KPI x
+cs = f32 -1.0
+else
+if lt x neg get cf KPI2
+x = sub neg get cf KPI x
+cs = f32 -1.0
+end
+end
+x2 = mul x x
+t = mul x2 get cf K362
+t = sub t get cf K5040
+t = mul x2 t
+t = add get cf K120 t
+t = mul x2 t
+t = sub t get cf K6
+t = mul x2 t
+t = add 1.0 t
+put ac add ARS i mul x t
+u = sub get cf K40320 div x2 3628800.0
+u = mul x2 u
+u = sub u get cf K720
+u = mul x2 u
+u = add get cf K24 u
+u = mul x2 u
+u = sub u 0.5
+u = mul x2 u
+u = add 1.0 u
+put ac add ARC i mul cs u
+end
+fn initc to void
+put cf K3 div f32 1.0 3.0
+put cf K5 div f32 1.0 5.0
+put cf K7 div f32 1.0 7.0
+put cf K9 div f32 1.0 9.0
+put cf K6 div f32 1.0 6.0
+put cf K24 div f32 1.0 24.0
+put cf K120 div f32 1.0 120.0
+put cf K5040 div f32 1.0 5040.0
+put cf K362 div f32 1.0 362880.0
+put cf K720 div f32 1.0 720.0
+put cf K40320 div f32 1.0 40320.0
+put cf KPI bitcast f32 uint 1078530011
+put cf KTAU bitcast f32 uint 1086918619
+put cf KPI2 bitcast f32 uint 1070141403
+put cf KLN2 bitcast f32 uint 1060205080
+put cf KL2E bitcast f32 uint 1069066811
+put cf KSQ2 bitcast f32 uint 1068827891
+put cf KHI bitcast f32 uint 1060208640
+put cf KLO bitcast f32 uint 3109978243
+put cf KNINF bitcast f32 uint 4286578688
+put cf KEPS bitcast f32 uint 925353388
+put cf KNZ bitcast f32 uint 2147483648
+put cf KM87 f32 -87.0
+put cf K88 f32 88.0
+put cf KSCALE div f32 1.0 bitcast f32 msqrt f32 64.0
+base = bitcast f32 uint 1223959552
+put cf KTS bitcast f32 mexp mul f32 -0.03125 bitcast f32 mln base
+end
+note ---- the forward pass (src/decode.rs) ----
+fn rmsn xo ulong wo ulong yo ulong to void
+ss = get cf KNZ
+for i ulong NE
+v = get ac add xo i
+ss = add ss mul v v
+end
+ss = div ss 2048.0
+sc = div 1.0 bitcast f32 msqrt add ss get cf KEPS
+for i ulong NE
+v = mul get ac add xo i sc
+put ac add yo i mul v get nw add wo i
+end
+end
+fn ropec pos ulong to void
+ts = get cf KTS
+th = f32 pos
+for i ulong 32
+sincos div th get rf i i
+th = mul th ts
+end
+end
+fn ropea o ulong nh ulong to void
+for h ulong nh
+for i ulong 32
+j = add add o mul h 64 mul i 2
+a = get ac j
+b = get ac add j 1
+c = get ac add ARC i
+s = get ac add ARS i
+put ac j sub mul a c mul b s
+put ac add j 1 add mul a s mul b c
+end
+end
+end
+fn smax n ulong to void
+mx = get cf KNINF
+for t ulong n
+mx = fmax mx get ac add ASC t
+end
+sm = f32 0.0
+for t ulong n
+v = bitcast f32 mexp sub get ac add ASC t mx
+put ac add ASC t v
+sm = add sm v
+end
+for t ulong n
+put ac add ASC t div get ac add ASC t sm
+end
+end
+fn ascore qo ulong kv ulong t ulong to uint
+note q . k over one head (64 values), summed in order from -0.0
+kq = add kv mul t KVD
+s = get cf KNZ
+for i ulong 64
+v = mul get ac add qo i get kc add kq i
+s = add s v
+end
+ret bitcast uint s
+end
+fn aacc ao ulong kv ulong t ulong to void
+vo = add kv mul t KVD
+w = get ac add ASC t
+for i ulong 64
+v = mul w get vc add vo i
+put ac add ao i add get ac add ao i v
+end
+end
+fn ahead base ulong np ulong h ulong to void
+kv = add base mul div h 4 64
+qo = add AQ mul h 64
+for t ulong np
+s = bitcast f32 ascore qo kv t
+put ac add ASC t mul s get cf KSCALE
+end
+smax np
+ao = add AAT mul h 64
+for i ulong 64
+put ac add ao i 0.0
+end
+for t ulong np
+aacc ao kv t
+end
+end
+fn attn l ulong pos ulong to void
+base = mul l mul CTX KVD
+for h ulong 32
+ahead base add pos 1 h
+end
+end
+fn resid to void
+for i ulong NE
+put ac add AX i add get ac add AX i get ac add AT i
+end
+end
+fn kvst l ulong pos ulong to void
+at = add mul l mul CTX KVD mul pos KVD
+for i ulong KVD
+put kc add at i get ac add AK i
+put vc add at i get ac add AV i
+end
+end
+fn silu to void
+for i ulong NF
+g = get ac add AG i
+e = add 1.0 bitcast f32 mexp neg g
+put ac add AG i mul div g e get ac add AU i
+end
+end
+fn fwd tok ulong pos ulong want bool to void
+rowcp add get tof 144 mul tok 1680 1680
+put st SRB add get st SRB 1680
+dv6 8 AX
+ropec pos
+for l ulong 16
+rmsn AX mul l NE AH
+li = mul l 9
+mv li AH AQ 2048 2048
+mv add li 1 AH AK 512 2048
+mv add li 2 AH AV 512 2048
+ropea AQ 32
+ropea AK 8
+kvst l pos
+attn l pos
+mv add li 3 AAT AT 2048 2048
+resid
+if and eq l 8 eq pos get st SFLT
+trap 12
+end
+rmsn AX mul add 16 l NE AH
+mv add li 6 AH AG 8192 2048
+mv add li 7 AH AU 8192 2048
+silu
+mv add li 8 AG AT 2048 8192
+resid
+end
+if want
+rmsn AX mul 32 NE AH
+mv 144 AH ALG NV 2048
+end
+end
+fn amax to ulong
+best = ulong 0
+bv = get ac ALG
+for i ulong NV
+v = get ac add ALG i
+if gt v bv
+best = i
+bv = v
+end
+end
+ret best
+end
+note ---- load: read, digest, admit ----
+fn loadf32 a ulong n ulong dst ulong to void
+note n little-endian f32 values at file address a into nw at dst
+for i ulong n
+o = add a mul i 4
+v = or or uint fb o shl uint fb add o 1 8 or shl uint fb add o 2 16 shl uint fb add o 3 24
+put nw add dst i bitcast f32 v
+end
+end
+fn admit to void
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m0 lo sub 16777216 lo long add lo 0
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m1 lo sub 16777216 lo long add lo 16777216
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m2 lo sub 16777216 lo long add lo 33554432
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m3 lo sub 16777216 lo long add lo 50331648
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m4 lo sub 16777216 lo long add lo 67108864
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m5 lo sub 16777216 lo long add lo 83886080
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m6 lo sub 16777216 lo long add lo 100663296
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m7 lo sub 16777216 lo long add lo 117440512
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m8 lo sub 16777216 lo long add lo 134217728
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m9 lo sub 16777216 lo long add lo 150994944
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m10 lo sub 16777216 lo long add lo 167772160
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m11 lo sub 16777216 lo long add lo 184549376
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m12 lo sub 16777216 lo long add lo 201326592
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m13 lo sub 16777216 lo long add lo 218103808
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m14 lo sub 16777216 lo long add lo 234881024
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m15 lo sub 16777216 lo long add lo 251658240
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m16 lo sub 16777216 lo long add lo 268435456
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m17 lo sub 16777216 lo long add lo 285212672
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m18 lo sub 16777216 lo long add lo 301989888
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m19 lo sub 16777216 lo long add lo 318767104
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m20 lo sub 16777216 lo long add lo 335544320
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m21 lo sub 16777216 lo long add lo 352321536
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m22 lo sub 16777216 lo long add lo 369098752
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m23 lo sub 16777216 lo long add lo 385875968
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m24 lo sub 16777216 lo long add lo 402653184
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m25 lo sub 16777216 lo long add lo 419430400
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m26 lo sub 16777216 lo long add lo 436207616
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m27 lo sub 16777216 lo long add lo 452984832
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m28 lo sub 16777216 lo long add lo 469762048
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m29 lo sub 16777216 lo long add lo 486539264
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m30 lo sub 16777216 lo long add lo 503316480
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m31 lo sub 16777216 lo long add lo 520093696
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m32 lo sub 16777216 lo long add lo 536870912
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m33 lo sub 16777216 lo long add lo 553648128
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m34 lo sub 16777216 lo long add lo 570425344
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m35 lo sub 16777216 lo long add lo 587202560
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m36 lo sub 16777216 lo long add lo 603979776
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m37 lo sub 16777216 lo long add lo 620756992
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m38 lo sub 16777216 lo long add lo 637534208
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m39 lo sub 16777216 lo long add lo 654311424
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m40 lo sub 16777216 lo long add lo 671088640
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m41 lo sub 16777216 lo long add lo 687865856
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m42 lo sub 16777216 lo long add lo 704643072
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m43 lo sub 16777216 lo long add lo 721420288
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m44 lo sub 16777216 lo long add lo 738197504
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m45 lo sub 16777216 lo long add lo 754974720
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m46 lo sub 16777216 lo long add lo 771751936
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 16777216 bound 999
+r = pread int 3 m47 lo sub 16777216 lo long add lo 788529152
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+lo = ulong 0
+while lt lo 2388000 bound 999
+r = pread int 3 m48 lo sub 2388000 lo long add lo 805306368
+if le r 0
+refuse WREAD
+end
+lo = add lo ulong r
+end
+x = pread int 3 one 0 1 long FSIZE
+if ne x 0
+refuse WSIZE
+end
+header
+hreset
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m0 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m1 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m2 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m3 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m4 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m5 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m6 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m7 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m8 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m9 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m10 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m11 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m12 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m13 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m14 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m15 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m16 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m17 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m18 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m19 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m20 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m21 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m22 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m23 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m24 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m25 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m26 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m27 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m28 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m29 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m30 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m31 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m32 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m33 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m34 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m35 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m36 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m37 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m38 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m39 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m40 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m41 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m42 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m43 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m44 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m45 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m46 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 262144
+ho = mul b 64
+for i ulong 64
+put hb i get m47 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 16777216
+for b ulong 37312
+ho = mul b 64
+for i ulong 64
+put hb i get m48 add ho i
+end
+hblock
+end
+put hmeta 1 add get hmeta 1 2387968
+for i ulong 32
+hok = hpush get m48 add 2387968 i
+if not hok
+refuse WSHA
+end
+end
+ok = hfinal
+if not ok
+refuse WSHA
+end
+for i ulong 64
+if ne get hd i get sha i
+refuse WSHA
+end
+end
+for l ulong 16
+loadf32 get tof add mul l 9 4 NE mul l NE
+loadf32 get tof add mul l 9 5 NE mul add 16 l NE
+end
+loadf32 get tof 145 NE mul 32 NE
+for i ulong 32
+o = add get tof 146 mul i 4
+v = or or uint fb o shl uint fb add o 1 8 or shl uint fb add o 2 16 shl uint fb add o 3 24
+put rf i bitcast f32 v
+end
+initc
+ow WLOAD
+osp
+ow WOK
+osp
+ow WBYTES
+osp
+ou FSIZE
+osp
+ow WTENS
+osp
+ou NTENS
+osp
+ow WSHA
+osp
+for i ulong 64
+oc get hd i
+end
+osp
+ow WPASSES
+oc 32
+oc 48
+onl
+end
+note ---- requests ----
+fn getln to long
+note next request line in ib at st SLS; length, -1 at end of input, -2 for a line over the buffer
+while true bound 999999
+s = get st SSTART
+f = get st SFILL
+i = s
+while lt i f bound 999999
+if eq get ib i 10
+put st SSTART add i 1
+if eq get st SSKIP 1
+put st SSKIP 0
+ret long -2
+end
+put st SLS s
+ret long sub i s
+end
+i = add i 1
+end
+if eq get st SEOF 1
+if lt s f
+put st SSTART f
+if eq get st SSKIP 1
+put st SSKIP 0
+ret long -2
+end
+put st SLS s
+ret long sub f s
+end
+if eq get st SSKIP 1
+put st SSKIP 0
+ret long -2
+end
+ret long -1
+end
+n = sub f s
+for j ulong n
+put ib j get ib add s j
+end
+if eq n IBCAP
+n = ulong 0
+put st SSKIP 1
+end
+put st SSTART 0
+put st SFILL n
+r = read int 0 ib n sub IBCAP n
+if le r 0
+put st SEOF 1
+else
+put st SFILL add n ulong r
+end
+end
+ret long -1
+end
+fn tword k ulong to bool
+note the request word k at the cursor, then a space or the line end; the cursor moves past the word
+p = get st SPC
+e = get st SPE
+n = ulong 0
+for i ulong 16
+c = get tw add mul k 16 i
+if eq c 32
+break
+end
+n = add n 1
+end
+if gt add p n e
+ret false
+end
+for i ulong n
+if ne get ib add p i get tw add mul k 16 i
+ret false
+end
+end
+q = add p n
+if lt q e
+if ne get ib q 32
+ret false
+end
+end
+put st SPC q
+ret true
+end
+fn tsp to bool
+note exactly one space, then more text
+p = get st SPC
+e = get st SPE
+if ge add p 1 e
+ret false
+end
+if ne get ib p 32
+ret false
+end
+if eq get ib add p 1 32
+ret false
+end
+put st SPC add p 1
+ret true
+end
+fn tnum to ulong
+note a decimal number of 1..18 digits; anything else sets st SERR
+p = get st SPC
+e = get st SPE
+v = ulong 0
+n = ulong 0
+while lt p e bound 100
+c = get ib p
+if eq c 32
+break
+end
+if or lt c 48 gt c 57
+put st SERR 1
+ret 0
+end
+v = add mul v 10 ulong sub c 48
+n = add n 1
+if gt n 18
+put st SERR 1
+ret 0
+end
+p = add p 1
+end
+if eq n 0
+put st SERR 1
+end
+put st SPC p
+ret v
+end
+fn oid to void
+n = get st SIDN
+if eq n 0
+ow WQMARK
+ret
+end
+s = get st SIDS
+for i ulong n
+oc get ib add s i
+end
+end
+fn jref w ulong to void
+put st SOB 0
+ow WJOB
+osp
+oid
+osp
+ow WSTATUS
+osp
+ow WREFUSED
+osp
+ow WREASON
+osp
+ow w
+onl
+end
+fn tfield k ulong to ulong
+note " <word k> <number>"; a failure sets st SERR
+if not tsp
+put st SERR 1
+ret 0
+end
+if not tword k
+put st SERR 1
+ret 0
+end
+if not tsp
+put st SERR 1
+ret 0
+end
+ret tnum
+end
+fn pid to bool
+note the job id: 1..32 printable bytes up to the next space
+p = get st SPC
+e = get st SPE
+q = p
+while lt q e bound 100
+c = get ib q
+if eq c 32
+break
+end
+if or lt c 33 gt c 126
+ret false
+end
+q = add q 1
+end
+if gt sub q p 32
+ret false
+end
+put st SIDS p
+put st SIDN sub q p
+put st SPC q
+ret true
+end
+fn pids to ulong
+note " <id>" repeated to the line end into ids; returns the count or a refusal word plus 1000
+k = ulong 0
+while lt get st SPC get st SPE bound 100000
+if not tsp
+ret add WSYNTAX 1000
+end
+v = tnum
+if eq get st SERR 1
+ret add WSYNTAX 1000
+end
+if ge k CTX
+ret add WTOOMANY 1000
+end
+if ge v NV
+ret add WBADID 1000
+end
+put ids k v
+k = add k 1
+end
+ret k
+end
+fn parse ls ulong n ulong to ulong
+note fills SIDS SIDN SGEN SBUD SSTOP SFAULT SNID and ids; returns 99 when accepted, else a refusal word
+put st SPC ls
+put st SPE add ls n
+put st SERR 0
+put st SIDN 0
+if not tword WJOB
+ret WSYNTAX
+end
+if not tsp
+ret WSYNTAX
+end
+if not pid
+ret WSYNTAX
+end
+put st SGEN tfield WGEN
+put st SBUD tfield WBUDGET
+put st SSTOP tfield WSTOP
+put st SFAULT tfield WFAULT
+if eq get st SERR 1
+ret WSYNTAX
+end
+if not tsp
+ret WSYNTAX
+end
+if not tword WIDS
+ret WSYNTAX
+end
+k = pids
+if ge k 1000
+ret sub k 1000
+end
+if eq k 0
+ret WEMPTY
+end
+if or eq get st SGEN 0 gt get st SFAULT 1
+ret WRANGE
+end
+if gt sub add k get st SGEN 1 CTX
+ret WCONTEXT
+end
+put st SNID k
+ret 99
+end
+fn tpush t ulong to void
+nt = get st SNTOK
+put tk nt t
+put tb nt ulong bitcast uint get ac add ALG t
+put st SNTOK add nt 1
+end
+fn jrun to ulong
+note prefill then greedy steps; returns the passes run; st SCAN 1 when the budget ran out
+n = get st SNID
+bud = get st SBUD
+put st SRB 0
+put st SCAN 0
+put st SNTOK 0
+put st SFLT 4294967295
+if eq get st SFAULT 1
+put st SFLT div n 2
+end
+pos = ulong 0
+for i ulong n
+if ge pos bud
+put st SCAN 1
+ret pos
+end
+fwd get ids i pos eq add i 1 n
+pos = add pos 1
+end
+for s ulong get st SGEN
+t = amax
+tpush t
+if eq t get st SSTOP
+ret pos
+end
+if eq add s 1 get st SGEN
+ret pos
+end
+if ge pos bud
+put st SCAN 1
+ret pos
+end
+fwd t pos true
+pos = add pos 1
+end
+ret pos
+end
+fn kvclr pos ulong to void
+note discard this job's KV state (the weights stay resident)
+for l ulong 16
+for p ulong pos
+at = add mul l mul CTX KVD mul p KVD
+for i ulong KVD
+put kc add at i 0.0
+put vc add at i 0.0
+end
+end
+end
+end
+fn jout pos ulong to void
+nt = get st SNTOK
+put st SOB 0
+ow WJOB
+osp
+oid
+osp
+ow WSTATUS
+osp
+if eq get st SCAN 1
+ow WCANCEL
+else
+ow WOK
+end
+osp
+ow WPASSES
+osp
+ou pos
+osp
+ow WTOKENS
+for i ulong nt
+osp
+ou get tk i
+end
+onl
+ow WBITS
+for i ulong nt
+osp
+ou get tb i
+end
+onl
+ow WACCT
+osp
+ow WJOB
+osp
+oid
+osp
+ow WROWB
+osp
+ou get st SRB
+osp
+ow WPASSES
+osp
+ou pos
+onl
+end
+fn runjob to void
+pos = jrun
+kvclr pos
+jout pos
+end
+fn main to int
+admit
+while true bound 999999
+n = getln
+if eq n -1
+ret 0
+end
+if eq n -2
+put st SIDN 0
+jref WTOOLONG
+continue
+end
+if eq n 0
+continue
+end
+w = parse get st SLS ulong n
+if ne w 99
+jref w
+continue
+end
+runjob
+end
+ret 0
+end

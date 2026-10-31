@@ -1,0 +1,33 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [
+        {
+          "digest": "47807b4d88aefedaafd57fc41c556e99170a544223d70cbf9d6c291c35392449",
+          "last_commit": "4d082319",
+          "name": "imac-image",
+          "purpose": "Omega-written builder for the Allen iMac boot medium: GPT with one FAT32 ESP"
+        },
+        {
+          "digest": "87907ee5c6857824b705d78468e0b6b8a0c4adf94dca0929ca39c076c3a62d02",
+          "last_commit": "",
+          "name": "spark-image",
+          "purpose": "Deterministic GPT FAT32 packaging for read-only aarch64 core boot"
+        }
+      ],
+      "children_root": "sha256:79e83672c9b2f9133cc6f0fdd7bfa1329b7b46d82c5cdcb9b37f5928ab055772",
+      "compiled_at": "2026-10-30T02:44:51Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:e891c078bec120c3fdb14e13b7dd25d69054f608c2ea632adf2fd2b6e45d8fa1",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 5,
+      "generated_at_commit": "1ac32eb3971a5a78e8ea2909a53dca852e4a1b8d",
+      "source_tree": "sha256:e0a2efeb587da8620ec52813b183521d17793d65063e462884192acdc6a71a6b"
+    }
+  },
+  "layer": "tooling",
+  "name": "tools",
+  "purpose": "First-party host artifact preparation tools",
+  "schema_version": "1.0.0"
+}

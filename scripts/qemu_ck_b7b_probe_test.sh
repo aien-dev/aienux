@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # B7b preparation probe gate (aienos#286). Boots the C kernel core image built
 # with CK_B7B_PROBE=1 in QEMU AArch64 (UEFI/AAVMF, EL2, iommu=smmuv3) and checks
 # the probe lines of core/smmu_svc.c ck_b7b_probe. QEMU is not hardware: a PASS
@@ -18,6 +33,10 @@
 #                  SIDSIZE that covers stream 0x100, the unconfine returns 0 and
 #                  the summary is CONFINED_AND_RELEASED.
 #                  Last line AIENOS_CK_B7B_PROBE_POSITIVE: PASS|FAIL|NOT_RUN.
+#   --events       TEST-ONLY full image plus disposable NVMe/GPT disk. The
+#                  existing negative DMA test must produce a decoded event for
+#                  its exact SID/address, and every live queue is drained before
+#                  the final report. No physical GPU behavior is exercised.
 #   --self-test    canned serial logs for every failure mode below plus the
 #                  Makefile refusals of the probe flags; no QEMU, no compile.
 #                  Last line AIENOS_CK_B7B_PROBE_SELF_TEST: PASS|FAIL.
@@ -33,8 +52,9 @@ mode=gate
 case "${1:-}" in
     "") ;;
     --positive) mode=positive ;;
+    --events) mode=events ;;
     --self-test) mode=self ;;
-    *) echo "usage: $0 [--positive|--self-test]" >&2; exit 2 ;;
+    *) echo "usage: $0 [--positive|--events|--self-test]" >&2; exit 2 ;;
 esac
 test_marker="TEST-ONLY B7b probe on PCI segment 0"
 
@@ -89,6 +109,33 @@ common_tail() {
         bad "probe not between 'kernel: alive' and the SMP summary (alive=${a:-none} probe=${p:-none} smp=${s:-none})"
     fi
     if grep -qE '^report_kind: panic|^panic:|^exception:' "${f}"; then bad "panic or exception after the probe"; else ok "no panic or exception"; fi
+}
+
+check_events() {
+    local f="$1" line sid addr begin end final
+    check_positive "${f}"
+    line="$(grep -E '^smmu_negative: refused dma outside window .*faults=[1-9][0-9]* type=0x10 .*page=intact .*recovery_read=ok' "${f}" || true)"
+    if [[ "${line}" =~ sid=(0x[0-9a-f]+)[[:space:]]addr=(0x[0-9a-f]+) ]]; then
+        sid="${BASH_REMATCH[1]}"; addr="${BASH_REMATCH[2]}"
+        grep -qE "^b7b_event: instance=0 base=0x9050000 sid=${sid} type=0x10 name=F_TRANSLATION addr=${addr} raw=[0-9a-f]{16},[0-9a-f]{16},[0-9a-f]{16},[0-9a-f]{16}$" "${f}" \
+            && ok "real out-of-window NVMe DMA has matching decoded event" || bad "missing matching SID/address decoded event"
+    else
+        bad "no successful negative DMA oracle"
+    fi
+    begin="$(grep -n '^b7b_events: final begin all_sids=yes$' "${f}" | cut -d: -f1)"
+    end="$(grep -n '^b7b_events: final end$' "${f}" | cut -d: -f1)"
+    final="$(grep -n '^report_kind: final$' "${f}" | cut -d: -f1)"
+    if [[ "${begin}" =~ ^[0-9]+$ && "${end}" =~ ^[0-9]+$ && "${final}" =~ ^[0-9]+$ ]] \
+        && (( begin < end && end < final )); then
+        ok "one final queue readout before final report"
+    else
+        bad "final readout missing, duplicated or out of order"
+    fi
+    grep -qE '^b7b_events: instance=0 base=0x9050000 events=[0-9]+ overflow=0 pending=0$' "${f}" \
+        && ok "live queue drained without loss" || bad "no live queue completion"
+    if grep -qE '^b7b_events: .*overflow=1|^b7b_events: .*pending=1' "${f}"; then
+        bad "queue loss or incomplete readout"
+    fi
 }
 
 self_test() {
@@ -147,6 +194,21 @@ LOG
     grep -v 'idr0=' "${tmp}/positive" >"${tmp}/p4"; expect no-idr-line fail check_positive "${tmp}/p4"
     sed 's/len=0x1000/len=0x2000/' "${tmp}/positive" >"${tmp}/p5"; expect wrong-window fail check_positive "${tmp}/p5"
     sed 's/CONFINED_AND_RELEASED/FAIL/' "${tmp}/positive" >"${tmp}/p6"; expect positive-summary-fail fail check_positive "${tmp}/p6"
+    grep -v '^report_kind: final$' "${tmp}/positive" >"${tmp}/events"
+    cat >>"${tmp}/events" <<'LOG'
+b7b_event: instance=0 base=0x9050000 sid=0x108 type=0x10 name=F_TRANSLATION addr=0x12345000 raw=0000010800000010,0000000000000000,0000000012345000,0000000000000000
+smmu_negative: refused dma outside window iova=0x12345000 faults=1 type=0x10 sid=0x108 addr=0x12345000 page=intact cmd_rc=-1 recovery_read=ok
+b7b_events: final begin all_sids=yes
+b7b_events: instance=0 base=0x9050000 events=0 overflow=0 pending=0
+b7b_events: final end
+report_kind: final
+LOG
+    expect events-good pass check_events "${tmp}/events"
+    grep -v '^b7b_event:' "${tmp}/events" >"${tmp}/e1"; expect events-no-readout fail check_events "${tmp}/e1"
+    sed '/^b7b_event:/s/sid=0x108/sid=0x109/' "${tmp}/events" >"${tmp}/e2"; expect events-wrong-sid fail check_events "${tmp}/e2"
+    sed '/^b7b_event:/s/addr=0x12345000/addr=0x12346000/' "${tmp}/events" >"${tmp}/e3"; expect events-wrong-address fail check_events "${tmp}/e3"
+    sed 's/overflow=0/overflow=1/' "${tmp}/events" >"${tmp}/e4"; expect events-overflow fail check_events "${tmp}/e4"
+    sed 's/pending=0/pending=1/' "${tmp}/events" >"${tmp}/e5"; expect events-pending fail check_events "${tmp}/e5"
 
     # Makefile refusals: parse-time $(error), nothing is compiled (make -n).
     refuse() { # NAME MESSAGE MAKE-ARGS...
@@ -163,6 +225,8 @@ LOG
     refuse seg0-with-staging "CK_B7B_PROBE_TEST_SEGMENT0 (TEST-only QEMU positive path) cannot be combined with CK_HARDWARE_STAGING" \
         CK_B7B_PROBE=1 CK_B7B_PROBE_TEST_SEGMENT0=1 CK_HARDWARE_STAGING=1
     refuse probe-with-unsafe-dma "CK_B7B_PROBE cannot be combined with CK_QEMU_UNSAFE_DMA" CK_B7B_PROBE=1 CK_QEMU_UNSAFE_DMA=1
+    refuse events-without-probe "CK_B7B_EVENT_READOUT requires CK_B7B_PROBE=1" CK_B7B_EVENT_READOUT=1
+    refuse events-bad-value "CK_B7B_EVENT_READOUT must be empty or 1" CK_B7B_PROBE=1 CK_B7B_EVENT_READOUT=2
     if grep -qE '^#if defined\(CK_B7B_PROBE_TEST_SEGMENT0\) && defined\(CK_HARDWARE_STAGING\)$' native/kernel/core/smmu_svc.c; then
         echo "PASS  self-test core/smmu_svc.c also refuses the segment-0 probe in a hardware staging compile"
     else
@@ -180,6 +244,7 @@ fi
 # --------------------------------------------------------------- QEMU boot
 verdict_name=AIENOS_CK_B7B_PROBE
 [[ "${mode}" == positive ]] && verdict_name=AIENOS_CK_B7B_PROBE_POSITIVE
+[[ "${mode}" == events ]] && verdict_name=AIENOS_CK_B7B_EVENTS
 
 code_fd="${AAVMF_CODE:-/usr/share/AAVMF/AAVMF_CODE.no-secboot.fd}"
 vars_fd="${AAVMF_VARS:-/usr/share/AAVMF/AAVMF_VARS.fd}"
@@ -189,7 +254,11 @@ command -v qemu-system-aarch64 >/dev/null || { echo "qemu-system-aarch64 not ins
 cross=""
 if [ "$(uname -m)" != "aarch64" ]; then cross="aarch64-linux-gnu-"; fi
 commit="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-if [[ "${mode}" == positive ]]; then
+if [[ "${mode}" == events ]]; then
+    out="${repo_root}/target/native-kernel-test-b7b-events"
+    make -s -C native/kernel full gpt-image CROSS="${cross}" OUT="${out}" AIENOS_COMMIT="${commit}" \
+        CK_B7B_PROBE=1 CK_B7B_PROBE_TEST_SEGMENT0=1 CK_B7B_EVENT_READOUT=1 >/dev/null
+elif [[ "${mode}" == positive ]]; then
     out="${repo_root}/target/native-kernel-test-b7b-seg0"
     make -s -C native/kernel CROSS="${cross}" OUT="${out}" AIENOS_COMMIT="${commit}" CK_B7B_PROBE=1 CK_B7B_PROBE_TEST_SEGMENT0=1 >/dev/null
 else
@@ -212,7 +281,14 @@ cleanup() {
 trap cleanup EXIT
 mkdir -p "${work}/esp/EFI/BOOT" "${work}/esp/EFI/AIENOS"
 touch "${work}/esp/EFI/AIENOS/BOOTREPORT.TXT"
-cp "${out}/BOOTAA64.EFI" "${work}/esp/EFI/BOOT/BOOTAA64.EFI"
+extra_devices=()
+image="${out}/BOOTAA64.EFI"
+if [[ "${mode}" == events ]]; then
+    image="${out}/full/BOOTAA64.EFI"
+    "${out}/host/ck_gpt_image" create "${work}/nvme.img" 512 64 aienos-middle >/dev/null
+    extra_devices=(-drive "if=none,id=nvme,format=raw,file=${work}/nvme.img" -device nvme,drive=nvme,serial=b7b-events)
+fi
+cp "${image}" "${work}/esp/EFI/BOOT/BOOTAA64.EFI"
 cp "${vars_fd}" "${work}/vars.fd"
 log="${work}/serial.log"
 
@@ -225,6 +301,7 @@ timeout "${AIENOS_QEMU_TIMEOUT:-180}" qemu-system-aarch64 \
     -drive if=pflash,format=raw,file="${work}/vars.fd" \
     -drive if=none,id=esp,format=raw,file=fat:rw:"${work}/esp" \
     -device virtio-blk-pci,drive=esp \
+    "${extra_devices[@]}" \
     -device ramfb -display none -nic none \
     -serial file:"${log}" -no-reboot
 qemu_status=$?
@@ -237,7 +314,9 @@ tr -d '\r' <"${log}" >"${work}/serial.txt"
 echo "qemu exit ${qemu_status} after ${elapsed} s (commit ${commit:0:12}, ${mode})"
 
 failed=0
-if [[ "${mode}" == positive ]]; then
+if [[ "${mode}" == events ]]; then
+    results="$(check_events "${work}/serial.txt")" || true
+elif [[ "${mode}" == positive ]]; then
     results="$(check_positive "${work}/serial.txt")" || true
 else
     results="$(check_refused "${work}/serial.txt")" || true
@@ -245,7 +324,7 @@ fi
 grep -q '^FAIL' <<<"${results}" && failed=1
 printf '%s\n' "${results}"
 if [[ "${qemu_status}" == 0 ]]; then echo "PASS  QEMU exit 0 (PSCI reset)"; else echo "FAIL  QEMU exit ${qemu_status}"; failed=1; fi
-grep -E '^b7b_probe: |^AIENOS_B7B_PROBE: |^smmu: ' "${work}/serial.txt" | sed 's/^/LOG   /'
+grep -E '^b7b_probe: |^AIENOS_B7B_PROBE: |^smmu: |^b7b_event|^b7b_rmr|^smmu_negative:' "${work}/serial.txt" | sed 's/^/LOG   /'
 if [[ "${failed}" != 0 || -n "${AIENOS_QEMU_VERBOSE:-}" ]]; then
     echo "---- serial console ----"
     cat "${work}/serial.txt"

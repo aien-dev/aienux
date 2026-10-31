@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # klog-lib.sh -- KLOG slot helpers for pi5-run.sh (sourced). Formats:
 # aienos native/kernel/core/klog_slot.h (struct ck_klog_map, ck_klog_hdr).
 le32() { local v=$1; printf '\\x%02x\\x%02x\\x%02x\\x%02x' $((v&255)) $(((v>>8)&255)) $(((v>>16)&255)) $(((v>>24)&255)); }

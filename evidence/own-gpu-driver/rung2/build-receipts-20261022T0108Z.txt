@@ -1,0 +1,33 @@
+# L332 window 1 build receipts, run under quiet-build 2026-10-22T00:58:42Z to 2026-10-22T01:08:48Z
+# source: aienux feat/own-gpu-driver 89360c06 + the two build fixes committed with this file
+
+## kernel module (make all)
+kmod-rc=0
+aee06949cb1fd40dd7efc68c0be7f4e4df4ab0b36ce2c7bd01afd99e41c9df0a  native/linux/aien-gpu/aien_gpu.ko
+vermagic 7.0.0-1019-nvidia; params: allow_bind arena_mib heap_mib allow_boot 
+
+## GspSystemInfo encoder selftest + layout vs NVIDIA's own header text
+PASS no other GspSystemInfo byte changed
+PASS no other GspSystemInfo byte changed
+CK_GSP_SYSINFO_ENCODE_SELFTEST: PASS (15 checks, 72 fields)
+GSP_SYSINFO_NVHDR: PASS (70 comparisons, sizeof GspSystemInfo 936)
+
+## window-1 package (real firmware, pinned hashes)
+WINDOW1_PACKAGE: PASS (/tmp/l332-pkg)
+pkg-rc=0
+# window-1 boot package, built 2026-10-22T01:08:48Z on spark-b87b from repo 89360c060102e4242187cda6156d696452e38181
+# firmware /lib/firmware/nvidia/580.173.02/gsp_ga10x.bin sha256 32cb7cf3e77f97e92f6e92135939ccb3ba382748144569c0dfccf3338d43d963; bindata from /home/drakestapleton/workspace/_ext/open-gpu-kernel-modules-580.173.02/src/nvidia/generated; system info from /home/drakestapleton/workspace/aienos-own-gpu-driver/evidence/own-gpu-driver/rung2/system_info.txt sha256 fd384ca727b74c6c29feda3b7a8c20491099b1a2dac6966707d4264e5ae7086f
+app_version 0 (RM_RISCV_UCODE_DESC.appVersion of UCODE_DESC_PROD, GspRmBoot_GB10B)
+rm_elf.bin         74969088 931add19204a5f0240442272f58fb2bc5db6cec4dd6f6341c1d888754146aa07
+rm_sig.bin             4096 08541c3a909f8fd21c3eaf55fbe6c6c30ff2b7729e885417f3fcb06a4d108f2d
+bootloader.bin       196608 427a691d8453f02548d395f40ac900eb0d5b8ea864e8f14f958eef890ba400a2
+fmc.bin              195912 b13ead4b9a6b8a0d268f3094cc4f4521d6be8a9a525edbc9a8f3f397c86f1f2e
+fmc_hash.bin             48 f0389f3a9ce3bb6093e80bfc924bbe2a4ece0199b080a37f64bc1fef63f7500c
+fmc_pkey.bin            384 e9bbc669c27ad8827b5bbc2b2f52fdb47718659a651088869a5f3b11d2df7816
+fmc_sig.bin             384 9db429257a18e7c5c1a3df185001c671e21bec4e94c719a574d2ce72e2e07272
+system_info.bin         936 bd4b23c08ecf78e074132b58a6968ee52262d801e8092ed4e63cc12d8c82ee5d
+
+## sim test (plain build) from this run
+WINDOW1_SIM_TEST: PASS
+(sanitized build FAILED in this run: LeakSanitizer flagged the host arena and loaded package files never freed by the one-shot tool. Fixed by keeping them reachable; both builds PASS in sim-test-20261022T0120Z.txt.)
+app_version 0 checked: the decoded descriptor fields match the known bootloader offsets (manifest 0xa00, monitor code 0xb000), so appVersion 0 is what NVIDIA itself writes to FALCON_OS (kernel_gsp_gh100.c:954-956).

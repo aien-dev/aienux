@@ -8,11 +8,13 @@
  * three helper threads (the frames must match exactly), and writes PNG
  * pictures to the directory given as argv[1] (if any) for a person to look at.
  * Final line: ALLEN_UI_TEST: PASS|FAIL (N checks). */
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <time.h>
 
 #include "../../svc/allen_reply.h"
@@ -78,7 +80,7 @@ static void png(const char *path, const uint32_t *px, uint32_t pitch, int fmt, u
             uint32_t sr = 0, sg = 0, sb = 0;
             for (uint32_t j = 0; j < step; j++)
                 for (uint32_t i = 0; i < step; i++) {
-                    uint32_t c = px[(size_t)(y0 + y * step + j) * pitch + x0 + x * step + i];
+                    uint32_t c = px[((size_t)y0 + (size_t)y * step + j) * pitch + x0 + (size_t)x * step + i];
                     sr += c >> 16 & 255, sg += c >> 8 & 255, sb += c & 255;
                 }
             uint8_t r = (uint8_t)(sr / (step * step)), g = (uint8_t)(sg / (step * step)), b = (uint8_t)(sb / (step * step));
@@ -110,7 +112,11 @@ static void png(const char *path, const uint32_t *px, uint32_t pitch, int fmt, u
     }
     be32(z + o, b << 16 | a);
     o += 4;
-    FILE *f = fopen(path, "wb");
+    /* 0644, not fopen's 0666 & ~umask: a picture for a person, never world-writable. */
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    FILE *f = fd < 0 ? NULL : fdopen(fd, "wb");
+    if (fd >= 0 && !f)
+        close(fd);
     if (!f) {
         printf("note: cannot write %s\n", path);
         free(raw), free(z);

@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* slot_loader.c -- SLOTLDR.EFI: the AIENOS signed A/B image slot loader
  * (native v1 plan P11 cut 2a, gate N7; docs/NATIVE_IMAGE_SLOTS.md).
  *
@@ -44,7 +60,8 @@
  *
  * Never: UEFI variables, runtime services, ExitBootServices (the chained
  * stub leaves boot services itself), any disk write other than the control
- * region, any write when the control record is missing or corrupt.
+ * region, any write when the control record is missing or corrupt. Missing
+ * control requires recovery, not a zero-floor signed-image boot.
  * Freestanding C with the kernel's flags; no kernel objects are linked. */
 #include <stdarg.h>
 #include "efi.h"
@@ -438,12 +455,12 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
                 ctl->flags, (unsigned long long)ctl->generation_floor,
                 (unsigned long long)ctl->last_good_generation);
         } else {
-            say("slot_loader: control record refused (%s): no control, nothing will be written\n", why);
+            say("slot_loader: control record refused (%s): recovery required, nothing will be written\n", why);
         }
     } else if (trc == TS_EMPTY) {
-        say("slot_loader: control none committed: no control, nothing will be written\n");
+        say("slot_loader: control none committed: recovery required, nothing will be written\n");
     } else {
-        say("slot_loader: control region unreadable or corrupt (rc=%d): no control, nothing will be written\n", trc);
+        say("slot_loader: control region unreadable or corrupt (rc=%d): recovery required, nothing will be written\n", trc);
     }
 
     /* Both slots: manifest, image, verification. */

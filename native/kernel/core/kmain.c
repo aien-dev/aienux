@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* kmain.c -- C kernel core bring-up after the UEFI stub.
  *
  * ck_kernel_entry runs at the firmware EL on the firmware's translation:
@@ -122,6 +138,10 @@ static __attribute__((noreturn)) void rollback_test_end(void)
 }
 #endif
 
+#ifdef CK_PIPE_TEST
+void ck_pipe_selftest(void);
+#endif
+
 static __attribute__((noreturn)) void ck_el1_main(void *arg)
 {
     struct ck_handoff *h = arg;
@@ -211,6 +231,10 @@ static __attribute__((noreturn)) void ck_el1_main(void *arg)
 
 #if defined(CK_TEST_ROLLBACK_CPU_FAULT) || defined(CK_TEST_ROLLBACK_HANG)
     rollback_test_end();
+#endif
+#ifdef CK_PIPE_TEST
+    /* TEST-ONLY pipe self-test (core/pipe_test.c, scripts/qemu_ck_pipe_test.sh); never in a production image. */
+    ck_pipe_selftest();
 #endif
 
     {
@@ -324,6 +348,9 @@ static __attribute__((noreturn)) void ck_el1_main(void *arg)
         ck_printf("stage lifecycle: %s rc=%d\n", lrc == 0 ? "ok" : "FAIL", lrc);
     }
 
+#ifdef CK_B7B_EVENT_READOUT
+    ck_b7b_event_readout();
+#endif
     ck_set_stage("final");
     ck_puts("\n");
     ck_report_header("final");

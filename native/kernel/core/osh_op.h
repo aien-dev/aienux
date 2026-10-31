@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* osh_op.h -- the AIENOS adapter's platform-operation layer for OSH (aien-architecture#158, contract: aien-protocols PR #16
  * OSH_PLATFORM_ABI.md sections 7 to 12, DRAFT, ABIs unfrozen).
  *
@@ -25,13 +41,8 @@
 #error "CK_OSH_OP_TEST cannot be combined with CK_HARDWARE_STAGING"
 #endif
 
-/* section 8.6 platform error codes (numbers as in the draft) */
-enum osh_err {
-    OSH_E_OK = 0, OSH_E_DENIED = 1, OSH_E_REVOKED = 2, OSH_E_STALE = 3, OSH_E_NOT_FOUND = 4, OSH_E_UNAVAILABLE = 5,
-    OSH_E_INVALID_ARG = 6, OSH_E_LIMIT = 7, OSH_E_INTERRUPTED = 8, OSH_E_BROKEN_PIPE = 9, OSH_E_IO = 10,
-    OSH_E_OUTCOME_UNKNOWN = 11, OSH_E_CAP_DOMAIN_MISMATCH = 12, OSH_E_CAP_GEN_NARROW = 13, OSH_E_NOT_SUPPORTED = 14,
-    OSH_E_WOULD_BLOCK = 15, OSH_E_PARTIAL_LAUNCH = 16
-};
+/* section 8.6 platform error codes: one shared numbering (osh_err.h), also used by the kernel pipe primitive (pipe.h) */
+#include "osh_err.h"
 /* section 10 outcomes */
 enum osh_outcome { OSH_O_NOT_STARTED = 0, OSH_O_COMPLETED, OSH_O_FAILED_NO_EFFECT, OSH_O_CANCELLED, OSH_O_OUTCOME_UNKNOWN };
 

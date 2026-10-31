@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # AIENOS_CK_OSC_RECEIPT gate (aienos#383): the C kernel refuses to launch an OSC unit unless a valid signed Omega
 # realization receipt (omega spec/one-layer-receipts.md, receipt v1) comes with it. Booted in QEMU AArch64 + UEFI
 # (AAVMF).
@@ -10,7 +25,7 @@
 #
 # One unit (a01_valid_min.unit) and fourteen receipts are written into the sealed C Store of a GPT boot disk
 # image. One boot of the qualification image built with CK_SEED0B_TEST_ANCHOR=1 CK_OSC_LAUNCH_TEST=1
-# CK_OSC_RECEIPT_TEST=1 launches a01 add(a, b) eighteen times, each time with one receipt or none, and prints one
+# CK_OSC_RECEIPT_TEST=1 launches a01 add(a, b) nineteen times, each time with one receipt or none, and prints one
 # "osc_rcpt_launch:" line each. This gate checks:
 #   with the valid receipt the unit RETURNS the exact value (first and last launch), and with the owner receipt in
 #   release mode (aienos#387);
@@ -121,7 +136,7 @@ for rf in "${files[@]:1}"; do
     check "${serial}" "${r}.rcpt stored from the Store (bytes=${b})" "^osc_receipt: ${r//./\\.}\\.rcpt STORED bytes=${b} id=${id} "
 done
 check "${serial}" "receipt totals: 14 seen, 14 stored" "^osc_receipts: seen=14 stored=14 dropped=0 "
-check "${serial}" "self-test announces 18 launches" "^osc_rcpt_selftest: launches=18 unit=a01_valid_min\\.unit; "
+check "${serial}" "self-test announces 19 launches" "^osc_rcpt_selftest: launches=19 unit=a01_valid_min\\.unit; "
 
 label='QEMU \(aarch64 virt\), TEST signer, not physical'
 a=a01_valid_min.unit
@@ -152,11 +167,12 @@ rline "receipt naming firmware: RECEIPT_WRONG_FIRMWARE (81)" '14,15' n_firmware.
 rline "receipt with a dependency: RECEIPT_DEPENDENCIES_MISMATCH (88)" '15,16' n_deps.rcpt qualification "$(ref 88 DEPENDENCIES_MISMATCH)" -
 rline "receipt from an unlisted checker: RECEIPT_UNTRUSTED_CHECKER (86)" '16,17' n_checker.rcpt qualification "$(ref 86 UNTRUSTED_CHECKER)" -
 rline "owner receipt (signed on the owner YubiKey) in release mode: the unit runs, add(17,18) RETURNED 35" '17,18' a01.owner.rcpt release 'RETURNED value=35' - run
+rline "valid receipt with code changed after admission: CODE_HASH_MISMATCH (16), nothing mapped or executed" '18,19' a01.rcpt qualification 'REFUSED_AT_ADMISSION code=16 name=CODE_HASH_MISMATCH' -
 rline "after every refusal, the valid receipt still runs the unit: add(20,22) RETURNED 42" '20,22' a01.rcpt qualification 'RETURNED value=42' - run
-check "${serial}" "summary: 3 returned, 15 refused" "^osc_rcpt_launches: returned=3 trapped=0 refused=15 unknown=0; ${label}\$"
+check "${serial}" "summary: 3 returned, 16 refused" "^osc_rcpt_launches: returned=3 trapped=0 refused=16 unknown=0; ${label}\$"
 nl=$(grep -c '^osc_rcpt_launch: ' "${serial}" || true)
 names=$(grep -oE '^osc_rcpt_launch: .* name=RECEIPT_[A-Z_]+' "${serial}" | sed -E 's/.*name=//' | sort | uniq -d | tr '\n' ' ')
-[[ "${nl}" == 18 ]] && pass "exactly 18 receipt launch lines" || fail "receipt launch lines (${nl} of 18)"
+[[ "${nl}" == 19 ]] && pass "exactly 19 receipt launch lines" || fail "receipt launch lines (${nl} of 19)"
 # REVOKED appears twice on purpose (receipt id, signer key), told apart by the revoked= column
 [[ "${names}" == "RECEIPT_REVOKED " ]] && pass "every other refusal names a reason of its own" || fail "refusal reasons repeated: ${names}"
 if grep -E '^osc_launch: ' "${serial}" | grep -q .; then fail "a C3-3a launch line appeared in the receipt self-test"; else pass "only the receipt self-test ran"; fi

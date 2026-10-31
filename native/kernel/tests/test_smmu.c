@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* test_smmu.c -- core/smmu.c against a model SMMUv3, and the IORT parser
  * (core/acpi.c) on a crafted table shaped like QEMU virt's with
  * iommu=smmuv3. Ported in spirit from the Rust smmu.rs unit tests: bring-up
@@ -309,6 +325,53 @@ static void test_events(void)
     CHECK(ck_smmu_read_events(&R, &T, ev, 1, &ovf) == 1 && ovf == 1);
     CHECK(M.evtq_cons == (0u | 16u | (1u << 31)));
     CHECK(ck_smmu_read_events(&R, &T, ev, 4, &ovf) == 1 && ovf == 0);
+}
+
+struct observed_events {
+    struct ck_smmu_event events[16];
+    unsigned count;
+    int inject;
+};
+
+static void observe_event(void *ctx, const struct ck_smmu_event *e)
+{
+    struct observed_events *seen = ctx;
+    CHECK(seen->count < 16);
+    if (seen->count < 16)
+        seen->events[seen->count++] = *e;
+    if (seen->inject && seen->count == 16)
+        M.evtq_prod = 17u | (1u << 31);
+}
+
+static void test_event_observer(void)
+{
+    reset();
+    CHECK(ck_smmu_enable(&R, &T, 100) == 0);
+    struct observed_events seen = {0};
+    struct ck_smmu_observation o = ck_smmu_observe_events(&R, &T, observe_event, &seen);
+    CHECK(!o.events && !o.overflow && !o.pending && !seen.count);
+    for (unsigned i = 0; i < 16; i++) {
+        mem.evt[i * 4] = ((uint64_t)(0x100 + i) << 32) | (i ? 0x06 : 0x10);
+        mem.evt[i * 4 + 1] = 0x1234 + i;
+        mem.evt[i * 4 + 2] = 0x8000 + i * 0x1000;
+        mem.evt[i * 4 + 3] = 0xabcd + i;
+    }
+    M.evtq_prod = 16u | (1u << 31); /* full queue, reported loss */
+    seen.inject = 1; /* producer keeps going: observer must remain bounded */
+    o = ck_smmu_observe_events(&R, &T, observe_event, &seen);
+    CHECK(o.events == 16 && o.overflow && o.pending && seen.count == 16);
+    for (unsigned i = 0; i < seen.count; i++) {
+        CHECK(seen.events[i].sid == 0x100 + i);
+        CHECK(seen.events[i].raw[1] == 0x1234 + i && seen.events[i].raw[3] == 0xabcd + i);
+        CHECK(seen.events[i].addr == 0x8000 + i * 0x1000);
+    }
+    seen.count = 0;
+    seen.inject = 0;
+    o = ck_smmu_observe_events(&R, &T, observe_event, &seen);
+    CHECK(o.events == 1 && !o.overflow && !o.pending && seen.count == 1);
+    CHECK(strcmp(ck_smmu_event_name(0x10), "F_TRANSLATION") == 0);
+    CHECK(strcmp(ck_smmu_event_name(0x06), "F_STREAM_DISABLED") == 0);
+    CHECK(strcmp(ck_smmu_event_name(0xff), "UNKNOWN") == 0);
 }
 
 /* ---- IORT -------------------------------------------------------------- */
@@ -743,6 +806,7 @@ int main(void)
     test_install_abort();
     test_queue_wrap();
     test_events();
+    test_event_observer();
     test_iort();
     test_iort_spark_shape();
     test_iort_cap_overlap();

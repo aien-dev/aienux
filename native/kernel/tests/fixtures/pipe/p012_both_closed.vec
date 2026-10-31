@@ -1,0 +1,11 @@
+case both_closed
+kind negative
+create R W A => OK
+write W "lost" => OK n=4
+close W => OK
+close R => OK
+check empty
+close R => STALE
+close W => STALE
+read R 1 => STALE
+check empty
