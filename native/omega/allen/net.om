@@ -233,11 +233,13 @@ nt16 40 s
 nipbuild dest 17 add n 8 broad
 end
 note Courier datagram out: Chtx[0..n) to 255.255.255.255:47033 from Ncfg2:47033
-note in a broadcast frame, queued as kind 7 only when nothing else is in flight
-note and the stack is not in error state 6. false: not queued, the courier
-note scheduler offers the same datagram again on its own clock.
+note in a broadcast frame, queued as kind 7 only when nothing else is in flight.
+note Error state 6 does not refuse it: the courier has no TCP, DHCP or DNS
+note dependency, so Allen keeps answering after a failed repository session.
+note false: not queued, the courier scheduler offers the same datagram again on
+note its own clock.
 fn netudpsend n ulong to bool
-if or ne get Ntxlen 0 0 eq get Tcpstate 0 6
+if ne get Ntxlen 0 0
 ret false
 end
 if or eq n 0 gt n 1472
@@ -1304,8 +1306,10 @@ end
 put Npk 5 add 14 get Npk 1
 put Npk 6 sub get Npk 2 get Npk 1
 if eq get Nrx 23 6
+if ne get Tcpstate 0 6
 if and eq get Ncfg 1 4 eq get Npk 4 get Ncfg 2
 ntcpin
+end
 end
 ret
 end
@@ -1326,9 +1330,11 @@ ret
 end
 end
 if and eq nr16 p 67 eq nr16 add p 2 68
+if ne get Tcpstate 0 6
 if or eq get Ncfg 1 1 eq get Ncfg 1 2
 note Any destination: chaddr, random xid and server-id gate acceptance.
 ndhcpin
+end
 end
 ret
 end
@@ -1470,11 +1476,11 @@ put Ncfg 15 1
 put Ncfg 16 now
 nqhost
 end
+note Error state 6 freezes DHCP, DNS and TCP until the next netconnect. Courier
+note datagrams on port 47033 still arrive, and ARP for a bound lease is still
+note answered so a relay's unicast answer to the leased address can reach us.
 fn netinput n ulong now ulong to void
 if not nclock now
-ret
-end
-if eq get Tcpstate 0 6
 ret
 end
 if or lt n 14 gt n 1514
@@ -1498,7 +1504,9 @@ end
 end
 put Npk 0 n
 if eq nr16 12 2054
+if or ne get Tcpstate 0 6 eq get Ncfg 1 4
 narpin
+end
 end
 if eq nr16 12 2048
 nipin

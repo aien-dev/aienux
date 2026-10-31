@@ -94,6 +94,31 @@ n = 18
 end
 netinput add 42 n now
 end
+note A 20-byte TCP segment from 192.168.1.10:443 to Cvdst:Ncfg21 (session port).
+fn cvtcp now ulong to void
+for i ulong 2048
+put Nrx i uchar 0
+end
+for i ulong 6
+put Nrx i uchar 255
+put Nrx add i 6 uchar 0
+end
+put Nrx 6 uchar 2
+put Nrx 11 uchar 170
+cvw16 12 2048
+put Nrx 14 uchar 69
+cvw16 16 40
+cvw16 20 16384
+put Nrx 22 uchar 64
+put Nrx 23 uchar 6
+cvw32 26 cvip4 192 168 1 10
+cvw32 30 get Cvdst 0
+cvw16 24 cvcpl cvsum false 14 20
+cvw16 34 443
+cvw16 36 get Ncfg 21
+put Nrx 46 uchar 80
+netinput 54 now
+end
 note Outgoing courier frame: broadcast, IPv4/UDP 47033 both ways, valid checksums.
 fn cvtxok to bool
 if eq get Ntxlen 0 0
@@ -244,14 +269,45 @@ put Chevent 0 1
 chcancel
 check eq get Chevent 0 0 55
 check not chbusy 56
-note With a lease the frame leaves from our address; in error state 6 nothing leaves.
+note With a lease the frame leaves from our address and the relay's subnet
+note broadcast answer (--udp-answer 192.168.1.255) is still heard.
 put Dprmn 0 len Cvask
 check chask 5008 60
 chstep 5008 true
 check cvtxok 61
 check eq cvt32 26 cvip4 192 168 1 20 62
 netsent true 5008
+put Cvdst 0 cvip4 192 168 1 255
+put Inlen 0 0
+ok = packet 4 get Q 1 0 0 0
+cvdeliver 47033 47033 5009
+chstep 5009 true
+check and ok eq get T 6 1 63
+note Error state 6 after a failed repository session: the courier still hears a
+note LINE and sends its GOT, while a TCP segment for the dead session is frozen
+note (Ndrop 12 is ntcpin's first verdict for a segment from the wrong peer).
 put Tcpstate 0 6
-check not netudpsend 10 63
+cvbody get Q 1
+ok = packet 2 get Q 1 1 0 get Inlen 0
+cvdeliver 47033 47033 5010
+check and ok ne get Chrxn 0 0 64
+r = get Ch 4
+chstep 5010 true
+check eq get Chevent 0 1 65
+check and cvtxok cvkind 71 66
+check eq get Ch 4 r 67
+netsent true 5010
+put Cvdst 0 cvip4 192 168 1 20
+put Ncfg 1 4
+put Ncfg 21 40000
+put Tcpstate 2 cvip4 10 0 0 1
+put Tcpstate 0 5
+put Ndrop 0 0
+cvtcp 5011
+check eq get Ndrop 0 12 68
+put Ndrop 0 0
+put Tcpstate 0 6
+cvtcp 5011
+check eq get Ndrop 0 0 69
 ret int get Fails 0
 end
