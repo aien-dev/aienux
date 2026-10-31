@@ -137,7 +137,9 @@ fn main() {
         }
     }
     // AIENOS_BITS=1: also print the f32 bits of each chosen logit (oracle for native/om/lm1b).
-    let bits = std::env::var("AIENOS_BITS").map(|v| v == "1").unwrap_or(false);
+    let bits = std::env::var("AIENOS_BITS")
+        .map(|v| v == "1")
+        .unwrap_or(false);
     let mut tok_us = Vec::new();
     for i in 0..n {
         let t = argmax(&st.logits);

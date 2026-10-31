@@ -1,8 +1,17 @@
 # native/kernel: AIENOS C kernel core (Lane 18)
 
-The first AIENOS kernel written in C for AArch64. It boots in QEMU through
-UEFI (AAVMF) the way the Rust kernel does and prints the same observables.
+> **Status: FROZEN (Drake, 2026-10-24; ADR 0039, program L802).** This C kernel is legacy. It takes bug
+> fixes and keeps the lab iMac booting while Aienux is rewritten in Omega (`.om`). It takes no new
+> features; feature PRs here are closed with a pointer to ADR 0039. It is archived when the Omega kernel
+> passes the full AienOS gate suite on QEMU and on the lab iMac.
+
+The AIENOS kernel written in C. The main target is AArch64: it boots in QEMU
+through UEFI (AAVMF) the way the Rust kernel does and prints the same
+observables. A first x86_64 port (`x86/`) runs on a 2017 iMac.
 QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
+Real hardware runs so far: Raspberry Pi 5 test images (records in
+`evidence/pi5_hardware_runs_2026-10-13/` and `docs/native/`) and the 2017 iMac
+(`evidence/imac_*`). The C kernel has not been booted on the DGX Spark.
 
 ## Layout
 
@@ -12,9 +21,10 @@ QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
 | `arch/` | Vectors, EL2 -> EL1h entry (ADR 0009), recoverable probe, exception and IRQ dispatch, GICv3 or GICv2 (picked from the MADT; GICv2 is the Raspberry Pi 5 GIC-400 shape, QEMU gate `AIENOS_QEMU_GIC=2 scripts/qemu_ck_boot_test.sh`), EL1 physical timer. |
 | `mm/` | Frame allocator (UEFI map), 4 KiB-granule page-table builder, heap, the kernel address space (`mmu.c`). |
 | `core/` | Console, printf, ACPI, reports/panic/PSCI reset, M3 (threads, scheduler, EL0, capabilities, IPC), `kmain.c`. |
+| `gpu/` | GB10 GPU memory side, cut D, host only: GPU page tables in the format the NVIDIA driver uses for GB10, a bounded GPU buffer allocator with per-buffer cache policy and quarantine, one compute channel (ring, USERD, instance block, doorbell), and a simulated GB10 to test them on. Not linked into any image; never run on the chip. See "GB10 GPU memory (simulated)" below. |
 | `tests/` | Host unit tests. |
 | `third_party/omega/` | The canonical Omega Cortex store, byte for byte from the omega commit in `omega.lock` (checked by `scripts/omega_lock_check.sh`); built freestanding by `svc/cortex_store.c` over the sealed Store through `svc/cortex_journal.c` (native v1 plan P06). |
-| `x86/` | x86_64 port, first cut (AIENOS-IMAC-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
+| `x86/` | x86_64 port, first cut (AIENOS-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
 | `../boot/` | Minimal UEFI entry stub (one image with the kernel). |
 
 ## Build and test
@@ -42,7 +52,7 @@ with no NVMe, Store or Allen stage linked. For hardware staging add
 owner-material refusals are unchanged and the subdirectory is
 `spark-input-hardware-staging`. Do not use the storage-bearing
 `full CK_RTL8127=1` image instead. Sustained `CK_CONSOLE_SESSION` stays
-QEMU-only. Procedure and physical NOT_RUN boundary:
+QEMU-only. Procedure and physical NOT_RUN (hardware-unverified) boundary:
 `docs/campaigns/SPARK-BOOT-INPUT-20261028.md` from the repository root.
 
 ## Owner provisioning (hardware staging image)
@@ -148,13 +158,14 @@ of them:
   checks the refusals, the generator refusals, and builds the hardware staging
   image from the labelled TEST-fixture files in `tests/fixtures/owner/`
   (public bytes only, distinct from every old TEST constant), then greps the
-  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. CI runs it.
+  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. The Spark gate
+  `AIENOS-CK-OWNER-KEYS` (`tests/gates/aienos-ck-owner-keys.gate`) runs it.
 - Not covered: the untrusted RFC 8032 TEST 1/2 public key constants
   (`artifact/format.c`, used only by the `CK_SEED0B_TEST_ANCHOR` build and the
   host tools) are still present as data in every image, including hardware
   staging; the ordinary loader trusts no anchor.
 
-## 2017 iMac image (AIENOS-IMAC-KERNEL-0, x86_64)
+## 2017 iMac image (AIENOS-KERNEL-0, x86_64)
 
     make -C native/kernel imac-kernel        # target/native-kernel/IMACKERN.EFI
     scripts/qemu_ck_imac_kernel_test.sh      # QEMU q35 + OVMF, two CPU models, ends AIENOS_IMAC_KERNEL
@@ -199,7 +210,7 @@ kernel diagnostic keys; everything else, including `memory:`, is dropped
 whole, so chat, keys, tokens and credentials cannot enter it), as UDP
 broadcast from 0.0.0.0 to 255.255.255.255 port 47031 (TTL 1), in 1 KiB parts
 that each start with
-`AIENOS-IMAC-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
+`AIENOS-REPORT v=2 auth=none run=<id> part=<i>/<n> bytes=<total>`.
 Anyone on the LAN can read or forge these datagrams; the run id and checksum
 are not authenticity, so a report is never a receipt, evidence or a command.
 Future service diagnostics belong on the authenticated transport with an
@@ -211,6 +222,137 @@ and rebuilds each run into `OUTDIR/imac-<run>.unauthenticated.txt`;
 the allowlist (sentinel lines never leave), the frames and reassembly on the
 host.
 
+**Startup: the night sky.** The moment the clock is measured, before anything
+is printed, `ui/allen_ui.c` takes the screen and starts the night
+(`ui/night.c`): a dark sky fades in over about seven seconds, the brightest
+stars first, with the Milky Way, its dust and six galaxies; two black holes
+appear, bending the starlight round them, circle and spiral in on the
+inspiral law (separation as t^(1/4), angle as t^(5/8), t the time left),
+merge at 12 s in a flash, and a ripple runs out across the sky. From the light
+of the merger Allen gathers (`ui/mind.c`): no face and no body, a mind drawn as
+light, about a hundred points on and inside a sphere joined by fine threads,
+turning slowly round a warm heart, with sparks running along the threads.
+The startup text stays off the screen (`ck_x86_console_fb_hold`) until
+Allen's window takes over; a panic, or no window, stops the drawing and
+brings the text back. Every pixel is worked out from its position and the
+time, so a frame redraws only the parts that change, in strips: once the
+secondary cores are up, the first draws the frames and the next two draw
+strips of them (`smp: ... state=drawing helpers=2`); before that the boot core
+draws a frame between console writes. Kernel lines: `screen: night: the sky
+made in ...` and `screen: night: N frames ..., average ... ms, slowest ...
+ms` (when Allen wakes, 20 s later, and at goodbye).
+`ui/chirp.c` is the matching sound: a quick "blirp", the last 0.6 s of the
+gravitational-wave chirp of the same inspiral, raised into hearing (200 Hz
+sweeping to 1000 Hz, loudness as pitch^(2/3)), peaking at the merger and
+ringing out within 0.3 s: under a second in all, worked out from the formula. `x86/hda_x86.c` plays
+it: on each HD Audio controller it stops any DMA the firmware left running, resets the link with
+the settle times Linux uses, talks to the codecs through the command rings
+(CORB/RIRB, polled), maps every widget of each codec onto the report
+(`sound: codec=N w=0x.. ...`), opens every speaker, line-out and headphone
+path back to a converter (power, routing, 0 dB, pin drive, EAPD; on Apple
+boards the codec GPIOs), and on the first controller with a path runs one
+output stream: the chirp from the moment the night has reached, then 8 s of
+silence; the stream is stopped once the chirp is over. Intel controllers get
+Linux's PCI settings first (`pci_x86.c`). In QEMU the recording of what the
+guest played matches the chirp sample for sample, starting at the night's
+moment. A Cirrus CS8409 bridge on an Apple board (the desktop test
+computer's codec) gets its own set-up instead: its four speaker amplifiers
+sit behind it on its own I2C bus, so the driver sets the bridge's defaults,
+resets the amplifiers into shutdown, sets the TDM slots and clocks, configures
+and switches on each amplifier and synchronises the two converters, following
+the sequence davidjo/snd_hda_macbookpro replays from macOS. That sequence only
+plays 44.1 kHz 24-bit, so behind a CS8409 the chirp is resampled to that
+(`ck_chirp_fill_441`, host tested against the 48 kHz sound). The amplifiers
+run 24 dB under the level macOS uses. **Heard on the test computer
+(2026-10-18):** all four amplifiers answered (no I2C transfer unconfirmed)
+and the chirp played; at 12 dB under it was very loud and the old ten-second
+chirp too long, hence the quieter level and the short blirp. QEMU has no
+CS8409, so this path is checked only on that machine.
+Tests: `scripts/ck_allen_ui_test.sh` (host; pictures in
+`target/native-kernel-allen-ui/`), `scripts/ck_chirp_test.sh` (the sound as
+`target/native-kernel-chirp/chirp.wav`); the QEMU kernel test requires the
+night line, the drawing cores, the codec mapped through the command rings,
+the chirp stream running and its stop. `AIENOS_IMAC_KERNEL_KEEP_DIR=<dir>`
+keeps each run's serial log and a `.wav` recording of its sound.
+
+**Microphone (first cut, 2026-10-18).** On the same controller the first input stream records
+1 s from the microphone right after the chirp starts, then `ck_x86_hda_step` stops it and prints
+what arrived: `sound: microphone recorded 1000 ms: N samples, P% nonzero (first at i), peak,
+rms, dc`. Behind a CS8409 on an Apple board the built-in microphone is a digital microphone
+wired into the bridge (iMac boards: pin 0x45 to converter 0x23, DMIC2; MacBook Pro boards: 0x44
+to 0x22, DMIC1; source: davidjo/snd_hda_macbookpro `patch_cirrus_real84.h`, which replays what
+macOS sends): coefficient 0x09 selects it, 0x82 turns on its clock, the pin gets In Enable
+(HDA 7.3.3.13) and the converter the stream tag, 44.1 kHz 24-bit. Any other codec gets its
+first analogue input converter fed by a microphone or line-in pin. The QEMU kernel test uses
+`hda-duplex` (line-in pin 0x05 to converter 0x04) and requires the path, the stream running
+and the summary; QEMU feeds silence, so 0% nonzero there is expected. On the iMac the summary
+line in the lab report is the receipt for whether any sound comes through; the mainline Linux
+driver never got this microphone working, so a silent first run is a real possibility and the
+next step is then the bridge's coefficient dump against the macOS replay.
+
+**Device inventory.** The PCI walk prints one `pci: fn bus:dev.fn id=vendor:device class=...` line
+for every function it finds, before the drivers claim theirs. On the real machine these lines are
+the ground truth for which drivers are still missing (lab report allowlist: `pci:`).
+
+**Sleep.** "goodbye", or a tap of the power button, puts Allen to sleep: the screen goes
+black but for a faint point of light where he was, nothing moves, nothing is typed. Any key or
+another tap wakes him and the sky comes back at once (the waking key is not typed). Holding the
+power button 4 s is still the chipset's own hard power-off. The button is read by polling the
+PM1 status register named in the ACPI FADT (bit 8, PWRBTN_STS; its interrupt enable is cleared so
+the firmware never sees the press); the QEMU keyboard test drives it with the monitor's
+`system_powerdown`. Without a keyboard there is no window and no sleep: the screen holds
+CK_X86_HOLD_S seconds, then ACPI S5.
+
+**Keyboard and Allen's window.** `x86/xhci_x86.c` drives a wired USB boot
+keyboard (polled xHCI, through USB 2.0 hubs). When one is ready, Allen wakes:
+the person is his guest. A quiet glass bar comes up at the bottom for what
+they type; on Enter the line rises from the bar into him, he thinks (he draws
+in, turns faster, sparks cascade), then answers under him word by word while
+the galaxies shimmer with his voice, all in Allen's own stroke typeface
+(`ui/allen_font.c`, every printable ASCII character as pen strokes,
+rasterized with integer math). Nothing else is on the screen unless it is in
+use: the bar fades when the conversation rests (a key brings it back), his
+words fade once read, and the notes map (a small constellation) shows only
+when a note is saved or handed back. Each Enter gets a local answer from
+`svc/allen_reply.c`: "Hello Allen" gives "Hello Humanity."; it also knows small
+talk, your name for the session, facts about the machine, how long it has been
+awake and sums said in words ("what is 12 times 4"); anything else gives "I
+don't know that yet." Answers print as `allen: <answer>` on the console. The
+window has no idle countdown: it stays up until "goodbye" (then ACPI S5, or a
+restart in the lab image) or the power button. Unplugging the keyboard and plugging it
+(or another) back in works: the driver watches the keyboard's root port, prints
+`keyboard: unplugged`, releases the old device and runs discovery again, then
+`keyboard: ready` once more (the QEMU test does exactly this from outside the
+guest). A keyboard plugged in for the first time after start-up is not found: the
+controller is halted when no keyboard was there at start. The conversation stays on the computer: `keyboard_line:` and `allen:`
+are off the lab report's allowlist, which carries only `screen: Allen
+answered (N characters in, M out)`. Without a keyboard or the memory the text
+screen and its 60 s hold stay. Tests: `scripts/ck_allen_ui_test.sh` (host) and
+`scripts/qemu_ck_imac_keyboard_test.sh` (QEMU, types "Hello Allen", keeps a
+screenshot as `target/native-kernel-imac-keyboard/allen-qemu.png`). What Allen
+learns and the notes it keeps are saved in its section of the disk
+(`svc/allen_memory.c`, `x86/memory_x86.c`) and come back after a restart.
+
+**Starting from its own disk.** When the network loader (`../boot/net_loader.c`)
+starts a kernel it hands it a `struct nb_pass` (`../boot/netboot_proto.h`) as
+LoadOptions: the processor clock when the loader began, and where the verified
+object (signed manifest + image) lies in the loader's memory. The kernel checks
+the image's SHA-512 against the manifest again and installs it on the disk that
+holds Allen's section, in a 256 MiB EFI System Partition it adds in unused
+space (`dev/gpt_add.c` `ck_gpt_add`; never on a disk that already has another
+system's), as `\EFI\BOOT\BOOTX64.EFI` on a FAT32 volume it writes itself
+(`dev/fat_boot.c`, Microsoft FAT32 specification 1.03). Two slots: the new
+kernel goes into the one the firmware does not start, then a single directory
+sector switches over, so a power cut leaves the old kernel or the new one,
+never a mix; the same kernel again writes nothing. After that the firmware
+starts AIENOS from the disk with no stick and no network. Every start prints
+`boot_time:` (milliseconds since power on: firmware, loader, kernel, Allen's
+window) and `boot_disk:` (what the boot section holds). Tests:
+`scripts/ck_fat_boot_test.sh` (host: power cuts at every sampled block,
+`fsck.fat` and mtools as outside readers) and
+`scripts/qemu_ck_imac_bootdisk_test.sh` (QEMU: install over the network, then
+start from the disk alone, then a second kernel into the other slot).
+
 Output: the GOP framebuffer
 (`core/fbcon.c`, lines from before ExitBootServices replayed onto it) and COM1
 when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
@@ -219,10 +361,31 @@ when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
 cores and attaches a SATA data disk and an NVMe disk, each with a GPT from
 `ck_gpt_image`, and fails unless three cores check in, the kernel finds each
 AIENOS partition where the tool wrote it and both disks are byte-identical
-afterwards. Not yet: work scheduled on the other cores, x2APIC, NX, disk writes,
+afterwards. Not yet: work scheduled on the other cores, x2APIC,
 VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.
+
+Page permissions (W^X, #409): the kernel refuses a CPU without NX, sets
+EFER.NXE and CR0.WP on the boot core and in the trampoline for every other
+core, and maps its code read-only executable, its PE header and read-only data
+(`.rodata`, relocations, GOT) read-only no-execute, and everything else (data,
+bss, stacks, heap, page tables, MMIO, the framebuffer) no-execute, keeping the
+PAT cache types and the stack guard; the 2 MiB pages around the image and the
+trampoline are split into 4 KiB pages at the boundaries from
+`../boot/image_x86_64.ld`. The trampoline page is never writable and executable
+at once (writable while it is filled, executable while a core runs it,
+read-only no-execute once the cores are parked). At boot the kernel proves it:
+writes to code and to read-only data and execution from heap and stack must
+each fault with the right error code (`wx: ok ...`), and after the cores and
+disks are up an audit of every page table leaf must find nothing writable and
+executable, only the code executable, and NXE and WP on every core
+(`wx_audit: ok ...`). The QEMU test also builds two TEST-ONLY mutants
+(`make imac-kernel IMACKERN_WX_MUTANT=no_nx` or `=text_writable`) and fails
+unless their probes panic. W^X is not process isolation: everything here still
+runs in ring 0 in one address space, any kernel code can change the page
+tables, and learned or generated code must never be given kernel authority.
+QEMU only; not yet run on the iMac.
 
 The Spark's Realtek RTL8127 10 GbE (10ec:8127, segment 7) has a driver core in
 `native/net/aienos_rtl8127.c` and a binding in `dev/rtl8127_bind.c` (L198): SMMU
@@ -232,7 +395,7 @@ v11.014.00 (no public datasheet: DOCS SILENT), link wait, then the console log
 format with the tag `AIENUX-SPARK-REPORT`; the same `ck_imac_report_listen`
 writes it to `spark-<run>.txt`. Only a `make full CK_RTL8127=1` image calls it; every QEMU
 gate image is unchanged. Tested against a chip model and on the host only;
-nothing has run on the chip. What attended boot #2 must confirm is listed in
+nothing has run on the chip (hardware-unverified). What attended boot #2 must confirm is listed in
 `docs/SPARK_RTL8127.md`.
 
 ## Raspberry Pi 5 image (AIENOS-PI5 step 1)
@@ -294,18 +457,38 @@ tree with uncommitted changes to tracked files stamps `aienos_commit: <HEAD>-dir
 `run.log`, and says "NOT commit-bound (dirty build)" for a `-dirty` image. Hardware
 receipts from earlier runs are in `evidence/pi5_hardware_runs_2026-10-13/`.
 
-## Known hardware risk: disk footprint (CK gate DISK_LAYOUT: NOT_RUN)
+Later Pi images (unlock, Cortex facts, inference, agent, lifecycle, artifact
+loader, PCIe and Ethernet) each have a `make pi5-*` target and a run record in
+`docs/native/` (for example `PI5-6-INFER-RUNS.md`, `PI5-NET-3-RUNS.md`). The
+list of all eleven Pi images is in `docs/native/PI5-8-QUALIFICATION.md`.
 
-**Do not boot the C kernel on a disk holding data until CK gate `DISK_LAYOUT`
-is PASS on a forge receipt.** That gate is NOT_RUN (MISSING_IMPLEMENTATION, fix
-in progress).
+## GB10 GPU boot package builder (host only, not in any image)
 
-The kernel is partition-unaware. At every boot it writes and restores the last
-4 KiB unit of the whole NVMe namespace (`dev/nvme_bind.c:93-127`, called at
-`:224`) and uses the first 16 KiB as the anti-rollback anchor
-(`dev/disk_layout.h:3,12`; `svc/store_boot.c:164-170`). On a GPT disk those
-areas hold the protective MBR, the primary GPT and the backup GPT. Details and
-the operator-facing warning: `docs/TRUST-1-OPERATOR-STEPS.md`.
+`dev/gb10_gsp_boot.c` builds, in plain memory, everything NVIDIA's Linux driver
+(open-gpu-kernel-modules 580.173.02) hands the GB10 to start its GPU management
+processor (GSP): the WprMeta page, libos arguments, log buffers, RPC queues with the two
+pre-boot messages, the radix-3 firmware table, the bootloader, signature and FMC copies,
+the FMC boot parameters, the one SEC2 chain-of-trust packet, and the messages a native
+kernel sends after GSP is up (object alloc, control, free, static info) plus a reader for
+GSP's replies. It is freestanding kernel C but writes no register and loads nothing; no
+part of it has run on the GB10. Host checks:
+
+    make -C native/kernel test-gb10-gsp-boot   # layout, ring, refusals (also in make test)
+    make -C native/kernel gb10-gsp-nvhdr-test  # every field vs the NVIDIA headers (needs OGKM_DIR)
+    make -C native/kernel gb10-gsp-free        # kernel flags, no hidden library calls, small stack
+    make -C native/kernel gb10-gsp-mutants     # four broken variants, each must fail
+
+What is known and what still needs the chip: `docs/GB10_FIRMWARE_INVENTORY.md` section 14.
+
+## Disk footprint (CK gate DISK_LAYOUT: QEMU PASS, hardware NOT_RUN)
+
+The kernel writes only inside the AIENOS GPT partition of the boot disk (see
+"Notes for stage code" below and `dev/disk_layout.h`). Inside that partition,
+units 0 to 3 hold the anti-rollback anchor and the last unit is the scratch
+unit for the write/flush/read-back probe. The rest of the disk is only read.
+CK gate `DISK_LAYOUT` (GATES.md rows 118 to 123) passes in QEMU; it has not
+been run on a physical disk. The operator-facing warning is in
+`docs/TRUST-1-OPERATOR-STEPS.md`.
 
 ## Operator input and recovery access (C kernel)
 
@@ -322,9 +505,13 @@ What is implemented (NEXT-PHASE-3 cut 1):
   `dev/usb_kbd.c` resets the controller, finds the first connected port with
   a USB HID boot keyboard, addresses it, configures its interrupt IN
   endpoint and polls it. Polled only: no interrupts, no scheduler, no Store.
-- **Key decode** to one small fixed US keymap (`dev/usb_hid.c`): a-z (with
-  Shift: A-Z), 0-9, space, `-`, `.`, `/`, Enter, Backspace, Escape. Every
-  other key is ignored. A held key produces one event, not a repeat.
+- **Key decode** to one fixed US keymap (`dev/usb_hid.c`): every printable
+  character a US keyboard types, with and without Shift (letters, digits and
+  `!@#$%^&*()`, space, and the symbol keys with their shifted pairs, `?`
+  included), plus Enter, Backspace, Escape. Function keys, arrows, Tab and the
+  non-US key are ignored. A held key produces one event, not a repeat. The
+  console's commands match whole words only, so symbols can only make an
+  unknown command; Allen's facts keep letters, digits and spaces.
 - **Line input** with echo and a bound of 64 characters. One key past the
   bound makes the whole line fail closed: at Enter it is refused
   (`keyboard_line: overflow (line refused: N keys typed, limit 64)`) and never
@@ -535,7 +722,7 @@ a FAIL to report, not to retry.
    DMA pool.
 3. `ck_enter_el1`: EL2 -> EL1h with the MMU already on our tables.
 4. EL1: `mmu: enabled`, `mmu_switch: ...` read back from the registers,
-   heap check, guard-page self test, GICv3 from the MADT, 200 ms timer window
+   heap check, guard-page self test, GICv3 or GICv2 from the MADT, 200 ms timer window
    (INTID 30, 10 ms period; on a starved emulator the window keeps counting up to 5 s until five ticks arrived, and each interval is measured from IRQ entry, so a host stall cannot produce a short interval), `kernel: alive`, `kernel_el: EL1h`.
 5. Stages, in order, if linked: `ck_stage_devices`, `ck_stage_security`,
    `ck_stage_store`. Each prints `stage <name>: ok`, `stage <name>: FAIL
@@ -580,6 +767,36 @@ low-water free bytes.
   and the handoff, and minus the RSDP, the XSDT/RSDT and every table the root
   lists (whole pages). Tables, stack, heap and pool come from it and are never
   handed out again.
+
+## Native pipes (AIENOS-NATIVE-PIPE-1, aienos-mv#428)
+
+`core/pipe.c` / `core/pipe.h` make a pipe a kernel primitive: two independently scheduled operations exchange ordered
+bytes through a bounded buffer, with no intermediate file. It is a byte stream, separate from the 56-byte typed
+message ring of `core/ipc.h`; it reuses only the ipc.h capability tables.
+
+- **Contract.** OSH_PLATFORM_ABI (aien-protocols-mv `specs/osh-platform/`, read at `fb5fca98e667`, v1 DRAFT, unfrozen):
+  PIPE_CREATE, STREAM_READ / WRITE / CLOSE / DUP (section 8.1), at least 64 KiB per pipe (8.5), the error codes of 8.6
+  (one shared copy in `core/osh_err.h`, also used by `core/osh_op.h`), epoch staleness (4.4) and authority at the
+  moment of the effect (9.2). Choices the draft does not pin are marked UNVERIFIED in `pipe.h`.
+- **Ends are capabilities.** The read end holds `CK_R_READ`, the write end `CK_R_WRITE`, never both; optional
+  `CK_R_DERIVE` (dup in the same table), `CK_R_GRANT` (dup into another principal's table) and `CK_R_REVOKE`. Every
+  operation calls `ck_cap_lookup` when it acts, so a handle that was closed, reused or revoked is refused even if it
+  was valid a moment earlier (STALE, DENIED, REVOKED).
+- **Bounded.** A static pool of `CK_PIPE_POOL_PIPES` (4) pipes of `CK_PIPE_CAPACITY` (65536) bytes; nothing is allocated.
+  A write past the free space is partial, a write on a full pipe returns WOULD_BLOCK (or parks with `CK_PIPE_F_BLOCK`
+  through the pool's wait / wake hook, which the kernel points at the scheduler). Last writer closed: reads return 0
+  bytes once drained (EOF). No reader: BROKEN_PIPE. Revoke scrubs the buffer and no byte is delivered after it; cancel
+  makes the next or the blocked call on that end return INTERRUPTED with no byte moved. Counters (bytes, max resident,
+  WOULD_BLOCK, waits, wakeups, cancellations, revocations, refusals) are in `struct ck_pipe_stats`.
+- **Versioned op table.** `ck_pipe_dispatch` takes a platform call frame (magic `OSHF`, `CK_PIPE_ABI_VERSION` 1, op id,
+  reserved, arguments) and refuses malformed frames and unknown ops or versions (INVALID_ARG, NOT_SUPPORTED) before any
+  effect.
+- **Tests.** `make test` runs `test_pipe` (the 20-case corpus in `tests/fixtures/pipe/`, format in its README, plus
+  producer / consumer transfers through `core/sched.c`) and `pipe-mutant` (the write-right check removed: the test must
+  fail); `make sanitize` runs it under ASan+UBSan. `scripts/qemu_ck_pipe_test.sh` builds the TEST-ONLY `CK_PIPE_TEST=1`
+  image and checks the in-kernel run (GATES.md, PIPE). Host and QEMU evidence qualify nothing physical.
+- **Not yet.** Task execution and shell dispatch over pipes are separate issues; the kernel's blocking hook yields
+  cooperatively inside one kernel thread, it does not switch M3 threads.
 
 ## Notes for stage code
 
@@ -660,6 +877,58 @@ low-water free bytes.
   the EL0 return uses SPSR 0x3c5 (Rust 0x5); EL0 entry zeroes all general
   registers and TPIDR_EL0/TPIDRRO_EL0; the EL0 window uses ASID 0 with a
   full TLB flush (Rust ASID 1); context switches save x19-x30 and sp only
-  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT; no
-  secondary core is started (same as Rust). See GATES.md rows 16-20.
+  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT. See
+  GATES.md rows 16-20.
+- Secondary cores: the C kernel starts every other core through PSCI CPU_ON,
+  checks each one in and parks it in WFE (`core/smp.c`, CK gate `SMP`, GATES.md
+  rows 113-117). The Rust kernel starts none. No work runs on them yet. On the
+  Pi 5 all four cores checked in (`evidence/pi5_hardware_runs_2026-10-13/`).
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.
+
+## GB10 GPU memory (simulated)
+
+`gpu/` holds the part of a native GB10 GPU driver that the Linux NVIDIA
+driver (RM and UVM) does for us today: GPU page tables, the GPU TLB
+invalidate, GPU-visible buffers, and the memory and doorbell of one compute
+channel. It is cut D of `docs/GB10_NATIVE_DEPENDENCY_MAP.md`, host side only.
+
+- `gmmu.c`: GB10 page tables (57-bit GPU addresses, 4 KiB, 64 KiB and
+  2 MiB pages) and the TLB invalidate register sequence, as
+  open-gpu-kernel-modules 580.173.02 programs them for GB10B.
+- `gpu_mem.c`: a bounded GPU buffer allocator. Each buffer has a CPU address
+  and a separate GPU address. A buffer the CPU polls must be GPU-uncached
+  (the allocator refuses otherwise). Freed memory is reused only after the
+  GPU confirms the invalidate; if it never does, the memory is quarantined.
+- `gpu_chan.c`: one compute channel: ring, USERD, instance block with the
+  page-directory pointer, runlist USERD pointer, work-submit token, doorbell.
+  A channel that does not go idle on teardown has its memory quarantined.
+- `gpu_sim.c`: a simulated GB10 for the tests (memory array, logged
+  registers, a page walker written separately from `gmmu.c`, a TLB that only
+  an invalidate empties, fault records). Test only.
+
+Run: `make -C native/kernel test-gpu-sim` (also part of `make test`),
+`gpu-sim-mutants` (each mutant removes one check; all must be caught) and
+`gpu-freestanding` (the three driver files build with the kernel compiler
+and flags). What this shows: the code follows the driver's layouts and
+refuses what it should, on a simulator. What it does not show: anything on
+the real chip. Which register sequences still need the chip is listed in the
+`gpu_chan.h` and `gmmu.h` header comments (UNKNOWN / UNVERIFIED).
+
+### The channel as a device contract (L332)
+
+`gpu/contract/gb10_chan.devc` is the same compute channel written as a device
+contract (ADR 0021, class `gpu-chan`): constants, the doorbell register, the
+packed formats (doorbell token, GPFIFO entry, runlist USERD pointer, instance
+block page directory), the three buffers with their cache policy, and the
+steps of create, submit and teardown. Each number cites a line of NVIDIA's
+driver source. `crates/aienos-devc` (branch feat/devc-gpu) compiles it into
+`gpu/contract/gen/gch_contract.c`, which has the API of `gpu_chan.h`. The
+compiler refuses unsafe contracts (doorbell before publish, no fence between
+them, no ring-room check, GPU-cached memory the CPU writes or polls, a
+channel id bound wider than its token field, teardown that frees before idle).
+
+Run: `make -C native/kernel test-gpu-contract` (test_gpu_sim against the
+generated twin, plain and sanitized), `gpu-contract-trace` (every register
+access and a hash of all simulated memory after each of ~390 operations,
+hand vs generated, must be byte-identical), `gpu-contract-freestanding`.
+Mutants of the contract itself: `evidence/own-gpu-driver/rung1/contract_mutants.sh`.

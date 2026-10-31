@@ -188,6 +188,22 @@ void ck_xhci_release(void)
  * from firmware tables. */
 static struct ck_platform_dev g_plat[CK_XHCI_PLAT_MAX];
 static int g_nplat = -2; /* -2 not scanned yet, -1 no DSDT */
+#ifdef CK_HOST_TEST
+int ck_xhci_host_forget(void)
+{
+    if (ck_xhci_live()) return -1;
+    g_nplat = -2;
+    g_x.pf = 0;
+    g_x.plat = 0;
+    g_x.name[0] = 0;
+    g_x.bar0 = 0;
+    g_x.op = 0;
+    g_x.bm_on = g_x.confined = g_x.mapped = 0;
+    g_x.stream_id = 0;
+    g_x.state = "absent";
+    return 0;
+}
+#endif
 
 static void acpi_discover(void)
 {
@@ -439,6 +455,11 @@ int ck_xhci_fence(const pci_system *pci)
         ck_printf("keyboard: none on the PCI xHCI; trying %d ACPI platform controller(s)\n", g_nplat);
         x->pf = 0;
         int prc = plat_fence_all();
+        /* A refused abort leaves that platform stream confined. Other
+         * platform errors (deny, halt, bad BAR, no DMA page) happen before
+         * a grant, and the PCI controller is already released, so those
+         * stay the PCI fence's result. */
+        if (prc == CK_XHCI_E_RELEASE) return prc;
         if (prc == CK_XHCI_OK) return CK_XHCI_OK;
         x->state = "fenced";
     }

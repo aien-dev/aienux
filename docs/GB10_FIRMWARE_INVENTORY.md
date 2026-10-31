@@ -15,8 +15,13 @@ the driver on the box; fetched read-only into a scratch directory, not vendored)
 
 ## 1. Plain-English summary
 
-- The GPU in the Spark is NVIDIA's "GB10B" chip (the integrated variant of the
-  GB10 family). To run it, three pieces of NVIDIA code have to be put in place
+- This inventory assumes the GPU in the Spark is NVIDIA's "GB10B" chip. Correction 2026-10-26 (NoNvDriver
+  review): that was never measured (PMC_BOOT_42 is unread), and the evidence points at GB20B instead. In
+  580.173.02, GB10B is Thor ("T264/GB10B", uvm_va_space.c:817; Thor is sm_110, the Spark is sm_121), and
+  GB10B's class list has BLACKWELL_COMPUTE_A only (g_gpu_class_list.c:2418-2487) while CUDA++ refuses to run
+  without BLACKWELL_COMPUTE_B and has passing chip receipts on this Spark (CUDApp
+  evidence/FB1-CUT5-HD128-7dd92dc). COMPUTE_B appears only for GB202-GB207, GB20B and GB20C. window1-pre.sh
+  now refuses unless window 0 reads CHIP_ID 0x1AB. To run it, three pieces of NVIDIA code have to be put in place
   in a fixed order: a small signed "first stage" (GSP-FMC) that the SEC2
   security engine on the chip verifies and starts, which then unpacks and starts
   the big GSP-RM firmware (the GPU's own resource manager, 75 MB on disk), after
@@ -340,6 +345,9 @@ code into AIENOS would require carrying the MIT notice (none was copied here).
    state?), and whether UEFI leaves the GPU in that state at AIENOS entry.
    On Linux the driver finds "GFW_BOOT" complete before it starts
    (`kgspWaitForGfwBootOk_HAL`); who completes it without Linux is not shown.
+   NARROWED 2026-10-20 (section 14.2 items 1-2): on GB10B that wait is a no-op
+   and the SEC2 send checks only a software property and EMEM HEAD == TAIL; what
+   stays UNKNOWN is whether SEC2 is running with an empty queue at AIENOS entry.
 4. RESOLVED on the host side 2026-10-12 [SOURCE] for the transport: the queue
    headers, element format, checksum, sequence rules, continuation records,
    the init handshake (`GSP_INIT_DONE` 0x1001 with sequence 0 and result
@@ -353,7 +361,8 @@ code into AIENOS would require carrying the MIT notice (none was copied here).
    channel and submit; the native kernel needs only a subset but it is not
    established.
 5. [UNKNOWN] Whether the confidential-computing (`_cc_`) sections or the SPDM
-   session are ever required on this platform. Assumed not [INFERRED (high)].
+   session are ever required on this platform. Assumed not [INFERRED (high)];
+   default `PDB_PROP_CONFCOMPUTE_ENABLED` is NV_FALSE (section 14.2 item 3).
 6. [RESOLVED on the host side 2026-10-12, SOURCE; consumer side INFERRED
    (medium)] `GspRmFmcGfwProdSigned_GB10B` (image, hash, signature, public
    key) is what SEC2 receives in the chain-of-trust payload (section 10).
@@ -433,7 +442,7 @@ Transport. NVDM (NVIDIA Data Model) over MCTP over SEC2 EMEM channel 0,
 
 | dword | field | value for the boot message | source |
 |---|---|---|---|
-| 0 | MCTP transport header: SOM bit 31, EOM bit 30, SEQ 29:28, TO 27, TAG 26:24, SEID 23:16, DEID 15:8, RSVD 7:4, VERSION 3:0 | `0xC0000000` (SOM=1, EOM=1, SEQ=0, SEID=0; the driver sets only those four) | `fsp_mctp_format.h:8-16`; `kernel_sec2.c:319-321`; SEID 0 for GB10B `g_kernel_sec2_nvoc.c:879-888`, `g_kernel_sec2_nvoc.h:907-909` |
+| 0 | MCTP transport header. Layout (GB20B form): SOM bit 31, EOM bit 30, SEQ 29:28, TO 27, TAG 26:24, SEID 23:16, DEID 15:8, RSVD 7:4, VERSION 3:0 | **GB10B: `0x00000001`**, the HAL constant; the driver does not build SOM/EOM on GB10B. (GB20B/GB20C: `0xC0000000` = SOM=1, EOM=1, SEQ=0, SEID=0.) Corrected 2026-10-26; this row said `0xC0000000` for GB10B | `kernel_sec2.c:320` calls `ksec2CreateMctpHeader_HAL`; GB10B binds `ksec2CreateMctpHeader_539ab4` = `return 1;` (`g_kernel_sec2_nvoc.c:786-788`, `g_kernel_sec2_nvoc.h:853-855`); GB20B/GB20C bind `ksec2CreateMctpHeader_GB20B` (`kernel_sec2_gb20b.c:206-219`) |
 | 1 | NVDM header: TYPE 6:0 = 0x7e (vendor PCI), IC 7 = 0, VENDOR_ID 23:8 = 0x10de, NVDM_TYPE 31:24 | `0x1410DE7E` (NVDM_TYPE_COT = 0x14) | `fsp_mctp_format.h:17-22`; `fsp_nvdm_format.h:14`; `kernel_sec2_gb10b.c:391-402` |
 
 A message longer than 1016 bytes would continue in packets that carry only
@@ -728,3 +737,128 @@ of `GspSystemInfo`, and does not cover the confidential-computing encryption pat
 as on this machine today). Caching note: the queue buffer is cached sysmem
 in the driver with explicit store fences before each writePtr publish and
 doorbell write; a native port must keep the fence or use uncached mappings.
+
+## 14. The composed boot builder and the post-init RPCs (L192, 2026-10-20) [SOURCE / OBSERVED]
+
+Plain English: sections 10 to 13 described each piece the driver hands the chip, one at a
+time, in standalone tools. `native/kernel/dev/gb10_gsp_boot.c` now builds all of them
+together, in kernel-style C (no C library, no device access), into one block of memory with
+real cross-links: the boot parameters point at the WprMeta page, the WprMeta page points at
+the radix-3 table and the bootloader, the libos page points at the logs and the RPC
+arguments, and so on. It also builds the single message SEC2 receives and the messages a
+native kernel sends to GSP-RM after it is up. Nothing is loaded and no register is written:
+the output is bytes and addresses, ready for an attended run that is not authorized here.
+
+### 14.1 What the builder produces
+
+`gsp_boot_build(arena, inputs, plan)` lays out, every block 4 KiB aligned, in this order:
+WprMeta page, libos init-argument page, the seven GB10B log buffers with their PTE prefix,
+`GSP_ARGUMENTS_CACHED`, the 129-page RPC shared buffer (page table, command queue with its
+`msgqTxHeader`, status queue left zero for GSP to create), the radix-3 table plus a copy of the
+GSP-RM ELF, the GspRmBoot bootloader, the signature (size rounded up to 256), the GSP-FMC
+image and `GSP_FMC_BOOT_PARAMS`. It queues the two pre-boot RPCs (`GSP_SET_SYSTEM_INFO` with the
+caller's 936 bytes, then `SET_REGISTRY` when entries are given; both async, sequence 0,
+element seqNum 0 and 1) and returns the SEC2 EMEM packet (MCTP dword `0x00000001` on GB10B, NVDM dword
+`0x1410de7e`, 860-byte `NVDM_PAYLOAD_COT`, 868 bytes, QUEUE_TAIL 864). The firmware bytes,
+the 512 MiB sysmem heap address, `GspSystemInfo` and the registry are inputs; the builder never
+reads a file or a device.
+
+Post-init encoders over the same ring: `gsp_rpc_rm_alloc` (103), `gsp_rpc_rm_control` (76),
+`gsp_rpc_rm_free` (10), `gsp_rpc_get_static_info` (65), and `gsp_mq_recv` for the status queue
+(checksum, sequence and element-count checks; the CPU's readPtr lives in the command queue at
+rxHdrOff 32, SWAP_RX). Messages stream into the ring slot by slot, including across the ring
+end, with no large stack buffer. A full fence precedes every writePtr publish
+(message_queue_cpu.c:574-576 uses `portAtomicMemoryFenceStore`); the doorbell write
+(`NV_PGSP_QUEUE_HEAD(0)`) is the caller's and is not in this file.
+
+### 14.2 New source findings
+
+1. **No GFW-boot wait on GB10B** [SOURCE]: `kgspWaitForGfwBootOk` is bound to
+   `kgspWaitForGfwBootOk_ac1694` for "GB10B | GB20B | GB20C" (g_kernel_gsp_nvoc.c:1499-1513),
+   which is `return NV_OK;` (g_kernel_gsp_nvoc.h:1889-1891). The Linux driver does not wait for
+   a GPU firmware boot stage on this chip before talking to SEC2. Narrows section 8 item 3.
+2. **SEC2 send preconditions are software-only** [SOURCE]: `ksec2SafeToSendBootCommands_GB10B`
+   checks only `PDB_PROP_KSEC2_BOOT_GSPFMC` (kernel_sec2_gb10b.c:415-425), which is NV_TRUE for
+   GB10B (g_kernel_sec2_nvoc.c:446-455); `ksec2CanSendPacket_GB10B` requires EMEM queue
+   HEAD == TAIL (kernel_sec2_gb10b.c:344-353). After the packet: `_ksec2WaitForCmdHandling`
+   (MAILBOX0), then `kgspBootstrap_GH100` waits for the GSP target mask release, read as
+   `NV_PGSP + NV_PFALCON_FALCON_HWCFG2` being non-zero and not `0xBADF41xx`
+   (kernel_sec2_gb10b.c:265-283, kernel_gsp_gh100.c:897-910). Still [UNKNOWN]: whether SEC2 is
+   running and its EMEM queue empty when AIENOS starts without Linux; nothing in the driver
+   starts SEC2 itself.
+3. **Confidential computing is off by default** [SOURCE]: `PDB_PROP_CONFCOMPUTE_ENABLED` is set
+   NV_FALSE at construction (g_conf_compute_nvoc.c:235); the encrypted-queue branch of
+   `GspMsgQueueSendCommand` (message_queue_cpu.c:485-505) is only taken when it is enabled.
+   Strengthens section 8 item 5 [INFERRED (high)]. `GSP_FMC_BOOT_PARAMS.initParams.regkeys` is
+   `pCC->gspProxyRegkeys` (kernel_gsp_gh100.c:426); its value without CC is [UNKNOWN] and is a
+   builder input (default 0).
+4. **DMA targets in GSP_FMC_BOOT_PARAMS** [SOURCE]: `_kgspMemdescToDmaTarget`
+   (kernel_gsp_gh100.c:390-404) maps cached sysmem to `GSP_DMA_TARGET_COHERENT_SYSTEM` (1) and
+   uncached sysmem to `NONCOHERENT_SYSTEM` (2). The WprMeta page is cached and the libos page
+   uncached (kernel_gsp_tu102.c:120-171), so the boot descriptor target is 1 and the boot-args
+   target is 2.
+5. **`GSP_RM_ALLOC` length leaves the params out** [SOURCE]: `rpcRmApiAlloc_GSP` calls
+   `rpcWriteCommonHeader(.., sizeof(rpc_gsp_rm_alloc_v03_00))` (rpc.c:11195) and copies the
+   params after the fixed part without growing the length; `rpcWriteCommonHeader` sets
+   `length = 32 + paramLength` (rpc_common.c:183). The queue sizes, checksums and element
+   count from that length (message_queue_cpu.c:465-505) but copies whole 4 KiB slots, so the
+   params travel in the first slot outside the checksum. The builder reproduces this exactly
+   and refuses params that would spill past the first slot (more than 3,984 bytes).
+   `GSP_RM_CONTROL` does count its params (rpc.c:10978-10984: `sizeof(*rpc_params) +
+   paramsSize`). [UNKNOWN] whether GSP-RM would also accept a length that includes the alloc
+   params; we keep the driver's form.
+6. **`GET_GSP_STATIC_INFO` request** [SOURCE]: zero-filled, `length = 32 +
+   sizeof(GspStaticConfigInfo)`, refused by the driver above `maxRpcSize`
+   (rpc.c `rpcGetGspStaticInfo_v14_00`). `sizeof(GspStaticConfigInfo)` could not be computed:
+   gsp_static_config.h pulls nvassert.h, which requires an RM port header (`NV_PORT_HEADER`).
+   [UNKNOWN]; the builder takes the size as a parameter.
+
+### 14.3 The object chain to a usable channel [OBSERVED on Linux, INFERRED for native]
+
+What our working Linux path asks the driver for, in order (physics `nvrm/nvrm.c` at e95e3ed,
+the layer every chip result on this box went through): `NV01_ROOT_CLIENT`;
+`NV0000_CTRL_CMD_GPU_GET_ID_INFO_V2`; `NV01_DEVICE_0`; `NV20_SUBDEVICE_0`;
+`NV01_MEMORY_VIRTUAL`; `NV0080_CTRL_CMD_GPU_GET_CLASSLIST` (twice: count, then list);
+`NV2080_CTRL_CMD_GR_GET_INFO`; `FERMI_VASPACE_A`; `NV2080_CTRL_CMD_GPU_GET_GID_INFO`;
+`NV01_MEMORY_SYSTEM` per buffer; `KEPLER_CHANNEL_GROUP_A`; `FERMI_CONTEXT_SHARE_A`;
+`BLACKWELL_CHANNEL_GPFIFO_A`; `BLACKWELL_COMPUTE_B`;
+`NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN`; `NVA06C_CTRL_CMD_GPFIFO_SCHEDULE`.
+
+On Linux these reach CPU-RM first, and CPU-RM forwards to GSP-RM with `GSP_RM_ALLOC` /
+`GSP_RM_CONTROL` the objects GSP owns, while doing memory descriptors, page tables and BAR
+mappings itself. [INFERRED (medium)] a native kernel sends the same chain through
+`gsp_rpc_rm_alloc` / `gsp_rpc_rm_control` with its own handles, after `GSP_INIT_DONE` and
+`GET_GSP_STATIC_INFO`. [UNKNOWN] which objects GSP-RM accepts without the CPU-RM-side state
+(VA space page directory via `SET_PAGE_DIRECTORY` 54, memory registration) and in what form:
+that is the boundary with cut D (L193, GPU page tables and channel model) and is only
+settled by reading CPU-RM's per-class forwarding and then by the chip.
+
+### 14.4 How it is tested (host only)
+
+- `make -C native/kernel test-gb10-gsp-boot` (also part of `make test` and `make sanitize`):
+  every block decoded at hand-written byte offsets, cross-links, determinism, the ring
+  (full ring, wrap across the ring end, corrupt pointers), the status reader (empty, good,
+  bad checksum, bad sequence, bad element count) and every input refusal.
+- `make -C native/kernel gb10-gsp-nvhdr-test`: the builder's mirror structs compared field by
+  field (offset and size) with the NVIDIA headers themselves, and a built plan decoded through
+  NVIDIA's own types (`GspFwWprMeta`, `LibosMemoryRegionInitArgument`, `GSP_ARGUMENTS_CACHED`,
+  `msgqTxHeader`, `rpc_message_header_v03_00`, `rpc_gsp_rm_alloc_v03_00`,
+  `rpc_gsp_rm_control_v03_00`, `NVOS00_PARAMETERS_v03_00`, `GSP_FMC_BOOT_PARAMS`,
+  `NVDM_PAYLOAD_COT`, function and event numbers). Needs the 580.173.02 source tree at
+  `OGKM_DIR` and fails without it; `make test` runs it through `gb10-gsp-nvhdr-check`, which
+  prints NOT_RUN instead when the tree is absent.
+- `make -C native/kernel gb10-gsp-free`: compiled with the kernel's freestanding flags plus
+  `-Wstack-usage=4096`; no undefined symbols (no hidden memcpy/memset).
+- `make -C native/kernel gb10-gsp-mutants`: four test-only mutants (readPtr read from the wrong
+  queue, checksum not stored, radix pointers shifted one page, alloc length counting the params)
+  must each make the test fail.
+
+Results with commands and exit codes are in the L192 handoff
+(`~/handoffs/2026-10-20-gb10-gsp-host.md`).
+
+### 14.5 Still needs the chip (unchanged authority: attended window only)
+
+Whether SEC2 accepts the packet with Linux absent; whether GSP-FMC accepts this WprMeta and
+the 133 MiB heap; the real `GspSystemInfo` bytes; `sizeof(GspStaticConfigInfo)`; the per-class
+CPU-RM work behind each forwarded alloc; reset and re-open after a failed boot (section 8
+item 7). The builder is not linked into any kernel image.

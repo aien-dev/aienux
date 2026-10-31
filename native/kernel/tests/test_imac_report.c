@@ -49,19 +49,22 @@ static char log_text[56 * 61];
  * layout), near-miss keys, control and non-ASCII bytes inside an allowed
  * key, an over-long line, and an unterminated tail. */
 static const char allowed_part[] =
-    "AIENOS-IMAC-KERNEL-0\n"
+    "AIENOS-KERNEL-0\n"
     "aienos_commit: 0123abcd\n"
     "pci: ahci 00:1f.2 id=8086:2922 class=0106\n"
     "net_tg3: link up 1000 Mb/s full duplex\n"
     "summary: cores=4/4 timer=ok sata_disks=1 nvme_disks=1 gpt_valid=1 writes=none net=up\n"
+    "screen: Allen answered (11 characters in, 15 out)\n"
+    "allen_memory: saved generation 2 to copy B (1 fact) in 9 ms\n"
+    "ahci_part: disk=0 entry=1 type=38daac89-5ead-4b40-8b1e-3687a7418061 first_lba=2048 last_lba=2099199 mib=1024 name=\"AIENOS Allen memory\" (AIENOS)\n"
     "kernel: alive\n"
     "panic: exception: vector 14 #PF error=0x2\n"
-    "AIENOS-IMAC-KERNEL-0 DONE\n";
+    "AIENOS-KERNEL-0 DONE\n";
 
 static size_t build_mixed(char *out, size_t cap)
 {
     static const char *const lines[] = {
-        "AIENOS-IMAC-KERNEL-0\n",
+        "AIENOS-KERNEL-0\n",
         "allen: secret-chat-SENTINEL\n",
         "aienos_commit: 0123abcd\n",
         "key: SENTINEL-KEY\n",
@@ -80,10 +83,16 @@ static size_t build_mixed(char *out, size_t cap)
         "power: \r SENTINEL-CR\n",
         "net_tg3: link up 1000 Mb/s full duplex\n",
         "summary: cores=4/4 timer=ok sata_disks=1 nvme_disks=1 gpt_valid=1 writes=none net=up\n",
+        "keyboard_line: Hello SENTINEL-TYPED\n",
+        "screen: Allen answered (11 characters in, 15 out)\n",
+        "allen: Your favorite color is SENTINEL-FACT.\n",
+        "allen_memory: saved generation 2 to copy B (1 fact) in 9 ms\n",
+        "allen_memoryx: SENTINEL-NEAR2\n",
+        "ahci_part: disk=0 entry=1 type=38daac89-5ead-4b40-8b1e-3687a7418061 first_lba=2048 last_lba=2099199 mib=1024 name=\"AIENOS Allen memory\" (AIENOS)\n",
         "\n",
         "kernel: alive\n",
         "panic: exception: vector 14 #PF error=0x2\n",
-        "AIENOS-IMAC-KERNEL-0 DONE\n",
+        "AIENOS-KERNEL-0 DONE\n",
     };
     size_t w = 0;
     for (size_t i = 0; i < sizeof lines / sizeof lines[0]; i++) {
@@ -140,7 +149,7 @@ static void filter_checks(void)
     edge[e++] = '\n';
     CHECK(ck_x86_report_filter(edge, e, eo, sizeof eo) == keep && memcmp(eo, edge, keep) == 0);
     /* Only whole lines are written: a line that does not fit is dropped. */
-    size_t first = strlen("AIENOS-IMAC-KERNEL-0\n");
+    size_t first = strlen("AIENOS-KERNEL-0\n");
     CHECK(ck_x86_report_filter(raw, rl, out, first + 5) == first && memcmp(out, raw, first) == 0);
     CHECK(ck_x86_report_filter(raw, rl, out, first - 1) == 14 && memcmp(out, "kernel: alive\n", 14) == 0);
     CHECK(ck_x86_report_filter(0, rl, out, sizeof out) == 0);
@@ -207,7 +216,7 @@ int main(int argc, char **argv)
         if (!d)
             continue;
         char want[128];
-        int h = snprintf(want, sizeof want, "AIENOS-IMAC-REPORT v=2 auth=none run=0123456789abcdef part=%u/%u bytes=%zu\n",
+        int h = snprintf(want, sizeof want, "AIENOS-REPORT v=2 auth=none run=0123456789abcdef part=%u/%u bytes=%zu\n",
                          p,
                          parts, len);
         CHECK(pl > (size_t)h && memcmp(d, want, (size_t)h) == 0);

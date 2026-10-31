@@ -47,7 +47,7 @@ size_t ck_x86_report_filter(const char *log, size_t len, char *out, size_t cap);
 unsigned ck_x86_report_parts(size_t len);
 /* The Ethernet frame (no FCS) carrying part `part` of the report: broadcast
  * from `mac`, IPv4 0.0.0.0 -> 255.255.255.255, UDP PORT -> PORT, TTL 1,
- * payload "AIENOS-IMAC-REPORT v=2 auth=none run=<16 hex> part=<i>/<n>
+ * payload "AIENOS-REPORT v=2 auth=none run=<16 hex> part=<i>/<n>
  * bytes=<total>\n" + chunk. `report` must be ck_x86_report_filter output.
  * Bytes written, 0 on a bad argument or a buffer too small. */
 size_t ck_x86_report_frame(const uint8_t mac[6], uint64_t run, const char *report, size_t len, unsigned part,

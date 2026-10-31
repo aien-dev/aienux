@@ -1,0 +1,23 @@
+# L332 rung 1 host gates, 2026-10-21T22:01:54Z, aienos feat/own-gpu-driver d5891389, feat/devc-gpu 0af8a6fe, via quiet-build bash gates.sh
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+drift: gb10_gpu_channel.md identical
+drift: gch_contract.c identical
+test_gpu_sim: PASS (225 checks)
+test_gpu_sim: PASS (225 checks)
+gpu-contract-trace: PASS (391 lines identical, hand vs contract)
+gpu-contract-freestanding: PASS (gch_contract.c with KCC/KCFLAGS, needs only the ck_gmem allocator)
+test_gpu_sim: PASS (225 checks)
+mutant killed (test_gpu_sim): TARGET=TARGET_SYS_COH -> TARGET=1
+mutant killed (test_gpu_sim): BIG_PAGE_64K=1 -> BIG_PAGE_64K=0
+mutant killed (test_gpu_sim): LENGTH=nwords LEVEL=1 -> LENGTH=nwords LEVEL=0
+mutant killed (test_gpu_sim): const USERD_GPPUT 0x8C -> const USERD_GPPUT 0x88
+mutant killed (test_gpu_sim): const RAMIN_PDB_WORD 128 -> const RAMIN_PDB_WORD 130
+mutant killed (test_gpu_sim): format TOKEN 32 RUNLIST_ID 22:16 -> format TOKEN 32 RUNLIST_ID 23:17
+mutant killed (test_gpu_sim): reg vf DOORBELL 0x30090 4 wo -> reg vf DOORBELL 0x30094 4 wo
+mutant killed (test_gpu_sim): LENGTH 62:42 -> LENGTH 63:43
+mutant killed (checker): PTR_HI 51:32 place -> PTR_HI 51:32
+mutant killed (checker):   fence\n  bind ->   bind\n  fence\n  bind
+contract mutants: 10 of 10 killed
+gates exit done

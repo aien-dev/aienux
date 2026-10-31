@@ -25,7 +25,9 @@
  * PHY link), then the BCM57766 driven for transmit by tg3_x86.c, which waits
  * up to 8 s for a link. Config writes: memory decode and bus mastering for the
  * functions the kernel drives, and the BCM57766's own register-access and
- * PCIe settings (tg3_x86.c).
+ * PCIe settings (tg3_x86.c). Afterwards, ck_x86_usb offers each xHCI
+ * controller to the keyboard driver (xhci_x86.c), and ck_x86_sound hands
+ * each sound controller to hda_x86.c, which plays the startup chirp.
  *
  * Disks are read-only here. The NVMe driver resets and enables the controller
  * and creates its queues (no media is touched by that); the kernel then reads
@@ -59,6 +61,7 @@ static struct ck_x86_storage_result res;
 static uint32_t cr32(volatile uint8_t *cfg, unsigned off) { return *(volatile uint32_t *)(cfg + off); }
 static uint16_t cr16(volatile uint8_t *cfg, unsigned off) { return *(volatile uint16_t *)(cfg + off); }
 static void cw16(volatile uint8_t *cfg, unsigned off, uint16_t v) { *(volatile uint16_t *)(cfg + off) = v; }
+static void cw32(volatile uint8_t *cfg, unsigned off, uint32_t v) { *(volatile uint32_t *)(cfg + off) = v; }
 
 void ck_x86_disk_report(const char *tag, unsigned ctrl, unsigned index, const disk_dev *dev)
 {
@@ -220,8 +223,9 @@ static void net_look(const struct pfn *f)
               bmsr & 0x20 ? 1u : 0u);
 }
 
-/* Drives the BCM57766 (tg3_x86.c) and waits up to 8 s for the link, so the
- * summary and the report can say whether the network is up. */
+/* Drives the BCM57766 (tg3_x86.c) and looks at the link once. Nothing at
+ * start-up waits for it (autonegotiation takes seconds); the report, the only
+ * user of the network, polls the link itself during the hold. */
 static void net_drive(const struct pfn *f, struct ck_frames *fr)
 {
     uint32_t lo = cr32(f->cfg, 0x10), hi = (lo & 6) == 4 ? cr32(f->cfg, 0x14) : 0;
@@ -233,15 +237,115 @@ static void net_drive(const struct pfn *f, struct ck_frames *fr)
         return;
     }
     res.net_driver = 1;
-    uint64_t t0 = ck_rdtsc();
-    while (!ck_x86_tg3_link() && ck_rdtsc() - t0 < 8 * g_tsc_hz) {
-        uint64_t t1 = ck_rdtsc();
-        while (ck_rdtsc() - t1 < g_tsc_hz / 4)
-            ck_pause();
-    }
-    res.net_link = ck_x86_tg3_link() ? 1 : 2;
+    res.net_link = ck_x86_tg3_link() ? 1 : 3;
     if (res.net_link != 1)
-        ck_puts("net_tg3: no link after 8 s (cable unplugged?); the report is sent if it comes up during the hold\n");
+        ck_puts("net_tg3: link not up yet (autonegotiation under way, or no cable); the report goes out once it is\n");
+}
+
+/* Brings a function to D0 through its power management capability, if it has
+ * one and is in D3hot. */
+static void to_d0(const struct pfn *f, uint64_t tsc_hz)
+{
+    if (!(cr16(f->cfg, 6) & 0x10))
+        return;
+    for (unsigned p = cr32(f->cfg, 0x34) & 0xfc, k = 0; p && k < 48; k++) {
+        uint32_t h = cr32(f->cfg, p);
+        if ((h & 0xff) == 1) {
+            uint16_t pmcsr = cr16(f->cfg, p + 4);
+            if (pmcsr & 3) {
+                cw16(f->cfg, p + 4, (uint16_t)(pmcsr & ~3u));
+                uint64_t t0 = ck_rdtsc();
+                while (ck_rdtsc() - t0 < tsc_hz / 100) /* 10 ms, PCI PM 1.2 D3hot -> D0 */
+                    ck_pause();
+            }
+            return;
+        }
+        p = (h >> 8) & 0xfc;
+    }
+}
+
+/* ---- USB: the keyboard ----
+ * Every xHCI function (class 0x0c0330) in walk order, brought to D0 with
+ * memory decode and bus mastering on, is offered to xhci_x86.c until one has a
+ * boot keyboard. A controller that answers all ones (the Thunderbolt one
+ * powered down with nothing plugged in) is skipped there. */
+void ck_x86_usb(struct ck_frames *fr, uint64_t tsc_hz)
+{
+    unsigned n = 0;
+    for (unsigned i = 0; i < nfound && !ck_x86_kbd_ready(); i++) {
+        const struct pfn *f = &found[i];
+        if (f->cls != 0x0c0330 || (f->ht & 0x7f) != 0)
+            continue;
+        uint32_t lo = cr32(f->cfg, 0x10), hi = (lo & 6) == 4 ? cr32(f->cfg, 0x14) : 0;
+        uint64_t bar = ((uint64_t)hi << 32 | lo) & ~0xfull;
+        ck_printf("pci: xhci %02x:%02x.%u id=%04x:%04x bar0=0x%llx\n", f->bus, f->dev, f->fn, f->vendor, f->device,
+                  (unsigned long long)bar);
+        unsigned ctrl = n++;
+        if ((lo & 1) || !bar || ck_x86_map_mmio(bar, 0x10000)) {
+            ck_printf("xhci: ctrl=%u skipped (BAR0 not a usable memory BAR)\n", ctrl);
+            continue;
+        }
+        to_d0(f, tsc_hz);
+        cw16(f->cfg, 4, (uint16_t)(cr16(f->cfg, 4) | 0x6)); /* memory decode + bus master */
+        (void)ck_x86_xhci_start(ctrl, (volatile uint8_t *)(uintptr_t)bar, fr, tsc_hz);
+    }
+    if (!n)
+        ck_puts("keyboard: none (no USB controller)\n");
+    else if (!ck_x86_kbd_ready())
+        ck_puts("keyboard: none (no USB keyboard found)\n");
+}
+
+/* ---- Sound ----
+ * Every High Definition Audio function (class 0x0403) in walk order, brought
+ * to D0 with memory decode and bus mastering on, is handed to hda_x86.c; the
+ * first with a speaker path plays the chirp. Intel's controllers first get
+ * Linux's PCI settings (sound/hda/controllers/intel.c, docs-read record):
+ * TCSEL (0x44, bits 0-2) cleared, which ends playback static on some codecs;
+ * on the PCH ones from Sunrise Point on (the Skylake family) snooped DMA
+ * (DEVC 0x78, NOSNOOP bit 11 cleared) and the misc backbone clock gate
+ * (CGCTL 0x48, MISCBDCGE bit 6) off while the controller resets, on after. */
+static int intel_skl(const struct pfn *f)
+{
+    static const uint16_t ids[] = {0xa170, 0x9d70, 0xa171, 0x9d71, 0xa2f0};
+    for (unsigned k = 0; k < sizeof ids / sizeof ids[0]; k++)
+        if (f->vendor == 0x8086 && f->device == ids[k])
+            return 1;
+    return 0;
+}
+
+void ck_x86_sound(struct ck_frames *fr, uint64_t tsc_hz, uint64_t night_t0)
+{
+    unsigned n = 0;
+    int playing = 0;
+    for (unsigned i = 0; i < nfound; i++) {
+        const struct pfn *f = &found[i];
+        if ((f->cls >> 8) != 0x0403 || (f->ht & 0x7f) != 0)
+            continue;
+        uint32_t lo = cr32(f->cfg, 0x10), hi = (lo & 6) == 4 ? cr32(f->cfg, 0x14) : 0;
+        uint64_t bar = ((uint64_t)hi << 32 | lo) & ~0xfull;
+        ck_printf("pci: sound %02x:%02x.%u id=%04x:%04x class=%06x bar0=0x%llx\n", f->bus, f->dev, f->fn, f->vendor,
+                  f->device, f->cls, (unsigned long long)bar);
+        unsigned ctrl = n++;
+        if ((lo & 1) || !bar || ck_x86_map_mmio(bar, 0x4000)) {
+            ck_printf("sound: ctrl=%u skipped (BAR0 not a usable memory BAR)\n", ctrl);
+            continue;
+        }
+        to_d0(f, tsc_hz);
+        cw16(f->cfg, 4, (uint16_t)(cr16(f->cfg, 4) | 0x6)); /* memory decode, bus master */
+        int skl = intel_skl(f);
+        if (f->vendor == 0x8086)
+            cw32(f->cfg, 0x44, cr32(f->cfg, 0x44) & ~7u);
+        if (skl) {
+            cw16(f->cfg, 0x78, (uint16_t)(cr16(f->cfg, 0x78) & ~0x800u));
+            cw32(f->cfg, 0x48, cr32(f->cfg, 0x48) & ~0x40u);
+        }
+        int r = ck_x86_hda_start(ctrl, (volatile uint8_t *)(uintptr_t)bar, fr, tsc_hz, night_t0, !playing);
+        if (skl)
+            cw32(f->cfg, 0x48, cr32(f->cfg, 0x48) | 0x40u);
+        playing |= r > 0;
+    }
+    if (!n)
+        ck_puts("sound: none (no High Definition Audio controller)\n");
 }
 
 const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_frames *fr, uint64_t tsc_hz,
@@ -281,6 +385,8 @@ const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_fram
                     }
                     res.pci_functions++;
                     uint8_t ht = (uint8_t)(cr32(cfg, 0x0c) >> 16);
+                    ck_printf("pci: fn %02x:%02x.%u id=%04x:%04x class=%06x\n", bus, dev, fn, idr & 0xffffu, idr >> 16,
+                              cr32(cfg, 8) >> 8); /* every function, for the driver inventory */
                     if (nfound < PCI_MAX)
                         found[nfound++] = (struct pfn){cfg, (uint8_t)bus, (uint8_t)dev, (uint8_t)fn, ht,
                                                        (uint16_t)idr, (uint16_t)(idr >> 16), cr32(cfg, 8) >> 8};
@@ -305,15 +411,18 @@ const struct ck_x86_storage_result *ck_x86_storage(uint64_t rsdp, struct ck_fram
         res.ahci_ctrls++;
     }
     res.ahci_disks = ck_x86_ahci_disks();
+    ck_x86_step("disk");
     for (unsigned i = 0; i < nfound; i++)
         if (found[i].cls == 0x010802 && (found[i].ht & 0x7f) == 0)
             nvme_start(&found[i], fr);
+    ck_x86_step("nvme");
     for (unsigned i = 0; i < nfound; i++)
         if ((found[i].cls >> 8) == 0x0200 && (found[i].ht & 0x7f) == 0)
             net_look(&found[i]);
     for (unsigned i = 0; i < nfound; i++)
         if ((found[i].cls >> 8) == 0x0200 && (found[i].ht & 0x7f) == 0 && !res.net_driver)
             net_drive(&found[i], fr);
+    ck_x86_step("network");
     if (!res.net_found)
         ck_puts("net: no Ethernet controller\n");
     ck_printf("storage: pci_functions=%u ahci_controllers=%u disks=%u nvme_controllers=%u nvme_disks=%u "

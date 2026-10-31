@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include "ck.h"
@@ -2045,7 +2046,23 @@ static void test_usb_hid(void)
     CHECK(ck_hid_usage(0x04, 0).kind == CK_KEY_CHAR && ck_hid_usage(0x04, 0).c == 'a');
     CHECK(ck_hid_usage(0x1d, 1).c == 'Z');
     CHECK(ck_hid_usage(0x1e, 0).c == '1' && ck_hid_usage(0x27, 0).c == '0');
-    CHECK(ck_hid_usage(0x1e, 1).kind == CK_KEY_NONE); /* shifted digit: not in the keymap */
+    CHECK(ck_hid_usage(0x1e, 1).c == '!' && ck_hid_usage(0x27, 1).c == ')' && ck_hid_usage(0x1f, 1).c == '@');
+    CHECK(ck_hid_usage(0x38, 1).kind == CK_KEY_CHAR && ck_hid_usage(0x38, 1).c == '?'); /* the question mark */
+    CHECK(ck_hid_usage(0x38, 0).c == '/' && ck_hid_usage(0x37, 0).c == '.' && ck_hid_usage(0x37, 1).c == '>');
+    CHECK(ck_hid_usage(0x34, 0).c == '\'' && ck_hid_usage(0x34, 1).c == '"' && ck_hid_usage(0x31, 0).c == '\\');
+    CHECK(ck_hid_usage(0x2d, 1).c == '_' && ck_hid_usage(0x33, 1).c == ':' && ck_hid_usage(0x35, 1).c == '~');
+    CHECK(ck_hid_usage(0x32, 0).kind == CK_KEY_NONE && ck_hid_usage(0x2b, 0).kind == CK_KEY_NONE); /* non-US, Tab */
+    {
+        int all = 1; /* every printable character but space comes from exactly one key */
+        for (int ch = 0x21; ch <= 0x7e; ch++) {
+            int n = 0;
+            for (int u = 0x04; u <= 0x38; u++)
+                for (int s = 0; s < 2; s++)
+                    n += ck_hid_usage((uint8_t)u, s).kind == CK_KEY_CHAR && ck_hid_usage((uint8_t)u, s).c == ch;
+            all &= n == 1;
+        }
+        CHECK(all);
+    }
     CHECK(ck_hid_usage(0x28, 0).kind == CK_KEY_ENTER && ck_hid_usage(0x2a, 0).kind == CK_KEY_BACKSPACE);
     CHECK(ck_hid_usage(0x29, 0).kind == CK_KEY_ESCAPE && ck_hid_usage(0x2c, 0).c == ' ');
     CHECK(ck_hid_usage(0x3a, 0).kind == CK_KEY_NONE); /* F1 */
@@ -2703,6 +2720,220 @@ static void test_cortex_journal(void)
     unlink(img);
 }
 
+/* A tiny xHCI: HCRST completes and Run/Stop clears HCH, so the keyboard phase
+ * can reach "no device" instead of a register or reset timeout. Host only. */
+static uint8_t *volatile xhci_watch_bar[2];
+static volatile int xhci_watch_on;
+static uint32_t xhci_ld32(volatile uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+static void xhci_st32(volatile uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+static void *xhci_watch(void *arg)
+{
+    (void)arg;
+    while (xhci_watch_on) {
+        for (int i = 0; i < 2; i++) {
+            volatile uint8_t *bar = xhci_watch_bar[i];
+            if (!bar) continue;
+            uint32_t op = xhci_ld32(bar) & 0xffu;
+            if (op + 8u > 0x4000u) continue;
+            uint32_t cmd = xhci_ld32(bar + op), sts = xhci_ld32(bar + op + 4);
+            if (cmd & 2u) { /* HCRST: complete, leave the controller halted */
+                xhci_st32(bar + op, cmd & ~2u);
+                xhci_st32(bar + op + 4, (sts & ~0x800u) | 1u);
+            } else if (cmd & 1u) { /* RS: running */
+                if (sts & 1u) xhci_st32(bar + op + 4, sts & ~1u);
+            } else if (!(sts & 1u)) {
+                xhci_st32(bar + op + 4, sts | 1u);
+            }
+        }
+        usleep(20);
+    }
+    return 0;
+}
+
+/* Failed DMA release. Host shim only: nothing here is a real xHCI or SMMU.
+ * The PCI xHCI path already returns CK_XHCI_E_RELEASE. The platform fallback
+ * used to overwrite that with "fenced" and CK_XHCI_OK. virtio-net used to
+ * return CK_NET_E_INIT from a failed init even when the abort was refused. */
+static void test_xhci_release_refused(void)
+{
+    printf("  [xHCI release refused, host, not hardware]\n");
+    static uint8_t cfg[4096];
+    static uint8_t bar[0x4000] __attribute__((aligned(4096)));
+    static pci_system s;
+    memset(cfg, 0, sizeof cfg);
+    memset(bar, 0, sizeof bar);
+    put32(bar + 4, 1u); /* caplength 0, so op is 0 and this is USBSTS.HCH */
+    memset(&s, 0, sizeof s);
+    s.n = 1;
+    s.f[0].class_code = CK_XHCI_CLASS;
+    s.f[0].cfg = cfg;
+    s.f[0].bar[0].addr = (uint64_t)(uintptr_t)bar;
+    s.f[0].bar[0].size = sizeof bar;
+    s.f[0].bar[0].is64 = 1;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    unsigned grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    int rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    CHECK(rc == CK_XHCI_E_RELEASE && strcmp(ck_xhci_state(), "release-failed") == 0 && ck_xhci_live() == 1);
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(has(ck_host_capture_text(), "abort FAILED, stays confined"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_xhci_fence(&s) == CK_XHCI_E_ARG && ck_host_confine_calls == grants && ck_xhci_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_xhci_release();
+    CHECK(ck_xhci_live() == 0);
+
+    /* PCI controller the keyboard phase can finish on (no device, so NOKBD),
+     * then one ACPI platform controller whose abort is refused. */
+    printf("  [xHCI platform fallback release refused, host, not hardware]\n");
+    static uint8_t pbar[0x4000] __attribute__((aligned(4096)));
+    memset(bar, 0, sizeof bar);
+    put32(bar + 0x00, 0x01000020u); /* caplength 0x20 */
+    put32(bar + 0x10, 0x1u);        /* AC64 */
+    put32(bar + 0x14, 0x2000u);     /* doorbell */
+    put32(bar + 0x18, 0x1000u);     /* runtime */
+    put32(bar + 0x24, 1u);          /* USBSTS.HCH at op 0x20 */
+    put32(bar + 0x28, 1u);          /* pagesize bit 0 */
+    memset(pbar, 0, sizeof pbar);
+    put32(pbar + 0x00, 0x10u); /* caplength too small: keyboard phase returns at once */
+    put32(pbar + 0x14, 1u);    /* USBSTS.HCH at op 0x10, so the pre-grant halt succeeds */
+    CHECK(ck_xhci_host_forget() == 0);
+    ck_host_plat_set("USB0", "PNP0D10", (uint64_t)(uintptr_t)pbar, sizeof pbar);
+    ck_host_try_map_ok = 1;
+    ck_host_try_map_fail = 0;
+    ck_host_confine_named_rc = 0;
+    ck_host_unconfine_fail = 1;
+    ck_host_unconfine_allow = 1; /* PCI abort succeeds; the platform abort is the one refused */
+    pthread_t watch;
+    int watching = 0;
+    xhci_watch_bar[0] = bar;
+    xhci_watch_bar[1] = pbar;
+    xhci_watch_on = 1;
+    watching = pthread_create(&watch, 0, xhci_watch, 0) == 0;
+    CHECK(watching);
+    grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    const char *x = ck_host_capture_text();
+    printf("  platform fallback rc=%d state=%s live=%d\n", rc, ck_xhci_state(), ck_xhci_live());
+    CHECK(rc == CK_XHCI_E_RELEASE);
+    CHECK(strcmp(ck_xhci_state(), "release-failed") == 0);
+    CHECK(ck_xhci_live() == 1);
+    CHECK(ck_host_confine_calls == grants + 2); /* PCI requester, then the ACPI name */
+    CHECK(has(x, "abort FAILED, stays confined"));
+    CHECK(has(x, "trying 1 ACPI platform controller"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_xhci_fence(&s) == CK_XHCI_E_ARG && ck_host_confine_calls == grants);
+    ck_host_unconfine_fail = 0;
+    ck_host_unconfine_allow = 0;
+    ck_xhci_release();
+    CHECK(ck_xhci_live() == 0);
+
+    /* A platform controller that is denied never holds a stream. The PCI
+     * fence already succeeded, so that error stays CK_XHCI_OK / "fenced". */
+    printf("  [xHCI platform fallback denied, host, not hardware]\n");
+    if (watching) {
+        xhci_watch_on = 0;
+        pthread_join(watch, 0);
+        watching = 0;
+    }
+    memset(bar, 0, sizeof bar);
+    put32(bar + 0x00, 0x01000020u);
+    put32(bar + 0x10, 0x1u);
+    put32(bar + 0x14, 0x2000u);
+    put32(bar + 0x18, 0x1000u);
+    put32(bar + 0x24, 1u);
+    put32(bar + 0x28, 1u);
+    memset(pbar, 0, sizeof pbar);
+    put32(pbar + 0x00, 0x10u);
+    put32(pbar + 0x14, 1u);
+    xhci_watch_on = 1;
+    watching = pthread_create(&watch, 0, xhci_watch, 0) == 0;
+    CHECK(watching);
+    ck_host_confine_named_rc = CK_SMMU_ABSENT;
+    ck_host_capture_start();
+    rc = ck_xhci_fence(&s);
+    ck_host_capture_stop();
+    x = ck_host_capture_text();
+    CHECK(rc == CK_XHCI_OK && strcmp(ck_xhci_state(), "fenced") == 0 && ck_xhci_live() == 0);
+    CHECK(has(x, "denied (NoSmmu)"));
+    if (watching) {
+        xhci_watch_on = 0;
+        pthread_join(watch, 0);
+    }
+    xhci_watch_bar[0] = xhci_watch_bar[1] = 0;
+    ck_host_plat_clear();
+    CHECK(ck_xhci_host_forget() == 0);
+    ck_host_try_map_ok = 0;
+    ck_host_mmio_reset();
+    ck_host_confine_rc = CK_SMMU_ABSENT;
+    ck_host_confine_named_rc = CK_SMMU_ABSENT;
+    ck_host_unconfine_fail = 0;
+    ck_host_unconfine_allow = 0;
+}
+
+static void test_net_release_refused(void)
+{
+    printf("  [virtio-net release refused, host, not hardware]\n");
+    static uint8_t cfg[4096];
+    static uint8_t bar[0x4000] __attribute__((aligned(4096)));
+    static pci_func vf;
+    memset(cfg, 0, sizeof cfg);
+    memset(bar, 0, sizeof bar);
+    memset(&vf, 0, sizeof vf);
+    vf.vendor = 0x1af4;
+    vf.device = 0x1041;
+    vf.cfg = cfg;
+    vf.bar[4].addr = (uint64_t)(uintptr_t)bar;
+    vf.bar[4].size = sizeof bar;
+    virtio_pci_caps caps;
+    memset(&caps, 0, sizeof caps);
+    caps.common_cfg = (virtio_pci_region){1, 4, 0, 0x1000};
+    caps.isr_cfg = (virtio_pci_region){1, 4, 0x1000, 0x1000};
+    caps.device_cfg = (virtio_pci_region){1, 4, 0x2000, 0x1000};
+    caps.notify_cfg = (virtio_pci_region){1, 4, 0x3000, 0x1000};
+    caps.has_notify_off_multiplier = 1;
+    caps.notify_off_multiplier = 4;
+    ck_host_confine_rc = 0;
+    ck_host_unconfine_fail = 1;
+    unsigned grants = ck_host_confine_calls;
+    ck_host_capture_start();
+    int rc = ck_net_bind_selftest(&vf, &caps);
+    ck_host_capture_stop();
+    const char *x = ck_host_capture_text();
+    printf("  virtio-net release rc=%d live=%d\n", rc, ck_net_live());
+    CHECK(rc == CK_NET_E_SMMU);
+    CHECK(ck_net_live() == 1);
+    CHECK((pci_r16(cfg, 4) & 0x4u) == 0); /* bus master revoked even though the abort failed */
+    CHECK(ck_host_confine_calls == grants + 1);
+    CHECK(has(x, "abort FAILED, stays confined"));
+    CHECK(!has(x, "returned to abort"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_net_bind_selftest(&vf, &caps) == CK_NET_E_ARG); /* still live: release it first */
+    CHECK(ck_host_confine_calls == grants && ck_net_live() == 1);
+    ck_host_unconfine_fail = 0;
+    ck_host_capture_start();
+    ck_net_release();
+    ck_host_capture_stop();
+    CHECK(ck_net_live() == 0 && has(ck_host_capture_text(), "returned to abort"));
+    grants = ck_host_confine_calls;
+    CHECK(ck_net_bind_selftest(&vf, &caps) == CK_NET_E_INIT && ck_net_live() == 0);
+    CHECK(ck_host_confine_calls == grants + 1);
+    ck_host_confine_rc = CK_SMMU_ABSENT;
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
@@ -2735,6 +2966,8 @@ int main(void)
     test_net_udp();
     test_rtl8127_bind();
     test_xhci_fence();
+    test_xhci_release_refused();
+    test_net_release_refused();
     test_usb_hid();
     printf("CK_STAGE_HOST: %s checks=%d failures=%d\n", failures ? "FAIL" : "PASS", checks, failures);
     return failures ? 1 : 0;

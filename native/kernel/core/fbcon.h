@@ -64,6 +64,10 @@ uint32_t ck_fbcon_scale_for(uint32_t width, uint32_t height);
  * format is not 0/1. */
 int ck_fbcon_setup(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, uint32_t height,
                    uint32_t pitch, uint32_t format);
+/* The same without touching a pixel: the screen keeps what is on it until
+ * the first clear or write. */
+int ck_fbcon_attach(struct ck_fbcon *c, volatile uint32_t *px, uint32_t width, uint32_t height,
+                    uint32_t pitch, uint32_t format);
 
 void ck_fbcon_clear(struct ck_fbcon *c);
 void ck_fbcon_write(struct ck_fbcon *c, const char *s, size_t n);

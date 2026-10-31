@@ -86,6 +86,8 @@ typedef struct {
     uint32_t entries, entry_size;
     uint32_t used;            /* used entries */
     uint32_t part_index;      /* index of the AIENOS entry */
+    /* first_usable .. entry_size are filled whenever both GPT copies are
+     * valid, also when the answer is CK_GPT_ENOPART / EMULTI / EOVERLAP. */
 } ck_gpt_info;
 
 typedef struct {

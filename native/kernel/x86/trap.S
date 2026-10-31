@@ -1,5 +1,5 @@
 /* trap.S -- x86_64 descriptor-table loads, the 256 interrupt stubs and the
- * stack switch for AIENOS-IMAC-KERNEL-0 (native/kernel/x86). The C side is
+ * stack switch for AIENOS-KERNEL-0 (native/kernel/x86). The C side is
  * compiled -mabi=ms: arguments in rcx, rdx, r8, r9, 32 bytes of shadow space
  * reserved by the caller, rax/rcx/rdx/r8-r11 caller-saved. */
 

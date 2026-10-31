@@ -1,0 +1,12 @@
+# Kbuild outputs
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+.*.cmd
+Module.symvers
+modules.order
+.module-common.o
+# user-space tools (make tools / sim-test)
+build/

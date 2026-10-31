@@ -49,81 +49,81 @@
     "generated": {
       "children": [
         {
-          "digest": "572990d31c305b2f2bf0e45de60b1380c41f5dd6d24e962c65261bec25028b9a",
-          "last_commit": "d7012755",
+          "digest": "72ee4e94f3dc99d79ea4eb3bf619ad645c0b76d7009d1883e59adfbfce9c8ac2",
+          "last_commit": "2c9c8b5",
           "name": "argus",
           "purpose": "Directory native/argus. Purpose not yet described by a human."
         },
         {
-          "digest": "6a3433e812a1f8deac469ac30e837c7ee402ab18eb450cf3553bf7c0674544f7",
-          "last_commit": "89e296db",
+          "digest": "55582525fd80851150b4b8620558bd3d44f516aac70cf20566f33ec98a914c33",
+          "last_commit": "e4bc7aa",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
         {
           "digest": "1b5414c184e37d4d943e7979db3d82f1441d6004bb9b5c379a4e4e39381fe7fd",
-          "last_commit": "f45d00ad",
+          "last_commit": "f45d00a",
           "name": "capability",
           "purpose": "Directory native/capability. Purpose not yet described by a human."
         },
         {
-          "digest": "5ee5fb66726b423c9a8a15d6b6f8c2ac08092727f386c32015f3fb14fe258079",
-          "last_commit": "f45d00ad",
+          "digest": "ec6a4295568339a6dea0df513d23cf7a28a90d07bee2cd8f93a7417b48ff7871",
+          "last_commit": "2c9c8b5",
           "name": "crypto",
           "purpose": "Directory native/crypto. Purpose not yet described by a human."
         },
         {
-          "digest": "d4eef8b6519117abbf055ec498e63df82f7c633c448669b4a160c5688107f0de",
-          "last_commit": "62393fb2",
+          "digest": "43e1cf9e246a9cdfca6b1147381ad071e1cffaf408bb58d3e09b7001e7b0eb5c",
+          "last_commit": "b5e7268",
           "name": "disk",
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
-          "digest": "fad98a3a60585ec53f45394e80311344ed58601c892bfd39f779b485872e1e4b",
-          "last_commit": "c01180eb",
+          "digest": "61b2904194490fb8fa5b1dba19bb861308efc31be1ad5cc909d8f226d1e45d05",
+          "last_commit": "b4c351e",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
         {
-          "digest": "257e53b395e1f417a61838914d73ebbf408361083e9e40ca3b56011e1f9754c4",
-          "last_commit": "f45d00ad",
+          "digest": "b9588f7026aaa3fbf7777f5c10d90a1c915cc301be98be5081d3d66106cf77c8",
+          "last_commit": "2c9c8b5",
           "name": "m5",
           "purpose": "Directory native/m5. Purpose not yet described by a human."
         },
         {
-          "digest": "eca6d5cb48d78e40168815ff06122c85860714746afd12dc9402b893d64d9dec",
-          "last_commit": "f45d00ad",
+          "digest": "b0c2410bb450a0bf6156e064185b024b622fd844e87d7acd476df10c7af63cf6",
+          "last_commit": "dc9a996",
           "name": "net",
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
           "digest": "f3c7ee4f18f768fa9964c123e07f076c544c58c0966a8a5e9571b0397bf57b06",
-          "last_commit": "",
+          "last_commit": "c93a5f5",
           "name": "omega",
           "purpose": "Seeded Omega native modules"
         },
         {
-          "digest": "e89066d6aa5c09de6f67671846971d09cf733e4620f713983ff29fae60321c9e",
-          "last_commit": "f45d00ad",
+          "digest": "6f0bf10c76df492d27ae642792476c1138bc73f0d897b3ddca04605ac07b4268",
+          "last_commit": "2c9c8b5",
           "name": "sig",
           "purpose": "Directory native/sig. Purpose not yet described by a human."
         },
         {
-          "digest": "325fec79752c7be76550de52f400c5cc35d4641de8dc45290cff10ddc526fa3b",
-          "last_commit": "f45d00ad",
+          "digest": "e125172a18437b662edf303f4b9615bb791f5e7d2ed94192033823185e7d40e1",
+          "last_commit": "2c9c8b5",
           "name": "store",
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:cf4933f08af09a4168572ad6506d2f8e53950e32107cbb4818d6fd2a2bf82f7b",
-      "compiled_at": "2026-10-30T05:25:31Z",
+      "children_root": "sha256:984d253047fdba696dc25901a6d5a1035256acd1f0062acc1f7b9b8635a68cc5",
+      "compiled_at": "2026-10-31T03:56:20Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:1b123b34f8e35c22d2aa7aae3d24e0f8b97f14e2e44795c7b568c5a4b831ee8c",
+      "digest": "sha256:0660522029d1706b495ea85da3194a9bcad5d7938241850f23920cd513f1b46d",
       "evidence_files": 24,
       "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
-      "files": 676,
-      "generated_at_commit": "5cbd4a02d3e3de49d65aa3fd5e1bfc92e7c832ec",
-      "source_tree": "sha256:169b2ea5c9bfbf5add1e9e415eae32d1edb73c87acfa72d485b4f48725854933"
+      "files": 770,
+      "generated_at_commit": "b4c351e7bc9c01e9384c19e9d6fc2ab4d2472e85",
+      "source_tree": "sha256:5c4657f8d59935d52f7097f40cad08394b97854d7c91f7fe6bd9012a0576cedd"
     },
     "owner_lane": "",
     "provenance": {

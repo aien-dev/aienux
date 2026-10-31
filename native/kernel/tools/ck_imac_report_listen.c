@@ -27,7 +27,7 @@
  *   ck_imac_report_listen PORT OUTDIR SECONDS
  *
  * Binds 0.0.0.0:PORT and collects datagrams of the form
- *   "AIENOS-IMAC-REPORT v=2 auth=none run=<16 hex> part=<i>/<n> bytes=<total>\n" + chunk
+ *   "AIENOS-REPORT v=2 auth=none run=<16 hex> part=<i>/<n> bytes=<total>\n" + chunk
  * (the kernel broadcasts them from 0.0.0.0 to 255.255.255.255). Part i of n
  * carries bytes [i * CHUNK, ...) of a report of <total> bytes. When every part
  * of a run is in, the report is written once to
@@ -35,7 +35,8 @@
  * "complete run=... auth=none bytes=... file=..." goes to OUTDIR/listen.log.
  * Spark reports use "AIENUX-SPARK-REPORT v=1 " (also unauthenticated).
  * Repeats of a finished run are counted, not rewritten. Anything else,
- * including the retired iMac v=1 raw-console format, is logged as ignored.
+ * including every older header (the retired v=1 raw-console format and the
+ * older AIENOS-IMAC-REPORT name), is logged as ignored.
  * Exit 0 at the deadline, 2 usage, 3 socket/bind error. */
 #define _POSIX_C_SOURCE 200809L
 #include <arpa/inet.h>
@@ -50,8 +51,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define MAGIC "AIENOS-IMAC-REPORT v=2 auth=none "
-#define LEGACY "AIENOS-IMAC-REPORT v=1 "
+#define MAGIC "AIENOS-REPORT v=2 auth=none "
+#define LEGACY "AIENOS-IMAC-REPORT " /* every older header, refused */
 #define SPARK_MAGIC "AIENUX-SPARK-REPORT v=1 "
 #define UNAUTH_NOTE \
     "note: iMac reports are UNAUTHENTICATED UDP broadcasts (auth=none); anyone on the LAN can read or " \
@@ -174,7 +175,7 @@ int main(int argc, char **argv)
         unsigned part, parts, total;
         int used = 0;
         if ((size_t)n >= sizeof LEGACY - 1 && memcmp(in, LEGACY, sizeof LEGACY - 1) == 0) {
-            fprintf(lg, "ignored from %s:%u len=%zd: retired v=1 raw-console report\n", fa, ntohs(from.sin_port), n);
+            fprintf(lg, "ignored from %s:%u len=%zd: retired older report header\n", fa, ntohs(from.sin_port), n);
             continue;
         }
         size_t ml = 0;

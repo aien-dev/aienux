@@ -1,0 +1,14 @@
+2026-10-21T22:01:18.854744017Z pre start, commit d58913898feb48169f519a1621ba8dc74d41e790, kernel 7.0.0-1019-nvidia
+nvidia_uvm           1912832  8
+nvidia_drm            143360  0
+nvidia_modeset       1892352  2 nvidia_drm
+nvidia              14688256  1394 nvidia_uvm,nvidia_modeset
+GPU 0: NVIDIA GB10 (UUID: GPU-fb8e53f0-3207-e89b-d02f-acdfe2695b59)
+BOOT_IMAGE=/boot/vmlinuz-7.0.0-1019-nvidia root=UUID=d27bfd26-ff30-400e-9eca-9cdf73de9406 ro init_on_alloc=0 iommu.passthrough=0 console=tty0 plymouth.ignore-serial-consoles plymouth.use-simpledrm earlycon=uart,mmio32,0x16A00000 console=tty0 console=ttyS0,921600 crashkernel=1G-:0M quiet splash initcall_blacklist=tegra234_cbb_init pci=pcie_bus_safe vt.handoff=7
+da858c000744f04e4d8d7338a3013fbcb3b3959b812152c6ac0456eb04975550  /home/drakestapleton/workspace/aienos-own-gpu-driver/native/linux/aien-gpu/aien_gpu.ko
+2026-10-21T22:01:43.247343439Z holder pid 108356 drakest+ aien-serve-http
+2026-10-21T22:01:43.265120652Z holder pid 1816 root     nvidia-persiste
+2026-10-21T22:01:43.288098149Z holder pid 2587647 drakest+ aien-serve-http
+2026-10-21T22:01:43.340077365Z WARN still held by: 108356
+2587647
+2026-10-21T22:01:43.342542914Z checks only (no --go): PASS

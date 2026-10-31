@@ -54,10 +54,7 @@ __attribute__((unused)) static int same(const void *a, const void *b, size_t n)
 
 const char *osh_err_name(unsigned e)
 {
-    static const char *const n[] = { "OK", "DENIED", "REVOKED", "STALE", "NOT_FOUND", "UNAVAILABLE", "INVALID_ARG", "LIMIT",
-                                     "INTERRUPTED", "BROKEN_PIPE", "IO", "OUTCOME_UNKNOWN", "CAP_DOMAIN_MISMATCH",
-                                     "CAP_GEN_NARROW", "NOT_SUPPORTED", "WOULD_BLOCK", "PARTIAL_LAUNCH" };
-    return e < sizeof n / sizeof n[0] ? n[e] : "IO"; /* section 8.6: an unknown code is IO, never OK */
+    return osh_err_label(e); /* osh_err.h; section 8.6: an unknown code is IO, never OK */
 }
 
 const char *osh_outcome_name(unsigned o)

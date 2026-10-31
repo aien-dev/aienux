@@ -225,6 +225,9 @@ static int addr_ok(uint64_t a, unsigned dma_bits, int need_page_align, const cha
 }
 
 /* ---- headers ---- */
+/* The MCTP dword the driver actually sends on GB10B: kernel_sec2.c:320 via ksec2CreateMctpHeader_HAL; on GB10B the HAL is ksec2CreateMctpHeader_539ab4 = `return 1;` (g_kernel_sec2_nvoc.c:786-788, g_kernel_sec2_nvoc.h:853-855); only GB20B/GB20C build SOM|EOM (kernel_sec2_gb20b.c:206-219).
+ * cot_mctp_header() below is the GB20B form, kept with its goldens for a future GB20B package. */
+#define GB10B_MCTP_DWORD 0x00000001u
 int cot_mctp_header(unsigned som, unsigned eom, unsigned seid, unsigned seq, uint32_t *out, const char **why) {
     if (som > 1 || eom > 1) { *why = "som/eom not a bit"; return -1; }
     if (seid > 0xff) { *why = "seid out of range"; return -1; }
@@ -288,7 +291,7 @@ int cot_packet_encode(const uint8_t *payload, size_t len, unsigned nvdm_type, ui
     if (!payload || !out || !out_len || !tail_offset) { *why = "null argument"; return -1; }
     if (len == 0) { *why = "empty payload"; return -1; }
     if (len > PACKET_PAYLOAD_CAP) { *why = "payload does not fit one packet"; return -1; }
-    if (cot_mctp_header(1, 1, 0, 0, &h0, why) != 0) return -1;
+    h0 = GB10B_MCTP_DWORD;
     if (cot_nvdm_header(nvdm_type, &h1, why) != 0) return -1;
     memset(out, 0, EMEM_CHANNEL_BYTES);
     put32(out, h0);
@@ -306,11 +309,7 @@ int cot_packet_decode(const uint8_t *buf, size_t len, const uint8_t **payload_ou
     if (len > EMEM_CHANNEL_BYTES) { *why = "packet larger than the channel"; return -1; }
     if ((len & 3u) != 0) { *why = "packet length not a dword multiple"; return -1; }
     h0 = get32(buf); h1 = get32(buf + 4);
-    if ((h0 >> 31) != 1) { *why = "SOM not set"; return -1; }
-    if (((h0 >> 30) & 1u) != 1) { *why = "EOM not set"; return -1; }
-    if (((h0 >> 28) & 3u) != 0) { *why = "seq not zero"; return -1; }
-    if (((h0 >> 16) & 0xffu) != 0) { *why = "seid not zero"; return -1; }
-    if ((h0 & 0x0fffffffu) != 0) { *why = "mctp reserved bits set"; return -1; }
+    if (h0 != GB10B_MCTP_DWORD) { *why = "mctp dword not the GB10B constant 1"; return -1; }
     cot_nvdm_header(NVDM_TYPE_COT, &want, why);
     if (h1 != want) {
         if ((h1 & 0x7fu) != MCTP_MSG_TYPE_VENDOR_PCI) { *why = "nvdm msg type not vendor-pci"; return -1; }
@@ -461,7 +460,7 @@ static int selftest(void) {
           "payload decodes to the same fields");
     check(cot_packet_encode(pl, sizeof pl, NVDM_TYPE_COT, pkt, &pkt_len, &tail, &why) == 0 && pkt_len == COT_PACKET_BYTES && tail == COT_PACKET_BYTES - 4u,
           "packet is 868 bytes, tail dword offset 864");
-    check(get32(pkt) == 0xC0000000u && get32(pkt + 4) == 0x1410DE7Eu && memcmp(pkt + 8, pl, sizeof pl) == 0, "packet = headers + payload");
+    check(get32(pkt) == 0x00000001u && get32(pkt + 4) == 0x1410DE7Eu && memcmp(pkt + 8, pl, sizeof pl) == 0, "packet = headers + payload");
     { const uint8_t *p; size_t n; check(cot_packet_decode(pkt, pkt_len, &p, &n, &why) == 0 && n == COT_PAYLOAD_BYTES && memcmp(p, pl, n) == 0, "packet decodes"); }
     { uint8_t one[3] = {1, 2, 3}; size_t n; uint32_t t; check(cot_packet_encode(one, 3, NVDM_TYPE_COT, pkt, &n, &t, &why) == 0 && n == 12 && t == 8, "3-byte payload pads to 12, tail 8"); }
 
@@ -508,12 +507,9 @@ static int selftest(void) {
       cot_packet_encode(pl, sizeof pl, NVDM_TYPE_COT, pkt, &pkt_len, &tail, &why); }
     uint8_t q[EMEM_CHANNEL_BYTES]; const uint8_t *p; size_t n;
 #define PMUT(setup, want, what) do { memcpy(q, pkt, sizeof q); setup; expect_refused(cot_packet_decode(q, pkt_len, &p, &n, &why), why, want, what); } while (0)
-    PMUT(put32(q, 0x40000000u), "SOM not set", "SOM cleared");
-    PMUT(put32(q, 0x80000000u), "EOM not set", "EOM cleared");
-    PMUT(put32(q, 0xD0000000u), "seq not zero", "seq 1");
-    PMUT(put32(q, 0xC0050000u), "seid not zero", "seid 5");
-    PMUT(put32(q, 0xC8000000u), "mctp reserved bits set", "TO bit set");
-    PMUT(put32(q, 0xC0000001u), "mctp reserved bits set", "version nibble set");
+    PMUT(put32(q, 0xC0000000u), "mctp dword not the GB10B constant 1", "GB20B-form SOM|EOM header");
+    PMUT(put32(q, 0x00000000u), "mctp dword not the GB10B constant 1", "zero header");
+    PMUT(put32(q, 0x00000003u), "mctp dword not the GB10B constant 1", "constant plus one bit");
     PMUT(put32(q + 4, 0x1510DE7Eu), "nvdm type not COT", "nvdm type 0x15 (FSP_RESPONSE)");
     PMUT(put32(q + 4, 0x1410DF7Eu), "nvdm vendor id not nvidia", "vendor id off by one");
     PMUT(put32(q + 4, 0x1410DE7Fu), "nvdm msg type not vendor-pci", "msg type 0x7f");
@@ -555,7 +551,7 @@ static void layout(void) {
     printf("NVDM_PAYLOAD_COT version 1, packed, %u bytes (kern_fsp_cot_payload.h:13-28)\n", COT_PAYLOAD_BYTES);
     printf("version %u 2\nsize %u 2\ngspFmcSysmemOffset %u 8\nfrtsSysmemOffset %u 8\nfrtsSysmemSize %u 4\nfrtsVidmemOffset %u 8\nfrtsVidmemSize %u 4\nhash384 %u 48\npublicKey %u 384\nsignature %u 384\ngspBootArgsSysmemOffset %u 8\n",
            COT_OFF_VERSION, COT_OFF_SIZE, COT_OFF_FMC_ADDR, COT_OFF_FRTS_SYSMEM_OFF, COT_OFF_FRTS_SYSMEM_SIZE, COT_OFF_FRTS_VIDMEM_OFF, COT_OFF_FRTS_VIDMEM_SIZE, COT_OFF_HASH, COT_OFF_KEY, COT_OFF_SIG, COT_OFF_BOOTARGS_ADDR);
-    printf("packet: mctp 0xC0000000 at 0, nvdm 0x1410DE7E at 4, payload at 8, length %u, QUEUE_TAIL %u, QUEUE_HEAD 0\n", COT_PACKET_BYTES, COT_PACKET_BYTES - 4u);
+    printf("packet: mctp 0x00000001 at 0, nvdm 0x1410DE7E at 4, payload at 8, length %u, QUEUE_TAIL %u, QUEUE_HEAD 0\n", COT_PACKET_BYTES, COT_PACKET_BYTES - 4u);
     printf("GSP_FMC_BOOT_PARAMS natural layout, %u bytes (gspifpub.h)\n", FMC_PARAMS_BYTES);
     printf("initParams.regkeys %u 4\nbootGspRmParams.target %u 4\nbootGspRmParams.gspRmDescSize %u 4\nbootGspRmParams.gspRmDescOffset %u 8\nbootGspRmParams.wprCarveoutOffset %u 8\nbootGspRmParams.wprCarveoutSize %u 4\nbootGspRmParams.bIsGspRmBoot %u 1\ngspRmParams.target %u 4\ngspRmParams.bootArgsOffset %u 8\ngspSpdmParams.target %u 4\ngspSpdmParams.payloadBufferOffset %u 8\ngspSpdmParams.payloadBufferSize %u 4\ngspRmMemParams.flushSysmemAddrValLo %u 4\ngspRmMemParams.flushSysmemAddrValHi %u 4\n",
            FMC_OFF_REGKEYS, FMC_OFF_BOOT_TARGET, FMC_OFF_BOOT_DESC_SIZE, FMC_OFF_BOOT_DESC_OFFSET, FMC_OFF_BOOT_WPR_OFFSET, FMC_OFF_BOOT_WPR_SIZE, FMC_OFF_BOOT_IS_GSP_RM, FMC_OFF_RM_TARGET, FMC_OFF_RM_BOOTARGS, FMC_OFF_SPDM_TARGET, FMC_OFF_SPDM_PAYLOAD_OFF, FMC_OFF_SPDM_PAYLOAD_SIZE, FMC_OFF_FLUSH_LO, FMC_OFF_FLUSH_HI);

@@ -1,0 +1,13 @@
+case dup_refs
+kind positive
+# every dup is a reference: EOF only after the last write end closes
+create R W A => OK
+dup W W2 A w => OK
+close W => OK
+write W2 "x" => OK n=1
+read R 4 => OK n=1 data="x"
+read R 4 => WOULD_BLOCK
+close W2 => OK
+read R 4 => OK n=0
+close R => OK
+check empty
