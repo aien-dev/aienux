@@ -62,15 +62,24 @@ pub enum Refusal {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Answer<'a> {
-    Known { value: &'a [u8], source: &'a [u8], seq: u64, signer: [u8; 32] },
-    Retracted { seq: u64 },
+    Known {
+        value: &'a [u8],
+        source: &'a [u8],
+        seq: u64,
+        signer: [u8; 32],
+    },
+    Retracted {
+        seq: u64,
+    },
     Unknown,
 }
 
 impl Body {
     /// Canonical bytes: the exact message that is signed.
     pub fn encode(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(16 + 8 + 32 + 1 + 8 + 10 + self.key.len() + self.value.len() + self.source.len());
+        let mut out = Vec::with_capacity(
+            16 + 8 + 32 + 1 + 8 + 10 + self.key.len() + self.value.len() + self.source.len(),
+        );
         out.extend_from_slice(DOMAIN);
         out.extend_from_slice(&self.seq.to_le_bytes());
         out.extend_from_slice(&self.prev);
@@ -86,7 +95,11 @@ impl Body {
     }
 
     fn check_bounds(&self) -> Result<(), Refusal> {
-        if self.key.is_empty() || self.key.len() > MAX_KEY || self.value.len() > MAX_VALUE || self.source.len() > MAX_SOURCE {
+        if self.key.is_empty()
+            || self.key.len() > MAX_KEY
+            || self.value.len() > MAX_VALUE
+            || self.source.len() > MAX_SOURCE
+        {
             return Err(Refusal::TooLarge);
         }
         if self.kind == Kind::Retract && !self.value.is_empty() {
@@ -140,8 +153,23 @@ impl Entry {
         let source = r.take(source_len)?.to_vec();
         let signer = r.array::<32>()?;
         let signature = r.array::<64>()?;
-        let body = Body { seq, prev, kind, time, key, value, source };
-        Ok((Entry { body, signer, signature }, r.at))
+        let body = Body {
+            seq,
+            prev,
+            kind,
+            time,
+            key,
+            value,
+            source,
+        };
+        Ok((
+            Entry {
+                body,
+                signer,
+                signature,
+            },
+            r.at,
+        ))
     }
 }
 
@@ -182,7 +210,11 @@ pub struct Anchor {
 
 impl Anchor {
     pub fn new(trusted: Vec<[u8; 32]>) -> Self {
-        Anchor { trusted, entries: Vec::new(), head: GENESIS }
+        Anchor {
+            trusted,
+            entries: Vec::new(),
+            head: GENESIS,
+        }
     }
 
     /// Rebuild from a stored log, re-verifying every entry. Any flaw refuses
@@ -210,8 +242,23 @@ impl Anchor {
     }
 
     /// The body the next admission must sign.
-    pub fn next_body(&self, kind: Kind, time: u64, key: &[u8], value: &[u8], source: &[u8]) -> Body {
-        Body { seq: self.entries.len() as u64, prev: self.head, kind, time, key: key.to_vec(), value: value.to_vec(), source: source.to_vec() }
+    pub fn next_body(
+        &self,
+        kind: Kind,
+        time: u64,
+        key: &[u8],
+        value: &[u8],
+        source: &[u8],
+    ) -> Body {
+        Body {
+            seq: self.entries.len() as u64,
+            prev: self.head,
+            kind,
+            time,
+            key: key.to_vec(),
+            value: value.to_vec(),
+            source: source.to_vec(),
+        }
     }
 
     /// Admit one signed entry, or refuse it and change nothing.
@@ -227,8 +274,14 @@ impl Anchor {
             return Err(Refusal::UntrustedSigner);
         }
         let key = VerifyingKey::from_bytes(&entry.signer).map_err(|_| Refusal::UntrustedSigner)?;
-        key.verify_strict(&entry.body.encode(), &Signature::from_bytes(&entry.signature)).map_err(|_| Refusal::BadSignature)?;
-        if entry.body.kind == Kind::Retract && !matches!(self.query(&entry.body.key), Answer::Known { .. }) {
+        key.verify_strict(
+            &entry.body.encode(),
+            &Signature::from_bytes(&entry.signature),
+        )
+        .map_err(|_| Refusal::BadSignature)?;
+        if entry.body.kind == Kind::Retract
+            && !matches!(self.query(&entry.body.key), Answer::Known { .. })
+        {
             return Err(Refusal::RetractUnknown);
         }
         self.head = entry.digest();
@@ -241,7 +294,12 @@ impl Anchor {
         for e in self.entries.iter().rev() {
             if e.body.key == key {
                 return match e.body.kind {
-                    Kind::Admit => Answer::Known { value: &e.body.value, source: &e.body.source, seq: e.body.seq, signer: e.signer },
+                    Kind::Admit => Answer::Known {
+                        value: &e.body.value,
+                        source: &e.body.source,
+                        seq: e.body.seq,
+                        signer: e.signer,
+                    },
                     Kind::Retract => Answer::Retracted { seq: e.body.seq },
                 };
             }

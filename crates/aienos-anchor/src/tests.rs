@@ -7,7 +7,11 @@ fn key(seed: u8) -> SigningKey {
 
 fn sign(k: &SigningKey, body: Body) -> Entry {
     let signature = k.sign(&body.encode()).to_bytes();
-    Entry { body, signer: k.verifying_key().to_bytes(), signature }
+    Entry {
+        body,
+        signer: k.verifying_key().to_bytes(),
+        signature,
+    }
 }
 
 fn admit(a: &mut Anchor, k: &SigningKey, fact: &[u8], value: &[u8]) -> Result<(), Refusal> {
@@ -52,7 +56,10 @@ fn newer_fact_wins_and_retraction_is_recorded() {
 fn model_key_cannot_write() {
     let (mut a, _) = anchor();
     let model = key(9);
-    assert_eq!(admit(&mut a, &model, b"x", b"1"), Err(Refusal::UntrustedSigner));
+    assert_eq!(
+        admit(&mut a, &model, b"x", b"1"),
+        Err(Refusal::UntrustedSigner)
+    );
     assert!(a.is_empty());
 }
 
@@ -88,9 +95,15 @@ fn retract_rules() {
 #[test]
 fn bounds_are_enforced() {
     let (mut a, k) = anchor();
-    assert_eq!(admit(&mut a, &k, &[b'k'; MAX_KEY + 1], b"1"), Err(Refusal::TooLarge));
+    assert_eq!(
+        admit(&mut a, &k, &[b'k'; MAX_KEY + 1], b"1"),
+        Err(Refusal::TooLarge)
+    );
     assert_eq!(admit(&mut a, &k, b"", b"1"), Err(Refusal::TooLarge));
-    assert_eq!(admit(&mut a, &k, b"k", &[0; MAX_VALUE + 1]), Err(Refusal::TooLarge));
+    assert_eq!(
+        admit(&mut a, &k, b"k", &[0; MAX_VALUE + 1]),
+        Err(Refusal::TooLarge)
+    );
 }
 
 #[test]
@@ -114,10 +127,16 @@ fn tampered_log_is_refused_whole() {
     log[i] = b'9';
     assert!(Anchor::replay(trusted.clone(), &log).is_err());
     let log = a.export();
-    assert_eq!(Anchor::replay(trusted.clone(), &log[..log.len() - 1]).err(), Some(Refusal::Malformed));
+    assert_eq!(
+        Anchor::replay(trusted.clone(), &log[..log.len() - 1]).err(),
+        Some(Refusal::Malformed)
+    );
     // Dropping the first entry breaks the chain for the rest.
     let first = Entry::decode(&log).unwrap().1;
-    assert_eq!(Anchor::replay(trusted, &log[first..]).err(), Some(Refusal::OutOfOrder));
+    assert_eq!(
+        Anchor::replay(trusted, &log[first..]).err(),
+        Some(Refusal::OutOfOrder)
+    );
 }
 
 #[test]
@@ -126,6 +145,10 @@ fn signature_from_another_domain_is_refused() {
     let body = a.next_body(Kind::Admit, 1, b"x", b"1", b"t");
     let mut msg = body.encode();
     msg[0] = b'X';
-    let e = Entry { body, signer: k.verifying_key().to_bytes(), signature: k.sign(&msg).to_bytes() };
+    let e = Entry {
+        body,
+        signer: k.verifying_key().to_bytes(),
+        signature: k.sign(&msg).to_bytes(),
+    };
     assert_eq!(a.append(e), Err(Refusal::BadSignature));
 }
