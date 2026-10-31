@@ -24,6 +24,10 @@ global Ntwt long 4
 global Ntlr long 8
 global Ntlit0 ulong 257
 global Ntsz long 5
+global Ntcoarse ulong 1
+global Ntdone uint 131072
+global Ntstamp uint 1
+global Ntbw long 1
 global Ntb long 4
 global Ntd long 4
 global Ntg long 5
@@ -116,6 +120,10 @@ end
 ret pksmooth shr mul dt 48 8
 end
 fn ntfadepx c ulong x long y long to ulong
+if eq c 0
+note pkscale 0 f is 0 for every f: one black fades to itself.
+ret 0
+end
 l = pkmax pkmax long and shr c 16 255 long and shr c 8 255 long and c 255
 f = ntfaded x y ulong l
 if ge f 256
@@ -155,6 +163,12 @@ put Ntsz 1 mul sub get Lg 1 1 16
 put Ntsz 2 sub get Lg 0 1
 put Ntsz 3 sub get Lg 1 1
 put Ntsz 4 mul sub get Lg 1 1 get Lg 0
+put Ntcoarse 0 0
+put Ntbw 0 div add get Lg 0 7 8
+put Ntstamp 0 0
+for i ulong 131072
+put Ntdone i 0
+end
 for i ulong 256
 c = shr ulong add 16384 pkcos mul i 256 1
 c2 = shr mul c c 14
@@ -244,19 +258,30 @@ put Ntlens 1 y0
 put Ntlens 2 sub x1 x0
 put Ntlens 3 sub y1 y0
 end
-fn ntlensbox to void
-for i ulong get Nthol 0
+note ntholebox: hole i's own lens box (x y w h, unclipped) into Pa 0..3; false when it has none.
+fn ntholebox i ulong to bool
 b = mul i 4
 e = get Nthole add b 2
 rs = get Nthole add b 3
-if or gt e 0 gt rs 0
+if and le e 0 le rs 0
+ret false
+end
 reach = add shr div mul e 44 10 4 2
 rs = add shr div mul rs 16 10 4 2
 reach = pkmax reach rs
-e = sub shr get Nthole b 4 reach
-rs = sub shr get Nthole add b 1 4 reach
-reach = add mul 2 reach 1
-ntunion e rs reach reach
+put Pa 0 sub shr get Nthole b 4 reach
+put Pa 1 sub shr get Nthole add b 1 4 reach
+put Pa 2 add mul 2 reach 1
+put Pa 3 add mul 2 reach 1
+ret true
+end
+fn ntlensbox to void
+for i ulong get Nthol 0
+if ntholebox i
+x = get Pa 0
+y = get Pa 1
+w = get Pa 2
+ntunion x y w get Pa 3
 end
 end
 if ne get Ntlens 2 0
@@ -314,6 +339,7 @@ end
 note ntat: the state at t ms (ck_night_at): holes, lens rect, ripple tables.
 fn ntat t ulong to void
 put Ntt 0 t
+put Ntstamp 0 add get Ntstamp 0 1
 put Nthol 0 0
 put Ntlens 0 0
 put Ntlens 1 0
@@ -699,7 +725,59 @@ y = add get Ntb 1 long j
 ntgridrow y bx add mul 2 sub y by 1
 end
 end
+note ntcoarse: the ripple's band drawn at 2 x 2 (one sample for four pixels): same warp, same
+note light, a quarter of the samples. Ntcoarse 0 keeps every pixel (the C look exactly);
+note look-show.om turns it on while the ripple runs on a large screen.
+fn ntgridrow2 y long bx long wy long to void
+p = mul y get Lg 0
+wi = sub 16 wy
+for k ulong 3
+b = mul k 4
+v = mul get Ntcor b wi
+v = add v mul get Ntcor add b 2 wy
+put Ntlr k v
+v = mul get Ntcor add b 1 wi
+v = add v mul get Ntcor add b 3 wy
+put Ntlr add k 3 v
+end
+x = get Ntb 0
+while lt x get Ntb 2 bound 8
+c = ntgpx x y add mul 2 sub x bx 1
+put Nfrm add p x uint c
+if lt add x 1 get Ntb 2
+put Nfrm add p add x 1 uint c
+end
+x = add x 2
+end
+end
+fn ntrowdup y long to void
+note Row y of the block's columns copied onto row y + 1.
+w = get Lg 0
+p = add mul y w get Ntb 0
+n = ulong sub get Ntb 2 get Ntb 0
+for i ulong n
+x = add p long i
+put Nfrm add x w get Nfrm x
+end
+end
+fn ntgridblk2 bx long by long to void
+y = get Ntb 1
+while lt y get Ntb 3 bound 8
+ntgridrow2 y bx add mul 2 sub y by 1
+if lt add y 1 get Ntb 3
+ntrowdup y
+end
+y = add y 2
+end
+end
 note ntblock: one 8 x 8 block of the warped base (night.c ck_night_base block loop).
+note ntwhole: is the 8 x 8 block at (bx, by) entirely inside the draw rect Ntd.
+fn ntwhole bx long by long to bool
+if or lt bx get Ntd 0 lt by get Ntd 1
+ret false
+end
+ret and le add bx 8 get Ntd 2 le add by 8 get Ntd 3
+end
 fn ntblock bx long by long to void
 lens = false
 if ne get Ntlens 2 0
@@ -713,6 +791,17 @@ end
 if not ntbclip bx by
 ret
 end
+note Rectangles composed in one frame overlap (the ripple's bands meet the lens box); a block
+note drawn whole earlier this frame is the same block again, so it is left alone. Only whole
+note blocks are stamped: a clipped one may be covered further by a later rectangle.
+whole = ntwhole bx by
+idx = ulong add mul shr by 3 get Ntbw 0 shr bx 3
+if whole
+if eq get Ntdone idx get Ntstamp 0
+ret
+end
+put Ntdone idx get Ntstamp 0
+end
 if lens
 if ntnearhole add bx 4 add by 4
 ntnearblk
@@ -720,7 +809,11 @@ ret
 end
 end
 ntcorners bx by
+if and not lens ne get Ntcoarse 0 0
+ntgridblk2 bx by
+else
 ntgridblk bx by
+end
 end
 fn ntblocks to void
 by = sub get Ntd 1 rem get Ntd 1 8

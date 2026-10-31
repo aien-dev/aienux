@@ -17,12 +17,15 @@ global Shrow uchar 2176
 global Shd long 1280
 global Shdn ulong 1
 global Shr long 4
-global Shl long 4
+global Shl long 10
+global Shb long 20
+global Shbn ulong 1
 const SHRECTS ulong 320
 const SHBORN ulong 12300
 const SHFADE ulong 6800
 const SHMERGE ulong 12000
 const SHGONE ulong 15600
+const SHCOARSE ulong 0
 fn shfits w ulong h ulong to bool
 if or lt w 640 lt h 400
 ret false
@@ -294,6 +297,110 @@ shringband hi lo ya yb
 ya = yb
 end
 end
+fn shbadd x long y long w long h long to void
+note A box onto the list Shb (at most 5: two holes now, two before, one spare).
+n = get Shbn 0
+if ge n 5
+ret
+end
+at = mul n 4
+put Shb at x
+put Shb add at 1 y
+put Shb add at 2 w
+put Shb add at 3 h
+put Shbn 0 add n 1
+end
+fn shbmeet a ulong b ulong to bool
+note Do boxes a and b of Shb overlap (share at least one pixel column and row).
+a = mul a 4
+b = mul b 4
+if ge get Shb a add get Shb b get Shb add b 2
+ret false
+end
+if ge get Shb b add get Shb a get Shb add a 2
+ret false
+end
+if ge get Shb add a 1 add get Shb add b 1 get Shb add b 3
+ret false
+end
+if ge get Shb add b 1 add get Shb add a 1 get Shb add a 3
+ret false
+end
+ret true
+end
+fn shbjoin a ulong b ulong to void
+note Box a becomes the union of a and b; the last box moves into b's place.
+n = get Shbn 0
+a = mul a 4
+b = mul b 4
+x1 = add get Shb a get Shb add a 2
+y1 = add get Shb b get Shb add b 2
+x1 = pkmax x1 y1
+y1 = add get Shb add a 1 get Shb add a 3
+x0 = add get Shb add b 1 get Shb add b 3
+y1 = pkmax y1 x0
+x0 = pkmin get Shb a get Shb b
+put Shb a x0
+x0 = pkmin get Shb add a 1 get Shb add b 1
+put Shb add a 1 x0
+put Shb add a 2 sub x1 get Shb a
+put Shb add a 3 sub y1 get Shb add a 1
+n = sub n 1
+put Shbn 0 n
+n = mul n 4
+for i ulong 4
+put Shb add b i get Shb add n i
+end
+end
+fn shbmerge to void
+note Join overlapping boxes until none overlap: every layer is a pure function of position and
+note time, so one union costs less than two boxes composed twice where they meet.
+for pass ulong 8
+joined = false
+n = get Shbn 0
+for a ulong n
+for b ulong n
+if and lt a b not joined
+if shbmeet a b
+shbjoin a b
+joined = true
+end
+end
+end
+end
+if not joined
+ret
+end
+end
+end
+fn shlens to void
+note The holes' lens boxes now (Shl remembers them for the next frame) and the boxes of the
+note frame before, merged where they meet, then marked.
+put Shbn 0 0
+n = ulong get Shl 8
+for i ulong n
+at = mul i 4
+shbadd get Shl at get Shl add at 1 get Shl add at 2 get Shl add at 3
+end
+put Shl 8 0
+for i ulong ntholes
+if ntholebox i
+shbadd get Pa 0 get Pa 1 get Pa 2 get Pa 3
+k = ulong get Shl 8
+at = mul k 4
+for j ulong 4
+put Shl add at j get Pa j
+end
+put Shl 8 add long k 1
+end
+end
+shbmerge
+n = get Shbn 0
+for i ulong n
+at = mul i 4
+shmark get Shb at get Shb add at 1 get Shb add at 2 get Shb add at 3
+end
+end
 fn shdecide t ulong to void
 note Which parts of the screen change at t (ms since the sky started). Sh[9]: the fade's last
 note full pass is done; Sh[12]: the ripple was on screen last frame; Shl: the lens rect last frame.
@@ -308,25 +415,16 @@ end
 if ne get Ntrip 1 0
 shring
 put Sh 12 1
+put Ntcoarse 0 SHCOARSE
 else
+put Ntcoarse 0 0
 if ne get Sh 12 0
 put Sh 12 0
 shmarkall
 end
 end
-note The holes' lens region now and where it was, Allen, his words and bar, the twinkles.
-if ne get Shl 2 0
-shmark get Shl 0 get Shl 1 get Shl 2 get Shl 3
-end
-for i ulong 4
-put Shl i 0
-end
-if gt ntholes 0
-shmark get Ntlens 0 get Ntlens 1 get Ntlens 2 get Ntlens 3
-for i ulong 4
-put Shl i get Ntlens i
-end
-end
+note The holes' lens regions now and where they were, Allen, his words and bar, the twinkles.
+shlens
 mddirty
 shmark get Mdbox 0 get Mdbox 1 get Mdbox 2 get Mdbox 3
 shmark get Hmdirty 0 get Hmdirty 1 get Hmdirty 2 get Hmdirty 3
@@ -468,6 +566,7 @@ for i ulong 2176
 put Shrow i 0
 end
 put Shdn 0 0
+put Shl 8 0
 pkinit
 ntinit
 mdinit long SHBORN
