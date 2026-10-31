@@ -1,0 +1,9 @@
+case broken_pipe
+kind negative
+create R W A => OK
+write W "kept" => OK n=4
+close R => OK
+write W "x" => BROKEN_PIPE
+check broken_pipe=1 bytes_written=4 bytes_read=0
+close W => OK
+check empty

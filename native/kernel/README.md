@@ -1,8 +1,17 @@
 # native/kernel: AIENOS C kernel core (Lane 18)
 
-The first AIENOS kernel written in C for AArch64. It boots in QEMU through
-UEFI (AAVMF) the way the Rust kernel does and prints the same observables.
+> **Status: FROZEN (Drake, 2026-10-24; ADR 0039, program L802).** This C kernel is legacy. It takes bug
+> fixes and keeps the lab iMac booting while Aienux is rewritten in Omega (`.om`). It takes no new
+> features; feature PRs here are closed with a pointer to ADR 0039. It is archived when the Omega kernel
+> passes the full AienOS gate suite on QEMU and on the lab iMac.
+
+The AIENOS kernel written in C. The main target is AArch64: it boots in QEMU
+through UEFI (AAVMF) the way the Rust kernel does and prints the same
+observables. A first x86_64 port (`x86/`) runs on a 2017 iMac.
 QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
+Real hardware runs so far: Raspberry Pi 5 test images (records in
+`evidence/pi5_hardware_runs_2026-10-13/` and `docs/native/`) and the 2017 iMac
+(`evidence/imac_*`). The C kernel has not been booted on the DGX Spark.
 
 ## Layout
 
@@ -12,6 +21,7 @@ QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
 | `arch/` | Vectors, EL2 -> EL1h entry (ADR 0009), recoverable probe, exception and IRQ dispatch, GICv3 or GICv2 (picked from the MADT; GICv2 is the Raspberry Pi 5 GIC-400 shape, QEMU gate `AIENOS_QEMU_GIC=2 scripts/qemu_ck_boot_test.sh`), EL1 physical timer. |
 | `mm/` | Frame allocator (UEFI map), 4 KiB-granule page-table builder, heap, the kernel address space (`mmu.c`). |
 | `core/` | Console, printf, ACPI, reports/panic/PSCI reset, M3 (threads, scheduler, EL0, capabilities, IPC), `kmain.c`. |
+| `gpu/` | GB10 GPU memory side, cut D, host only: GPU page tables in the format the NVIDIA driver uses for GB10, a bounded GPU buffer allocator with per-buffer cache policy and quarantine, one compute channel (ring, USERD, instance block, doorbell), and a simulated GB10 to test them on. Not linked into any image; never run on the chip. See "GB10 GPU memory (simulated)" below. |
 | `tests/` | Host unit tests. |
 | `third_party/omega/` | The canonical Omega Cortex store, byte for byte from the omega commit in `omega.lock` (checked by `scripts/omega_lock_check.sh`); built freestanding by `svc/cortex_store.c` over the sealed Store through `svc/cortex_journal.c` (native v1 plan P06). |
 | `x86/` | x86_64 port, first cut (AIENOS-KERNEL-0, 2017 iMac): UEFI stub, descriptor tables and interrupt stubs, page tables, local APIC timer, ACPI power off, console, secondary-core start, PCI walk, read-only AHCI and NVMe disks, BCM57766 Ethernet link detection; a lab-only, opt-in network report (`CK_X86_REPORT=1`). |
@@ -33,6 +43,17 @@ QEMU qualifies nothing physical: a PASS here says nothing about real hardware.
 Toolchain: gcc, binutils (ld, objcopy, nm, readelf), make, shell. On a
 non-aarch64 host the Makefile uses the `aarch64-linux-gnu-` prefix.
 Output lands in `<repo>/target/native-kernel` (ignored by git).
+
+The attended Spark input image is `make full CK_SPARK_INPUT=1` (output
+`target/native-kernel-spark-input/spark-input/BOOTAA64.EFI`): PCI discovery,
+confined xHCI/HID bounded boot shell, then RTL8127 UDP snapshot and release,
+with no NVMe, Store or Allen stage linked. For hardware staging add
+`CK_HARDWARE_STAGING=1 CK_OWNER_PUBKEYS=... CK_MACHINE_ID=...`; the existing
+owner-material refusals are unchanged and the subdirectory is
+`spark-input-hardware-staging`. Do not use the storage-bearing
+`full CK_RTL8127=1` image instead. Sustained `CK_CONSOLE_SESSION` stays
+QEMU-only. Procedure and physical NOT_RUN (hardware-unverified) boundary:
+`docs/campaigns/SPARK-BOOT-INPUT-20261028.md` from the repository root.
 
 ## Owner provisioning (hardware staging image)
 
@@ -137,7 +158,8 @@ of them:
   checks the refusals, the generator refusals, and builds the hardware staging
   image from the labelled TEST-fixture files in `tests/fixtures/owner/`
   (public bytes only, distinct from every old TEST constant), then greps the
-  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. CI runs it.
+  ELF and EFI. Ends `CK_OWNER_KEYS_CHECK: PASS`. The Spark gate
+  `AIENOS-CK-OWNER-KEYS` (`tests/gates/aienos-ck-owner-keys.gate`) runs it.
 - Not covered: the untrusted RFC 8032 TEST 1/2 public key constants
   (`artifact/format.c`, used only by the `CK_SEED0B_TEST_ANCHOR` build and the
   host tools) are still present as data in every image, including hardware
@@ -339,10 +361,42 @@ when a 16550 answers there (QEMU; the iMac has none). Shared, unchanged:
 cores and attaches a SATA data disk and an NVMe disk, each with a GPT from
 `ck_gpt_image`, and fails unless three cores check in, the kernel finds each
 AIENOS partition where the tool wrote it and both disks are byte-identical
-afterwards. Not yet: work scheduled on the other cores, x2APIC, NX,
+afterwards. Not yet: work scheduled on the other cores, x2APIC,
 VT-d, receiving on the network, a store. QEMU (no BCM57766 there)
 qualifies nothing physical; copy the image to a FAT stick as
 `EFI/BOOT/BOOTX64.EFI` and start it from the Option-key boot picker.
+
+Page permissions (W^X, #409): the kernel refuses a CPU without NX, sets
+EFER.NXE and CR0.WP on the boot core and in the trampoline for every other
+core, and maps its code read-only executable, its PE header and read-only data
+(`.rodata`, relocations, GOT) read-only no-execute, and everything else (data,
+bss, stacks, heap, page tables, MMIO, the framebuffer) no-execute, keeping the
+PAT cache types and the stack guard; the 2 MiB pages around the image and the
+trampoline are split into 4 KiB pages at the boundaries from
+`../boot/image_x86_64.ld`. The trampoline page is never writable and executable
+at once (writable while it is filled, executable while a core runs it,
+read-only no-execute once the cores are parked). At boot the kernel proves it:
+writes to code and to read-only data and execution from heap and stack must
+each fault with the right error code (`wx: ok ...`), and after the cores and
+disks are up an audit of every page table leaf must find nothing writable and
+executable, only the code executable, and NXE and WP on every core
+(`wx_audit: ok ...`). The QEMU test also builds two TEST-ONLY mutants
+(`make imac-kernel IMACKERN_WX_MUTANT=no_nx` or `=text_writable`) and fails
+unless their probes panic. W^X is not process isolation: everything here still
+runs in ring 0 in one address space, any kernel code can change the page
+tables, and learned or generated code must never be given kernel authority.
+QEMU only; not yet run on the iMac.
+
+The Spark's Realtek RTL8127 10 GbE (10ec:8127, segment 7) has a driver core in
+`native/net/aienos_rtl8127.c` and a binding in `dev/rtl8127_bind.c` (L198): SMMU
+window first (no SMMU, no DMA), BAR 2, reset and bring-up from Realtek's Linux r8127
+v11.014.00 (no public datasheet: DOCS SILENT), link wait, then the console log
+(`core/klog.c` RAM copy) sent every 2 s for 20 s as UDP broadcasts in the iMac
+format with the tag `AIENUX-SPARK-REPORT`; the same `ck_imac_report_listen`
+writes it to `spark-<run>.txt`. Only a `make full CK_RTL8127=1` image calls it; every QEMU
+gate image is unchanged. Tested against a chip model and on the host only;
+nothing has run on the chip (hardware-unverified). What attended boot #2 must confirm is listed in
+`docs/SPARK_RTL8127.md`.
 
 ## Raspberry Pi 5 image (AIENOS-PI5 step 1)
 
@@ -403,18 +457,38 @@ tree with uncommitted changes to tracked files stamps `aienos_commit: <HEAD>-dir
 `run.log`, and says "NOT commit-bound (dirty build)" for a `-dirty` image. Hardware
 receipts from earlier runs are in `evidence/pi5_hardware_runs_2026-10-13/`.
 
-## Known hardware risk: disk footprint (CK gate DISK_LAYOUT: NOT_RUN)
+Later Pi images (unlock, Cortex facts, inference, agent, lifecycle, artifact
+loader, PCIe and Ethernet) each have a `make pi5-*` target and a run record in
+`docs/native/` (for example `PI5-6-INFER-RUNS.md`, `PI5-NET-3-RUNS.md`). The
+list of all eleven Pi images is in `docs/native/PI5-8-QUALIFICATION.md`.
 
-**Do not boot the C kernel on a disk holding data until CK gate `DISK_LAYOUT`
-is PASS on a forge receipt.** That gate is NOT_RUN (MISSING_IMPLEMENTATION, fix
-in progress).
+## GB10 GPU boot package builder (host only, not in any image)
 
-The kernel is partition-unaware. At every boot it writes and restores the last
-4 KiB unit of the whole NVMe namespace (`dev/nvme_bind.c:93-127`, called at
-`:224`) and uses the first 16 KiB as the anti-rollback anchor
-(`dev/disk_layout.h:3,12`; `svc/store_boot.c:164-170`). On a GPT disk those
-areas hold the protective MBR, the primary GPT and the backup GPT. Details and
-the operator-facing warning: `docs/TRUST-1-OPERATOR-STEPS.md`.
+`dev/gb10_gsp_boot.c` builds, in plain memory, everything NVIDIA's Linux driver
+(open-gpu-kernel-modules 580.173.02) hands the GB10 to start its GPU management
+processor (GSP): the WprMeta page, libos arguments, log buffers, RPC queues with the two
+pre-boot messages, the radix-3 firmware table, the bootloader, signature and FMC copies,
+the FMC boot parameters, the one SEC2 chain-of-trust packet, and the messages a native
+kernel sends after GSP is up (object alloc, control, free, static info) plus a reader for
+GSP's replies. It is freestanding kernel C but writes no register and loads nothing; no
+part of it has run on the GB10. Host checks:
+
+    make -C native/kernel test-gb10-gsp-boot   # layout, ring, refusals (also in make test)
+    make -C native/kernel gb10-gsp-nvhdr-test  # every field vs the NVIDIA headers (needs OGKM_DIR)
+    make -C native/kernel gb10-gsp-free        # kernel flags, no hidden library calls, small stack
+    make -C native/kernel gb10-gsp-mutants     # four broken variants, each must fail
+
+What is known and what still needs the chip: `docs/GB10_FIRMWARE_INVENTORY.md` section 14.
+
+## Disk footprint (CK gate DISK_LAYOUT: QEMU PASS, hardware NOT_RUN)
+
+The kernel writes only inside the AIENOS GPT partition of the boot disk (see
+"Notes for stage code" below and `dev/disk_layout.h`). Inside that partition,
+units 0 to 3 hold the anti-rollback anchor and the last unit is the scratch
+unit for the write/flush/read-back probe. The rest of the disk is only read.
+CK gate `DISK_LAYOUT` (GATES.md rows 118 to 123) passes in QEMU; it has not
+been run on a physical disk. The operator-facing warning is in
+`docs/TRUST-1-OPERATOR-STEPS.md`.
 
 ## Operator input and recovery access (C kernel)
 
@@ -648,8 +722,8 @@ a FAIL to report, not to retry.
    DMA pool.
 3. `ck_enter_el1`: EL2 -> EL1h with the MMU already on our tables.
 4. EL1: `mmu: enabled`, `mmu_switch: ...` read back from the registers,
-   heap check, guard-page self test, GICv3 from the MADT, 200 ms timer window
-   (INTID 30, 10 ms period), `kernel: alive`, `kernel_el: EL1h`.
+   heap check, guard-page self test, GICv3 or GICv2 from the MADT, 200 ms timer window
+   (INTID 30, 10 ms period; on a starved emulator the window keeps counting up to 5 s until five ticks arrived, and each interval is measured from IRQ entry, so a host stall cannot produce a short interval), `kernel: alive`, `kernel_el: EL1h`.
 5. Stages, in order, if linked: `ck_stage_devices`, `ck_stage_security`,
    `ck_stage_store`. Each prints `stage <name>: ok`, `stage <name>: FAIL
    rc=<n>` or `stage <name>: not linked`.
@@ -693,6 +767,36 @@ low-water free bytes.
   and the handoff, and minus the RSDP, the XSDT/RSDT and every table the root
   lists (whole pages). Tables, stack, heap and pool come from it and are never
   handed out again.
+
+## Native pipes (AIENOS-NATIVE-PIPE-1, aienos-mv#428)
+
+`core/pipe.c` / `core/pipe.h` make a pipe a kernel primitive: two independently scheduled operations exchange ordered
+bytes through a bounded buffer, with no intermediate file. It is a byte stream, separate from the 56-byte typed
+message ring of `core/ipc.h`; it reuses only the ipc.h capability tables.
+
+- **Contract.** OSH_PLATFORM_ABI (aien-protocols-mv `specs/osh-platform/`, read at `fb5fca98e667`, v1 DRAFT, unfrozen):
+  PIPE_CREATE, STREAM_READ / WRITE / CLOSE / DUP (section 8.1), at least 64 KiB per pipe (8.5), the error codes of 8.6
+  (one shared copy in `core/osh_err.h`, also used by `core/osh_op.h`), epoch staleness (4.4) and authority at the
+  moment of the effect (9.2). Choices the draft does not pin are marked UNVERIFIED in `pipe.h`.
+- **Ends are capabilities.** The read end holds `CK_R_READ`, the write end `CK_R_WRITE`, never both; optional
+  `CK_R_DERIVE` (dup in the same table), `CK_R_GRANT` (dup into another principal's table) and `CK_R_REVOKE`. Every
+  operation calls `ck_cap_lookup` when it acts, so a handle that was closed, reused or revoked is refused even if it
+  was valid a moment earlier (STALE, DENIED, REVOKED).
+- **Bounded.** A static pool of `CK_PIPE_POOL_PIPES` (4) pipes of `CK_PIPE_CAPACITY` (65536) bytes; nothing is allocated.
+  A write past the free space is partial, a write on a full pipe returns WOULD_BLOCK (or parks with `CK_PIPE_F_BLOCK`
+  through the pool's wait / wake hook, which the kernel points at the scheduler). Last writer closed: reads return 0
+  bytes once drained (EOF). No reader: BROKEN_PIPE. Revoke scrubs the buffer and no byte is delivered after it; cancel
+  makes the next or the blocked call on that end return INTERRUPTED with no byte moved. Counters (bytes, max resident,
+  WOULD_BLOCK, waits, wakeups, cancellations, revocations, refusals) are in `struct ck_pipe_stats`.
+- **Versioned op table.** `ck_pipe_dispatch` takes a platform call frame (magic `OSHF`, `CK_PIPE_ABI_VERSION` 1, op id,
+  reserved, arguments) and refuses malformed frames and unknown ops or versions (INVALID_ARG, NOT_SUPPORTED) before any
+  effect.
+- **Tests.** `make test` runs `test_pipe` (the 20-case corpus in `tests/fixtures/pipe/`, format in its README, plus
+  producer / consumer transfers through `core/sched.c`) and `pipe-mutant` (the write-right check removed: the test must
+  fail); `make sanitize` runs it under ASan+UBSan. `scripts/qemu_ck_pipe_test.sh` builds the TEST-ONLY `CK_PIPE_TEST=1`
+  image and checks the in-kernel run (GATES.md, PIPE). Host and QEMU evidence qualify nothing physical.
+- **Not yet.** Task execution and shell dispatch over pipes are separate issues; the kernel's blocking hook yields
+  cooperatively inside one kernel thread, it does not switch M3 threads.
 
 ## Notes for stage code
 
@@ -773,6 +877,58 @@ low-water free bytes.
   the EL0 return uses SPSR 0x3c5 (Rust 0x5); EL0 entry zeroes all general
   registers and TPIDR_EL0/TPIDRRO_EL0; the EL0 window uses ASID 0 with a
   full TLB flush (Rust ASID 1); context switches save x19-x30 and sp only
-  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT; no
-  secondary core is started (same as Rust). See GATES.md rows 16-20.
+  (no FP/SIMD; EL0 FP/SIMD traps). Placement is computed from the MADT. See
+  GATES.md rows 16-20.
+- Secondary cores: the C kernel starts every other core through PSCI CPU_ON,
+  checks each one in and parks it in WFE (`core/smp.c`, CK gate `SMP`, GATES.md
+  rows 113-117). The Rust kernel starts none. No work runs on them yet. On the
+  Pi 5 all four cores checked in (`evidence/pi5_hardware_runs_2026-10-13/`).
 - MAIR adds a Normal Non-cacheable attribute (index 2) for the DMA pool.
+
+## GB10 GPU memory (simulated)
+
+`gpu/` holds the part of a native GB10 GPU driver that the Linux NVIDIA
+driver (RM and UVM) does for us today: GPU page tables, the GPU TLB
+invalidate, GPU-visible buffers, and the memory and doorbell of one compute
+channel. It is cut D of `docs/GB10_NATIVE_DEPENDENCY_MAP.md`, host side only.
+
+- `gmmu.c`: GB10 page tables (57-bit GPU addresses, 4 KiB, 64 KiB and
+  2 MiB pages) and the TLB invalidate register sequence, as
+  open-gpu-kernel-modules 580.173.02 programs them for GB10B.
+- `gpu_mem.c`: a bounded GPU buffer allocator. Each buffer has a CPU address
+  and a separate GPU address. A buffer the CPU polls must be GPU-uncached
+  (the allocator refuses otherwise). Freed memory is reused only after the
+  GPU confirms the invalidate; if it never does, the memory is quarantined.
+- `gpu_chan.c`: one compute channel: ring, USERD, instance block with the
+  page-directory pointer, runlist USERD pointer, work-submit token, doorbell.
+  A channel that does not go idle on teardown has its memory quarantined.
+- `gpu_sim.c`: a simulated GB10 for the tests (memory array, logged
+  registers, a page walker written separately from `gmmu.c`, a TLB that only
+  an invalidate empties, fault records). Test only.
+
+Run: `make -C native/kernel test-gpu-sim` (also part of `make test`),
+`gpu-sim-mutants` (each mutant removes one check; all must be caught) and
+`gpu-freestanding` (the three driver files build with the kernel compiler
+and flags). What this shows: the code follows the driver's layouts and
+refuses what it should, on a simulator. What it does not show: anything on
+the real chip. Which register sequences still need the chip is listed in the
+`gpu_chan.h` and `gmmu.h` header comments (UNKNOWN / UNVERIFIED).
+
+### The channel as a device contract (L332)
+
+`gpu/contract/gb10_chan.devc` is the same compute channel written as a device
+contract (ADR 0021, class `gpu-chan`): constants, the doorbell register, the
+packed formats (doorbell token, GPFIFO entry, runlist USERD pointer, instance
+block page directory), the three buffers with their cache policy, and the
+steps of create, submit and teardown. Each number cites a line of NVIDIA's
+driver source. `crates/aienos-devc` (branch feat/devc-gpu) compiles it into
+`gpu/contract/gen/gch_contract.c`, which has the API of `gpu_chan.h`. The
+compiler refuses unsafe contracts (doorbell before publish, no fence between
+them, no ring-room check, GPU-cached memory the CPU writes or polls, a
+channel id bound wider than its token field, teardown that frees before idle).
+
+Run: `make -C native/kernel test-gpu-contract` (test_gpu_sim against the
+generated twin, plain and sanitized), `gpu-contract-trace` (every register
+access and a hash of all simulated memory after each of ~390 operations,
+hand vs generated, must be byte-identical), `gpu-contract-freestanding`.
+Mutants of the contract itself: `evidence/own-gpu-driver/rung1/contract_mutants.sh`.

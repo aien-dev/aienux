@@ -120,7 +120,7 @@ chk "offer received" '^netldr: the Spark offers a kernel: [0-9]+ bytes$' "${txt}
 chk "signature and digest verified" "^netldr: signature and SHA-512 verified: gen=[0-9]+ commit=${commit:0:12} len=[0-9]+\$" "${txt}"
 chk "network kernel started" '^netldr: starting the network kernel \([0-9]+ bytes\)$' "${txt}"
 chk "lab kernel ran to DONE" '^AIENOS-KERNEL-0 DONE$' "${txt}"
-chk "lab kernel W^X audit" '^wx_audit: ok wx_leaves=0 ' "${txt}"
+chk "lab kernel W^X audit" '^wx_audit: ok wx_pages=0 ' "${txt}"
 chk "restart through the ACPI reset register" '^power: restart via the ACPI reset register port=0x[0-9a-f]+ value=0x[0-9a-f]+$' "${txt}"
 chk "loader told the Spark VERIFIED" '^netldr: told the Spark: verified, starting \([1-3]/3 sent\)$' "${txt}"
 chk "server saw VERIFIED" 'loader says: VERIFIED, starting' "${slog}"

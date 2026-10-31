@@ -1,0 +1,13 @@
+case transfer
+kind positive
+# an end handed to another principal's table (GRANT) works there; the giver closes its copy
+create R W A => OK
+dup R RB B rv => OK
+close R => OK
+write W "\x00\x01\x02" => OK n=3
+read RB 3 => OK n=3 data="\x00\x01\x02"
+revoke RB => OK
+write W "x" => REVOKED
+close RB => OK
+close W => OK
+check empty revocations=1

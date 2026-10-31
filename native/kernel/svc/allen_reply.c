@@ -227,7 +227,7 @@ static int learn_name(ck_allen_mind *m, const char *rest)
 {
     size_t n = 0;
     char w[24];
-    while (rest[n] && rest[n] != ' ' && n < sizeof w - 1)
+    while (n < sizeof w - 1 && rest[n] && rest[n] != ' ')
         w[n] = rest[n], n++;
     w[n] = 0;
     if (!n || rest[n] == ' ' || is_state(w) || eq(w, "allen"))
@@ -265,7 +265,7 @@ static void put_turned(struct say *s, const char *t, int cap)
     while (*t) {
         char w[CK_ALLEN_VAL_MAX];
         size_t n = 0;
-        while (t[n] && t[n] != ' ' && n < sizeof w - 1)
+        while (n < sizeof w - 1 && t[n] && t[n] != ' ')
             w[n] = t[n], n++;
         w[n] = 0;
         t += n;

@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* ck_imac_report_listen.c -- host-side receiver for the iMac kernel's LAB-ONLY
  * report (native/kernel/x86/report_x86.c, only in the opt-in lab image built
  * with make imac-kernel CK_X86_REPORT=1). Hosted C (POSIX sockets), tooling
@@ -15,8 +31,9 @@
  * (the kernel broadcasts them from 0.0.0.0 to 255.255.255.255). Part i of n
  * carries bytes [i * CHUNK, ...) of a report of <total> bytes. When every part
  * of a run is in, the report is written once to
- * OUTDIR/imac-<run>.unauthenticated.txt and a line
+ * OUTDIR/{imac,spark}-<run>.unauthenticated.txt and a line
  * "complete run=... auth=none bytes=... file=..." goes to OUTDIR/listen.log.
+ * Spark reports use "AIENUX-SPARK-REPORT v=1 " (also unauthenticated).
  * Repeats of a finished run are counted, not rewritten. Anything else,
  * including every older header (the retired v=1 raw-console format and the
  * older AIENOS-IMAC-REPORT name), is logged as ignored.
@@ -36,15 +53,18 @@
 
 #define MAGIC "AIENOS-REPORT v=2 auth=none "
 #define LEGACY "AIENOS-IMAC-REPORT " /* every older header, refused */
+#define SPARK_MAGIC "AIENUX-SPARK-REPORT v=1 "
 #define UNAUTH_NOTE \
     "note: iMac reports are UNAUTHENTICATED UDP broadcasts (auth=none); anyone on the LAN can read or " \
-    "forge one; never treat a report as a receipt, evidence or a command\n"
+    "forge one; never treat a report as a receipt, evidence or a command\n" \
+    "note: Spark v=1 reports are also UNAUTHENTICATED UDP broadcasts; the same warning applies\n"
 #define CHUNK 1024u
 #define MAX_PARTS 64u
 #define MAX_RUNS 16u
 
 struct run {
     char id[17];
+    const char *pfx; /* output file prefix: imac or spark */
     unsigned parts, total, have, done, repeats;
     unsigned char got[MAX_PARTS];
     unsigned char data[MAX_PARTS * CHUNK];
@@ -60,14 +80,15 @@ static double now_s(void)
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-static struct run *find_run(const char *id, unsigned parts, unsigned total)
+static struct run *find_run(const char *id, unsigned parts, unsigned total, const char *pfx)
 {
     for (unsigned i = 0; i < nruns; i++)
-        if (!strcmp(runs[i].id, id))
+        if (!strcmp(runs[i].id, id) && !strcmp(runs[i].pfx, pfx))
             return runs[i].parts == parts && runs[i].total == total ? &runs[i] : 0;
     struct run *r = &runs[nruns < MAX_RUNS ? nruns++ : (next_slot++ % MAX_RUNS)];
     memset(r, 0, sizeof *r);
     memcpy(r->id, id, 17);
+    r->pfx = pfx;
     r->parts = parts;
     r->total = total;
     return r;
@@ -86,7 +107,7 @@ static FILE *open_private(const char *path, int flags, const char *mode)
 static void finish_run(FILE *lg, const char *dir, struct run *r)
 {
     char path[4096];
-    snprintf(path, sizeof path, "%s/imac-%s.unauthenticated.txt", dir, r->id);
+    snprintf(path, sizeof path, "%s/%s-%s.unauthenticated.txt", dir, r->pfx, r->id);
     FILE *f = open_private(path, O_TRUNC, "w");
     if (!f || fwrite(r->data, 1, r->total, f) != r->total || fclose(f) != 0) {
         fprintf(lg, "write failed run=%s file=%s errno=%d (%s)\n", r->id, path, errno, strerror(errno));
@@ -157,10 +178,16 @@ int main(int argc, char **argv)
             fprintf(lg, "ignored from %s:%u len=%zd: retired older report header\n", fa, ntohs(from.sin_port), n);
             continue;
         }
-        if (!nl || (size_t)n < sizeof MAGIC - 1 || memcmp(in, MAGIC, sizeof MAGIC - 1) != 0 ||
-            sscanf((char *)in + sizeof MAGIC - 1, "run=%16[0-9a-f] part=%u/%u bytes=%u%n", id, &part, &parts, &total,
+        size_t ml = 0;
+        const char *pfx = 0;
+        if ((size_t)n >= sizeof MAGIC - 1 && !memcmp(in, MAGIC, sizeof MAGIC - 1))
+            ml = sizeof MAGIC - 1, pfx = "imac";
+        else if ((size_t)n >= sizeof SPARK_MAGIC - 1 && !memcmp(in, SPARK_MAGIC, sizeof SPARK_MAGIC - 1))
+            ml = sizeof SPARK_MAGIC - 1, pfx = "spark";
+        if (!nl || !ml ||
+            sscanf((char *)in + ml, "run=%16[0-9a-f] part=%u/%u bytes=%u%n", id, &part, &parts, &total,
                    &used) != 4 ||
-            strlen(id) != 16 || (unsigned char *)in + sizeof MAGIC - 1 + used != nl || !parts || parts > MAX_PARTS ||
+            strlen(id) != 16 || (unsigned char *)in + ml + used != nl || !parts || parts > MAX_PARTS ||
             part >= parts || total > parts * CHUNK || total <= (parts - 1) * CHUNK) {
             fprintf(lg, "ignored from %s:%u len=%zd\n", fa, ntohs(from.sin_port), n);
             continue;
@@ -171,7 +198,7 @@ int main(int argc, char **argv)
                     want);
             continue;
         }
-        struct run *r = find_run(id, parts, total);
+        struct run *r = find_run(id, parts, total, pfx);
         if (!r) {
             fprintf(lg, "ignored run=%s: part count or size changed\n", id);
             continue;

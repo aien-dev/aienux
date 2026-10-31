@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* smmu.h -- Arm SMMUv3 programming for the AIENOS C kernel, ported from the
  * Rust reference crates/aienos-kernel/src/smmu.rs (linear stream table,
  * stage-1 translation only, one linear context descriptor per stream). The
@@ -184,4 +200,16 @@ int ck_smmu_abort_ste(const struct ck_smmu_regs *r, const struct ck_smmu_tables 
  * Returns the number of records written to out. */
 int ck_smmu_read_events(const struct ck_smmu_regs *r, const struct ck_smmu_tables *t,
                         struct ck_smmu_event *out, int n, int *overflowed);
+
+/* Probe observer: visit every SID, at most one queue capacity per call.
+ * A busy producer cannot keep the final report from running. pending marks an
+ * incomplete drain; overflow marks loss even if no records remain. */
+struct ck_smmu_observation {
+    uint32_t events;
+    int overflow, pending;
+};
+struct ck_smmu_observation ck_smmu_observe_events(
+    const struct ck_smmu_regs *r, const struct ck_smmu_tables *t,
+    void (*visit)(void *ctx, const struct ck_smmu_event *e), void *ctx);
+const char *ck_smmu_event_name(uint8_t type);
 #endif

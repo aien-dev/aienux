@@ -1,0 +1,19 @@
+case limits
+kind negative
+# a full pool or a full capability table returns LIMIT and leaves nothing allocated
+create R1 W1 A => OK
+create R2 W2 A => OK
+create R3 W3 A => OK
+create R4 W4 A => OK
+create X Y B => LIMIT
+check pipes=4
+close R1 => OK
+close W1 => OK
+check pipes=3
+dup R2 D1 A r => OK
+dup R2 D2 A r => OK
+create X Y A => LIMIT
+dup R2 D3 A r => LIMIT
+check pipes=3
+release A => OK n=8
+check empty

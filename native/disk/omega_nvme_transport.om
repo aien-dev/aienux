@@ -1,0 +1,118 @@
+note SPDX-License-Identifier: Apache-2.0
+note Hosted verification transport ONLY. RPC addresses are QEMU guest addresses,
+note not host CPU pointers. The verifier translates byte access, never NVMe commands.
+global packet uchar 24
+global reply uchar 8
+fn enc off ulong value ulong to void
+for i ulong 8
+put packet add off i uchar and shr value mul i 8 255
+end
+end
+fn sendreq op ulong addr ulong value ulong to ulong
+enc 0 op
+enc 8 addr
+enc 16 value
+n = ulong 0
+while lt n 24 bound 24
+r = write 1 packet n sub 24 n
+if le r 0
+exit 90
+end
+n = add n ulong r
+end
+n = ulong 0
+while lt n 8 bound 8
+r = read 0 reply n sub 8 n
+if le r 0
+exit 90
+end
+n = add n ulong r
+end
+v = ulong 0
+for i ulong 8
+v = or v shl ulong get reply i mul i 8
+end
+ret v
+end
+fn load32 addr ulong to ulong
+ret sendreq 1 addr 0
+end
+fn load64 addr ulong to ulong
+ret sendreq 2 addr 0
+end
+fn store32 addr ulong value ulong to void
+r = sendreq 3 addr value
+if ne r 0
+exit 90
+end
+end
+fn store64 addr ulong value ulong to void
+r = sendreq 4 addr value
+if ne r 0
+exit 90
+end
+end
+fn zero_dma addr ulong size ulong to void
+r = sendreq 5 addr size
+if ne r 0
+exit 90
+end
+end
+fn fetchid addr ulong to void
+r = sendreq 6 addr 4096
+if ne r 0
+exit 90
+end
+n = ulong 0
+while lt n 4096 bound 4096
+rv = read 0 ident n sub 4096 n
+if le rv 0
+exit 90
+end
+n = add n ulong rv
+end
+end
+fn fetchdata addr ulong size ulong to void
+r = sendreq 6 addr size
+if ne r 0
+exit 90
+end
+n = ulong 0
+while lt n size bound 8192
+rv = read 0 bounce n sub size n
+if le rv 0
+exit 90
+end
+n = add n ulong rv
+end
+end
+fn publish size ulong to void
+r = sendreq 7 0 size
+if ne r 0
+exit 90
+end
+n = ulong 0
+while lt n size bound 8192
+rv = write 1 caller n sub size n
+if le rv 0
+exit 90
+end
+n = add n ulong rv
+end
+end
+fn report code int to void
+r = sendreq 8 get st 1 ulong code
+if ne r 0
+exit 90
+end
+end
+fn getmanifest to void
+n = ulong 0
+while lt n 80 bound 80
+r = read 0 manifest n sub 80 n
+if le r 0
+exit 90
+end
+n = add n ulong r
+end
+end

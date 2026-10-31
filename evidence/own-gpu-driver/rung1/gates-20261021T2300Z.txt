@@ -1,0 +1,39 @@
+# gates.sh direct at nice 19 ionice -c3 (correctness only; quiet lock held exclusive by spark-window 20261021T215856Z-b73c7d L371). head 884596e2dd50f2080d0d85e13e2b15fa14e4b037 devc 19992f84ef24729cdae394f0d81a2438d85b6b81 start 2026-10-21T23:00:24Z load 9.70 10.34 10.76
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+drift: gb10_gpu_channel.md identical
+drift: gch_contract.c identical
+test_gpu_sim: PASS (225 checks)
+test_gpu_sim: PASS (225 checks)
+gpu-contract-trace: PASS (391 lines identical, hand vs contract)
+gpu-contract-freestanding: PASS (gch_contract.c with KCC/KCFLAGS, needs only the ck_gmem allocator)
+test_gpu_sim: PASS (225 checks)
+mutant killed (test_gpu_sim): TARGET=TARGET_SYS_COH -> TARGET=1
+mutant killed (test_gpu_sim): BIG_PAGE_64K=1 -> BIG_PAGE_64K=0
+mutant killed (test_gpu_sim): LENGTH=nwords LEVEL=1 -> LENGTH=nwords LEVEL=0
+mutant killed (test_gpu_sim): const USERD_GPPUT 0x8C -> const USERD_GPPUT 0x88
+mutant killed (test_gpu_sim): const RAMIN_PDB_WORD 128 -> const RAMIN_PDB_WORD 130
+mutant killed (test_gpu_sim): format TOKEN 32 RUNLIST_ID 22:16 -> format TOKEN 32 RUNLIST_ID 23:17
+mutant killed (test_gpu_sim): reg vf DOORBELL 0x30090 4 wo -> reg vf DOORBELL 0x30094 4 wo
+mutant killed (test_gpu_sim): LENGTH 62:42 -> LENGTH 63:43
+mutant killed (checker): PTR_HI 51:32 place -> PTR_HI 51:32
+mutant killed (checker):   fence\n  bind ->   bind\n  fence\n  bind
+contract mutants: 10 of 10 killed
+test_gsp_mmio: PASS (67 checks)
+test_gsp_mmio: PASS (67 checks)
+gsp-mmio-freestanding: PASS (gsp_mmio.c with KCC/KCFLAGS, no undefined symbol)
+mutant killed (test_gsp_mmio): in->len > CK_GSP_EMEM_CHANNEL_BYTES -> in->len >= CK_GSP_EMEM_CHANNEL_BYTES
+mutant killed (test_gsp_mmio): wr(r, CK_GSP_QHEAD0, 0); -> wr(r, CK_GSP_QHEAD0, 1);
+gsp_mmio mutants: 20 of 20 killed
+drift: gb10_gsp_boot.md identical
+drift: gsb_contract.c identical
+test_gsp_mmio: PASS (67 checks)
+test_gsp_mmio: PASS (67 checks)
+gsp-contract-trace: PASS (3228 lines identical, hand vs contract)
+gsp-contract-freestanding: PASS (gsb_contract.c with KCC/KCFLAGS, no undefined symbol)
+mutant killed (checker): write GSP_QHEAD0 0 -> write GSP_QHEAD0 1
+mutant killed (trace differs): into sec2_mb0 timeout-read SEC2_MAILBOX1 sec2_mb1 -> into sec2_mb0
+gsp contract mutants: 20 of 20 killed
+gates exit done
+rc=0 end 2026-10-21T23:00:57Z load 8.69 10.04 10.65

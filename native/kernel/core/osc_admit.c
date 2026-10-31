@@ -1,3 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* osc_admit.c -- kernel policy and reporting for OSC unit admission.
  *
  * Policy (OSC_UNIT_ARTIFACT.md section 8.1), all local to this build:
@@ -24,6 +40,33 @@ void ck_osh_all(void);
 #ifdef CK_SEED0B_TEST_ANCHOR
 #include "osc_unit_test_anchor.h"
 #include "osc_receipt_test_anchor.h"
+#endif
+/* Variant 3 flips one admitted code byte after admission and restores it after
+ * launch (ck_osc_receipt_test_code_flip). The flip is its own opt-in,
+ * CK_OSC_RECEIPT_CODE_FLIP. The Makefile defines that macro only inside the
+ * CK_OSC_RECEIPT_TEST=1 block. CK_OSC_RECEIPT_TEST does not enable the flip,
+ * and neither does CK_SEED0B_TEST_ANCHOR: a compiler command that passes those
+ * two and skips native/kernel/Makefile fails below. CK_RELEASE_IMAGE (every
+ * build that is not the qualification anchor), CK_HARDWARE_STAGING and
+ * CK_SERVICE are positive production or release defines; the flip #errors
+ * when any of them is present. */
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && !defined(CK_OSC_RECEIPT_TEST)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) requires CK_OSC_RECEIPT_TEST"
+#endif
+#if defined(CK_OSC_RECEIPT_TEST) && !defined(CK_OSC_RECEIPT_CODE_FLIP)
+#error "CK_OSC_RECEIPT_TEST requires CK_OSC_RECEIPT_CODE_FLIP; CK_SEED0B_TEST_ANCHOR does not enable the post-admission code byte flip"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_RELEASE_IMAGE)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_RELEASE_IMAGE"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_HARDWARE_STAGING)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_HARDWARE_STAGING"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && defined(CK_SERVICE)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled when a production or release define is present: CK_SERVICE"
+#endif
+#if defined(CK_OSC_RECEIPT_CODE_FLIP) && !defined(CK_SEED0B_TEST_ANCHOR)
+#error "CK_OSC_RECEIPT_CODE_FLIP (TEST-ONLY post-admission code byte flip) cannot be compiled into a release build"
 #endif
 
 static unsigned seen, accepted, refused, oversize, announced;
@@ -218,7 +261,7 @@ struct lt_step {
     int ws; /* 0 none, 1..2 which caller workspace */
     uint64_t cap;
     const char *rcpt; /* receipt Store entry; NULL: the unit's own (lt_rcpt_for), "-": none */
-    int variant;      /* receipt policy variant for this launch (ck_osc_rcpt_variant): 0 qual, 1 release, 2 revoked key */
+    int variant;      /* TEST ONLY: 0 qual, 1 release, 2 revoked key, 3 changed code under qual policy */
 };
 
 /* The receipt of each launched unit: a receipt binds the IR and the code, so l02 (l01 with a bigger stack) shares
@@ -238,6 +281,15 @@ static uint8_t lt_ws_mem1[4 * 4096], lt_ws_mem2[4 * 4096], lt_ws_mem3[23 * 4096]
 static struct ck_osc_ws lt_ws[8] = { { lt_ws_mem1, 4 }, { lt_ws_mem2, 4 }, { lt_ws_mem3, 23 }, { lt_ws_mem4, 33 },
                                       { 0, 1 }, { lt_ws_mem1 + 8, 1 }, { 0, 1 }, { lt_ws_mem2, 4 } };
 static unsigned lt_counts[5];
+
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
+/* TEST ONLY. One call flips one admitted code byte; the second call restores
+ * it. The launch between the two calls rehashes the private copy. */
+static __attribute__((noinline)) void ck_osc_receipt_test_code_flip(uint8_t *code_byte)
+{
+    *code_byte ^= 1;
+}
+#endif
 
 static void lt_run(const struct lt_step *s)
 {
@@ -270,8 +322,18 @@ static void lt_run(const struct lt_step *s)
         const char *rn = s->rcpt ? s->rcpt : lt_rcpt_for(s->unit);
         size_t rlen = 0;
         const uint8_t *rb = lt_streq(rn, "-") ? 0 : ck_osc_receipt_find(rn, &rlen);
-        ck_osc_rcpt_variant = s->variant;
+        ck_osc_rcpt_variant = s->variant == 3 ? 0 : s->variant;
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
+        /* Preserve the valid receipt and admitted view; alter only the bytes
+         * privately copied by the launcher, exercising its final rehash. */
+        if (s->variant == 3)
+            ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
+#endif
         ck_osc_launch(lt_unit[u].bytes, lt_unit[u].len, &lt_unit[u].acc, rb, rlen, &rq, &r, &info);
+#ifdef CK_OSC_RECEIPT_CODE_FLIP
+        if (s->variant == 3)
+            ck_osc_receipt_test_code_flip(&lt_unit[u].bytes[lt_unit[u].acc.code_off]);
+#endif
         ck_osc_rcpt_variant = 0;
         char rs[96], as[80];
         ck_osc_result_str(&r, rs, sizeof rs);
@@ -295,7 +357,7 @@ static void lt_run(const struct lt_step *s)
             hex(idh, info.rcpt.id, 8);
         ck_printf("osc_rcpt_launch: %s %s(%s) receipt=%s policy=%s -> %s receipt_id=%s revoked=%s ticks=%llu "
                   "pages_mapped=%u page_tables_zeroed=%u slot_free=%u; QEMU (aarch64 virt), TEST signer, not physical\n",
-                  s->unit, s->fn, as, rb ? rn : "none", vname[s->variant], rs, idh,
+                  s->unit, s->fn, as, rb ? rn : "none", vname[s->variant == 3 ? 0 : s->variant], rs, idh,
                   info.rcpt.revoked == OSC_RCPT_REVOKED_ID ? "receipt_id"
                   : info.rcpt.revoked == OSC_RCPT_REVOKED_KEY ? "signer_key" : "-",
                   (unsigned long long)r.ticks, info.pages_mapped, (unsigned)info.tables_zeroed,
@@ -339,8 +401,10 @@ static void rt_all(void)
         { "a01_valid_min.unit", "add", 2, { 15, 16 }, 0, 0, 0, "n_deps.rcpt", 0 },
         { "a01_valid_min.unit", "add", 2, { 16, 17 }, 0, 0, 0, "n_checker.rcpt", 0 },
         { "a01_valid_min.unit", "add", 2, { 17, 18 }, 0, 0, 0, "a01.owner.rcpt", 1 },
+        { "a01_valid_min.unit", "add", 2, { 18, 19 }, 0, 0, 0, "a01.rcpt", 3 },
         { "a01_valid_min.unit", "add", 2, { 20, 22 }, 0, 0, 0, "a01.rcpt", 0 },
     };
+    ck_printf("osc_rcpt_rehash: TEST-ONLY post-admission code byte flip; QEMU (aarch64 virt), TEST signer, not physical\n");
     ck_printf("osc_rcpt_selftest: launches=%u unit=a01_valid_min.unit; QEMU (aarch64 virt), TEST signer, not physical\n",
               (unsigned)(sizeof steps / sizeof steps[0]));
     for (unsigned i = 0; i < sizeof steps / sizeof steps[0]; i++)

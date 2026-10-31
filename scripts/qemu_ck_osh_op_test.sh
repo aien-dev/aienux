@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Drake Stapleton (AIEN / aien-dev)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # AIENOS_CK_OSH_OP gate (OSH-AIENOS-OP, aien-architecture#158): a REAL capability-authorized operation through the shared
 # OSH interface. The same three compiled shell units (lex_run, parse_run, expand_run) run as admitted EL0 tasks; on a ready
 # pipeline the request record goes to the adapter's operation layer (native/kernel/core/osh_op.c) instead of a fake status.

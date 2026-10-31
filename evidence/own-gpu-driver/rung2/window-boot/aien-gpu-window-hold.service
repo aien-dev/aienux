@@ -1,0 +1,18 @@
+# Inert on every normal boot. Runs only when GRUB booted the one-shot entry 'aien-gpu-window' (kernel flag
+# aien.gpuwindow=1). It holds NVIDIA's modules back for THIS boot only: the file lives in /run (tmpfs), so any later
+# boot (lease reboot, watchdog reset, panic reboot, power cycle) is the default entry with NVIDIA's driver loaded.
+[Unit]
+Description=AIEN GPU window: hold NVIDIA modules back for this boot only
+DefaultDependencies=no
+ConditionKernelCommandLine=aien.gpuwindow=1
+Before=systemd-udev-trigger.service systemd-modules-load.service nvidia-persistenced.service
+After=local-fs-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mkdir -p /run/modprobe.d
+ExecStart=/bin/sh -c 'printf "# aien-gpu-window: this boot only (tmpfs). window*-post.sh removes it.\\ninstall nvidia /bin/false\\ninstall nvidia_uvm /bin/false\\ninstall nvidia_modeset /bin/false\\ninstall nvidia_drm /bin/false\\ninstall nvidiafb /bin/false\\n" > /run/modprobe.d/zz-aien-gpu-window.conf'
+
+[Install]
+WantedBy=sysinit.target

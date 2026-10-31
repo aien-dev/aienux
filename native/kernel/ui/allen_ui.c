@@ -142,7 +142,7 @@ static uint32_t ms(uint64_t now) { return (uint32_t)((now - ui.t0) * 1000u / ui.
 static unsigned copy(char *d, const char *s, unsigned max)
 {
     unsigned n = 0;
-    while (s && s[n] && n < max - 1)
+    while (s && n < max - 1 && s[n])
         d[n] = s[n], n++;
     d[n] = 0;
     return n;
