@@ -10,22 +10,38 @@ paths remain live. No service, machine, physical disk or boot path was changed.
 
 Build on Linux AArch64 from the pinned public compiler source. These are
 component build instructions, not a released interactive alpha. The compiler is
-omega-mv branch `feat/x86efi-exit-sites` at 8da48140 (draft #977 on the x86-64
-Linux/UEFI line of draft #895): look-paint.om needs its `const` and `bitcast`,
-the firmware unit its larger trap/exit-site tables. From this repository root:
+omega-mv branch `feat/x86efi-file-word` at 81ab1900 (draft #981, stacked on #980
+register slots and #977 site tables, on the x86-64 Linux/UEFI line of draft #895):
+look-paint.om needs its `const` and `bitcast`, the firmware unit its larger
+trap/exit-site tables, look-install.om its `efi 11` file word, and the x86 back
+end's live-slot calls and register-resident slots make the firmware's per-pixel
+code run. From this repository root:
 
 ```sh
 git clone https://github.com/aien-dev/omega-mv.git build/allen-toolchain
-git -C build/allen-toolchain checkout --detach 8da48140
-sha256sum build/allen-toolchain/seed/out/omc     # expect a1d3217674511f38...
+git -C build/allen-toolchain checkout --detach 81ab1900
+sha256sum build/allen-toolchain/seed/out/omc     # expect 9995f8534e0e5447...
 ```
 
 The committed `seed/out/omc` on that branch is the pinned compiler; its
 self-rebuild (`sh seed/omega-from-seed.sh` in a disposable clone) reproduces
 the same bytes. Self-rebuild equality does not establish diverse compiler
 ancestry; that qualification is a separate claim. The expected SHA-256 is
-`a1d3217674511f3880962cf4bfd8ec0f254104cf6cb03834b005237808f6ade4`; pass the
-executable as `OMEGA_COMPILER` (on the Spark: `~/work/IMacLook/omc2`).
+`9995f8534e0e54470194d57f163421add779cf1994062f8d9a417d0a39f2b075`; pass the
+executable as `OMEGA_COMPILER` (on the Spark: `~/work/IMacLook/omc5`).
+
+The firmware image for the iMac is one unit of every module in the order
+`build-fw.sh` lists (platform, base, sha256, font, the look, surface, GitHub,
+HTTP, net, TLS, session, repository screen, runtime, courier, memory, intent,
+reply, context, application, chat, install, stopwatch, show, efi-main, demo):
+
+```sh
+OMEGA_COMPILER=... sh native/omega/allen/build-fw.sh target/BOOTX64.EFI
+```
+
+The typed line `stats` makes Allen say the stopwatch's last line (look-stat.om);
+`install allen on this computer` copies the image to the internal EFI System
+Partition (look-install.om); nothing is written at boot.
 
 Run the complete component gate:
 

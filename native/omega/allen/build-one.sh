@@ -8,8 +8,8 @@ compiler=${OMEGA_COMPILER:-"$root/build/allen-toolchain/seed/out/omc"}
  echo 'pinned compiler missing; follow native/omega/allen/README.md' >&2
  exit 69
 }
-# Pin: omega-mv feat/x86efi-exit-sites 8da48140 (draft #977): the firmware unit and look-paint.om need its const/bitcast and site tables.
-[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = a1d3217674511f3880962cf4bfd8ec0f254104cf6cb03834b005237808f6ade4 ] || {
+# Pin: omega-mv feat/x86efi-file-word 81ab1900 (draft #981 on #980 on #977): register slots, live-slot calls, the efi 11 file word, const/bitcast and the site tables.
+[ "$(sha256sum "$compiler" | cut -d' ' -f1)" = 9995f8534e0e54470194d57f163421add779cf1994062f8d9a417d0a39f2b075 ] || {
  echo 'compiler digest differs from the qualified pin' >&2
  exit 65
 }
