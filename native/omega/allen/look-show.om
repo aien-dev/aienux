@@ -484,6 +484,11 @@ if stasked
 hmkey 13
 ret
 end
+if inmatch
+hmkey 13
+ininstall ulong get Sh 11
+ret
+end
 if ghask
 put Dmo 0 1
 put Sh 5 1
