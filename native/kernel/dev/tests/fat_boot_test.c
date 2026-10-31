@@ -13,6 +13,7 @@
  * Writes part1.img/img1.bin, part2.img/img2.bin and part3.img into the
  * folder given, for scripts/ck_fat_boot_test.sh to check with fsck.fat and
  * mtools (outside readers). Hosted test code only (libc). */
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +62,11 @@ static int spill(const char *name, const uint8_t *b, size_t n)
 {
     char path[512];
     snprintf(path, sizeof path, "%s/%s", g_dir, name);
-    FILE *fp = fopen(path, "wb");
+    /* 0644, not fopen's 0666 & ~umask: the images must not be world-writable. */
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    FILE *fp = fd < 0 ? NULL : fdopen(fd, "wb");
+    if (fd >= 0 && !fp)
+        close(fd);
     if (!fp)
         return -1;
     size_t w = fwrite(b, 1, n, fp);
