@@ -13,21 +13,21 @@
     "generated": {
       "children": [
         {
-          "digest": "ba6e27862b0aebf1e3964b0b307b0666c9f6cb9f14a48b2c8547c57d0355b407",
-          "last_commit": "621c9e6f",
+          "digest": "d0d6d8af7d2b6f118028c35829128cb26d6c3af0fed91794e1a959f48c51fbdf",
+          "last_commit": "f45d00a",
           "name": "src",
           "purpose": "Directory crates/aienos-crypto/src. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:c12a8d943d691dae8378d4edd8a2c1f1a6cce38af69cf212a23c7f77a9f694ae",
-      "compiled_at": "2026-10-24T04:15:32Z",
+      "children_root": "sha256:19a49456867fddebcaf42595719822e49fce1bb9000e407914148378721d11a6",
+      "compiled_at": "2026-10-31T02:23:06Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:abc59b7f8730775fca5d3595415bff49a12a0d9ca42fa73fd28ab25931ad1495",
+      "digest": "sha256:f348a10b97e0416fc1f65a100ca6ac838bcb7e0fd05d3b3b160d8e3d6d4ae809",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 6,
-      "generated_at_commit": "621c9e6fe430ee689836bee3ee2689d7d32e0f7d",
-      "source_tree": "sha256:23495bab49cccd4ea7688ec7984d7c5830586e8aecef9454e4aa3f862bae6cc6"
+      "generated_at_commit": "e7244ddf3bd8207f6e2e255281aeed369ba669e7",
+      "source_tree": "sha256:a634957c5c408246e42e263c86065b9cd14e051d7ff35ae6cf9987e02a81a7e8"
     },
     "owner_lane": "",
     "provenance": {

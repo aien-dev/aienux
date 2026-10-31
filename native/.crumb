@@ -50,80 +50,80 @@
       "children": [
         {
           "digest": "72ee4e94f3dc99d79ea4eb3bf619ad645c0b76d7009d1883e59adfbfce9c8ac2",
-          "last_commit": "09e59a8",
+          "last_commit": "2c9c8b5",
           "name": "argus",
           "purpose": "Directory native/argus. Purpose not yet described by a human."
         },
         {
           "digest": "55582525fd80851150b4b8620558bd3d44f516aac70cf20566f33ec98a914c33",
-          "last_commit": "2eef482",
+          "last_commit": "e4bc7aa",
           "name": "boot",
           "purpose": "Directory native/boot. Purpose not yet described by a human."
         },
         {
           "digest": "1b5414c184e37d4d943e7979db3d82f1441d6004bb9b5c379a4e4e39381fe7fd",
-          "last_commit": "7db773a",
+          "last_commit": "f45d00a",
           "name": "capability",
           "purpose": "Directory native/capability. Purpose not yet described by a human."
         },
         {
           "digest": "ec6a4295568339a6dea0df513d23cf7a28a90d07bee2cd8f93a7417b48ff7871",
-          "last_commit": "7db773a",
+          "last_commit": "2c9c8b5",
           "name": "crypto",
           "purpose": "Directory native/crypto. Purpose not yet described by a human."
         },
         {
           "digest": "43e1cf9e246a9cdfca6b1147381ad071e1cffaf408bb58d3e09b7001e7b0eb5c",
-          "last_commit": "7db773a",
+          "last_commit": "b5e7268",
           "name": "disk",
           "purpose": "Directory native/disk. Purpose not yet described by a human."
         },
         {
-          "digest": "6e172d7caa89ed931e1c2dcfb9d133d2aa57c25e873a43bbdfb5993306023d71",
-          "last_commit": "ca77aa8",
+          "digest": "61b2904194490fb8fa5b1dba19bb861308efc31be1ad5cc909d8f226d1e45d05",
+          "last_commit": "b4c351e",
           "name": "kernel",
           "purpose": "Directory native/kernel. Purpose not yet described by a human."
         },
         {
           "digest": "b9588f7026aaa3fbf7777f5c10d90a1c915cc301be98be5081d3d66106cf77c8",
-          "last_commit": "7db773a",
+          "last_commit": "2c9c8b5",
           "name": "m5",
           "purpose": "Directory native/m5. Purpose not yet described by a human."
         },
         {
           "digest": "b0c2410bb450a0bf6156e064185b024b622fd844e87d7acd476df10c7af63cf6",
-          "last_commit": "7db773a",
+          "last_commit": "dc9a996",
           "name": "net",
           "purpose": "Directory native/net. Purpose not yet described by a human."
         },
         {
           "digest": "f3c7ee4f18f768fa9964c123e07f076c544c58c0966a8a5e9571b0397bf57b06",
-          "last_commit": "",
+          "last_commit": "c93a5f5",
           "name": "omega",
           "purpose": "Seeded Omega native modules"
         },
         {
           "digest": "6f0bf10c76df492d27ae642792476c1138bc73f0d897b3ddca04605ac07b4268",
-          "last_commit": "7db773a",
+          "last_commit": "2c9c8b5",
           "name": "sig",
           "purpose": "Directory native/sig. Purpose not yet described by a human."
         },
         {
           "digest": "e125172a18437b662edf303f4b9615bb791f5e7d2ed94192033823185e7d40e1",
-          "last_commit": "e5e8f08",
+          "last_commit": "2c9c8b5",
           "name": "store",
           "purpose": "Directory native/store. Purpose not yet described by a human."
         }
       ],
-      "children_root": "sha256:06926b12cb7fe1c06d8df32253ef1d2490014f7d9a008fac802d5906954c7ef5",
-      "compiled_at": "2026-10-31T02:58:08Z",
+      "children_root": "sha256:984d253047fdba696dc25901a6d5a1035256acd1f0062acc1f7b9b8635a68cc5",
+      "compiled_at": "2026-10-31T03:56:20Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:d84f73bf54064d27f1e578fdcb713b3ed93fe5df7f14052b5c4b28ef00ac10c9",
+      "digest": "sha256:0660522029d1706b495ea85da3194a9bcad5d7938241850f23920cd513f1b46d",
       "evidence_files": 24,
       "evidence_root": "sha256:ecc7ccf2e924c221a5bac1d91e23b13d8f3c8d78c2a893a882ed7ca5e88d855d",
       "files": 770,
-      "generated_at_commit": "66bf338dd2c1ce4cf01f7f43094a939a33d1933a",
-      "source_tree": "sha256:8236c29654f1423e73ba154ba2a545d9b75ab434e0951d9588371aab4825efe1"
+      "generated_at_commit": "b4c351e7bc9c01e9384c19e9d6fc2ab4d2472e85",
+      "source_tree": "sha256:5c4657f8d59935d52f7097f40cad08394b97854d7c91f7fe6bd9012a0576cedd"
     },
     "owner_lane": "",
     "provenance": {
