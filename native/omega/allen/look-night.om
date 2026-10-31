@@ -23,6 +23,7 @@ global Ntcor long 12
 global Ntwt long 4
 global Ntlr long 8
 global Ntlit0 ulong 257
+global Ntsz long 5
 global Ntb long 4
 global Ntd long 4
 global Ntg long 5
@@ -149,6 +150,11 @@ note the sky is one black, so the per-pixel add becomes a table read; same bytes
 for a ulong 257
 put Ntlit0 a pkadd 0 5663920 a
 end
+put Ntsz 0 mul sub get Lg 0 1 16
+put Ntsz 1 mul sub get Lg 1 1 16
+put Ntsz 2 sub get Lg 0 1
+put Ntsz 3 sub get Lg 1 1
+put Ntsz 4 mul sub get Lg 1 1 get Lg 0
 for i ulong 256
 c = shr ulong add 16384 pkcos mul i 256 1
 c2 = shr mul c c 14
@@ -593,34 +599,80 @@ put Ntcor add c 4 get Ntwarp 1
 put Ntcor add c 8 get Ntwarp 2
 end
 end
+note ntmix4: the bilinear mix of four taps at fractions sx, sy (sixteenths), as ntsample.
+fn ntmix4 a ulong b ulong c ulong d ulong sx long sy long to ulong
+a = pkmix a b mul ulong and sx 15 16
+c = pkmix c d mul ulong and sx 15 16
+ret pkmix a c mul ulong and sy 15 16
+end
 note ntgpx: one pixel of a grid block at wx (odd sixteenths across the block): the warp and
 note light interpolated between the row's left and right edge values Ntlr (ntgridrow), then the
-note sky sample and the fade or the ripple light (ntfinal in place). The edge form equals the
-note four-corner dot of night.c exactly: (16-wx)(c0(16-wy) + c2 wy) + wx(c1(16-wy) + c3 wy).
+note sky sample (ntsample in place: clamp, four taps, bilinear only when the taps differ) and
+note the fade or the ripple light (ntfinal in place). The edge form equals the four-corner dot
+note of night.c exactly: (16-wx)(c0(16-wy) + c2 wy) + wx(c1(16-wy) + c3 wy).
 fn ntgpx x long y long wx long to ulong
 wi = sub 16 wx
 sx = mul get Ntlr 0 wi
 sx = add sx mul get Ntlr 3 wx
 sy = mul get Ntlr 1 wi
 sy = add sy mul get Ntlr 4 wx
-l = mul get Ntlr 2 wi
-l = add l mul get Ntlr 5 wx
-sx = shr sx 8
-sy = shr sy 8
-l = shr l 8
-sx = add add mul x 16 8 sx
-sy = add add mul y 16 8 sy
-c = ntsample sx sy
+sx = add mul x 16 shr sx 8
+sy = add mul y 16 shr sy 8
+if lt sx 0
+sx = 0
+end
+if gt sx get Ntsz 0
+sx = get Ntsz 0
+end
+if lt sy 0
+sy = 0
+end
+if gt sy get Ntsz 1
+sy = get Ntsz 1
+end
+ix = shr sx 4
+wi = mul shr sy 4 get Lg 0
+wi = add wi ix
+note ix becomes the step to the right tap: 1, or 0 on the last column (pkmin ix+1 w-1).
+if lt ix get Ntsz 2
+ix = 1
+else
+ix = 0
+end
+a = ulong get Nsky wi
+b = ulong get Nsky add wi ix
+note The row below exists while the tap lies above the last row (pkmin iy+1 h-1).
+if lt wi get Ntsz 4
+wi = add wi get Lg 0
+end
+c = ulong get Nsky wi
+d = ulong get Nsky add wi ix
+if ne a b
+a = ntmix4 a b c d sx sy
+else
+if ne c d
+a = ntmix4 a b c d sx sy
+else
+if ne a c
+a = ntmix4 a b c d sx sy
+end
+end
+end
 if lt get Ntt 0 6800
-c = ntfadepx c x y
+a = ntfadepx a x y
 end
-if ne l 0
-if and eq c 0 le l 256
-ret get Ntlit0 ulong l
+note The light, interpolated like the warp; sx is free now and holds it.
+wi = sub 16 wx
+sx = mul get Ntlr 2 wi
+sx = add sx mul get Ntlr 5 wx
+sx = shr sx 8
+if ne sx 0
+if and eq a 0 le sx 256
+ret get Ntlit0 ulong sx
 end
-ret pkadd c 5663920 ulong l
+ret pkadd a 5663920 ulong sx
 end
-ret c
+ret a
 end
 fn ntgridrow y long bx long wy long to void
 p = mul y get Lg 0
